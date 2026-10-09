@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type * as Y from 'yjs';
+import * as Y from 'yjs';
 import {
   createSticky,
   deleteObjects,
@@ -13,6 +13,7 @@ import { useCamera } from './canvas/useCamera';
 import { ZoomControls } from './canvas/ZoomControls';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
+import { useUndo } from './board/useUndo';
 import { useSelection } from './board/useSelection';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useTransformGesture } from './board/useTransformGesture';
@@ -42,6 +43,8 @@ declare global {
       connectionState: string;
       /** Test-only: the board's Y.Doc, for seeding/inspection. */
       doc?: Y.Doc;
+      /** Test-only: the Yjs module, so tests can build/apply remote updates. */
+      Y?: typeof import('yjs');
     };
   }
 }
@@ -71,20 +74,26 @@ export function Board(props: { boardId: string }): ReactElement {
   const selection = useSelection(objects);
   const editable = canEdit(connectionState);
 
+  // Story 8 (undo.session_only): one undo controller per board document.
+  const undoState = useUndo(doc);
+
   // Marquee: Shift+drag on empty space adds fully-contained ids to the set.
   const marquee = useMarquee(cam.camera, objects, (ids) => selection.setMany(ids, true));
 
-  // Generic transform gesture: group move + bounding-box resize.
+  // Generic transform gesture: group move + bounding-box resize. Story 8:
+  // the gesture is one undo step (boundary at start and end).
   const transform = useTransformGesture({
     doc,
     camera: cam.camera,
     selection,
     snapshot: objects,
     canEdit: editable,
+    onGestureStart: undoState.boundary,
+    onGestureEnd: undoState.boundary,
   });
 
-  // Selection keyboard commands (select all, clear, nudge, delete, edit).
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  // Selection keyboard commands (select all, clear, nudge, delete, edit, undo/redo).
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoState.controller });
 
   // Test-only hooks (excluded from production builds).
   useEffect(() => {
@@ -93,6 +102,7 @@ export function Board(props: { boardId: string }): ReactElement {
       setCamera: (x, y, zoom) => cam.setCameraDirect({ x, y, zoom }),
       connectionState,
       doc,
+      Y,
     };
   }, [cam, connectionState, doc]);
 
@@ -105,13 +115,16 @@ export function Board(props: { boardId: string }): ReactElement {
   const createStickyAt = useCallback(
     (world: Point) => {
       if (!editable) return; // load_failed: the board is not editable
+      // Story 8: a single model call is one undo step.
+      undoState.boundary();
       const id = createSticky(doc, {
         x: world.x - STICKY_SIZE_WORLD / 2,
         y: world.y - STICKY_SIZE_WORLD / 2,
       });
+      undoState.boundary();
       if (id) createdIdRef.current = id;
     },
-    [doc, editable],
+    [doc, editable, undoState.boundary],
   );
 
   // Select + edit the just-created note once it is present. Runs after
@@ -212,6 +225,7 @@ export function Board(props: { boardId: string }): ReactElement {
               selected={selection.ids.has(o.id)}
               editing={selection.editingId === o.id}
               editable={editable}
+              undo={undoState.controller}
               onObjectPointerDown={transform.onObjectPointerDown}
               onStartEdit={(id: string) => {
                 if (editable) selection.startEdit(id);
@@ -229,7 +243,14 @@ export function Board(props: { boardId: string }): ReactElement {
         <SelectionBar ids={selection.ids} snapshot={objects} onDelete={deleteSelection} />
         <MarqueeRect rect={marquee.rect} zoom={cam.camera.zoom} />
       </BoardViewport>
-      <Toolbar onCreateSticky={createStickyCenter} disabled={!editable} />
+      <Toolbar
+        onCreateSticky={createStickyCenter}
+        disabled={!editable}
+        canUndo={undoState.canUndo}
+        canRedo={undoState.canRedo}
+        onUndo={undoState.undo}
+        onRedo={undoState.redo}
+      />
       <ZoomControls
         zoom={cam.camera.zoom}
         onZoomIn={() => cam.zoomStep('in')}

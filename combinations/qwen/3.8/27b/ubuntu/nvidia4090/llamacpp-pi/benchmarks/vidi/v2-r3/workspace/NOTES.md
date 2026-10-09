@@ -315,3 +315,89 @@ alive and to carry no product-visible state in this story.
   Playwright config keeps a single chromium project. The multi-select flows are
   DOM/pointer only (no browser-specific API), so porting is a config change.
 - **No new ports.** Story 7 reuses 29040 (e2e `webServer`) like story 3.
+
+## 12. Story 8 — undo and redo my own changes without undoing anyone else's
+
+- **Per-user history = a `Y.UndoManager` scoped to the objects map that
+  tracks only the local origin.** `createUndo(doc)` builds
+  `new Y.UndoManager(doc.getMap('objects'), { trackedOrigins: new Set([LOCAL_ORIGIN]),
+  captureTimeout: UNDO_CAPTURE_TIMEOUT_MS })`. Every product mutation is one
+  `doc.transact(fn, LOCAL_ORIGIN)`, so only this tab's own transactions are
+  captured; remote (provider-origin) changes and story 4 load updates are never
+  in the stack (`undo.own`). One controller per `Y.Doc`, created in
+  `useUndo(doc)` inside `<Board>` (the doc lives in `useBoardDoc`), destroyed on
+  unmount — a reload gets a fresh, empty stack (`undo.session_only`).
+- **`LOCAL_ORIGIN` is a unique `Symbol`**, not a string. Yjs's default
+  (empty) `trackedOrigins` would capture *everything*, and a string origin does
+  not round-trip the symbol the model uses — so the manager is told the exact
+  symbol the model writes with. (An empty `trackedOrigins` + a string origin is
+  the combination that silently captures nothing; the manager needs the same
+  object identity the transactions carry.)
+- **The corruption bug (root-caused & guarded).** Undoing a step whose object a
+  *remote* peer has since deleted made Yjs re-insert a struct whose parent was
+  already gone, and the **entire `objects` map emptied** (total corruption) for
+  everyone. The trigger: the object's *creation* was tracked locally **and** a
+  remote peer deleted it, then a local undo targeted it. Fix: a **safety
+  guard** in `undo.ts` (`stepIsSafe`) runs before every `manager.undo()/redo()`. For
+  the top stack item it walks every struct in both `insertions` and `deletions`
+  up to its top-level object key (`topLevelKey`, following `._item` until the
+  parent is the objects scope) and refuses the step unless that key is still
+  alive in the scope *or* being re-inserted by the same step. An unsafe step is
+  **popped as a no-op** (consumed, `onChange` emitted) instead of applied — so
+  undo stays safe and never throws, and the next undo still works. Only
+  structural liveness is checked; the public `scope.has(key)` is used (no
+  reliance on Yjs internals beyond `_item`/`parentSub`, which are stable).
+- **Step boundaries.** A *gesture* (group move/resize) is one step:
+  `useTransformGesture` calls `undo.boundary()` (`stopCapturing()`) on start and
+  end, so a 30-frame drag is a single undo. Colour/delete in the note toolbar
+  and create-in-`Board` are single model calls already (one `LOCAL_ORIGIN`
+  transact each). The text editor calls `boundary()` on mount and unmount and
+  writes via `applyTextDiff(..., LOCAL_ORIGIN)`; fast typing (within the capture
+  timeout) merges into one step. Nudge/delete in `useBoardKeys` are bounded the
+  same way.
+- **`ObjectProps` gained `undo: UndoController`.** Objects (stickies) need the
+  controller to (a) pass it to `StickyTextEditor` for the in-field Ctrl+Z
+  interception and (b) put boundaries around colour/delete. `Board` passes
+  `undoState.controller` into every rendered object. This is an additive prop,
+  so the existing object component tests (which don't set it) were unaffected.
+- **Keyboard + buttons.** `useBoardKeys` takes the controller and, after the
+  existing editing/field guards, maps Ctrl/Cmd+Z → undo and Ctrl/Cmd+Shift+Z or
+  Ctrl/Cmd+Y → redo (each `preventDefault`). `StickyTextEditor` intercepts the
+  same combos on the textarea (`preventDefault` + `stopPropagation`) so an undo
+  inside the field edits the *text* via the controller, not the board. The
+  toolbar `UndoButtons` are `aria-label` "Undo"/"Redo", disabled when
+  `!canUndo`/`!canRedo`/`disabled` (load-failed locks the whole bar).
+- **Controller state is React-observable.** `useUndo` subscribes to
+  `onChange` (fired on stack-item-added/popped, including guarded no-ops) to
+  recompute `canUndo`/`canRedo` and re-render the buttons; `boundary`/`undo`/
+  `redo` are stable (via refs) so effect deps don't thrash.
+- **Test-first, and `vi.mock('lib0/time')` needs yjs inlined.** TC-01..TC-13
+  were written first against a simulated remote peer (`tests/unit/peer.ts`). The
+  capture-timeout tests (TC-12/13) freeze `lib0/time.getUnixTime` (yjs measures
+  "now" through it, captured by reference at import). For that mock to reach
+  yjs's *internal* import, yjs and lib0 must be **inlined** in the unit config:
+  `server.deps.inline: ['yjs','lib0']` (externalised by default, where Node's
+  native ESM bypasses the vitest mock). Component tests render the full
+  `<Board>` (real controller + real gesture hook) with notes seeded under a
+  **non-`LOCAL_ORIGIN` origin** so the seeded notes are never in the caller's
+  undo stack — only the interactions performed in the test are.
+- **E2E seeding uses a non-`LOCAL_ORIGIN` origin too.** `seedNotesRemote` writes
+  into `window.__vidi6.doc` under origin `'remote-seed'`; the y-websocket
+  provider re-broadcasts it, so every participant sees the notes but *no one's*
+  undo manager captures them — exactly the "board already had content" case
+  where undo must not touch it. `__vidi6` exposes `doc` and the `Y` namespace
+  (hence `Board` imports `yjs` as a value, not `type-only`) so tests can build
+  and apply such updates. `deleteObjectById` deletes under a local (non-
+  provider) origin to model a real local delete from a second participant.
+- **Yjs 13.6.33 gotchas (no behaviour change, just what the build lacks).**
+  `Y.encodeUpdateAsBinary` does not exist in this build — use
+  `Y.encodeStateAsUpdate`. Root named types have `_item === null` (access
+  through `doc.share`, not an item). `doc.store.clients` is
+  `Map<number, Array<GC|Item>>` and `DeleteSet.clients` is
+  `Map<number, Array<{clock,len}>>`; the guard's structural types mirror these.
+  The namespace does not export `DeleteSet`/`StackItem`/`TransactionOrigin` as
+  types, so `undo.ts` declares local structural types (`StackItemLike`,
+  `DeleteSetLike`, `StructStoreLike`).
+- **Config added:** `UNDO_CAPTURE_TIMEOUT_MS = 500` (merge window for a step),
+  `UNDO_MAX_STEPS = 200` (front-trimmed on `stack-item-added`).
+- **No new ports.** Story 8 e2e reuses 29040 (shared e2e `webServer`).

@@ -1,9 +1,18 @@
 import type { ReactElement } from 'react';
+import { UndoButtons } from './UndoButtons';
 /**
- * Left toolbar with the Sticky note button. `disabled` (the board failed to
- * load) disables the button; the double-click path is gated in App.
+ * Left toolbar with the Sticky note button, the Undo/Redo buttons (story 8)
+ * and nothing else. `disabled` (the board failed to load) disables the
+ * buttons; the double-click path is gated in App.
  */
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): ReactElement {
+export function Toolbar(props: {
+  onCreateSticky(): void;
+  disabled?: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo(): void;
+  onRedo(): void;
+}): ReactElement {
   return (
     <div
       className="toolbar"
@@ -43,6 +52,14 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): 
       >
         +
       </button>
+      <div style={{ height: 1, background: '#e4e7ec', margin: '2px 0' }} />
+      <UndoButtons
+        canUndo={props.canUndo}
+        canRedo={props.canRedo}
+        disabled={props.disabled}
+        onUndo={props.onUndo}
+        onRedo={props.onRedo}
+      />
     </div>
   );
 }

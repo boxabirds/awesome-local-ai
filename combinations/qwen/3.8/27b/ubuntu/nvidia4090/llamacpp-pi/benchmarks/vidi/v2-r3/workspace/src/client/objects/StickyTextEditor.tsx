@@ -5,12 +5,15 @@ import { LOCAL_ORIGIN } from '../../shared/board-model';
 import {
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   padding: number;
+  /** The caller's undo controller (story 8). */
+  undo: UndoController;
   onEnd(next: 'selected' | 'unselected'): void;
 }
 
@@ -24,6 +27,19 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
   const { ytext, fontPx, padding, onEnd } = props;
   const ref = useRef<HTMLTextAreaElement>(null);
   const [length, setLength] = useState(() => ytext.toString().length);
+  const undoRef = useRef(props.undo);
+  undoRef.current = props.undo;
+
+  // Story 8 (undo.steps): one undo step per editing session — a boundary
+  // before the first character and after the last, so consecutive sessions
+  // (or a preceding gesture) never merge into one step.
+  useEffect(() => {
+    undoRef.current.boundary();
+    return () => {
+      undoRef.current.boundary();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Mount: value from Y.Text, focus, caret at end.
   useEffect(() => {
@@ -72,6 +88,22 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
       e.preventDefault();
       e.stopPropagation();
       onEnd('selected');
+      return;
+    }
+    // Story 8: Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z / Ctrl+Y drive the caller's
+    // undo history (not the native textarea undo, which would diverge from
+    // Y.Text). The result is synced back through the Y.Text observer above.
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      undoRef.current.undo();
+      return;
+    }
+    if ((mod && e.shiftKey && (e.key === 'z' || e.key === 'Z')) || (mod && (e.key === 'y' || e.key === 'Y'))) {
+      e.preventDefault();
+      e.stopPropagation();
+      undoRef.current.redo();
     }
   };
 

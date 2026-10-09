@@ -7,6 +7,7 @@
  * Story 4 — persistence
  * Story 5 — sharing a board by link
  * Story 7 — multi-select, move, resize, delete
+ * Story 8 — per-user undo and redo
  */
 
 // Story 1
@@ -63,3 +64,7 @@ export const STICKY_MIN_SIZE_WORLD = 50; // sticky notes cannot be resized below
 export const MAX_OBJECT_SIZE_WORLD = 20_000; // no object may be resized above this (board units)
 export const NUDGE_STEP_WORLD = 1; // arrow-key nudge (board units)
 export const NUDGE_LARGE_STEP_WORLD = 10; // Shift+arrow-key nudge (board units)
+
+// Story 8
+export const UNDO_CAPTURE_TIMEOUT_MS = 500; // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;

@@ -1,3 +1,38 @@
+commit bce6d3cf59dcaf6d7e67d45edd9c73371234ab28
+agent  Fri Oct 9 09:18:14 2026 +0100
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                                 |  86 +++++++
+ PROGRESS.md                              |  20 +-
+ playwright.config.ts                     |   2 +-
+ src/client/Board.tsx                     |  33 ++-
+ src/client/board/Toolbar.tsx             |  23 +-
+ src/client/board/UndoButtons.tsx         |  65 +++++
+ src/client/board/undo.ts                 | 215 +++++++++++++++++
+ src/client/board/useBoardKeys.ts         |  28 ++-
+ src/client/board/useUndo.ts              |  52 ++++
+ src/client/objects/StickyNote.tsx        |  15 +-
+ src/client/objects/StickyTextEditor.tsx  |  32 +++
+ src/client/objects/registry.tsx          |   3 +
+ src/shared/config.ts                     |   5 +
+ tests/component/undo-boundaries.test.tsx | 197 +++++++++++++++
+ tests/component/undo-controls.test.tsx   | 128 ++++++++++
+ tests/e2e/undo.spec.ts                   | 403 +++++++++++++++++++++++++++++++
+ tests/unit/peer.ts                       |  81 +++++++
+ tests/unit/undo-boundaries.test.ts       | 112 +++++++++
+ tests/unit/undo-history.test.ts          | 272 +++++++++++++++++++++
+ vitest.unit.config.ts                    |   8 +
+ 20 files changed, 1758 insertions(+), 22 deletions(-)
+commit 4b8463b3039a2f67072152bea06a268feb508709
+vidi-agent  Fri Oct 9 07:53:23 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit f1537c3abb40dc5dedb77b8175206b1888b0e034
 agent  Fri Oct 9 07:48:37 2026 +0100
 

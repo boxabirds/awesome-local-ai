@@ -6,6 +6,7 @@ import {
 } from '../../shared/board-model';
 import type { Point } from '../canvas/camera';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /**
@@ -32,6 +33,8 @@ export interface ObjectProps {
   readonly editing: boolean;
   /** Whether the current user may edit (story 5). */
   readonly editable: boolean;
+  /** The caller's undo controller (story 8), for step boundaries and shortcuts. */
+  readonly undo: UndoController;
   /** The generic transform-gesture pointer-down handler. */
   onObjectPointerDown(e: React.PointerEvent, id: string): void;
   /** Enter text editing for the object. */

@@ -148,16 +148,27 @@ export function StickyNote(props: ObjectProps): ReactElement {
         <NoteToolbar
           color={note.color}
           onColor={(c: StickyColor) => {
-            if (editable) setStickyColor(doc, id, c);
+            if (!editable) return;
+            props.undo.boundary();
+            setStickyColor(doc, id, c);
+            props.undo.boundary();
           }}
           onDelete={() => {
             if (!editable) return; // load_failed: deletion is a no-op
+            props.undo.boundary();
             deleteObjects(doc, [id]);
+            props.undo.boundary();
           }}
         />
       )}
       {editing && ytext && (
-        <StickyTextEditor ytext={ytext} fontPx={fontPx} padding={PAD} onEnd={props.onEndEdit} />
+        <StickyTextEditor
+          ytext={ytext}
+          fontPx={fontPx}
+          padding={PAD}
+          undo={props.undo}
+          onEnd={props.onEndEdit}
+        />
       )}
     </div>
   );
