@@ -100,6 +100,22 @@ def parse(text: str) -> list[dict]:
     return reqs
 
 
+def gufo_ttfts(text: str) -> list[float | None]:
+    """The time to first token, in seconds, of each request parse() reads from a gufo log, in the same order (None where the line has
+    none). Only meaningful for a log of gufo alone: the caller checks it is as long as parse()'s list."""
+    out: list[float | None] = []
+    for line in text.splitlines():
+        if GUFO_RE.search(line):
+            f = _fields(line)
+            if _int(f, "prompt_tokens") is None or _int(f, "generated_tokens") is None:
+                continue
+            try:
+                out.append(float(f["ttft_ms"]) / 1000.0)
+            except (KeyError, ValueError):
+                out.append(None)
+    return out
+
+
 def _tokens(c) -> tuple | None:
     return None if c.out is None else (c.fresh + c.cached, c.out)
 

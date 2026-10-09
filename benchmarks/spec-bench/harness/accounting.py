@@ -371,6 +371,24 @@ def _claude_event(e: dict, rx: float, last: float, out: Parsed, claude: dict, st
     cs.update(step=rx, thinking_from=None)
 
 
+def _split_by_server_ttft(calls: list, server_log_text: str) -> set[int]:
+    """OpenCode's events say when a step was sent and when its model work ended, not when its first token came; gufo's server logs
+    that for each request (ttft_ms), and a request is matched to the step by its token counts, as the draft figures are. Each matched
+    step's first-token time is set (sent + ttft, never past the step's end); returns the ids of the steps so split."""
+    reqs = engine_log.parse(server_log_text)
+    ttfts = engine_log.gufo_ttfts(server_log_text)
+    if not reqs or len(reqs) != len(ttfts):          # not a log of gufo alone: no split
+        return set()
+    by_request = {id(r): t for r, t in zip(reqs, ttfts)}
+    done: set[int] = set()
+    for c, r in zip(calls, engine_log.match(reqs, calls)):
+        t = by_request.get(id(r)) if r is not None else None
+        if t is not None:
+            c.first = min(c.sent + t, c.end)
+            done.add(id(c))
+    return done
+
+
 def _partition(t_from: float, t_to: float, intervals: list) -> tuple[dict, dict]:
     """Seconds owned by each part, and tool seconds by kind: a sweep over the window, one owner per stretch."""
     rank = {c: i for i, c in enumerate(PRIORITY)}
@@ -428,6 +446,9 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
         cached = 0
     elif p.calls:
         source = p.source
+        measured: set[int] = set()
+        if source == OPENCODE_STREAM:
+            measured = _split_by_server_ttft(p.calls, text)
         spans = [(c.sent, c.first, c.end) for c in p.calls]
         counted = [c for c in p.calls if c.sent >= t_from and c.end <= t_to and not _in_compaction(c.end, comps)]
         pre_n, cached = sum(c.fresh for c in counted), sum(c.cached for c in counted)
@@ -437,6 +458,10 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
         observed = source not in (CLAUDE_STREAM, OPENCODE_STREAM)
         pre_raw = sum(c.first - c.sent for c in counted) if observed else 0
         dec_raw = sum(c.end - c.first for c in counted) if observed and dec_n is not None else 0
+        if source == OPENCODE_STREAM and (known := [c for c in counted if id(c) in measured]):
+            # Rates over the steps whose reading time the server gave: its tokens over its seconds, not the others' unsplit time.
+            pre_n, pre_raw = sum(c.fresh for c in known), sum(c.first - c.sent for c in known)
+            dec_n, dec_raw = sum(c.out for c in known), sum(c.end - c.first for c in known)
         extra = engine_log.draft(text, p.calls, counted)
     else:
         source, spans, counted = None, [], []

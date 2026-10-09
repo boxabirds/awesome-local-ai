@@ -76,3 +76,43 @@ def test_a_step_cut_off_by_a_dead_process_is_abandoned_and_the_gap_is_between_se
     s = split(tmp_path, a + cut + b, 100.0, t2)
     assert s["accounting"]["abandoned_calls"] == 1
     assert s["between_sessions_s"] == pytest.approx(70.0 - 0.05, abs=0.3)
+
+
+def gufo_lines(calls_tokens, ttft_ms=1500.0):
+    """What gufo's server logs for each finished request: the prompt and generated tokens (how a request is matched to the agent's call)
+    and ttft_ms, the time to the first token generated, i.e. the time spent reading the prompt."""
+    out = [f"=== server start {NOW0 - 100} ==="]
+    for i, (prompt, gen) in enumerate(calls_tokens):
+        out.append(f"2026-10-08 23:07:17 [INFO] [http] request=r{i} event=completed method=POST path=/v1/chat/completions status=200 duration_ms=9999.0 "
+                   f"outcome=completed prompt_tokens={prompt} prefill_tokens={prompt} generated_tokens={gen} finish=stop cache=miss cached_tokens=0 ttft_ms={ttft_ms}")
+    return "\n".join(out) + "\n"
+
+
+NOW0 = 1791500000.0
+
+
+def test_with_the_server_log_an_opencode_stories_model_time_is_split_into_reading_and_writing_by_its_ttft(tmp_path):
+    """9 Oct 2026, the owner: an OpenCode story's time bar was one 'Model, not split' block. OpenCode's own events carry no first-token
+    time, but gufo's server logs, for each request, the time to its first token (ttft_ms); the request is matched to the agent's step
+    by its token counts, as the draft figures already are."""
+    lines = FIXTURE.read_text().splitlines(keepends=True)
+    events = [json.loads(l) for l in lines]
+    calls = [(e["part"]["tokens"]["input"] + e["part"]["tokens"]["cache"]["read"], e["part"]["tokens"]["output"]) for e in events if e["type"] == "step_finish"]
+    (tmp_path / "events.jsonl").write_text("".join(lines))
+    (tmp_path / "server.log").write_text(gufo_lines(calls, ttft_ms=1500.0))
+    s = accounting.time_split(tmp_path / "events.jsonl", tmp_path / "server.log", events[0]["_rx"], events[-1]["_rx"] + 0.1)
+    m = s["model"]
+    assert s["accounting"]["ok"], s["accounting"]["problems"]
+    assert m["prefill_s"] == pytest.approx(6 * 1.5, abs=0.3), "each step's reading time is its request's ttft"
+    assert m["decode_s"] > 0 and m["prefill_s"] + m["decode_s"] == pytest.approx(
+        sum(c.end - c.sent for c in accounting.parse(tmp_path / "events.jsonl", 1e12).calls), abs=0.5), "the model's time is the same, now divided"
+    assert m["prefill_tok_s"] is not None and m["decode_tok_s"] is not None, "with measured times there are rates"
+    assert m["prefill_tok_s"] == pytest.approx(sum(f for f in (7692, 3057, 12019, 398, 14402, 54)) / (6 * 1.5), rel=0.05)
+
+
+def test_a_server_log_that_has_no_request_for_a_step_leaves_that_step_unsplit(tmp_path):
+    a, t = step(100.0, 30.0, tool="bash", tool_s=5.0)
+    (tmp_path / "events.jsonl").write_text("".join(a))
+    (tmp_path / "server.log").write_text(gufo_lines([(99999, 7)]))      # a request that is not this step's
+    s = accounting.time_split(tmp_path / "events.jsonl", tmp_path / "server.log", 100.0, t)
+    assert s["model"]["prefill_s"] == 0.0 and s["model"]["prefill_tok_s"] is None

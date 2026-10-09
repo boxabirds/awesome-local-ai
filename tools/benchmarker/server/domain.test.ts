@@ -708,6 +708,12 @@ describe("tokens and speed", () => {
     expect(st.usage!.split).toMatchObject({ prefill: 0, decode: 0, modelUnsplit: 1626.9, tools: 160, other: 47 });
   });
 
+  it("OpenCode's model time IS split when the record has it (the server's time to first token); only a record without it is 'not split'", () => {
+    const st = storyEntry("1", { agent: { seconds: 1800, tokens: {} }, time_split: { wall_s: 1900, tools_s: 160, compaction_s: 0, other_s: 47,
+      model: { source: "opencode-stream", prefill_s: 164.7, decode_s: 1462.3, prefill_tok_s: 776.8, decode_tok_s: 43.4 } } } as never);
+    expect(st.usage!.split).toMatchObject({ prefill: 164.7, decode: 1462.3, modelUnsplit: 0, tools: 160, other: 47 });
+  });
+
   it("a run's tok/s is weighted by tokens, not an average of the stories' rates", () => {
     const u = runUsage([storyEntry("1", raw(1000, 100, 10, 1)), storyEntry("2", raw(9000, 900, 180, 9))]);
     expect(u.outTokens).toBe(10000);

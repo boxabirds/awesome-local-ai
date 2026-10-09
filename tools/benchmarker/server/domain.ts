@@ -465,9 +465,9 @@ const OPENCODE_SOURCE = "opencode-stream";
 function splitOf(ts: RawUsage["time_split"]): RecordSplit | null {
   if (!ts || ts.wall_s == null) return null;
   const m = ts.model, other = ts.other_s ?? 0;
-  // OpenCode's events say neither when the first token came nor how long the model thought: the record holds a step's whole model
-  // time as one figure, and it is shown as the model's time, not split.
-  const unsplit = m?.source === OPENCODE_SOURCE ? (m.prefill_s ?? 0) + (m.decode_s ?? 0) : 0;
+  // OpenCode's events say neither when the first token came nor how long the model thought. The harness takes it from gufo's server log
+  // when it has it (prefill_s > 0); without it the record holds a step's whole model time as one figure, shown as the model's time, not split.
+  const unsplit = m?.source === OPENCODE_SOURCE && !m.prefill_s ? (m.decode_s ?? 0) : 0;
   return {
     wall: ts.wall_s, prefill: unsplit ? 0 : m?.prefill_s ?? 0, decode: unsplit ? 0 : m?.decode_s ?? 0, tools: ts.tools_s ?? 0, compaction: ts.compaction_s ?? 0,
     // Untimed model: "other" holds the model's time and the agent's own, which can't be told apart.

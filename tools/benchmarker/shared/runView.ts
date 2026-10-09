@@ -159,7 +159,7 @@ export function segmentTip(seg: Seg, seconds: number, u: Usage | null): string {
   switch (seg) {
     case "prefill": return `${m}: ${count(u?.prefillTokens)} fresh input tokens at ${rate(u?.prefillTokS)} tok/s`;
     case "decode": return `${m}: ${count(u?.decodeTokens)} tokens at ${rate(u?.decodeTokS)} tok/s`;
-    case "modelUnsplit": return `${m}: not split into reading and writing (a cloud model, or a run not timed)`;
+    case "modelUnsplit": return `${m}: not split into reading and writing (a cloud model, or a story whose server log gave no time for when reading ended)`;
     case "compaction": return `${m}, over ${u?.compactions ?? "?"} compactions`;
     case "tools": return `${m} over ${u?.calls ?? "?"} calls`;
     case "betweenSessions": return `${m}: waiting to start the agent's next session after one ended (${u?.nudges ?? "?"} nudges)`;
