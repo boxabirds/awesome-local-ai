@@ -1,26 +1,289 @@
 {
   "pack_version": "vidi-v2.0-pre2",
-  "harness_commit": "9db907ae",
+  "suite_commit": "e100d47daa13",
+  "harness_commit": "3c5507e66",
   "host": "Apple M2 16GB",
   "held_out_workers": 4,
   "host_limits": {
     "cores": 8,
     "memory_gb": 16.0,
-    "free_gb": 12.8
+    "free_gb": 10.9
   },
-  "finished_at": "2026-09-30T02:28:16Z",
+  "finished_at": "2026-10-09T10:34:51Z",
+  "environment": {
+    "node": "v24.15.0",
+    "npm": "11.12.1",
+    "playwright": "1.58.2",
+    "chromium": "145.0.7632.6 (r1208)",
+    "os": "macOS 26.6.2",
+    "arch": "arm64",
+    "workers": 4
+  },
+  "passing_sample": {
+    "fraction": 0.2,
+    "min": 5
+  },
   "results": [
     {
-      "story": 12,
-      "passed": 75,
-      "total": 75,
+      "story": 1,
+      "passed": 6,
+      "total": 6,
       "fallbacks": 0,
       "scores": [
-        75
+        6,
+        6,
+        6
       ],
       "flaky": 0,
+      "flaky_failing": 0,
+      "flaky_passing": 0,
+      "passing_sampled": 5,
       "harness_fault": null,
-      "seconds": 45
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 80,
+      "commit": "cb7a0e6b7c3b52d61854e958836ceffb462a782e"
+    },
+    {
+      "story": 2,
+      "passed": 20,
+      "total": 20,
+      "fallbacks": 0,
+      "scores": [
+        20,
+        20,
+        20
+      ],
+      "flaky": 0,
+      "flaky_failing": 0,
+      "flaky_passing": 0,
+      "passing_sampled": 5,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 75,
+      "commit": "f741292fa29db21bd188ab060f4ec3874ba9bd6c"
+    },
+    {
+      "story": 3,
+      "passed": 27,
+      "total": 27,
+      "fallbacks": 0,
+      "scores": [
+        27,
+        27,
+        27
+      ],
+      "flaky": 0,
+      "flaky_failing": 0,
+      "flaky_passing": 0,
+      "passing_sampled": 6,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 90,
+      "commit": "69f69e6d30c36840ef3b954ef93fe8a5de13050c"
+    },
+    {
+      "story": 4,
+      "passed": 31,
+      "total": 31,
+      "fallbacks": 0,
+      "scores": [
+        31,
+        31,
+        31
+      ],
+      "flaky": 0,
+      "flaky_failing": 0,
+      "flaky_passing": 0,
+      "passing_sampled": 7,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 2631,
+      "commit": "8a7583a33714c24f81585013fa313232c95f6597"
+    },
+    {
+      "story": 7,
+      "passed": 43,
+      "total": 44,
+      "fallbacks": 0,
+      "scores": [
+        43,
+        43,
+        43
+      ],
+      "flaky": 0,
+      "flaky_failing": 0,
+      "flaky_passing": 0,
+      "passing_sampled": 9,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 1281,
+      "commit": "95460924e5449065368b86a922fc04c65a246ce4"
+    },
+    {
+      "story": 8,
+      "passed": 50,
+      "total": 51,
+      "fallbacks": 0,
+      "scores": [
+        50,
+        50,
+        50
+      ],
+      "flaky": 0,
+      "flaky_failing": 0,
+      "flaky_passing": 0,
+      "passing_sampled": 10,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 246,
+      "commit": "1a3caa791919ed5828f9ad32cf4764ff73771683"
+    },
+    {
+      "story": 9,
+      "passed": 56,
+      "total": 57,
+      "fallbacks": 0,
+      "scores": [
+        55,
+        56,
+        54
+      ],
+      "flaky": 3,
+      "flaky_failing": 1,
+      "flaky_passing": 2,
+      "passing_sampled": 11,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 259,
+      "commit": "4a9e476adb9feb0441141b8af5fbdcb14f726d4a"
+    },
+    {
+      "story": 10,
+      "passed": 64,
+      "total": 65,
+      "fallbacks": 0,
+      "scores": [
+        62,
+        64,
+        63
+      ],
+      "flaky": 3,
+      "flaky_failing": 2,
+      "flaky_passing": 1,
+      "passing_sampled": 13,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 275,
+      "commit": "48f657cd39b742e6e9850974ef31e7486b0ebd68"
+    },
+    {
+      "story": 11,
+      "passed": 69,
+      "total": 70,
+      "fallbacks": 0,
+      "scores": [
+        68,
+        69,
+        70
+      ],
+      "flaky": 2,
+      "flaky_failing": 2,
+      "flaky_passing": 0,
+      "passing_sampled": 14,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 457,
+      "commit": "8254f086ad04c62fbad759d7805e5e6af1c85c1c"
     }
   ]
 }
