@@ -137,3 +137,174 @@ button:focus-visible,
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* --- Story 2: sticky notes ------------------------------------------------------- */
+
+/* A note sits in the world layer, so its box is in world units and scales with zoom. */
+.vidi6-sticky {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgb(17 22 33 / 18%);
+  cursor: grab;
+  /* The blue selection outline: width 0 unless the note is selected. */
+  outline-style: solid;
+  outline-offset: 2px;
+}
+
+.vidi6-sticky[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+/* The text layer doubles as the auto-fit measuring element while editing. */
+.vidi6-sticky-content {
+  position: absolute;
+  inset: var(--vidi6-sticky-pad, 12px);
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  text-align: center;
+  line-height: 1.3;
+  color: #1f2430;
+}
+
+.vidi6-sticky-measuring {
+  visibility: hidden;
+}
+
+.vidi6-sticky-editor {
+  position: absolute;
+  inset: var(--vidi6-sticky-pad, 12px);
+  padding: 0;
+  border: none;
+  margin: 0;
+  resize: none;
+  outline: none;
+  background: transparent;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  text-align: center;
+  line-height: 1.3;
+  color: #1f2430;
+  caret-color: #1f2430;
+  font-family: inherit;
+}
+
+/* Bottom fade: the text hit the smallest readable size and is clipped here. */
+.vidi6-sticky-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  pointer-events: none;
+}
+
+.vidi6-sticky-counter {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  font-size: 11px;
+  line-height: 1;
+  color: rgb(31 36 48 / 65%);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* The note toolbar is anchored to the note but counter-scaled by 1/zoom, so it keeps a
+   constant screen size. */
+.vidi6-sticky-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  transform-origin: 0 100%;
+}
+
+.vidi6-note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  margin-bottom: 8px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(17 22 33 / 12%);
+}
+
+.vidi6-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgb(17 22 33 / 25%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.vidi6-swatch[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.vidi6-delete-note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: #5b6270;
+  background: #ffffff;
+  border: 1px solid #d7dbe2;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.vidi6-delete-note:hover {
+  color: #b42318;
+}
+
+/* Left-side vertical toolbar with the Sticky note button. */
+.vidi6-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #d7dbe2;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgb(17 22 33 / 12%);
+}
+
+.vidi6-toolbar-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.vidi6-toolbar-button:hover {
+  background: #f2f3f6;
+}
+
+.vidi6-sticky-glyph {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: #fff59d;
+  box-shadow: inset 0 0 0 1px rgb(17 22 33 / 20%);
+}

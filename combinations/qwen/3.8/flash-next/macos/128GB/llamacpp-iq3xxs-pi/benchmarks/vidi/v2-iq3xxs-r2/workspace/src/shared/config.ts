@@ -1,5 +1,5 @@
 // Product settings for the vidi6 board.
-// Stories 2-5 add their own named settings to this file.
+// Story 2 onwards add their own named settings to this file.
 
 /** Smallest zoom the board can reach (screen pixels per world unit). */
 export const ZOOM_MIN = 0.1;
@@ -22,3 +22,30 @@ export const WHEEL_PIXELS_PER_PAGE = 800;
 export const PERCENT_PER_ZOOM = 100;
 /** zoomStep snaps to the nearest ZOOM_STEP_FACTOR^n within this tolerance. */
 export const ZOOM_STEP_SNAP_EPSILON = 1e-9;
+
+// Story 2: sticky notes.
+
+/** Sticky note size in world units (a square note). */
+export const STICKY_SIZE_WORLD = 200;
+/** Longest text a sticky note keeps. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+/** The character counter shows when this many characters (or fewer) are left. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+/** Largest note font size in board units (at 100% zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+/** Smallest note font size; below this the text is clipped with a bottom fade. */
+export const STICKY_FONT_MIN_PX = 10;
+/** Screen pixels a pointer must move after a press before it becomes a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+/** The six preset note colours, in toolbar order. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+/** A new note is yellow. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

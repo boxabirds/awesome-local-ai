@@ -1,25 +1,33 @@
+import type * as Y from 'yjs';
 import type { Camera } from './camera';
+
+/**
+ * Everything the test build exposes on `window`. Optional members may be missing until
+ * the component that owns them has mounted.
+ */
+export interface TestHooks {
+  /** Jump the camera anywhere on the board. */
+  setCamera(camera: Camera): void;
+  /** The board document the page is editing, for tests that assert the model. */
+  boardDoc?(): Y.Doc;
+}
 
 /** The parts of `window` the test-mode hook adds. */
 declare global {
   interface Window {
-    __vidi6?: {
-      setCamera(camera: Camera): void;
-    };
+    __vidi6?: TestHooks;
   }
 }
 
-export interface TestHooks {
-  setCamera(camera: Camera): void;
-}
+export type TestHookPatch = Partial<TestHooks>;
 
 /**
- * `window.__vidi6` exists only in the test build so e2e tests can jump to a
- * far-away camera instead of dragging a million pixels. Callers guard the call
- * with `import.meta.env.MODE === 'test'` as well, so production bundles drop
- * this module entirely.
+ * `window.__vidi6` exists only in the test build so e2e tests can jump to a far-away
+ * camera or read the document instead of the DOM. Callers guard the call with
+ * `import.meta.env.MODE === 'test'` as well, so production bundles drop this module
+ * entirely.
  */
-export function registerTestHooks(hooks: TestHooks): void {
+export function registerTestHooks(hooks: TestHookPatch): void {
   if (import.meta.env.MODE !== 'test') return;
-  window.__vidi6 = { ...window.__vidi6, ...hooks };
+  window.__vidi6 = { ...window.__vidi6, ...hooks } as TestHooks;
 }

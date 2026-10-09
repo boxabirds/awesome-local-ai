@@ -3,10 +3,12 @@ import {
   useRef,
   type CSSProperties,
   type JSX,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 import {
+  DRAG_THRESHOLD_PX,
   GRID_SPACING_WORLD,
   WHEEL_PIXELS_PER_LINE,
   WHEEL_PIXELS_PER_PAGE,
@@ -79,6 +81,13 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 export interface BoardViewportProps {
   children?: ReactNode;
+  /**
+   * Double-click on empty board space (sticky.create_dblclick): the point is in screen
+   * pixels inside the viewport; the caller turns it into world coordinates.
+   */
+  onCreateStickyAt?(point: Point): void;
+  /** A click on empty board space that did not pan the board (sticky.select). */
+  onEmptyClick?(): void;
 }
 
 /**
@@ -87,7 +96,11 @@ export interface BoardViewportProps {
  * Ctrl/Cmd + `=`, `-`, `0` step and reset. Every one of those is preventDefault-ed so
  * the browser never zooms or scrolls the page itself.
  */
-export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
+export function BoardViewport({
+  children,
+  onCreateStickyAt,
+  onEmptyClick,
+}: BoardViewportProps): JSX.Element {
   const api = useCameraApi();
   const apiRef = useRef(api);
   apiRef.current = api;
@@ -95,6 +108,9 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const pointerIdRef = useRef<number | null>(null);
   const gestureScaleRef = useRef(1);
+  // Distinguishes a click on empty board space from a pan, so only the first one clears
+  // the selection. `DRAG_THRESHOLD_PX` is the same threshold the notes use.
+  const pressRef = useRef<{ x: number; y: number; dragged: boolean } | null>(null);
 
   const { camera, panning } = api;
 
@@ -181,19 +197,39 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
     if (typeof element.setPointerCapture === 'function') {
       element.setPointerCapture(event.pointerId);
     }
-    api.beginPan(boardPoint(element, event.clientX, event.clientY));
+    const point = boardPoint(element, event.clientX, event.clientY);
+    pressRef.current = { x: point.x, y: point.y, dragged: false };
+    api.beginPan(point);
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (pointerIdRef.current !== event.pointerId) return;
     const element = event.currentTarget;
-    api.panMove(boardPoint(element, event.clientX, event.clientY));
+    const point = boardPoint(element, event.clientX, event.clientY);
+    const press = pressRef.current;
+    if (press && !press.dragged) {
+      const dx = point.x - press.x;
+      const dy = point.y - press.y;
+      if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) press.dragged = true;
+    }
+    api.panMove(point);
   };
 
   const onPointerEnd = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (pointerIdRef.current !== event.pointerId) return;
     pointerIdRef.current = null;
+    const press = pressRef.current;
+    pressRef.current = null;
     api.endPan();
+    // A click on empty board space clears the selection; a pan leaves it alone.
+    if (press && !press.dragged) onEmptyClick?.();
+  };
+
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    // Only empty board space creates a note: a note stops the event itself (TC-35).
+    if (event.target !== event.currentTarget) return;
+    const element = event.currentTarget;
+    onCreateStickyAt?.(boardPoint(element, event.clientX, event.clientY));
   };
 
   return (
@@ -209,6 +245,7 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
+      onDoubleClick={onDoubleClick}
       data-camera-x={camera.x}
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}

@@ -238,3 +238,138 @@ export async function stepToMaxZoom(page: Page): Promise<number> {
   const camera = await readCamera(page);
   return camera.zoom;
 }
+
+/* ---------------------------------------------------------------------------
+ * Story 2: sticky notes.
+ * ------------------------------------------------------------------------ */
+
+/** One sticky as the document holds it. */
+export interface NoteRecord {
+  readonly id: string;
+  readonly type: string;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly color: string;
+  readonly text: string;
+  readonly createdAt: number;
+}
+
+/**
+ * The board document, read through the test-only `boardDoc()` hook and serialised the
+ * way `snapshot()` would see it, sorted by (z, id).
+ */
+export async function boardNotes(page: Page): Promise<NoteRecord[]> {
+  const notes = await page.evaluate(() => {
+    const doc = window.__vidi6?.boardDoc?.();
+    if (!doc) throw new Error('test hook window.__vidi6.boardDoc() is missing');
+    const objects = doc.getMap('objects').toJSON() as Record<string, Record<string, unknown>>;
+    return Object.entries(objects).map(([id, value]) => ({
+      id,
+      type: String(value.type),
+      x: Number(value.x),
+      y: Number(value.y),
+      z: Number(value.z),
+      color: String(value.color),
+      text: String(value.text),
+      createdAt: Number(value.createdAt),
+    }));
+  });
+  return notes.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : 1));
+}
+
+export async function waitForNoteCount(page: Page, count: number): Promise<NoteRecord[]> {
+  let notes: NoteRecord[] = [];
+  await expect
+    .poll(async () => (await boardNotes(page)).length, { timeout: 10_000 })
+    .toBe(count);
+  notes = await boardNotes(page);
+  return notes;
+}
+
+/** The note's box on screen, in CSS pixels. */
+export async function noteRect(page: Page, id: string): Promise<Rect> {
+  const box = await page.locator(`[data-note-id="${id}"]`).boundingBox();
+  if (!box) throw new Error(`note ${id} has no bounding box (is it on screen?)`);
+  return {
+    x: box.x,
+    y: box.y,
+    width: box.width,
+    height: box.height,
+    centerX: box.x + box.width / 2,
+    centerY: box.y + box.height / 2,
+  };
+}
+
+export async function noteCount(page: Page): Promise<number> {
+  return (await boardNotes(page)).length;
+}
+
+/** Click the Sticky note button in the left toolbar. */
+export async function clickStickyNoteButton(page: Page): Promise<void> {
+  await page.locator('[data-testid="create-sticky"]').click();
+}
+
+/** Click a colour swatch in the note toolbar, by colour name. */
+export async function clickSwatch(page: Page, colour: string): Promise<void> {
+  const label = `${colour.slice(0, 1).toUpperCase()}${colour.slice(1)} colour`;
+  await page.locator(`button[aria-label="${label}"]`).click();
+}
+
+/** The note's text layer: its computed font size and whether its text is clipped. */
+export async function noteTextMetrics(page: Page, id: string): Promise<{
+  fontPx: number;
+  scrollHeight: number;
+  clientHeight: number;
+  overflowY: string;
+  faded: boolean;
+  fadeClass: boolean;
+}> {
+  return page.evaluate((noteId) => {
+    const note = document.querySelector<HTMLElement>(`[data-note-id="${noteId}"]`);
+    if (!note) throw new Error(`no note element for id ${noteId}`);
+    const content = note.querySelector<HTMLElement>('[data-testid="sticky-text"]');
+    if (!content) throw new Error(`no text layer in note ${noteId}`);
+    const fade = note.querySelector<HTMLElement>('[data-testid="sticky-fade"]');
+    const style = getComputedStyle(content);
+    return {
+      fontPx: Number.parseFloat(style.fontSize),
+      scrollHeight: content.scrollHeight,
+      clientHeight: content.clientHeight,
+      overflowY: style.overflowY,
+      faded: !!fade,
+      fadeClass: !!fade && fade.className.split(' ').includes('vidi6-sticky-fade'),
+    };
+  }, id);
+}
+
+/** Which note (if any) is painted at a screen point: proves stacking order. */
+export async function noteIdAtPoint(page: Page, x: number, y: number): Promise<string | null> {
+  return page.evaluate(
+    ([pointX, pointY]) => {
+      const element = document.elementFromPoint(pointX, pointY);
+      const note = element?.closest<HTMLElement>('[data-note-id]') ?? null;
+      return note?.dataset.noteId ?? null;
+    },
+    [x, y],
+  );
+}
+
+/** Press, move in steps and release, leaving the button down state settled. */
+export async function dragPointer(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  steps = 8,
+): Promise<void> {
+  await page.mouse.move(Math.round(from.x), Math.round(from.y));
+  await page.mouse.down();
+  for (let step = 1; step <= steps; step += 1) {
+    await page.mouse.move(
+      Math.round(from.x + ((to.x - from.x) * step) / steps),
+      Math.round(from.y + ((to.y - from.y) * step) / steps),
+    );
+  }
+  await page.mouse.up();
+  await settle(page);
+}
