@@ -1,5 +1,11 @@
 # Restoring the bench state from a backup
 
+## What this is
+
+The benchmark's raw evidence (every run's logs and machine readings, and the databases built from them) lives in one folder on one Mac and
+is not in git. A daily job backs it up to two repositories; this explains how to get it back. It is written to be read by someone who has
+not seen the system before.
+
 This sits beside two backup repositories of the bench state (the lake, the warehouse and analytics databases, recordings and
 neighbours). Both hold the same data: one on the Mac that makes the backups, one on another machine, reached over ssh. They are
 [restic](https://restic.net) repositories (format version 2): encrypted, compressed, deduplicated. **You cannot read them without
