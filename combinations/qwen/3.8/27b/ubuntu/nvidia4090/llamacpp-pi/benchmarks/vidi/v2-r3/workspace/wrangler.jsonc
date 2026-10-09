@@ -26,5 +26,32 @@
     "port": 29040,
     "ip": "127.0.0.1",
     "inspector_port": 29041
+  },
+  // The `test` environment enables the /__test hook routes (story 4).
+  // wrangler dev does not pass process env vars to the worker, so test
+  // servers start with `--env test`; production/CI runs use the default
+  // environment where TEST_HOOKS is unset and the routes do not exist.
+  "env": {
+    "test": {
+      "vars": {
+        "TEST_HOOKS": "1"
+      },
+      // this wrangler version does not inherit durable_objects/migrations
+      // into env sections, so repeat them
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "BOARD_ROOM",
+            "class_name": "BoardRoom"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["BoardRoom"]
+        }
+      ]
+    }
   }
 }

@@ -1,4 +1,4 @@
-# NOTES — Story 3 (and the story 1–2 gap fill)
+# NOTES — Story 4 (and the story 1–3 gap fill)
 
 ## 1. The repository was empty: stories 1 and 2 had to be gap-filled
 
@@ -122,3 +122,49 @@ id that is not exactly this shape, so tests generate 16-byte ids.
 Stories 6 and 13–17: no presence/selection-cursor UI, no sign-in, no dashboard,
 no comments, no export. The awareness channel exists only to keep idle sockets
 alive and to carry no product-visible state in this story.
+
+## 9. Story 4 — persistence decisions
+
+- **`WranglerProcess` (e2e) must kill the whole process group.** `wrangler dev`
+  spawns workerd as a *grandchild* of the `npx` we spawn. Killing only the top
+  process leaves workerd holding the port, so every later “restart” silently hit
+  a stale orphan (symptom: `/__test/...` returned a 500/HTML from a dead-code
+  worker instead of JSON). Fix: spawn `detached: true` (child becomes the group
+  leader, `pgid === pid`) and stop with `process.kill(-pid, SIGTERM)` then
+  `SIGKILL`, and wait until the port actually stops answering before returning.
+  This mirrors the integration `global-setup.ts`. Durable Object SQLite is
+  durable per transaction, so an ungraceful kill loses no committed data.
+- **Seeding via `store-append-many` leaves the running room stale.** The hook
+  writes straight to SQLite and updates the hook’s own scratch doc, not the
+  already-constructed room’s in-memory doc. So the persistence e2e restarts the
+  process (or calls `room-reset`) after seeding, so the room rebuilds its doc
+  from disk before we observe it. TC-21/TC-24 both seed → restart → compact.
+- **TC-24 recovery needs `room-reset` after repair.** After `corrupt-snapshot`
+  (which already resets) the room is `load-failed`; a plain `repair-snapshot`
+  would only reload on a connection ≥ `LOAD_RETRY_MIN_INTERVAL_MS` (5 s) after
+  the failure, and each failed reload resets that clock. We call `room-reset`
+  after repair so the *next* client reconnect reloads immediately
+  (`storage-failed` → reload), independent of the 5 s gate. The client
+  reconnect backoff can reach `RECONNECT_MAX_BACKOFF_MS` (10 s), so the
+  recovery poll uses a 30 s timeout (correctness, not speed, is under test).
+- **Client recovery maps straight to `connected`.** Close 4500 →
+  `load_failed` (red message, editing off). The first successful `sync` after
+  `load_failed` goes directly to `connected` (no `reconnecting`/`confirmed`
+  detour, no page reload); `onStatus` early-returns while `load_failed` so
+  retry status events don’t clear the red badge. Other close codes (1011,
+  1003, network) → `reconnecting` (board stays readable, editing on) because
+  the client re-sends unsaved changes on reconnect.
+- **Production hook check.** The default wrangler environment has no
+  `TEST_HOOKS`, so `index.ts` never routes `/__test/...` to the hooks; requests
+  fall through to the assets binding — `POST` → 405, `GET` → SPA `index.html`
+  (200 `text/html`) — never `application/json`. `npm run check:production-hooks`
+  builds the production client, starts `wrangler dev` (no `--env test`) on
+  29046/29047, and asserts this for `store-status`, `corrupt-snapshot` and
+  `repair-snapshot`, plus a sanity SPA serve.
+- **TC-21 timing is logged, never asserted.** Model, browser and server share
+  one machine; a 2000-note open measured ~7.9 s here (over the 3000 ms
+  `BOARD_LOAD_BUDGET_MS`) and that is reported, not failed, per the task.
+- **Port allocation (29040–29055).** 29040/29041 shared e2e; 29042/29043
+  integration; 29044/29045 persistence e2e (`WranglerProcess`); 29046/29047
+  production hook check. All servers we start pass an explicit
+  `--inspector-port` in range.

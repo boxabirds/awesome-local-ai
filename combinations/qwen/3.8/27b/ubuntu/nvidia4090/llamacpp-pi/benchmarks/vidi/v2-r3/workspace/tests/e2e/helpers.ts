@@ -42,6 +42,20 @@ export function notes(page: Page) {
   return page.getByRole('group', { name: 'Sticky note' });
 }
 
+/**
+ * DOM order of the note elements = render order = stacking order (z, id).
+ * Used to compare stacking across a process restart.
+ */
+export async function stackingOrder(page: Page): Promise<string[]> {
+  const all = notes(page);
+  const count = await all.count();
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    out.push((await all.nth(i).getAttribute('data-note-id')) ?? `idx${i}`);
+  }
+  return out;
+}
+
 export async function noteCount(page: Page): Promise<number> {
   return notes(page).count();
 }

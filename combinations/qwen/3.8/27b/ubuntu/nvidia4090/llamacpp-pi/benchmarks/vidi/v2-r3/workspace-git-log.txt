@@ -1,3 +1,52 @@
+commit 168f278d5cbc0a9259315296c1d8bede51398782
+agent  Fri Oct 9 04:09:06 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                    |  48 +++-
+ PROGRESS.md                                 |  30 ++-
+ package.json                                |   4 +-
+ playwright.config.ts                        |   4 +-
+ playwright.persistence.config.ts            |  32 +++
+ scripts/check-production-hooks.mjs          | 125 ++++++++++
+ src/client/App.tsx                          |  23 +-
+ src/client/board/Toolbar.tsx                |  11 +-
+ src/client/objects/StickyNote.tsx           |  15 +-
+ src/client/sync/ConnectionStatus.tsx        |   9 +-
+ src/client/sync/connectBoard.ts             |  37 ++-
+ src/shared/config.ts                        |  10 +
+ src/shared/protocol.ts                      |  10 +
+ src/worker/board-room.ts                    | 364 ++++++++++++++++++++++++----
+ src/worker/board-store.ts                   | 250 +++++++++++++++++++
+ src/worker/index.ts                         |   6 +
+ src/worker/room-state.ts                    |  80 ++++++
+ src/worker/test-hooks.ts                    | 270 +++++++++++++++++++++
+ tests/component/app-load-failed.test.tsx    | 123 ++++++++++
+ tests/component/load-failed-status.test.tsx | 123 ++++++++++
+ tests/e2e/helpers.ts                        |  14 ++
+ tests/e2e/persistence-setup.ts              |  10 +
+ tests/e2e/persistence.spec.ts               | 257 ++++++++++++++++++++
+ tests/e2e/wrangler-process.ts               | 142 +++++++++++
+ tests/fixtures/boards.ts                    | 192 +++++++++++++++
+ tests/integration/global-setup.ts           |   3 +
+ tests/integration/hooks.ts                  |  89 +++++++
+ tests/integration/persist-room.test.ts      | 227 +++++++++++++++++
+ tests/integration/store.test.ts             | 210 ++++++++++++++++
+ tests/unit/board-store-chunks.test.ts       |  68 ++++++
+ tests/unit/room-state.test.ts               | 132 ++++++++++
+ tsconfig.json                               |   2 +-
+ vitest.integration.config.ts                |   3 +
+ wrangler.jsonc                              |  27 +++
+ 34 files changed, 2870 insertions(+), 80 deletions(-)
+commit d9e4fdb9a792b76c88470af0502d6402bd620cd2
+vidi-agent  Fri Oct 9 02:02:29 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 22 ++++++++++------------
+ 1 file changed, 10 insertions(+), 12 deletions(-)
 commit b196f85a0595106cd8bccf6a1b8fedcbc8252c9a
 agent  Fri Oct 9 02:00:00 2026 +0100
 

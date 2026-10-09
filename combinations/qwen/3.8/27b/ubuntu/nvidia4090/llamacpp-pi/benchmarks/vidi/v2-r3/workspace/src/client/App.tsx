@@ -16,7 +16,18 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { STICKY_SIZE_WORLD } from '../shared/config';
+
+/**
+ * Editing gate (persist.client_status): the board is only non-editable while
+ * it failed to load from storage. While reconnecting (storage failure, network
+ * drop) the board is still readable and editing stays enabled — unsaved
+ * changes are re-sent on reconnection.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 declare global {
   interface Window {
@@ -62,6 +73,7 @@ export default function App(): ReactElement {
   const cam = useCamera(size);
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection(notes);
+  const editable = canEdit(connectionState);
 
   // Test-only hooks (excluded from production builds).
   useEffect(() => {
@@ -74,6 +86,7 @@ export default function App(): ReactElement {
 
   const createStickyAt = useCallback(
     (world: Point) => {
+      if (!editable) return; // load_failed: the board is not editable
       const id = createSticky(doc, {
         x: world.x - STICKY_SIZE_WORLD / 2,
         y: world.y - STICKY_SIZE_WORLD / 2,
@@ -83,7 +96,7 @@ export default function App(): ReactElement {
         startEdit(id);
       }
     },
-    [doc, select, startEdit],
+    [doc, select, startEdit, editable],
   );
 
   const createStickyCenter = useCallback(() => {
@@ -117,17 +130,18 @@ export default function App(): ReactElement {
       if (inField) return;
       if (e.key === 'Enter' && selectedId !== null && editingId === null) {
         e.preventDefault();
-        startEdit(selectedId);
+        if (editable) startEdit(selectedId);
         return;
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId !== null && editingId === null) {
         e.preventDefault();
+        if (!editable) return; // load_failed: deletion is a no-op
         if (deleteObject(doc, selectedId)) select(null);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [cam, selectedId, editingId, doc, select, startEdit]);
+  }, [cam, selectedId, editingId, doc, select, startEdit, editable]);
 
   // A pointerdown outside the note being edited ends editing (unselected).
   useEffect(() => {
@@ -166,13 +180,14 @@ export default function App(): ReactElement {
             zoom={cam.camera.zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            editable={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createStickyCenter} />
+      <Toolbar onCreateSticky={createStickyCenter} disabled={!editable} />
       <ZoomControls
         zoom={cam.camera.zoom}
         onZoomIn={() => cam.zoomStep('in')}

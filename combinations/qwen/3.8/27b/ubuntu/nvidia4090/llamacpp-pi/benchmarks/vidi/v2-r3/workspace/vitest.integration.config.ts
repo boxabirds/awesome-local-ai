@@ -20,5 +20,8 @@ export default defineConfig({
     globalSetup: ['tests/integration/global-setup.ts'],
     testTimeout: 30_000,
     hookTimeout: 120_000,
+    // serial file execution: the suites are heavy (500/2000-note boards,
+    // compaction) and parallel workers make sync waits flaky
+    fileParallelism: false,
   },
 });

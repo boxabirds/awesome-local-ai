@@ -1,8 +1,9 @@
 import type { ReactElement } from 'react';
 /**
- * Left toolbar with the Sticky note button.
+ * Left toolbar with the Sticky note button. `disabled` (the board failed to
+ * load) disables the button; the double-click path is gated in App.
  */
-export function Toolbar(props: { onCreateSticky(): void }): ReactElement {
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): ReactElement {
   return (
     <div
       className="toolbar"
@@ -27,6 +28,7 @@ export function Toolbar(props: { onCreateSticky(): void }): ReactElement {
         type="button"
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
+        disabled={props.disabled}
         onClick={props.onCreateSticky}
         style={{
           width: 40,
@@ -34,8 +36,9 @@ export function Toolbar(props: { onCreateSticky(): void }): ReactElement {
           fontSize: 18,
           borderRadius: 8,
           border: '1px solid #d5d9e0',
-          background: '#FFF59D',
-          cursor: 'pointer',
+          background: props.disabled ? '#e8eaee' : '#FFF59D',
+          cursor: props.disabled ? 'not-allowed' : 'pointer',
+          opacity: props.disabled ? 0.6 : 1,
         }}
       >
         +

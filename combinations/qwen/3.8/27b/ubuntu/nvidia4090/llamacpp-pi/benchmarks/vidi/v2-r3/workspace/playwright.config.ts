@@ -26,7 +26,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build:client:test && npx wrangler dev --port 29040 --ip 127.0.0.1',
+    // --env test enables the /__test hook routes used by the persistence
+    // specs (task 9 verifies they are absent from the default environment).
+    command: 'npm run build:client:test && npx wrangler dev --port 29040 --ip 127.0.0.1 --env test',
     url: 'http://127.0.0.1:29040/',
     reuseExistingServer: true,
     timeout: 180_000,

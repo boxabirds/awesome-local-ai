@@ -33,6 +33,9 @@ export default async function () {
       '127.0.0.1',
       '--log-level',
       'error',
+      // story 4: the `test` environment enables the /__test hook routes
+      '--env',
+      'test',
     ],
     { cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'], detached: true },
   );

@@ -29,6 +29,11 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * False while the board failed to load (load_failed): selection still works
+   * but every mutation (drag, edit, colour, delete) is a no-op.
+   */
+  editable: boolean;
   onSelect(id: string | null): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -42,7 +47,7 @@ export interface StickyNoteProps {
  * shared board model.
  */
 export function StickyNote(props: StickyNoteProps): ReactElement {
-  const { note, doc, zoom, selected, editing } = props;
+  const { note, doc, zoom, selected, editing, editable } = props;
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(STICKY_FONT_MAX_PX);
@@ -85,7 +90,7 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
     if (!d) return;
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
-    if (d.mode === 'pressed' && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
+    if (d.mode === 'pressed' && editable && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
       d.mode = 'dragging';
       bringToFront(doc, note.id);
     }
@@ -110,6 +115,7 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
 
   const onDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!editable) return; // load_failed: text editing is a no-op
     props.onStartEdit(note.id);
   };
 
@@ -194,8 +200,11 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
       {selected && !editing && (
         <NoteToolbar
           color={note.color}
-          onColor={(c: StickyColor) => setStickyColor(doc, note.id, c)}
+          onColor={(c: StickyColor) => {
+            if (editable) setStickyColor(doc, note.id, c);
+          }}
           onDelete={() => {
+            if (!editable) return; // load_failed: deletion is a no-op
             deleteObject(doc, note.id);
             props.onSelect(null);
           }}

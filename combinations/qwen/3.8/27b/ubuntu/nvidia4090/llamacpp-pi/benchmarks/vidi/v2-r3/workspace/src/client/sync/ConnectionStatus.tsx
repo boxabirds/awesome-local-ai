@@ -5,12 +5,15 @@ const COLORS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: '#3c4149',
   reconnecting: '#B26A00', // amber
   confirmed: '#1B7F3B', // green
+  load_failed: '#C5221F', // red
 };
 
 /**
  * Connection status badge, top centre. Hidden while connected normally;
  * "Connecting…" on first load, amber "Reconnecting…" while disconnected,
- * green "Connected" for a short time after a reconnection.
+ * green "Connected" for a short time after a reconnection, and a red
+ * "This board couldn't be loaded. Retrying…" while the room is failing to
+ * load the board from storage (load_failed).
  */
 export function ConnectionStatus(props: { state: ConnectionState }): ReactElement | null {
   if (props.state === 'connected') return null;
@@ -19,7 +22,9 @@ export function ConnectionStatus(props: { state: ConnectionState }): ReactElemen
       ? 'Connecting…'
       : props.state === 'reconnecting'
         ? 'Reconnecting…'
-        : 'Connected';
+        : props.state === 'load_failed'
+          ? "This board couldn't be loaded. Retrying…"
+          : 'Connected';
   return (
     <div
       role="status"

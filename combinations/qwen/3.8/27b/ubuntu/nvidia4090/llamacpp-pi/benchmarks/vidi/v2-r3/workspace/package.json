@@ -12,7 +12,9 @@
     "test:component": "vitest run --config vitest.component.config.ts",
     "test:integration": "vite build --mode test && vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test --project chromium",
-    "test:e2e:nightly": "playwright test --project nightly"
+    "test:e2e:persistence": "playwright test --config playwright.persistence.config.ts",
+    "test:e2e:nightly": "playwright test --project nightly",
+    "check:production-hooks": "node scripts/check-production-hooks.mjs"
   },
   "dependencies": {
     "lib0": "^0.2.119",
