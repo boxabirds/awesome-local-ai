@@ -2,7 +2,7 @@
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { Intervention, Score } from "../shared/types.ts";
-import { countTests, finalScore, findRuns, normaliseByStory, parseExpertCache, parseFinalize, parseInterventions, parseInvalid, parseSandbox, rescoreFault, type ExpertCache, type Invalid, type RawFinalize, type RunSandbox, type RawRescore, type RawUsage, storyEntry, builtUnderEarlierSuite, withoutLiveHeldout, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
+import { countTests, finalScore, findRuns, normaliseByStory, parseExpertCache, parseFinalize, parseInterventions, parseInvalid, parseSandbox, rescoreFault, type ExpertCache, type Invalid, type RawFinalize, type RawAccept, type RunSandbox, type RawRescore, type RawUsage, storyEntry, builtUnderEarlierSuite, acceptUnderScoringSuite, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
 export const REF = "origin/main";
@@ -115,6 +115,12 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
     ...Object.entries(r.rescoreLast).flatMap(([v, id]) => rescoreStoryPaths(r.dir, v, id)),
   ]).concat(packs.map((p) => `benchmarks/${p}/bench.json`));
   const blobs = await readBlobs(repo, wanted);
+  // A run built under an earlier suite shows the per-story figures of its re-score under the suite its score of record was made with.
+  const rescoredStories = runs.flatMap((r) => {
+    const suite = builtUnderEarlierSuite(runFinalize(blobs, r.dir));
+    return suite ? paths.filter((p) => p.startsWith(`${r.dir}/rescore/${suite}/stories/`) && p.endsWith("/accept-summary.json")) : [];
+  });
+  if (rescoredStories.length) for (const [path, text] of await readBlobs(repo, rescoredStories)) blobs.set(path, text);
   const suites = Object.fromEntries(packs.map((p) => [p, json<{ pack_ref?: string }>(blobs.get(`benchmarks/${p}/bench.json`))?.pack_ref ?? ""]));
   const records = runs.map((r): RunRecord => {
     const meta = json<{ pack_version?: string; host?: string }>(blobs.get(`${r.dir}/run.json`)) ?? {};
@@ -136,13 +142,14 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
       if (fault) rescoreFaults[v] = fault;
     }
     const finalize = runFinalize(blobs, r.dir);
+    const scoringSuite = builtUnderEarlierSuite(finalize);
     const rescored: Record<string, Rescored> = {};
     for (const [v, id] of Object.entries(r.rescoreLast)) {
       const acc = rescoredStory(blobs, r.dir, v, id);
       if (acc?.by_story) rescored[v] = { after: id, byStory: normaliseByStory(acc.by_story) };
     }
     return { ...r, rescored, rescoreFaults, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
-      stories: pairs.map(([id, s]) => (builtUnderEarlierSuite(finalize) ? withoutLiveHeldout(storyEntry(id, s)) : storyEntry(id, s))),
+      stories: pairs.map(([id, s]) => storyEntry(id, scoringSuite ? acceptUnderScoringSuite(s, json<RawAccept>(blobs.get(`${r.dir}/rescore/${scoringSuite}/stories/${id.padStart(2, "0")}/accept-summary.json`))) : s)),
       scores, ...runNotes(blobs, r.dir), finalize, knownGood: isKnownGood(metrics) };
   });
   return { records, suites };
