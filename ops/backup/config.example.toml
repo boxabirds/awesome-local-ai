@@ -1,0 +1,7 @@
+# ~/.config/bench-backup/config.toml
+state = "~/expts/awesome-local-ai-bench-private/state"
+password_file = "~/.config/bench-backup/password"
+repos = [
+  "~/bench-backup-local/repo",                           # on this Mac: protects against a bad migration, not a dead disk
+  "sftp:julian@gruntus:/home/julian/bench-backup/repo",  # on gruntus: the copy on another machine
+]
