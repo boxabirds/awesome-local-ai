@@ -32,6 +32,8 @@ import reduce_lib  # noqa: E402
 START = 1790390000.0
 FOREVER = 1e12                 # a window that holds every event of a fixture with no window of its own
 LOGS = ["pi-smoke-events.jsonl", "claude-stream.jsonl"] + [f"accounting/{c['log']}" for c in json.loads((FIXTURES / "accounting/cases.json").read_text())]
+# OpenCode logs: the Rust ingest reads them for timing (rows are checked against a fixture directly, tests/ingest.rs).
+OPENCODE_LOGS = ["opencode-stream.jsonl", "accounting/opencode-died-and-resumed.jsonl"]
 ENGINE_LOGS = ["gufo-excerpt.txt", "mlx-serve-excerpt.txt", "strata-excerpt.txt"]
 SKIP = ('"message_update"', '"agent_end"', '"turn_end"', '"message_start"', '"tool_execution_update"', '"stream_event"')
 PRE = 90
@@ -253,6 +255,9 @@ def build() -> dict[str, object]:
         key = name.replace("/", "__").removesuffix(".jsonl")
         out[f"rows/{key}.json"] = rows(path)
         out[f"timing/{key}.json"] = {"t_to": max(b for _, b in windows(name)), **timing(path, max(b for _, b in windows(name)))}
+    for name in OPENCODE_LOGS:
+        key = name.replace("/", "__").removesuffix(".jsonl")
+        out[f"timing/{key}.json"] = {"t_to": max(b for _, b in windows(name)), **timing(FIXTURES / name, max(b for _, b in windows(name)))}
     out.update({f"{k}.json": v for k, v in engine_cases().items()})
     out["flags.json"] = flags_cases()
     return out

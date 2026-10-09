@@ -1,0 +1,20 @@
+{"_rx": 1790000000.0, "type": "step_start", "sessionID": "s", "part": {"type": "step_start"}}
+{"_rx": 1790000012.0, "type": "text", "sessionID": "s", "part": {"type": "text", "messageID": "m1790000000", "text": "x", "time": {"start": 1790000011000.0, "end": 1790000012000.0}}}
+{"_rx": 1790000015.0, "type": "tool_use", "sessionID": "s", "part": {"type": "tool_use", "tool": "bash", "callID": "c1790000000", "messageID": "m1790000000", "state": {"status": "completed", "input": {"command": "npx playwright test"}, "output": "ok", "time": {"start": 1790000012000.0, "end": 1790000015000.0}}}}
+{"_rx": 1790000015.02, "type": "step_finish", "sessionID": "s", "part": {"type": "step_finish", "reason": "tool-calls", "messageID": "m1790000000", "tokens": {"input": 1000, "output": 50, "reasoning": 0, "cache": {"read": 500, "write": 0}}}}
+{"_rx": 1790000015.1, "type": "step_start", "sessionID": "s", "part": {"type": "step_start"}}
+{"_rx": 1790000023.1, "type": "text", "sessionID": "s", "part": {"type": "text", "messageID": "m1790000015", "text": "x", "time": {"start": 1790000022100.0, "end": 1790000023100.0}}}
+{"_rx": 1790000023.11, "type": "tool_use", "sessionID": "s", "part": {"type": "tool_use", "tool": "read", "callID": "c1790000015", "messageID": "m1790000015", "state": {"status": "completed", "input": {"command": "ls"}, "output": "ok", "time": {"start": 1790000023100.0, "end": 1790000023110.0}}}}
+{"_rx": 1790000023.1299999, "type": "step_finish", "sessionID": "s", "part": {"type": "step_finish", "reason": "tool-calls", "messageID": "m1790000015", "tokens": {"input": 1000, "output": 50, "reasoning": 0, "cache": {"read": 500, "write": 0}}}}
+{"_rx": 1790000023.2099998, "type": "step_start", "sessionID": "s", "part": {"type": "step_start"}}
+{"_rx": 1790000028.2099998, "type": "text", "sessionID": "s", "part": {"type": "text", "messageID": "m1790000023", "text": "x", "time": {"start": 1790000027209.9998, "end": 1790000028209.9998}}}
+{"_rx": 1790000028.2299998, "type": "step_finish", "sessionID": "s", "part": {"type": "step_finish", "reason": "stop", "messageID": "m1790000023", "tokens": {"input": 1000, "output": 50, "reasoning": 0, "cache": {"read": 500, "write": 0}}}}
+{"_rx": 1790000088.2299998, "type": "step_start", "sessionID": "s", "part": {"type": "step_start"}}
+{"_rx": 1790000092.2299998, "type": "text", "sessionID": "s", "part": {"type": "text", "messageID": "m1790000088", "text": "x", "time": {"start": 1790000091229.9998, "end": 1790000092229.9998}}}
+{"_rx": 1790000092.2499998, "type": "step_finish", "sessionID": "s", "part": {"type": "step_finish", "reason": "stop", "messageID": "m1790000088", "tokens": {"input": 1000, "output": 50, "reasoning": 0, "cache": {"read": 500, "write": 0}}}}
+{"_rx": 1790000092.2999997, "type": "step_start", "sessionID": "s", "part": {"type": "step_start"}}
+{"_rx": 1790000101.2499998, "type": "text", "sessionID": "s", "part": {"type": "text", "messageID": "mx", "text": "partial", "time": {"start": 1790000100249.9998, "end": 1790000101249.9998}}}
+{"_rx": 1790000162.2499998, "type": "step_start", "sessionID": "s", "part": {"type": "step_start"}}
+{"_rx": 1790000168.2499998, "type": "text", "sessionID": "s", "part": {"type": "text", "messageID": "m1790000162", "text": "x", "time": {"start": 1790000167249.9998, "end": 1790000168249.9998}}}
+{"_rx": 1790000170.2499998, "type": "tool_use", "sessionID": "s", "part": {"type": "tool_use", "tool": "bash", "callID": "c1790000162", "messageID": "m1790000162", "state": {"status": "completed", "input": {"command": "npm run build"}, "output": "ok", "time": {"start": 1790000168249.9998, "end": 1790000170249.9998}}}}
+{"_rx": 1790000170.2699997, "type": "step_finish", "sessionID": "s", "part": {"type": "step_finish", "reason": "stop", "messageID": "m1790000162", "tokens": {"input": 1000, "output": 50, "reasoning": 0, "cache": {"read": 500, "write": 0}}}}

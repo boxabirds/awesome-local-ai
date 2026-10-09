@@ -123,14 +123,13 @@
         "errors": [
           "agent exited with status 143"
         ],
-        "ended_by_operator": true,
         "ended_in_error": false,
         "sessions": [
           "ses_ee23aaa12ffetIGFwoMBdk8pXM",
           "ses_ee223dc25ffe4Vkv0it886U66b",
           "ses_ee223dc25ffe4Vkv0it886U66b"
         ],
-        "finished": false,
+        "finished": true,
         "interventions": {
           "total": 2,
           "stop_message": 1,
@@ -399,33 +398,89 @@
       "requests": {},
       "time_split": {
         "wall_s": 1867.5,
-        "model": null,
-        "tools_s": 0.0,
-        "tools_by_kind": {},
+        "model": {
+          "source": "opencode-stream",
+          "requests": 69,
+          "prefill_s": 0.0,
+          "prefill_tokens": 127902,
+          "prefill_tok_s": null,
+          "decode_s": 1626.9,
+          "decode_tokens": 63445,
+          "decode_tok_s": null,
+          "cached_tokens": 4439560,
+          "draft_acceptance": 0.76,
+          "mean_accepted_len": null
+        },
+        "tools_s": 159.6,
+        "tools_by_kind": {
+          "e2e": 108.1,
+          "build": 29.6,
+          "bash": 14.3,
+          "unit": 7.3,
+          "write": 0.1,
+          "edit": 0.1,
+          "read": 0.0,
+          "todowrite": 0.0
+        },
         "compaction_s": 0.0,
         "compactions": 0,
-        "between_sessions_s": 0.0,
-        "other_s": 1867.5,
+        "between_sessions_s": 63.6,
+        "other_s": 17.4,
         "suspended_s": 0.0,
         "accounting": {
           "version": 4,
-          "ok": false,
-          "problems": [
-            "wall 1867.5 s is 60.1 s longer than the agent's own clock (1807.4 s): the machine was suspended with nothing in the log to show it (see its power log), or agent time is missing from the record"
-          ],
-          "abandoned_calls": 0,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 1,
           "interrupted_tools": [],
           "interrupted_compactions": 0
-        }
+        },
+        "backfilled": true
       },
-      "conversation": null,
+      "conversation": {
+        "version": 4,
+        "calls": 69,
+        "tool_calls": 83,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 2131,
+        "tool_arg_chars": 81445,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 7692,
+        "context_end": 94491,
+        "largest_context_jump": {
+          "tokens": 14402,
+          "call": 5
+        },
+        "tools_by_name": {
+          "read": 6,
+          "bash": 38,
+          "todowrite": 1,
+          "write": 31,
+          "edit": 7
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 33.3,
+          "name": "bash",
+          "gist": "cd /w/workspace && npx playwright test --project=chromium --reporter=line 2>&1 | tail -25"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
       "loc": {
         "files": 18,
         "lines": 1276
       },
       "finished": 1791502730.7273667,
-      "status": "PARTIAL",
-      "ended_by": "operator",
+      "status": "DONE",
+      "ended_by": "agent",
       "partial_base": [],
       "tasks": [
         {
@@ -553,7 +608,7 @@
           "total": 8
         }
       ],
-      "end_reason": "stop-message-exhausted",
+      "end_reason": "stop-message-then-finished",
       "tasks_claimed": {
         "file": "read",
         "tasks": {
@@ -565,26 +620,6 @@
           "6": "done",
           "7": "done (see NOTES.md: firefox/webkit cannot launch on this machine)"
         }
-      },
-      "skip": {
-        "story": 1,
-        "reason": "story cap: the stop message was sent and the story was still not finished (one message per story)",
-        "by": "harness (stop message already sent)",
-        "at": 1791502700.8751729
-      },
-      "verdict": {
-        "verdict": "green",
-        "gate_green": true,
-        "unverified_tasks": [],
-        "unverified_implementation_tasks": [],
-        "heldout": {
-          "passed": 6,
-          "total": 6,
-          "on_partial_total": 6,
-          "on_partial_passed": 6
-        },
-        "heldout_floor": 0.0,
-        "heldout_ok": true
       },
       "record": {
         "committed": true,
@@ -609,8 +644,8 @@
     {
       "id": 1,
       "title": "Pan and zoom around an infinite board",
-      "status": "PARTIAL",
-      "ended_by": "operator",
+      "status": "DONE",
+      "ended_by": "agent",
       "started_at": 1791500833.4092755,
       "ended_at": 1791502700.9297795,
       "agent_minutes": 30.1,
@@ -1226,25 +1261,7 @@
             "total": 6
           }
         }
-      ],
-      "reason": "story cap: the stop message was sent and the story was still not finished (one message per story)",
-      "by": "harness (stop message already sent)",
-      "requested_at": 1791502700.8751729,
-      "verdict": "green",
-      "health": {
-        "verdict": "green",
-        "gate_green": true,
-        "unverified_tasks": [],
-        "unverified_implementation_tasks": [],
-        "heldout": {
-          "passed": 6,
-          "total": 6,
-          "on_partial_total": 6,
-          "on_partial_passed": 6
-        },
-        "heldout_floor": 0.0,
-        "heldout_ok": true
-      }
+      ]
     }
   ]
 }

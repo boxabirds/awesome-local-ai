@@ -9,6 +9,10 @@ import type { Intervention } from "./types.ts";
 const MS_PER_SECOND = 1000;
 
 /** A story run's id: its run's record directory and its story number, as the warehouse names it. */
+/** The logs that do not carry the model's thinking text: Claude Code's and OpenCode's. Their thinking is not available, never zero. */
+const THINKING_WITHHELD_FMTS = ["claude", "opencode"];
+export const thinkingWithheld = (fmt: string | null | undefined): boolean => fmt != null && THINKING_WITHHELD_FMTS.includes(fmt);
+
 export const STORY_DIR_DIGITS = 2;
 export const storyRunId = (dir: string, story: string) => `${dir}/stories/${String(Number(story)).padStart(STORY_DIR_DIGITS, "0")}`;
 

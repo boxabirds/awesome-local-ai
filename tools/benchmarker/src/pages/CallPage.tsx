@@ -7,7 +7,7 @@ import type { Row, State, Story } from "../../shared/types.ts";
 import { callHref, conversationHref, withParams, type Route } from "../../shared/routes.ts";
 import { storyTitle } from "../../shared/runView.ts";
 import { outputSplit } from "../../shared/callView.ts";
-import { cutText, turns, type ConversationEvent, type CutText, type Turn } from "../../shared/conversation.ts";
+import { cutText, thinkingWithheld, turns, type ConversationEvent, type CutText, type Turn } from "../../shared/conversation.ts";
 import { Breadcrumb } from "../components/EntityLinks.tsx";
 import { Missing, NotApplicable, full } from "../components/run/bits.tsx";
 import { Concertina } from "../components/conversation/Concertina.tsx";
@@ -104,7 +104,7 @@ export function CallPage({ route, run, story, storyId, call, state }: { route: R
       </div>
     );
   }
-  const withheld = conv.summary ? conv.summary.fmt === "claude" : false;
+  const withheld = thinkingWithheld(conv.summary?.fmt);
   const opening = idx === 0 ? cutText((conv.events.find((e) => e.kind === "msg")?.textBody ?? null) as CutText | null) : "";
   const context = idx > 0 ? contextBefore(turns(conv.events), idx) : [];
   const showContext = contextOpen === idx;

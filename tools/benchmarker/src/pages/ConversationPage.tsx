@@ -6,7 +6,7 @@
 // app's own words.
 import { useEffect, useRef, useState } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
-import { clock, cutText, kindsFromParam, kindsToParam, nearestTurn, openToolAt, spanFromParam, spanToParam, interventionEvents, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
+import { clock, cutText, thinkingWithheld, kindsFromParam, kindsToParam, nearestTurn, openToolAt, spanFromParam, spanToParam, interventionEvents, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
 import { callHref, type Route } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { GLOSSARY } from "../../shared/glossary.ts";
@@ -101,7 +101,7 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
   const toggle = (k: TurnKind) => { const next = new Set(kinds); if (next.has(k)) next.delete(k); else next.add(k); setKinds(next); };
   const everyKind = kinds.size === TURN_KINDS.length;
   const link = (call: number) => callHref(run.pack, run.stack, run.runId, storyId, call);
-  const withheld = s?.fmt === "claude";
+  const withheld = thinkingWithheld(s?.fmt);
   return (
     <div className="page conversation-page run-page" data-page="conversation" data-available="true" data-backfilled={conv.backfilled ? "true" : "false"} data-polls={conv.polls}>
       {crumbs}

@@ -14,6 +14,7 @@ use super::Call;
 
 pub const CLIENT_STREAM: &str = "client-stream";
 pub const CLAUDE_STREAM: &str = "claude-stream";
+pub const OPENCODE_STREAM: &str = "opencode-stream";
 /// The line the harness writes into the log where it restarts a story.
 pub const RESTART_MARK: &str = "harness_attempt";
 pub const ENDED_BY_STEP: &str = "the agent's next step";
@@ -102,6 +103,24 @@ struct ClaudeState {
     live: bool,
 }
 
+/// OpenCode's stream state (accounting._opencode_event): whether a step is open, when it was sent, when the model stopped
+/// generating in it (the earlier of its text's end and its first tool's start), when the last session ended.
+#[derive(Debug, Default)]
+struct OpenCodeState {
+    open: bool,
+    sent: f64,
+    gen_end: Option<f64>,
+    settled: Option<f64>,
+}
+
+/// tool_kind for OpenCode's tools (lower-case names): bash commands by what they run, every other tool by its name.
+pub fn opencode_tool_kind(name: &str, input: &Map<String, Value>) -> String {
+    if name != "bash" {
+        return (if name.is_empty() { "other" } else { name }).to_string();
+    }
+    kind_of_command(&input.get("command").map(str_of).unwrap_or_default()).to_string()
+}
+
 /// An insertion-ordered map of the tool calls still open (Python's dict order matters for the output).
 #[derive(Debug, Default)]
 struct Open(Vec<(Option<String>, (f64, String))>);
@@ -137,6 +156,7 @@ pub struct Parser {
     settled: Option<f64>,
     claude: HashMap<Option<String>, usize>,
     cs: ClaudeState,
+    oc: OpenCodeState,
     prev: Option<f64>,
     live: bool,
 }
@@ -251,6 +271,9 @@ impl Parser {
                 self.call = Some((rx, None));
                 self.steps.push((rx, ENDED_BY_STEP));
             }
+            Some("step_start") | Some("text") | Some("tool_use") | Some("step_finish") if e.get("part").is_some_and(Value::is_object) => {
+                self.opencode_event(&e, rx, last)
+            }
             Some("assistant") | Some("user") | Some("result") => self.claude_event(&e, rx, last),
             Some("system") if sub.is_some_and(|s| CLAUDE_SYSTEM.contains(&s)) => self.claude_event(&e, rx, last),
             Some("message_end") if role == Some("assistant") && self.call.is_some() => {
@@ -265,6 +288,62 @@ impl Parser {
                     out: Some(int_or_zero(&u, "output")),
                     id: None,
                 });
+            }
+            _ => {}
+        }
+    }
+
+    /// One event of OpenCode's stream (accounting._opencode_event, whose comment says why the model owns a step up to its first tool).
+    fn opencode_event(&mut self, e: &Map<String, Value>, rx: f64, last: f64) {
+        let t = e.get("type").and_then(Value::as_str).unwrap_or("");
+        let part = e.get("part").and_then(Value::as_object).cloned().unwrap_or_default();
+        self.out.source = OPENCODE_STREAM;
+        let earlier = |cur: Option<f64>, x: f64| Some(cur.map_or(x, |c| c.min(x)));
+        match t {
+            "step_start" => {
+                if self.oc.open {
+                    self.out.abandoned += 1;
+                    self.out.between.push((last, last.max(rx)));
+                } else if let Some(s) = self.oc.settled {
+                    self.out.between.push((s, s.max(rx)));
+                }
+                self.oc = OpenCodeState { open: true, sent: rx, gen_end: None, settled: None };
+                self.steps.push((rx, ENDED_BY_STEP));
+            }
+            "text" => {
+                let end = part.get("time").and_then(Value::as_object).and_then(|t| number(t.get("end"))).map_or(rx, |ms| ms / MS_PER_S);
+                self.oc.gen_end = earlier(self.oc.gen_end, end);
+            }
+            "tool_use" => {
+                let state = part.get("state").and_then(Value::as_object).cloned().unwrap_or_default();
+                let span = state.get("time").and_then(Value::as_object);
+                if let (Some(a), Some(b)) = (span.and_then(|t| number(t.get("start"))), span.and_then(|t| number(t.get("end")))) {
+                    let (a, b) = (a / MS_PER_S, b / MS_PER_S);
+                    let input = state.get("input").and_then(Value::as_object).cloned().unwrap_or_default();
+                    let name = part.get("tool").and_then(Value::as_str).unwrap_or("");
+                    self.out.tools.push((a, a.max(b), opencode_tool_kind(name, &input)));
+                    self.oc.gen_end = earlier(self.oc.gen_end, a);
+                }
+            }
+            "step_finish" if self.oc.open => {
+                let tk = part.get("tokens").and_then(Value::as_object).cloned().unwrap_or_default();
+                let cache = tk.get("cache").and_then(Value::as_object).cloned().unwrap_or_default();
+                let sent = self.oc.sent;
+                let end = self.oc.gen_end.unwrap_or(rx).max(sent).min(rx);
+                self.out.calls.push(Call {
+                    sent,
+                    first: sent,
+                    end,
+                    fresh: int_or_zero(&tk, "input"),
+                    cached: int_or_zero(&cache, "read"),
+                    out: Some(int_or_zero(&tk, "output") + int_or_zero(&tk, "reasoning")),
+                    id: part.get("messageID").and_then(Value::as_str).map(String::from),
+                });
+                self.oc.open = false;
+                if part.get("reason").and_then(Value::as_str) == Some("stop") {
+                    self.oc.settled = Some(rx);
+                    self.steps.push((rx, ENDED_BY_SESSION_END));
+                }
             }
             _ => {}
         }

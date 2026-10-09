@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cutText, eventText, EventStore, matchesQuery, needsClamp, SEGMENT_KIND, splitHighlights, storyRunId, timeline, type ConversationEvent } from "./conversation.ts";
+import { cutText, eventText, thinkingWithheld, EventStore, matchesQuery, needsClamp, SEGMENT_KIND, splitHighlights, storyRunId, timeline, type ConversationEvent } from "./conversation.ts";
 import { SEGMENTS } from "./runView.ts";
 
 const ev = (ord: number, tMs: number, kind = "call", refIdx = ord): ConversationEvent => ({ ord, tMs, kind, refIdx, cursor: `${tMs}:${ord}` });
@@ -167,5 +167,16 @@ describe("interventions in the conversation", () => {
     // After an interrupt at 601.5 s, the call it killed is never named again, even while the log leaves it open and
     // the call that replaced it is not among the events loaded so far: no call is named rather than the wrong one.
     expect(openToolAt(all, 1_300_000, S, 601_500)).toBeNull();
+  });
+});
+
+describe("whose log shows the thinking", () => {
+  it("pi shows it; Claude Code and OpenCode do not, so theirs is not available rather than zero", () => {
+    // 8 Oct 2026: an OpenCode story (fmt "opencode") was shown as "0 thinking" on every call, because only "claude" was withheld.
+    expect(thinkingWithheld("pi")).toBe(false);
+    expect(thinkingWithheld("claude")).toBe(true);
+    expect(thinkingWithheld("opencode")).toBe(true);
+    expect(thinkingWithheld(null)).toBe(false);
+    expect(thinkingWithheld(undefined)).toBe(false);
   });
 });
