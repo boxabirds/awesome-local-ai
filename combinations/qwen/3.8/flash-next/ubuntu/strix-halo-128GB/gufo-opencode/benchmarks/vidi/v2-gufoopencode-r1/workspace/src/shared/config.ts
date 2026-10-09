@@ -46,6 +46,10 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+// Story 8: undo/redo.
+export const UNDO_CAPTURE_TIMEOUT_MS = 500; // edits closer than this merge into one undo step
+export const UNDO_MAX_STEPS = 200; // undo history cap per participant
+
 // Story 5: sharing by link.
 export const CREATE_BUDGET_MS = 2000; // PRD share.create (click to board visible; logged, not asserted)
 export const LINK_COPIED_MS = 2000; // "Link copied" confirmation duration

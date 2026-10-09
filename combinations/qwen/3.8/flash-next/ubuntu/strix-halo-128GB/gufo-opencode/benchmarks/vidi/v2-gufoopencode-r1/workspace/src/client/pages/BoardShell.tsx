@@ -1,7 +1,10 @@
+import { useEffect, useMemo } from 'react';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { createUndo } from '../board/undo';
+import { UndoContext } from '../board/useUndo';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 
@@ -17,12 +20,19 @@ export function canEdit(state: ConnectionState): boolean {
 export function BoardShell(props: { boardId: string }) {
   const { doc, notes, connection } = useBoardDoc(props.boardId);
   const selection = useSelection(notes);
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: canEdit(connection) });
+  const editable = canEdit(connection);
+  // One undo history per board doc, per session: created with the doc and
+  // destroyed when this shell unmounts or the board changes.
+  const undo = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undo.destroy(), [undo]);
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo });
 
   return (
     <>
       <ConnectionStatus state={connection} />
-      <BoardViewport doc={doc} notes={notes} selection={selection} editable={canEdit(connection)} />
+      <UndoContext.Provider value={undo}>
+        <BoardViewport doc={doc} notes={notes} selection={selection} editable={editable} />
+      </UndoContext.Provider>
     </>
   );
 }

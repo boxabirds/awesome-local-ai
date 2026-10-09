@@ -17,6 +17,7 @@ import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useTransformGesture } from '../board/useTransformGesture';
+import { useUndo, useUndoController } from '../board/useUndo';
 import type { SelectionApi } from '../board/useSelection';
 
 // Wheel events with deltaMode LINE/PAGE are converted to pixels with these.
@@ -180,14 +181,27 @@ export function BoardViewport(props: BoardViewportProps) {
   });
   const marqueeActive = marquee.rect !== null;
 
+  const undoController = useUndoController();
+  const undoState = useUndo(undoController, props.editable !== false);
+  const undoRef = useRef(undoController);
+  undoRef.current = undoController;
+
   const transform = useTransformGesture({
     doc: props.doc ?? null,
     camera,
     selection: props.selection ?? null,
     snapshot,
     canEdit: props.editable !== false,
-    onGestureStart: props.onGestureStart,
-    onGestureEnd: props.onGestureEnd
+    // One drag/resize is one undo step: close the previous step at the start
+    // and the gesture's merged frames at the end (including pointercancel).
+    onGestureStart: () => {
+      undoRef.current?.boundary();
+      props.onGestureStart?.();
+    },
+    onGestureEnd: () => {
+      undoRef.current?.boundary();
+      props.onGestureEnd?.();
+    }
   });
 
   // Escape during a marquee cancels the marquee and must not also clear the
@@ -208,7 +222,9 @@ export function BoardViewport(props: BoardViewportProps) {
   const createAtWorld = useCallback((world: Point): void => {
     const doc = docRef.current;
     if (doc === undefined || !editableRef.current) return;
+    undoRef.current?.boundary();
     const id = createSticky(doc, world);
+    undoRef.current?.boundary();
     if (id === false) return;
     selectionRef.current?.startEdit(id);
   }, []);
@@ -391,14 +407,18 @@ export function BoardViewport(props: BoardViewportProps) {
               snapshot={snapshot}
               onDelete={() => {
                 if (props.doc === undefined) return;
+                undoRef.current?.boundary();
                 deleteObjects(props.doc, [...selection.ids]);
+                undoRef.current?.boundary();
                 selection.clear();
               }}
             />
           </div>
         ) : null}
       </div>
-      {props.doc !== undefined ? <Toolbar onCreateSticky={createCentre} disabled={props.editable === false} /> : null}
+      {props.doc !== undefined ? (
+        <Toolbar onCreateSticky={createCentre} disabled={props.editable === false} undo={undoState} />
+      ) : null}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

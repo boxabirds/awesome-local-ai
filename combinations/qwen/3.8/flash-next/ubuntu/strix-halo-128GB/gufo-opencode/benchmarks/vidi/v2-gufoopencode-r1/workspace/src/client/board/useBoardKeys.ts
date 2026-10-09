@@ -6,6 +6,7 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
+import type { UndoController } from './undo';
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (target === null) return false;
@@ -15,23 +16,38 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 // Window-level keyboard commands for the selection: Ctrl/Cmd+A select all,
 // Escape clear, Enter edit the single editable-text object, arrows nudge,
-// Delete/Backspace delete. While editing text, every key is left to the
-// editor. Replaces story 2's useNoteKeys.
+// Delete/Backspace delete, Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y
+// redo. While editing text, every key is left to the editor. Replaces story
+// 2's useNoteKeys.
 export function useBoardKeys(opts: {
   doc: Y.Doc;
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undo?: UndoController;
 }): void {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const { doc, selection, snapshot: objects, canEdit } = optsRef.current;
+      const { doc, selection, snapshot: objects, canEdit, undo } = optsRef.current;
       if (selection.editingId !== null) return;
       if (isEditableTarget(event.target)) return;
 
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y')
+      ) {
+        if (!canEdit) return;
+        // Handled: never reach the browser's native undo.
+        event.preventDefault();
+        const isRedo = event.shiftKey || event.key === 'y' || event.key === 'Y';
+        if (isRedo) undo?.redo();
+        else undo?.undo();
+        return;
+      }
       if ((event.key === 'a' || event.key === 'A') && (event.ctrlKey || event.metaKey) && !event.altKey) {
         event.preventDefault();
         selection.setMany(allObjectIds(objects), false);
@@ -59,7 +75,9 @@ export function useBoardKeys(opts: {
       // Handled: no page scroll, no page text selection.
       event.preventDefault();
       if (remove) {
+        undo?.boundary();
         deleteObjects(doc, [...selection.ids]);
+        undo?.boundary();
         selection.clear();
         return;
       }
@@ -76,7 +94,9 @@ export function useBoardKeys(opts: {
       for (const obj of objects) {
         if (selection.ids.has(obj.id)) positions.set(obj.id, { x: obj.x + delta.x, y: obj.y + delta.y });
       }
+      undo?.boundary();
       moveObjects(doc, positions);
+      undo?.boundary();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);

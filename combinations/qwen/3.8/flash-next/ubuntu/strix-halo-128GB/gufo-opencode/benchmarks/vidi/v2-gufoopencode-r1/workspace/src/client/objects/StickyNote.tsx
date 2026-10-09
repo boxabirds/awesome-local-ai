@@ -6,6 +6,7 @@ import {
   type StickyColor
 } from '../../shared/config';
 import { deleteObject, getStickyText, isStickyObject, setStickyColor } from '../../shared/board-model';
+import { useUndoController } from '../board/useUndo';
 import { NoteToolbar } from './NoteToolbar';
 import { StickyTextEditor } from './StickyTextEditor';
 import { fitFontSize } from './StickyText';
@@ -30,6 +31,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
   const [fontPx, setFontPx] = useState<number>(24);
   const [overflow, setOverflow] = useState(false);
   const measureRef = useRef<HTMLDivElement | null>(null);
+  const undo = useUndoController();
 
   const textBox = Math.max(0, obj.height - STICKY_PADDING_WORLD * 2);
 
@@ -104,10 +106,14 @@ export function StickyNote(props: ObjectProps): JSX.Element {
           <NoteToolbar
             color={sticky.color}
             onColor={(c: StickyColor) => {
+              undo?.boundary();
               setStickyColor(doc, obj.id, c);
+              undo?.boundary();
             }}
             onDelete={() => {
+              undo?.boundary();
               deleteObject(doc, obj.id);
+              undo?.boundary();
               props.onEndEdit('unselected');
             }}
           />

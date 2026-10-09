@@ -10,7 +10,10 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['tests/unit/**/*.test.ts']
+          include: ['tests/unit/**/*.test.ts'],
+          // Story 8 capture-timeout tests mock lib0/time, which yjs imports;
+          // yjs must go through the module runner for that mock to apply.
+          server: { deps: { inline: ['yjs'] } }
         }
       },
       {

@@ -1,4 +1,6 @@
 import type { CSSProperties, JSX } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoState } from './useUndo';
 
 const containerStyle: CSSProperties = {
   position: 'fixed',
@@ -29,6 +31,7 @@ const buttonStyle: CSSProperties = {
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
+  undo?: UndoState;
 }
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
@@ -50,6 +53,14 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       >
         🗒
       </button>
+      {props.undo !== undefined ? (
+        <UndoButtons
+          canUndo={props.undo.canUndo}
+          canRedo={props.undo.canRedo}
+          onUndo={props.undo.undo}
+          onRedo={props.undo.redo}
+        />
+      ) : null}
     </div>
   );
 }

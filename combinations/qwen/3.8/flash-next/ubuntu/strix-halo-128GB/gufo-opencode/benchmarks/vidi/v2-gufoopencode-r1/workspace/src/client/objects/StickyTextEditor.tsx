@@ -5,6 +5,7 @@ import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { applyTextDiff, clampToLimit, counterVisible, fitFontSize } from './StickyText';
 import { editorStyle, STICKY_TEXT_BOX_WORLD } from './stickyStyles';
+import { useUndoController } from '../board/useUndo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -18,6 +19,16 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   const composingRef = useRef(false);
   const [fontPx, setFontPx] = useState(props.fontPx);
   const [length, setLength] = useState(() => ytext.toString().length);
+  const undo = useUndoController();
+
+  // An editing session is one undo step: close the previous step on mount and
+  // the typing burst (merged by the capture timeout) on unmount.
+  useEffect(() => {
+    undo?.boundary();
+    return () => {
+      undo?.boundary();
+    };
+  }, [undo]);
 
   const fit = (): void => {
     const el = textareaRef.current;
@@ -104,6 +115,19 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
       event.preventDefault();
       event.stopPropagation();
       onEnd('selected');
+      return;
+    }
+    // Undo/redo inside the textarea must drive the Y.Doc history, not the
+    // browser's native textarea undo (which would diverge from Y.Text).
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y')) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === 'z' || event.key === 'Z') {
+        if (event.shiftKey) undo?.redo();
+        else undo?.undo();
+      } else {
+        undo?.redo();
+      }
     }
     // Enter inserts a newline (default textarea behaviour); other keys pass
     // through to edit text.
