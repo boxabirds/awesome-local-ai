@@ -163,6 +163,26 @@ test.describe("where the time went", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
+test.describe("host load", () => {
+  // 9 Oct 2026: the one full Strata run fell from about 100 to about 25 tok/s and nothing recorded could say whether the host was the cause.
+  // A story now carries the peaks and typical values of what its machine was doing (CPU, stalls, paging, page cache).
+  const HOST = { samples: 120, cpuBusyMedian: 60, cpuBusyMax: 80, loadMax: 9, stallCpuMax: 5, stallMemoryMax: 2, stallIoMax: 0, majorFaultsMax: 50, cacheMinGb: 12, topComm: "strata" };
+
+  test("a story that recorded the host's load shows it, peaks and typical values, beside its cost", async ({ page }) => {
+    await patchState(page, (s) => { rowOf(s, SWIFT, "v2-r5").stories!.find((x) => x.id === "2")!.host = HOST; });
+    await open(page, SWIFT, "v2-r5", "2");
+    const want: [string, string][] = [["hostCpu", "60% typical · 80% peak"], ["hostLoad", "9.0 peak"], ["hostStall", "cpu 5.0% · mem 2.0% · io 0.0% peak"],
+      ["hostFaults", "50/s peak"], ["hostCache", "12.0 GB lowest"], ["hostTop", "strata"]];
+    for (const [term, text] of want) await expect(stat(page, "host", term).locator(".stat-value"), term).toHaveText(text);
+  });
+
+  test("a story from before the host figures existed has no such block, and says nothing about it", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(section(page, "host")).toHaveCount(0);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
 test.describe("cost", () => {
   test("tokens, calls and every speed", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");

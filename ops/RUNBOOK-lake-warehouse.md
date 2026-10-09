@@ -66,7 +66,7 @@ The backup of 7 Oct 2026 is `state/backups/20261007-before-memory-table/`: 360 s
 | `events` | one timeline event | `sk`, `kind`, `t_ms` |
 | `compactions` | one compaction | `sk`, `reason`, `summary_chars` |
 | `attempts` | one harness attempt | `sk`, `n`, `seconds`, `steps` |
-| `conditions` | one 30 s machine reading during a story | `sk`, `run_id`, `at`, `free_pct`, `swap_gb`, `footprint_gb`, `gpu_mem_gb`, `gpu_busy_pct`, `gpu_temp_c`, `gpu_power_w` |
+| `conditions` | one 30 s machine reading during a story | `sk`, `run_id`, `at`, `free_pct`, `swap_gb`, `footprint_gb`, `gpu_mem_gb`, `gpu_busy_pct`, `gpu_temp_c`, `gpu_power_w`, and from 9 Oct 2026 the host's own load: `host_cpu_busy_pct`, `host_load1`, `host_psi_cpu_some_pct`, `host_psi_mem_some_pct`, `host_psi_io_some_pct`, `host_cache_gb`, `host_major_faults_per_s`, `host_top` (NULL for readings before then) |
 | `memory` | what the model server held as one story began (from the record's `memory_start`; none for stories recorded before 7 Oct 2026) | `sk`, `run_id`, `resident_mib`, `model_bytes`, `engine`, `cache_retained_mib`, `cache_capacity_mib`, `cache_skipped_for_capacity`, `cache_evictions`, `cache_evicted_mib`, `extras_json` |
 
 ### Gotchas that cost time
@@ -178,6 +178,20 @@ select substr(s.stack,1,22) stack, s.run, count(*) readings,
        round(min(c.free_pct),1) min_free_pct, round(max(c.swap_gb),2) max_swap_gb, round(max(c.gpu_mem_gb),1) max_vram
 from stories s join conditions c on c.sk=s.sk
 where s.machine='ubuntu/nvidia4090' group by 1,2 order by min_free_pct;
+```
+
+The host columns (9 Oct 2026) answer "was the machine waiting on something other than the GPU?": `host_psi_*_pct` is the share of a
+reading's interval the kernel says work stalled on the CPU, memory or disk; `host_cpu_busy_pct`, `host_load1` and `host_top` (a JSON
+array of the busiest processes) say what was using the CPU; `host_cache_gb` and `host_major_faults_per_s` say whether weights read
+through the file cache were being evicted and read back from disk. An old warehouse gets the columns added when the new binary opens
+it (`Db::init`, `HOST_COLUMNS`); rows from before read NULL, never 0.
+
+```sql
+-- a story's speed regime against what the host was doing (Strata v2-strata0139-r2 is the case this was added for)
+select s.story, count(*) readings, round(avg(c.gpu_power_w)) gpu_w, round(avg(c.host_cpu_busy_pct),1) cpu_busy,
+       round(max(c.host_psi_mem_some_pct),1) mem_stall_max, round(min(c.host_cache_gb),1) cache_min_gb
+from stories s join conditions c on c.sk=s.sk
+where s.stack like '%strata-pi' and c.host_cpu_busy_pct is not null group by s.sk order by s.story;
 ```
 
 `conditions` was empty until 6 Oct 2026 — ingest parsed the readings into the event stream but never wrote the

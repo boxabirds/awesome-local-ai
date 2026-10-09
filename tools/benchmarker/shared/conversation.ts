@@ -13,6 +13,29 @@ const MS_PER_SECOND = 1000;
 const THINKING_WITHHELD_FMTS = ["claude", "opencode"];
 export const thinkingWithheld = (fmt: string | null | undefined): boolean => fmt != null && THINKING_WITHHELD_FMTS.includes(fmt);
 
+const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const rec = (v: unknown): Record<string, unknown> | null => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
+
+/** The figures a machine reading shows in the conversation: what the machine reported (thermal state, free memory, swap, GPU) and, from 9 Oct 2026,
+ * what the host itself was doing (CPU, load, stalls, page cache, paging, busiest process). A figure the reading could not take is left out. */
+export function readingFigures(e: ConversationEvent): string {
+  const gpu = rec(e.gpu), host = rec(e.host);
+  const parts: string[] = [typeof e.thermal === "string" ? e.thermal : "", isNum(e.freePct) ? `free ${e.freePct.toFixed(0)}%` : "", isNum(e.swapGb) ? `swap ${e.swapGb.toFixed(1)} GB` : "",
+    gpu && isNum(gpu.busyPct) ? `GPU ${gpu.busyPct.toFixed(0)}%` : ""];
+  if (host) {
+    const psi = rec(host.psi), stall = (kind: string): unknown => rec(psi?.[kind])?.some_pct;
+    const stalls = [["cpu", stall("cpu")], ["mem", stall("memory")], ["io", stall("io")]].filter(([, v]) => isNum(v)).map(([k, v]) => `${k} ${(v as number).toFixed(1)}%`);
+    const top = Array.isArray(host.top) ? rec(host.top[0]) : null;
+    parts.push(isNum(host.cpu_busy_pct) ? `CPU ${host.cpu_busy_pct.toFixed(0)}%` : "", isNum(host.load1) ? `load ${host.load1.toFixed(1)}` : "",
+      stalls.length ? `stall ${stalls.join(" ")}` : "",
+      isNum(host.major_faults_per_s) && host.major_faults_per_s > 0 ? `faults ${host.major_faults_per_s.toFixed(1)}/s` : "",
+      isNum(host.disk_read_mb_per_s) && host.disk_read_mb_per_s > 0 ? `disk read ${host.disk_read_mb_per_s.toFixed(1)} MB/s` : "",
+      isNum(host.cache_gb) ? `cache ${host.cache_gb.toFixed(1)} GB` : "",
+      top && typeof top.comm === "string" && isNum(top.cpu_pct) ? `top ${top.comm} ${top.cpu_pct.toFixed(0)}%` : "");
+  }
+  return parts.filter(Boolean).join(" · ");
+}
+
 export const STORY_DIR_DIGITS = 2;
 export const storyRunId = (dir: string, story: string) => `${dir}/stories/${String(Number(story)).padStart(STORY_DIR_DIGITS, "0")}`;
 

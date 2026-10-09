@@ -5,7 +5,7 @@
 // (Row), which carries none of that: invalid runs are left out, a split that failed its check is sent as none, and a
 // job's failure reason stays here. server/faults.ts reads the full shape for GET /api/faults.
 import { collapsedStoryIds } from "../shared/collapse.ts";
-import type { ConversationProfile, Intervention, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, TimeSplit, Usage, Score, Story, StoryMemory, PromptCacheFigures } from "../shared/types.ts";
+import type { ConversationProfile, Intervention, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, TimeSplit, Usage, Score, Story, StoryHost, StoryMemory, PromptCacheFigures } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -596,6 +596,19 @@ function memoryOf(raw: unknown): StoryMemory | null {
            engine: typeof m.engine === "string" ? m.engine : null, cache: anyCache ? cache : null };
 }
 
+/** The record's `conditions.host` as the page keeps it: peaks and typical values as numbers or null; none for a story from before the host figures. */
+export function hostOf(raw: unknown): StoryHost | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const h = raw as Record<string, unknown>;
+  const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const part = (v: unknown, k: string): number | null => (typeof v === "object" && v !== null ? num((v as Record<string, unknown>)[k]) : null);
+  const samples = num(h.samples);
+  if (!samples || samples <= 0) return null;
+  return { samples, cpuBusyMedian: part(h.cpu_busy_pct, "median"), cpuBusyMax: part(h.cpu_busy_pct, "max"), loadMax: num(h.load1_max),
+           stallCpuMax: num(h.psi_cpu_some_pct_max), stallMemoryMax: num(h.psi_memory_some_pct_max), stallIoMax: num(h.psi_io_some_pct_max),
+           majorFaultsMax: num(h.major_faults_per_s_max), cacheMinGb: part(h.cache_gb, "min"), topComm: typeof h.top_comm === "string" ? h.top_comm : null };
+}
+
 /** The suite version a run's score of record was made under, when finalize.json says the run was built under a different one: its live
  * per-story held-out figures come from the earlier suite, which that re-score replaces. Null when the run was not (or doesn't say). */
 export function builtUnderEarlierSuite(finalize: RawFinalize | null | undefined): string | null {
@@ -610,7 +623,7 @@ export function acceptUnderScoringSuite<T extends { accept?: RawAccept | null }>
 }
 
 export function storyEntry(
-  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown; memory_start?: unknown } & RawUsage,
+  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown; memory_start?: unknown; conditions?: { host?: unknown } | null } & RawUsage,
 ): RecordStory {
   const skipped = skippedOutputOf(raw.skipped_output);
   const redacted = credentialsRedactedOf(raw.record?.credentials_redacted);
@@ -627,6 +640,7 @@ export function storyEntry(
     byStory: acc.by_story ? normaliseByStory(acc.by_story) : null,
     usage: usageOf(raw),
     memory: memoryOf(raw.memory_start),
+    host: hostOf(raw.conditions?.host),
     conversation: conversationOf(raw.conversation),
     notComparable: notComparableOf(raw.not_comparable),
     ...(Array.isArray(raw.harness_faults) && raw.harness_faults.length ? { harnessFaults: raw.harness_faults } : {}),

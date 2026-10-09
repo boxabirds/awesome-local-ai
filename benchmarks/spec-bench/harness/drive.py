@@ -1752,6 +1752,8 @@ class ConditionSampler(threading.Thread):
         self.swap_start = swap_used_gb()
         self.swap_max = self.swap_start
         self.gpu: list[dict] = []
+        self.host = hostenv.HostSampler()       # CPU, stalls, page cache and paging since the last tick (hostenv.py)
+        self.host_readings: list[dict] = []
         self.aborted = threading.Event()
         self.aborted_memory = False
         self.free_min_pct: float | None = None
@@ -1772,6 +1774,13 @@ class ConditionSampler(threading.Thread):
                     self.gpu.append(g)
             except Exception as e:  # noqa: BLE001
                 print(f"    gpu sample failed: {e}", flush=True)
+            h = None
+            try:  # informational too: a host reading that fails is recorded as null and stops nothing
+                if (h := self.host.sample(time.time())):
+                    self.host_readings.append({"host": h})
+            except Exception as e:  # noqa: BLE001
+                h = None
+                print(f"    host sample failed: {e}", flush=True)
             fp, fp_peak = server_footprint_gb(self.server_port)
             if fp is not None:
                 self.footprint_max = max(self.footprint_max or 0.0, fp)
@@ -1779,7 +1788,8 @@ class ConditionSampler(threading.Thread):
             free = mem_free_pct()
             if self.record is not None:
                 self._tick({"t": time.time(), "ac": c.get("ac"), "low_power": c.get("low_power"), "thermal": c.get("thermal"),
-                            "swap_gb": round(swap, 2), "free_pct": free, "footprint_gb": fp, "footprint_peak_gb": fp_peak, "gpu": g or None})
+                            "swap_gb": round(swap, 2), "free_pct": free, "footprint_gb": fp, "footprint_peak_gb": fp_peak, "gpu": g or None,
+                            "host": h or None})
             if free is not None and free < MEM_REAP_PCT and CONTAINMENT:
                 CONTAINMENT.reap_pressure()
             if free is not None:
@@ -1828,7 +1838,7 @@ class ConditionSampler(threading.Thread):
                 "aborted_memory": self.aborted_memory, "free_min_pct": self.free_min_pct,
                 "memory_snapshot": self.memory_snapshot,
                 "server_footprint_max_gb": self.footprint_max, "server_footprint_peak_gb": self.footprint_peak,
-                "gpu": hostenv.summarise_gpu(self.gpu)}
+                "gpu": hostenv.summarise_gpu(self.gpu), "host": hostenv.summarise_host(self.host_readings)}
 
 
 def summarise_conditions(samples: int, bad: list[dict]) -> dict:

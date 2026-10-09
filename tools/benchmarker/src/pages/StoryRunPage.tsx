@@ -4,7 +4,7 @@ import { isCompared } from "../../shared/combinationView.ts";
 import type { Route } from "../../shared/routes.ts";
 import { Breadcrumb } from "../components/EntityLinks.tsx";
 import { NotRecorded, StoryNav, StoryRunHeader } from "../components/run/StoryRunParts.tsx";
-import { Conversation, StoryCost, StoryTime } from "../components/run/StoryDetail.tsx";
+import { Conversation, StoryCost, StoryHost, StoryTime } from "../components/run/StoryDetail.tsx";
 import { Against } from "../components/run/Against.tsx";
 import { WhatDiffered } from "../components/run/WhatDiffered.tsx";
 import { AcrossCombinations } from "../components/run/AcrossCombinations.tsx";
@@ -23,6 +23,7 @@ export function StoryRunPage({ route, run, storyId, state, params }: { route: Ro
       {st.kind === "recorded" ? <>
         <StoryTime story={st.story} run={run} />
         <StoryCost usage={st.story.usage} cloud={isCloud(run)} />
+        <StoryHost host={st.story.host} />
         <Conversation story={st.story} run={run} />
       </> : <NotRecorded run={run} st={st} />}
       {st.kind === "outOfScope" || !compared ? null : <Against run={run} state={state} storyId={storyId} />}

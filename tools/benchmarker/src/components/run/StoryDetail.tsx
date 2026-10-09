@@ -1,5 +1,6 @@
 // One story run in detail: where its time went, part by part; what it cost; and what the conversation looked like.
-import type { Story, Usage } from "../../../shared/types.ts";
+import type { ReactNode } from "react";
+import type { Story, StoryHost as StoryHostFigures, Usage } from "../../../shared/types.ts";
 import { conversationView, splitParts, toolKinds, whyMissing } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { short } from "../UsageCells.tsx";
@@ -71,6 +72,26 @@ export function StoryCost({ usage, cloud = false }: { usage: Usage | null | unde
         <Stat term="nudges">{or(u.nudges, String, "story")}</Stat>
       </div>
       <EngineSpeed decode={u.decodeTokS} prefill={u.prefillTokS} whyDecode={whyMissing(u, "decode")} whyPrefill={whyMissing(u, "prefill")} cloud={cloud} />
+    </Section>
+  );
+}
+
+/** What the host itself was doing while the story ran (CPU, stalls, paging, page cache): peaks and typical values from the record's readings.
+ * Nothing at all for a story recorded before the readings existed: there is no figure to be missing, and no panel of "—". */
+export function StoryHost({ host }: { host: StoryHostFigures | null | undefined }) {
+  if (!host) return null;
+  const one = (v: number | null, f: (n: number) => string): ReactNode => (v === null ? <Missing why="The machine did not report this." /> : f(v));
+  const stalls = [["cpu", host.stallCpuMax], ["mem", host.stallMemoryMax], ["io", host.stallIoMax]].filter(([, v]) => v !== null).map(([k, v]) => `${k} ${(v as number).toFixed(1)}%`);
+  return (
+    <Section term="storyHost" id="host" aside={<span className="small">{host.samples} readings</span>}>
+      <div className="stats">
+        <Stat term="hostCpu">{host.cpuBusyMedian === null || host.cpuBusyMax === null ? <Missing why="The machine did not report this." /> : `${host.cpuBusyMedian.toFixed(0)}% typical · ${host.cpuBusyMax.toFixed(0)}% peak`}</Stat>
+        <Stat term="hostLoad">{one(host.loadMax, (n) => `${n.toFixed(1)} peak`)}</Stat>
+        <Stat term="hostStall">{stalls.length ? `${stalls.join(" · ")} peak` : <Missing why="The machine did not report this." />}</Stat>
+        <Stat term="hostFaults">{one(host.majorFaultsMax, (n) => `${n.toFixed(0)}/s peak`)}</Stat>
+        <Stat term="hostCache">{one(host.cacheMinGb, (n) => `${n.toFixed(1)} GB lowest`)}</Stat>
+        <Stat term="hostTop">{host.topComm ?? <Missing why="The machine did not report this." />}</Stat>
+      </div>
     </Section>
   );
 }

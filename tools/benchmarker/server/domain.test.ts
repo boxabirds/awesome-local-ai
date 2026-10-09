@@ -3,7 +3,7 @@ import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
   mergeStories, judgeReady, storyJudgeReady, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, rescoreFault, runUsage, RECENT_S, type DbenchJob,
   jobsByRun, jobReason, buildRows, buildFullRows, parseFinalize, publicStory, type FullRow, type RecordStory,
-  builtUnderEarlierSuite, acceptUnderScoringSuite,
+  builtUnderEarlierSuite, acceptUnderScoringSuite, hostOf,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -778,5 +778,29 @@ describe("a run built under an earlier suite: its per-story held-out figures are
 
   it("a story with no re-score under that suite has no held-out figure at all: not available, never the earlier suite's", () => {
     expect(storyEntry("5", acceptUnderScoringSuite(live, null))).toMatchObject({ passed: null, total: null, ownPassed: null, ownTotal: null, byStory: null });
+  });
+});
+
+describe("a story's host load, from the record's conditions.host summary (harness 9 Oct 2026)", () => {
+  const summary = { samples: 3, cpu_busy_pct: { median: 60, max: 80 }, load1_max: 9, psi_cpu_some_pct_max: 5, psi_memory_some_pct_max: 2, psi_memory_full_pct_max: 0.5,
+    psi_io_some_pct_max: 0, psi_io_full_pct_max: 0, major_faults_per_s_max: 50, cache_gb: { min: 12, median: 12.5 }, top_comm: "strata" };
+
+  it("keeps the peaks and the typical values as numbers", () => {
+    expect(hostOf(summary)).toEqual({ samples: 3, cpuBusyMedian: 60, cpuBusyMax: 80, loadMax: 9, stallCpuMax: 5, stallMemoryMax: 2, stallIoMax: 0,
+      majorFaultsMax: 50, cacheMinGb: 12, topComm: "strata" });
+  });
+  it("a story recorded before the host figures existed, or a record that is not an object, has none: null, never zeros", () => {
+    expect(hostOf(undefined)).toBeNull();
+    expect(hostOf(null)).toBeNull();
+    expect(hostOf("x")).toBeNull();
+    expect(hostOf({ samples: 0 })).toBeNull();
+    expect(hostOf({})).toBeNull();
+  });
+  it("a figure the machine could not give is null, not 0", () => {
+    expect(hostOf({ samples: 2, cpu_busy_pct: null, load1_max: 3, psi_cpu_some_pct_max: null })).toMatchObject({ samples: 2, cpuBusyMedian: null, cpuBusyMax: null, loadMax: 3, stallCpuMax: null, topComm: null });
+  });
+  it("is part of a story's entry", () => {
+    expect(storyEntry("5", { title: "t", status: "DONE", conditions: { host: summary } } as never).host).toMatchObject({ cpuBusyMax: 80, topComm: "strata" });
+    expect(storyEntry("5", { title: "t", status: "DONE" } as never).host).toBeNull();
   });
 });

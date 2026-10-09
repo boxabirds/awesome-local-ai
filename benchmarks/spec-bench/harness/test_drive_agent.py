@@ -397,6 +397,15 @@ def test_the_hang_guard_has_the_containment_reap_what_the_interrupted_call_start
 T = 1_790_000_000.0
 
 
+class NoHost:
+    """A host sampler with nothing to say: the sampler tests script GPU, swap and memory, not the machine they run on."""
+    def __init__(self, *a, **k):
+        pass
+
+    def sample(self, now):
+        return None
+
+
 def sampler(monkeypatch, rounds: int, swaps: list[float], frees: list[float | None] | None = None,
             conditions: list[dict] | None = None, footprints: list[tuple] | None = None, gpu=None,
             ws: Path | None = None, port: int | None = None):
@@ -411,6 +420,7 @@ def sampler(monkeypatch, rounds: int, swaps: list[float], frees: list[float | No
     monkeypatch.setattr(drive, "conditions", lambda: dict(next(cond)))
     monkeypatch.setattr(drive, "server_footprint_gb", lambda p: asked_ports.append(p) or next(foot))
     monkeypatch.setattr(hostenv, "gpu_sample", gpu or (lambda: None))
+    monkeypatch.setattr(hostenv, "HostSampler", NoHost)
     monkeypatch.setattr(hostenv, "summarise_gpu", lambda samples: {"samples": list(samples)})
     monkeypatch.setattr(drive, "workspace_pids", lambda w: {("pids of", w)})
     monkeypatch.setattr(drive, "kill_pids", killed.append)
@@ -427,7 +437,7 @@ def test_a_quiet_story_on_a_fit_machine_is_sampled_and_nothing_else(monkeypatch,
     assert record == {"samples": 3, "degraded": False, "throttled_share": 0.0, "bad_samples": [],
                       "swap_start_gb": 1.0, "swap_max_gb": 1.2, "aborted_swap": False, "aborted_memory": False,
                       "free_min_pct": 50.0, "memory_snapshot": None, "server_footprint_max_gb": None,
-                      "server_footprint_peak_gb": None, "gpu": {"samples": []}}
+                      "server_footprint_peak_gb": None, "gpu": {"samples": []}, "host": None}
     assert killed == [] and not drive.RUN_ABORT.is_set() and capsys.readouterr().out == ""
 
 

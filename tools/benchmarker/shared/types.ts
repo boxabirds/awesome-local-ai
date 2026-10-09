@@ -116,6 +116,24 @@ export interface Intervention {
  * Every figure is nullable because an engine says only what it says: gufo reports what its prompt cache holds against
  * what it may hold, llama.cpp reports how often it has evicted entries since the server started, and neither reports
  * the other's. What is not offered is null, and a total that could not be read is null too, never 0. */
+/** What the host itself was doing while a story ran, from the record's `conditions.host` (harness 9 Oct 2026): peaks and typical values over its
+ * 30 s readings. Every figure a number or null; a story recorded before then has none (null, never zeros). */
+export interface StoryHost {
+  samples: number;
+  cpuBusyMedian: number | null;
+  cpuBusyMax: number | null;
+  loadMax: number | null;
+  /** The most the kernel reported work stalled, as a share of a reading's interval. */
+  stallCpuMax: number | null;
+  stallMemoryMax: number | null;
+  stallIoMax: number | null;
+  majorFaultsMax: number | null;
+  /** The smallest the page cache was. */
+  cacheMinGb: number | null;
+  /** The process most often the busiest. */
+  topComm: string | null;
+}
+
 export interface StoryMemory {
   at: number | null;
   /** The server process's total resident memory when the story began. */
@@ -140,6 +158,8 @@ export interface PromptCacheFigures {
 export interface Story {
   /** What the model server held as this story began; null for a story recorded before the snapshot existed. */
   memory?: StoryMemory | null;
+  /** What the host itself was doing while this story ran; null for a story recorded before the host figures existed. */
+  host?: StoryHost | null;
   /** This story can be judged: it has a record of its own and the run has its workspace history. Weaker than the
    * run's judgeReady on purpose -- a finished story of a running run is judgeable, and the review page rebuilds
    * the workspace story by story. */

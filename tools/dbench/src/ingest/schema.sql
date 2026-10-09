@@ -7,7 +7,7 @@
 -- `events` is the time-ordered, append-only stream the conversation API pages over.
 
 pragma journal_mode = wal;
-pragma user_version = 2;
+pragma user_version = 3;
 
 create table if not exists meta(key text primary key, value text);
 
@@ -91,6 +91,8 @@ create table if not exists conditions(
   run_id text, at real, sk integer,
   ac integer, low_power integer, thermal text, swap_gb real, free_pct real, footprint_gb real, footprint_peak_gb real,
   gpu_busy_pct real, gpu_sclk_mhz integer, gpu_mem_gb real, gpu_temp_c real, gpu_power_w real, gpu_throttle text,
+  -- the host's own load (9 Oct 2026; NULL for readings from before, never 0). Kept in step with HOST_COLUMNS in db.rs, which adds them to an older warehouse.
+  host_cpus integer, host_load1 real, host_load5 real, host_load15 real, host_cpu_busy_pct real, host_cpu_iowait_pct real, host_psi_cpu_some_pct real, host_psi_mem_some_pct real, host_psi_mem_full_pct real, host_psi_io_some_pct real, host_psi_io_full_pct real, host_cache_gb real, host_avail_gb real, host_dirty_mb real, host_major_faults_per_s real, host_disk_read_mb_per_s real, host_swap_in_per_s real, host_swap_out_per_s real, host_top text,
   primary key(run_id, at)
 );
 create index if not exists cd_sk on conditions(sk, at);

@@ -44,7 +44,7 @@ SOURCES (each bench machine, run dir)      LAKE (host, raw, byte-exact copies)
 
 The lake is raw and append-only: whatever the node had, byte for byte, plus a record of what was collected. The warehouse is the parsed, queryable form with one time axis. Analytics never reads the lake; it reads the warehouse. One host process (`dbench collect`) owns the lake, the warehouse and the API. The benchmarker stays a reader, proxying to it, so no SQLite driver enters the TypeScript side (Bun has `bun:sqlite`, Vitest runs on Node with `node:sqlite`; a proxy avoids the split entirely).
 
-Naming: "conditions" is the harness's 30 s readings of the machine while a story runs (swap, free memory, server footprint, GPU busy/clock/memory/temperature/power, thermal state) from `ConditionSampler`. It was called "samples" in an earlier draft; that word is reserved for analytics and is not used anywhere in this design.
+Naming: "conditions" is the harness's 30 s readings of the machine while a story runs (swap, free memory, server footprint, GPU busy/clock/memory/temperature/power, thermal state, and from 9 Oct 2026 the host's own load: CPU, stall figures, page cache, paging, busiest processes) from `ConditionSampler`. It was called "samples" in an earlier draft; that word is reserved for analytics and is not used anywhere in this design.
 
 ## A. Node side: file endpoints in `dbench serve`
 
