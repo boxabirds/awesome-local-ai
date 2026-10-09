@@ -57,8 +57,11 @@ STRATA_MIN_RAM_MIB=50000
 # pin could not be installed: its commit (1735d647) is no longer on upstream (`git ls-remote` finds no ref holding it) and the tags have
 # moved since (v0.1.39 now points at a1641e9f, the build we ran is 6f32ec07; v0.1.40 now at 1cbcacbc). Nothing was ever run on 0.1.40,
 # so nothing recorded straddles this. Moving to 0.1.40 again needs a commit that exists, and a decision.
-STRATA_VERSION="0.1.39"
-STRATA_COMMIT="6f32ec070f23ced9f50e704d854d775da52591ab"
+# 0.1.41 (9 Oct 2026), the latest tag, for the n=5 series on the machine's IQ3_XXS pack (the owner: "restart n=5 strata (latest version)").
+# Its commit was read from upstream on the day (`git ls-remote` finds it as refs/tags/v0.1.41). Nothing recorded before this ran on it:
+# v2-strata0139-r2 is the record of 0.1.39.
+STRATA_VERSION="0.1.41"
+STRATA_COMMIT="fb58e0dbc8399662c0e47c76578c6e878b14f6cf"
 STRATA_REPO_URL="https://github.com/Niko1221/Strata.git"
 # The size and the context the benchmark runs: the owner chose IQ3_XXS (IQ3_S needs 62 GB of RAM with little else
 # running, and a story also runs the agent, browsers and test servers on the same machine); 131072 is the benchmark's
