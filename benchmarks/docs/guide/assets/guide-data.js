@@ -153,9 +153,9 @@ GUIDE_DATA.entities = [
   {
     id: "client", name: "Client (coding agent)", mapLabel: "Client (agent)", group: "stack", row: 4,
     short: "The coding agent that reads the prompt and uses tools.",
-    what: "The coding agent that reads the prompt and makes {g:tool-call|tool calls} (read, edit, write, bash) to build the app: pi, the benchmark's default; OpenCode, for earlier runs; and {g:claude-code|Claude Code}, the reference model's client. The harness runs it headless with its own config and home, and reads its event stream.",
+    what: "The coding agent that reads the prompt and makes {g:tool-call|tool calls} (read, edit, write, bash) to build the app: pi, the benchmark's default; OpenCode, for the gufo-opencode series and earlier runs; and {g:claude-code|Claude Code}, the reference model's client. The harness runs it headless with its own config and home, and reads its event stream. Each client writes its own shape of stream, so each has its own reader for the final reply and DONE line, the conversation profile, the time split, the sandbox-reach scan and the warehouse ingest, and a smoke run checks that the reader finds the reply in a real stream before a series is queued. OpenCode's events carry no thinking and no first-token time, so its thinking shows as not available and its model time as not split into reading and writing.",
     rel: [["works inside", "sandbox"], ["writes", "conversation"]],
-    repo: [["lib/clients/pi.sh", "lib/clients/pi.sh"], ["lib/clients/opencode.sh", "lib/clients/opencode.sh"], ["benchmarks/spec-bench/harness/clients.py", "harness/clients.py"]],
+    repo: [["lib/clients/pi.sh", "lib/clients/pi.sh"], ["lib/clients/opencode.sh", "lib/clients/opencode.sh"], ["benchmarks/spec-bench/harness/clients.py", "harness/clients.py"], ["benchmarks/spec-bench/harness/accounting.py", "harness/accounting.py"], ["benchmarks/spec-bench/harness/conversation.py", "harness/conversation.py"], ["tools/dbench/src/ingest/events.rs", "ingest/events.rs"]],
     example: "Every v2 run of a local model uses pi 0.87.1: that release added prompt-cache warming, so client versions must not differ between stacks. The reference models use Claude Code.",
     insights: ["rewrites-rereads", "cd-prefix"],
   },
