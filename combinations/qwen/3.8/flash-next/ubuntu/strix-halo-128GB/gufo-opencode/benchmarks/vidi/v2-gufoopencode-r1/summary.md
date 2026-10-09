@@ -13,8 +13,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | 6/7 | 0 | 0 | 26/27 |
 | 4 | 4/4 | 0 | 0 | 30/31 |
 | 5 | 5/5 | 0 | 0 | 35/36 |
+| 7 | 8/8 | 0 | 0 | 43/44 |
 
-**New work** 31/32, **regressions** 0, **repairs** 0, **cumulative** 35/36.
+**New work** 39/40, **regressions** 0, **repairs** 0, **cumulative** 43/44.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -23,13 +24,16 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | See other people's edits appear live on the same board | DONE | 124.1 | None | None | None | — | — | green | 26/27 |  | 1 / 0 | 0 | — | throttled 0%, server peak 17 GB |
 | 4 | Return to a board and find everything as it was left | PARTIAL (amber) | 241.1 | None | None | None | — | — | green | 30/31 |  | 0 / 0 | 0 | — | throttled 0%, server peak 17 GB |
 | 5 | Share a board with others using a link | DONE, on partial 4 | 69.5 | None | None | None | — | — | green | 35/36 |  | 0 / 0 | 0 | — | throttled 0%, server peak 17 GB |
+| 7 | Select, move, resize and delete several objects at once | PARTIAL (green), on partial 4 | 89.6 | None | None | None | — | — | green | 43/44 |  | 0 / 1 | 0 | — | throttled 0%, server peak 17 GB |
 
-**Totals:** 5 stories, 518 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/5, final acceptance 35/36, stalled 0, partial 1, 8845 lines in src+tests.
+**Totals:** 6 stories, 607 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/6, final acceptance 43/44, stalled 0, partial 2, 11291 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 4 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **amber**: gate green, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [2, 4, 7]), held-out 4/4 (floor 1.0).
 - Story 5, built on partial 4: held-out tests on the partial base 9/9; partial story's tests fixed 0, regressed 0; 5 stub-like lines added to src/.
+- **Story 7 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **green**: gate green, tasks not verified none (implementation: none), held-out 8/8 (floor 0.0).
+- Story 7, built on partial 4: held-out tests on the partial base 17/17; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -42,6 +46,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | 4 by the agent | 3684 / 1342 | `board-room.ts` (147), `connectBoard.ts` (114), `protocol.ts` (94), `App.tsx` (54), `ConnectionStatus.tsx` (46), `StickyTextEditor.tsx` (43), +18 more |
 | 4 | harness snapshot (agent left work uncommitted) | 2282 / 100 | `board-room.ts` (368), `board-store.ts` (298), `test-hooks.ts` (108), `board-seed.ts` (70), `room-state.ts` (59), `playwright.persistence.config.ts` (27), +13 more |
 | 5 | 1 by the agent | 1570 / 140 | `SharePanel.tsx` (178), `HomePage.tsx` (95), `BoardPage.tsx` (81), `App.tsx` (74), `board-room.ts` (73), `board-store.ts` (59), +13 more |
+| 7 | 1 by the agent | 2748 / 289 | `useTransformGesture.ts` (270), `BoardViewport.tsx` (212), `StickyNote.tsx` (172), `board-model.ts` (158), `geometry.ts` (133), `SelectionOverlay.tsx` (113), +11 more |
 
 ### Earlier stories broken or fixed
 
