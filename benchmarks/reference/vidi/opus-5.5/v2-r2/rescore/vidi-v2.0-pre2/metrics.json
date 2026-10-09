@@ -133,12 +133,39 @@
       "requests": {},
       "time_split": {
         "wall_s": 435.2,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 23,
+          "prefill_s": 39.5,
+          "prefill_tokens": 74381,
+          "prefill_tok_s": null,
+          "decode_s": 289.2,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 1182647
+        },
+        "tools_s": 104.7,
+        "tools_by_kind": {
+          "e2e": 85.1,
+          "build": 14.8,
+          "unit": 4.1,
+          "bash": 0.5,
+          "read": 0.0
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 435.2
+        "between_sessions_s": 0.0,
+        "other_s": 1.8,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 18,
@@ -279,6 +306,50 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "328f2a31"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 23,
+        "tool_calls": 22,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3072,
+        "tool_arg_chars": 73282,
+        "thinking_tokens": 6449,
+        "thinking_estimated_tokens": 7830,
+        "largest_thinking_estimated": {
+          "tokens": 3350,
+          "call": 11,
+          "at_s": 150.4
+        },
+        "context_start": 16225,
+        "context_end": 84455,
+        "largest_context_jump": {
+          "tokens": 10707,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 21,
+          "Read": 1
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 33.4,
+          "name": "Bash",
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace; cat > playwright.config.ts <<'EOF'\nimport "
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "2": {
@@ -418,12 +489,41 @@
       "requests": {},
       "time_split": {
         "wall_s": 652.1,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 32,
+          "prefill_s": 72.3,
+          "prefill_tokens": 125785,
+          "prefill_tok_s": null,
+          "decode_s": 545.0,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 3001988
+        },
+        "tools_s": 34.2,
+        "tools_by_kind": {
+          "e2e": 25.8,
+          "unit": 4.6,
+          "build": 1.6,
+          "bash": 1.6,
+          "read": 0.4,
+          "write": 0.2,
+          "edit": 0.0
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 652.1
+        "between_sessions_s": 0.0,
+        "other_s": 0.7,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 33,
@@ -583,6 +683,52 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "eccc8210"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 32,
+        "tool_calls": 37,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3243,
+        "tool_arg_chars": 102486,
+        "thinking_tokens": 23603,
+        "thinking_estimated_tokens": 24883,
+        "largest_thinking_estimated": {
+          "tokens": 17350,
+          "call": 5,
+          "at_s": 196.8
+        },
+        "context_start": 16275,
+        "context_end": 137494,
+        "largest_context_jump": {
+          "tokens": 22242,
+          "call": 3
+        },
+        "tools_by_name": {
+          "Bash": 22,
+          "Read": 5,
+          "Write": 9,
+          "Edit": 1
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 12.4,
+          "name": "Bash",
+          "gist": "npm run build 2>&1 | tail -4 && npm run typecheck 2>&1 | tail -2 && npm run test:unit 2>&1 | grep -E 'Tests|Fail' && npm"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "3": {
@@ -732,12 +878,41 @@
       "requests": {},
       "time_split": {
         "wall_s": 4120.8,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 105,
+          "prefill_s": 383.6,
+          "prefill_tokens": 190916,
+          "prefill_tok_s": null,
+          "decode_s": 715.9,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 13443003
+        },
+        "tools_s": 3020.7,
+        "tools_by_kind": {
+          "e2e": 2880.4,
+          "unit": 127.4,
+          "background": 5.5,
+          "bash": 5.0,
+          "build": 2.1,
+          "read": 0.3,
+          "schedulewakeup": 0.0
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 4120.8
+        "between_sessions_s": 0.0,
+        "other_s": 0.6,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 51,
@@ -900,6 +1075,51 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "ee368615"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 105,
+        "tool_calls": 106,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 6709,
+        "tool_arg_chars": 130541,
+        "thinking_tokens": 35230,
+        "thinking_estimated_tokens": 40952,
+        "largest_thinking_estimated": {
+          "tokens": 4450,
+          "call": 52,
+          "at_s": 584.6
+        },
+        "context_start": 16295,
+        "context_end": 202479,
+        "largest_context_jump": {
+          "tokens": 13441,
+          "call": 5
+        },
+        "tools_by_name": {
+          "Bash": 102,
+          "Read": 1,
+          "ScheduleWakeup": 3
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 319.5,
+          "name": "Bash",
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace; python3 - <<'EOF'\np='tests/e2e/live-collab"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "4": {
@@ -1052,12 +1272,40 @@
       "requests": {},
       "time_split": {
         "wall_s": 1005.9,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 63,
+          "prefill_s": 228.8,
+          "prefill_tokens": 179614,
+          "prefill_tok_s": null,
+          "decode_s": 587.7,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 8375243
+        },
+        "tools_s": 188.7,
+        "tools_by_kind": {
+          "e2e": 125.5,
+          "unit": 58.3,
+          "build": 2.4,
+          "bash": 2.0,
+          "read": 0.3,
+          "write": 0.2
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1005.9
+        "between_sessions_s": 0.0,
+        "other_s": 0.7,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 65,
@@ -1217,6 +1465,51 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "3cd0d1dc"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 63,
+        "tool_calls": 69,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 4390,
+        "tool_arg_chars": 124789,
+        "thinking_tokens": 31254,
+        "thinking_estimated_tokens": 32737,
+        "largest_thinking_estimated": {
+          "tokens": 16550,
+          "call": 13,
+          "at_s": 263.2
+        },
+        "context_start": 16319,
+        "context_end": 191261,
+        "largest_context_jump": {
+          "tokens": 22371,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 56,
+          "Read": 3,
+          "Write": 10
+        },
+        "tool_errors": 3,
+        "longest_tool": {
+          "seconds": 63.3,
+          "name": "Bash",
+          "gist": "timeout 1800 npm run test:e2e:nightly 2>&1 | grep -E \"passed|failed|flaky|\u2718\" | tail -10"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "5": {
@@ -1373,12 +1666,39 @@
       "requests": {},
       "time_split": {
         "wall_s": 604.2,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 44,
+          "prefill_s": 83.0,
+          "prefill_tokens": 135539,
+          "prefill_tok_s": null,
+          "decode_s": 307.3,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 4766383
+        },
+        "tools_s": 212.8,
+        "tools_by_kind": {
+          "e2e": 167.6,
+          "unit": 40.9,
+          "bash": 2.8,
+          "build": 1.2,
+          "read": 0.3
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 604.2
+        "between_sessions_s": 0.0,
+        "other_s": 1.0,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 79,
@@ -1511,6 +1831,50 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "fea1eb57"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 44,
+        "tool_calls": 44,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3886,
+        "tool_arg_chars": 82504,
+        "thinking_tokens": 9325,
+        "thinking_estimated_tokens": 11942,
+        "largest_thinking_estimated": {
+          "tokens": 1400,
+          "call": 5,
+          "at_s": 28.1
+        },
+        "context_start": 16318,
+        "context_end": 147224,
+        "largest_context_jump": {
+          "tokens": 26217,
+          "call": 3
+        },
+        "tools_by_name": {
+          "Bash": 43,
+          "Read": 1
+        },
+        "tool_errors": 1,
+        "longest_tool": {
+          "seconds": 63.4,
+          "name": "Bash",
+          "gist": "npm run test:e2e:nightly 2>&1 | grep -vE \"^\\[latency\\]   \" | tail -15"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "7": {
@@ -1672,12 +2036,41 @@
       "requests": {},
       "time_split": {
         "wall_s": 927.7,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 52,
+          "prefill_s": 121.5,
+          "prefill_tokens": 179818,
+          "prefill_tok_s": null,
+          "decode_s": 588.2,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 6937341
+        },
+        "tools_s": 216.9,
+        "tools_by_kind": {
+          "e2e": 157.8,
+          "unit": 47.5,
+          "background": 5.7,
+          "bash": 2.9,
+          "build": 2.6,
+          "read": 0.4,
+          "schedulewakeup": 0.0
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 927.7
+        "between_sessions_s": 0.0,
+        "other_s": 1.1,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 95,
@@ -1885,6 +2278,51 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "e8ba5e2a"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 52,
+        "tool_calls": 57,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 5089,
+        "tool_arg_chars": 138627,
+        "thinking_tokens": 22183,
+        "thinking_estimated_tokens": 24313,
+        "largest_thinking_estimated": {
+          "tokens": 6650,
+          "call": 10,
+          "at_s": 143.9
+        },
+        "context_start": 16352,
+        "context_end": 191487,
+        "largest_context_jump": {
+          "tokens": 24181,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 50,
+          "Read": 5,
+          "ScheduleWakeup": 2
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 66.0,
+          "name": "Bash",
+          "gist": "kill 90273; sleep 2; lsof -ti :8787; npm run test:e2e:nightly > /tmp/nightly.log 2>&1; tail -15 /tmp/nightly.log"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "8": {
@@ -2049,12 +2487,39 @@
       "requests": {},
       "time_split": {
         "wall_s": 641.6,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 44,
+          "prefill_s": 119.9,
+          "prefill_tokens": 123902,
+          "prefill_tok_s": null,
+          "decode_s": 317.6,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 3784812
+        },
+        "tools_s": 203.1,
+        "tools_by_kind": {
+          "e2e": 170.8,
+          "unit": 26.7,
+          "bash": 2.8,
+          "build": 2.7,
+          "read": 0.1
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 641.6
+        "between_sessions_s": 0.0,
+        "other_s": 1.0,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 105,
@@ -2196,6 +2661,50 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "b0443163"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 44,
+        "tool_calls": 46,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3285,
+        "tool_arg_chars": 72155,
+        "thinking_tokens": 15331,
+        "thinking_estimated_tokens": 16792,
+        "largest_thinking_estimated": {
+          "tokens": 4550,
+          "call": 9,
+          "at_s": 68.1
+        },
+        "context_start": 16375,
+        "context_end": 135587,
+        "largest_context_jump": {
+          "tokens": 15642,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 43,
+          "Read": 3
+        },
+        "tool_errors": 1,
+        "longest_tool": {
+          "seconds": 63.8,
+          "name": "Bash",
+          "gist": "npm run test:e2e:nightly 2>&1 | tail -6"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "9": {
@@ -2364,12 +2873,40 @@
       "requests": {},
       "time_split": {
         "wall_s": 1121.9,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 57,
+          "prefill_s": 204.5,
+          "prefill_tokens": 207324,
+          "prefill_tok_s": null,
+          "decode_s": 732.0,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 8506839
+        },
+        "tools_s": 184.2,
+        "tools_by_kind": {
+          "e2e": 143.5,
+          "unit": 34.4,
+          "bash": 5.0,
+          "build": 1.2,
+          "read": 0.1,
+          "write": 0.0
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1121.9
+        "between_sessions_s": 0.0,
+        "other_s": 1.2,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 120,
@@ -2547,6 +3084,51 @@
         "commit": "f83975f9",
         "unpushed": true,
         "error": "com:boxabirds/awesome-local-ai.git\n ! [rejected]          HEAD -> main (fetch first)\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai.git'\nhint: Updates were rejected because the remote contains work that you do not\nhint: have locally. This is usually caused by another repository pushing to\nhint: the same ref. If you want to integrate the remote changes, use\nhint: 'git pull' before pushing again.\nhint: See the 'Note about fast-forwards' in 'git push --help' for details.\n"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 57,
+        "tool_calls": 61,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 5885,
+        "tool_arg_chars": 128710,
+        "thinking_tokens": 35753,
+        "thinking_estimated_tokens": 37937,
+        "largest_thinking_estimated": {
+          "tokens": 7500,
+          "call": 11,
+          "at_s": 228.7
+        },
+        "context_start": 16338,
+        "context_end": 218983,
+        "largest_context_jump": {
+          "tokens": 19295,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 57,
+          "Read": 3,
+          "Write": 1
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 36.0,
+          "name": "Bash",
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace; timeout 900 npm run test:e2e 2>&1 | grep -"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "10": {
@@ -2719,12 +3301,39 @@
       "requests": {},
       "time_split": {
         "wall_s": 1054.1,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 58,
+          "prefill_s": 120.8,
+          "prefill_tokens": 223383,
+          "prefill_tok_s": null,
+          "decode_s": 772.9,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 9055509
+        },
+        "tools_s": 159.3,
+        "tools_by_kind": {
+          "e2e": 111.4,
+          "unit": 36.0,
+          "build": 6.0,
+          "bash": 5.6,
+          "read": 0.4
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1054.1
+        "between_sessions_s": 0.0,
+        "other_s": 1.1,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 140,
@@ -2885,6 +3494,50 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "dd8fcb35"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 58,
+        "tool_calls": 59,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 4277,
+        "tool_arg_chars": 174190,
+        "thinking_tokens": 29483,
+        "thinking_estimated_tokens": 32352,
+        "largest_thinking_estimated": {
+          "tokens": 10550,
+          "call": 8,
+          "at_s": 125.4
+        },
+        "context_start": 16379,
+        "context_end": 235040,
+        "largest_context_jump": {
+          "tokens": 24266,
+          "call": 3
+        },
+        "tools_by_name": {
+          "Bash": 56,
+          "Read": 3
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 63.7,
+          "name": "Bash",
+          "gist": "npm run test:e2e:nightly 2>&1 | grep -vE \"^\\[latency\\]\" | tail -8"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "11": {
@@ -3061,12 +3714,39 @@
       "requests": {},
       "time_split": {
         "wall_s": 636.9,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 46,
+          "prefill_s": 121.6,
+          "prefill_tokens": 157833,
+          "prefill_tok_s": null,
+          "decode_s": 340.4,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 5046206
+        },
+        "tools_s": 173.7,
+        "tools_by_kind": {
+          "e2e": 132.4,
+          "unit": 35.6,
+          "bash": 3.1,
+          "build": 2.5,
+          "read": 0.1
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 636.9
+        "between_sessions_s": 0.0,
+        "other_s": 1.2,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 152,
@@ -3181,6 +3861,50 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "ea2db998"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 46,
+        "tool_calls": 48,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 4051,
+        "tool_arg_chars": 92908,
+        "thinking_tokens": 11560,
+        "thinking_estimated_tokens": 13564,
+        "largest_thinking_estimated": {
+          "tokens": 3350,
+          "call": 16,
+          "at_s": 80.9
+        },
+        "context_start": 16341,
+        "context_end": 169514,
+        "largest_context_jump": {
+          "tokens": 17627,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 44,
+          "Read": 4
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 63.6,
+          "name": "Bash",
+          "gist": "npm run test:e2e:nightly 2>&1 | tail -8"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "12": {
@@ -3361,12 +4085,41 @@
       "requests": {},
       "time_split": {
         "wall_s": 925.1,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 60,
+          "prefill_s": 114.1,
+          "prefill_tokens": 212263,
+          "prefill_tok_s": null,
+          "decode_s": 569.7,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 9777310
+        },
+        "tools_s": 240.2,
+        "tools_by_kind": {
+          "e2e": 166.1,
+          "unit": 66.0,
+          "bash": 6.7,
+          "build": 0.8,
+          "read": 0.6,
+          "write": 0.1,
+          "schedulewakeup": 0.0
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 925.1
+        "between_sessions_s": 0.0,
+        "other_s": 1.1,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 181,
@@ -3529,6 +4282,52 @@
           "~/.spec-bench/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/v2-r2/workspace/tests/fixtures/images/photo.jpg"
         ],
         "commit": "a752e0b5"
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 60,
+        "tool_calls": 65,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 4399,
+        "tool_arg_chars": 136507,
+        "thinking_tokens": 18492,
+        "thinking_estimated_tokens": 21742,
+        "largest_thinking_estimated": {
+          "tokens": 6850,
+          "call": 9,
+          "at_s": 96.1
+        },
+        "context_start": 16330,
+        "context_end": 223916,
+        "largest_context_jump": {
+          "tokens": 36865,
+          "call": 8
+        },
+        "tools_by_name": {
+          "Bash": 57,
+          "Read": 3,
+          "Write": 3,
+          "ScheduleWakeup": 2
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 63.6,
+          "name": "Bash",
+          "gist": "tail -5 /tmp/nightly.log /tmp/nightly2.log | cut -c1-200; npm run test:e2e:nightly 2>&1 | grep -vE \"^\\[latency\\]   \" | g"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     }
   },
