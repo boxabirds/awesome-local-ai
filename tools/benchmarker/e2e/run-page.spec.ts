@@ -224,6 +224,22 @@ test.describe("header: judge, record and summary", () => {
       "href", `http://127.0.0.1:7800/review?setup=${enc(SWIFT)}&run=v2-r5#story=2`);
   });
 
+  // 9 Oct 2026, the owner: the Judge link of a story was "partially off screen to the right". The last column (76 px) holds "all runs"
+  // and "Judge" side by side, unwrapped, so Judge ran past its cell to the edge of the table's scroll box and was cut there.
+  test("each story's Judge link lies wholly inside the stories table's visible box, not cut off at its right edge", async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });       // wide enough for the table to fit; narrower, it scrolls sideways by design
+    await open(page, SWIFT, "v2-r5");
+    const box = await section(page, "stories").locator(".table-scroll").boundingBox();
+    const links = section(page, "stories").locator("a.story-judge");
+    expect(await links.count()).toBeGreaterThan(0);
+    for (let i = 0; i < await links.count(); i++) {
+      const r = (await links.nth(i).boundingBox())!;
+      expect(r.x + r.width, `the Judge link of row ${i} ends at ${r.x + r.width}, the table's box at ${box!.x + box!.width}`).toBeLessThanOrEqual(box!.x + box!.width);
+      const cell = (await links.nth(i).locator("xpath=ancestor::td").boundingBox())!;
+      expect(r.x + r.width, "and inside its own cell").toBeLessThanOrEqual(cell.x + cell.width + 0.5);
+    }
+  });
+
   test("a story with no record of its own has no Judge link: there is nothing to judge yet", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");          // running, its later stories not recorded
     const rows = section(page, "stories").locator("tr[data-story]");

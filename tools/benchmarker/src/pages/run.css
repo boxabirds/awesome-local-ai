@@ -219,7 +219,7 @@ table.rp-table.stories-table { table-layout: fixed; width: 100%; min-width: 1240
 .stories-table .c-cached { width: 60px; }
 .stories-table .c-tokS { width: 80px; }
 .stories-table .c-draftAcceptance { width: 56px; }
-.stories-table .c-all { width: 76px; }
+.stories-table .c-all { width: 112px; }          /* "all runs" and "Judge" side by side, with the gap between them */
 .stories-table .rp-bar-label { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stories-table .rp-bar-label a.story-run-link { font-size: inherit; margin: 0; color: var(--ink); }
 /* The title gives way (an ellipsis) so the marks beside it never do. */
@@ -228,6 +228,7 @@ table.rp-table.stories-table { table-layout: fixed; width: 100%; min-width: 1240
 .stories-table .label-line > .collapsed-mark, .stories-table .label-line > .intervened { flex: none; }
 .stories-table .rp-bar-total { text-align: right; font-size: 13px; }
 .stories-table .rp-bar-check { font-size: 12px; white-space: nowrap; }
+.stories-table .rp-bar-check .story-judge { margin-left: 8px; }
 .stories-table .bar-cell { padding-right: 14px; }
 .stories-table .held { font-weight: 650; }
 .stories-table td.n { text-align: right; }
