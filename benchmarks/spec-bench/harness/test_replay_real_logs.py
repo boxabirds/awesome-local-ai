@@ -523,7 +523,10 @@ def _same_split(s: Story, recorded: dict, again: dict, p: Problems) -> None:
         p.agree(s, f"time_split.model.{k}", theirs.get(k), ours.get(k))
     model_s = lambda m: m.get("prefill_s", 0.0) + m.get("decode_s", 0.0)
     p.agree(s, "time_split.model seconds", round(model_s(theirs), accounting.DECIMALS), round(model_s(ours), accounting.DECIMALS), accounting.TOLERANCE_S)
-    if s.lossless:                      # each call's first delta is there: prefill and decode split as they were
+    # OpenCode's own events have no first-token time; a record's prefill comes from gufo's server log (engine_log.gufo_ttfts), which isn't
+    # published. Its model seconds in total are the log's (checked above); only their split between prefill and decode can't be remade here.
+    from_server_log = ours.get("source") == accounting.OPENCODE_STREAM and theirs.get("prefill_s", 0.0) > 0
+    if s.lossless and not from_server_log:   # each call's first delta is there: prefill and decode split as they were
         for k in ("prefill_s", "decode_s"):
             p.agree(s, f"time_split.model.{k}", theirs.get(k), ours.get(k), accounting.TOLERANCE_S)
         # A record that reconciled an agent process alive but silent until the harness killed it (accounting.reconcile_silent_alive) moved

@@ -227,16 +227,29 @@ mod tests {
         assert_eq!(size_of::<mac::KeyData>(), 80);
     }
 
-    /// Real hardware: this Mac's SMC gives CPU and GPU temperatures.
+    /// A GPU that is powered down reads outside the plausible range (or not at all): the GPU figure is then absent, and the hottest is
+    /// the CPU's. The release run of 9 Oct 2026 caught this Mac in that state once in 28 reads.
+    #[test]
+    fn a_sleeping_gpu_leaves_its_figure_out_and_the_cpu_is_the_hottest() {
+        let gpu_asleep: Vec<(String, f64)> = vec![("Tp00".into(), 61.1), ("Tg08".into(), 4.0)];
+        assert_eq!(summarise(&gpu_asleep), vec![
+            ("temp_max_c".into(), Some(61.1)),
+            ("temp_cpu_c".into(), Some(61.1)),
+            ("temp_gpu_c".into(), None),
+        ]);
+    }
+
+    /// Real hardware: this Mac's SMC gives CPU temperatures, and GPU temperatures whenever the GPU is awake.
     #[cfg(target_os = "macos")]
     #[test]
     fn this_mac_reports_cpu_and_gpu_temperatures() {
         let smc = Smc::open().expect("SMC opens");
         let got = summarise(&smc.read_all());
         assert!(smc.key_count() > 0);
-        assert!(got.iter().all(|(_, v)| v.is_some_and(|c| PLAUSIBLE_C.contains(&c))), "{got:?}");
+        let [max, cpu, gpu] = [0, 1, 2].map(|i| got[i].1);
+        assert!(cpu.is_some_and(|c| PLAUSIBLE_C.contains(&c)), "{got:?}");
+        assert!(gpu.is_none_or(|g| PLAUSIBLE_C.contains(&g)), "{got:?}");
         // The hottest is one of the two groups, never a key outside them.
-        let [max, cpu, gpu] = [0, 1, 2].map(|i| got[i].1.unwrap());
-        assert_eq!(max, cpu.max(gpu), "{got:?}");
+        assert_eq!(max, Some(cpu.unwrap().max(gpu.unwrap_or(f64::MIN))), "{got:?}");
     }
 }
