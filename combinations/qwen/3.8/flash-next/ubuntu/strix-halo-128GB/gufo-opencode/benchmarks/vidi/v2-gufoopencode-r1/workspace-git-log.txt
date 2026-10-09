@@ -1,3 +1,55 @@
+commit a1c2373645d3c06cf29fcf098435c2bb46cec86d
+agent  Fri Oct 9 17:51:27 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                 |  13 ++
+ PROGRESS.md                              |  18 +-
+ src/client/board/Toolbar.tsx             |  15 ++
+ src/client/canvas/BoardViewport.tsx      | 128 +++++++++++---
+ src/client/images/DropHighlight.tsx      |  22 +++
+ src/client/images/ImageInsertContext.tsx |  17 ++
+ src/client/images/Toast.tsx              |  50 ++++++
+ src/client/images/uploadImage.ts         |  58 +++++++
+ src/client/images/useImageInsert.ts      | 244 +++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts       |  43 +++++
+ src/client/objects/ImageObject.tsx       | 243 +++++++++++++++++++++++++++
+ src/client/objects/registry.tsx          |  14 +-
+ src/client/pages/BoardShell.tsx          |   2 +-
+ src/shared/board-model.ts                |   7 +-
+ src/shared/config.ts                     |  11 ++
+ src/shared/image-format.ts               |  38 +++++
+ src/shared/objects/image.ts              | 243 +++++++++++++++++++++++++++
+ src/worker/assets.ts                     |  91 ++++++++++
+ src/worker/index.ts                      |  40 ++++-
+ tests/component/ImageInsert.test.tsx     | 276 +++++++++++++++++++++++++++++++
+ tests/component/ImageObject.test.tsx     | 172 +++++++++++++++++++
+ tests/e2e/helpers/drop-files.ts          |  90 ++++++++++
+ tests/e2e/images.spec.ts                 | 196 ++++++++++++++++++++++
+ tests/fixtures/images/animated.gif       | Bin 0 -> 15748 bytes
+ tests/fixtures/images/corrupt.png        | Bin 0 -> 64 bytes
+ tests/fixtures/images/exactly-10mb.jpg   | Bin 0 -> 10485760 bytes
+ tests/fixtures/images/injected.svg       |   4 +
+ tests/fixtures/images/jpeg-photo.jpg     | Bin 0 -> 538226 bytes
+ tests/fixtures/images/over-10mb.jpg      | Bin 0 -> 10485761 bytes
+ tests/fixtures/images/photo.webp         | Bin 0 -> 3132 bytes
+ tests/fixtures/images/png-screenshot.png | Bin 0 -> 139507 bytes
+ tests/fixtures/images/renamed-pdf.png    |   4 +
+ tests/integration/assets.test.ts         | 154 +++++++++++++++++
+ tests/unit/image-format.test.ts          |  52 ++++++
+ tests/unit/image-model.test.ts           | 212 ++++++++++++++++++++++++
+ tests/unit/validate-files.test.ts        |  55 ++++++
+ wrangler.jsonc                           |   4 +-
+ 37 files changed, 2477 insertions(+), 39 deletions(-)
+commit e0bda747beeadf434a6e86b58624f1492a509f4a
+vidi-agent  Fri Oct 9 16:45:48 2026 +0000
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 commit 93a02081597d697c9923064b2fafdb12cd35debf
 agent  Fri Oct 9 16:41:22 2026 +0000
 
