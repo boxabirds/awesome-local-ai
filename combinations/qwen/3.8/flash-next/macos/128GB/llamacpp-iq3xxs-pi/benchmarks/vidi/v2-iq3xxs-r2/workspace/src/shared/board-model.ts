@@ -100,6 +100,19 @@ export function isStickyColor(value: unknown): value is StickyColor {
  * for a jsdom/worker environment that withholds `crypto`, and is still collision-safe
  * enough for a single client (which is all this story has).
  */
+/**
+ * A fresh object id. Another object type's creator takes one from here so every id on the
+ * board has the same shape, whatever module made the object.
+ */
+export function newObjectId(): string {
+  return newId();
+}
+
+/** Highest `z` in the document (0 when it holds no objects); new objects go above all. */
+export function topZ(doc: Y.Doc): number {
+  return maxZ(objectsOf(doc));
+}
+
 function newId(): string {
   const cryptoRef: Crypto | undefined = typeof crypto === 'undefined' ? undefined : crypto;
   if (typeof cryptoRef?.randomUUID === 'function') return cryptoRef.randomUUID();

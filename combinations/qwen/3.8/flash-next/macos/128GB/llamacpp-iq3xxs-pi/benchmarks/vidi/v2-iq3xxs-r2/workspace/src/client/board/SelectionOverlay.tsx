@@ -4,7 +4,7 @@ import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { HANDLES, handleLabel, unionRects, type Handle, type Rect } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
 import { worldToScreen } from '../canvas/camera';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, specsFor } from '../objects/registry';
 
 export interface SelectionOverlayProps {
   /** The selected ids; the box is drawn around all of them together. */
@@ -63,6 +63,18 @@ export function SelectionOverlay({
   // declares `resizable: false`) gets the box but no handles, and the gesture ignores a
   // press on a handle that should not have been there.
   const resizable = selected.some((object) => getObjectType(object.type)?.resizable === true);
+  /*
+   * A selection of only types whose size is not a box — a text object, whose height is its
+   * content — gets its two side handles and nothing else (TC-22, TC-27): a handle that could
+   * only ever be refused is worse than a handle that is not there. Mixed with anything that
+   * has a height of its own, as a sticky note does, the whole set comes back (TC-23), because
+   * then the box is a real box and the group resize has something to scale.
+   */
+  const specs = specsFor(selected);
+  const horizontalOnly = specs.length > 0 && specs.every((spec) => spec.handles === 'horizontal');
+  const handles = horizontalOnly
+    ? HANDLES.filter((handle) => handle === 'e' || handle === 'w')
+    : HANDLES;
 
   const from = worldToScreen(camera, { x: box.x, y: box.y });
   const width = box.width * camera.zoom;
@@ -84,7 +96,7 @@ export function SelectionOverlay({
         style={{ left: `${from.x}px`, top: `${from.y}px`, width: `${width}px`, height: `${height}px` }}
       />
       {resizable
-        ? HANDLES.map((handle) => {
+        ? handles.map((handle) => {
             const anchor = HANDLE_ANCHORS[handle];
             return (
               <button

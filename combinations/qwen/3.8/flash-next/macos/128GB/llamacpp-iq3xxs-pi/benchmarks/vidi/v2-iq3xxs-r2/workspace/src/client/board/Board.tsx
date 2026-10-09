@@ -15,6 +15,7 @@ import { useBoardDoc } from './useBoardDoc';
 import { useSelection, type EndEditNext } from './useSelection';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
+import { DEFAULT_TOOL, useTool } from './useTool';
 import { MarqueeRect, useMarquee } from './Marquee';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -25,7 +26,17 @@ import { getObjectComponent } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit as connectionAllowsEditing } from '../sync/connectBoard';
 import { createSticky, deleteObjects, objectBounds } from '../../shared/board-model';
+import {
+  createText,
+  isTextSnapshot,
+  readText,
+  setTextSize,
+  type TextSize,
+} from '../../shared/objects/text';
 import { unionRects } from '../../shared/geometry';
+import { useLocalIdentity } from '../useLocalIdentity';
+import { defaultMeasurer } from '../objects/textLayout';
+import { remeasureTextBox, remeasureTextBoxes } from '../objects/useTextBoxSync';
 
 /**
  * The board itself: everything stories 1–4 built, mounted on one board id that has already
@@ -46,6 +57,9 @@ import { unionRects } from '../../shared/geometry';
  * own changes, for as long as this tab is open. It is created here, with the document, and
  * handed to the keys, the gesture, the toolbar and — through `UndoContext` — the objects that
  * edit text, so that a change made anywhere on the board opens a step in the same history.
+ *
+ * Story 9 adds the third local thing, the tool mode: which tool this tab is on is decided
+ * here, and only decides where the next click on the viewport goes.
  */
 export function Board({ boardId }: { boardId: string }): JSX.Element {
   const viewport = useViewportSize();
@@ -99,6 +113,36 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     createAtScreenPoint({ x: viewport.width / 2, y: viewport.height / 2 });
   }, [createAtScreenPoint, viewport.width, viewport.height]);
 
+  /** Which pointer tool this tab is on: Select, or Text. `n` still makes a note (TC-17). */
+  const tool = useTool({ canEdit, onCreateSticky: createAtViewportCentre });
+  const setTool = tool.setTool;
+
+  /**
+   * The Text tool's click (story 9): an empty text with its top-left where the pointer was,
+   * in the automatic width mode and at the default size, already being typed into — and the
+   * pointer back on Select, because the tool asked for one thing to be put down (PRD: "the
+   * tool switches back to Select"). Writing the next line means pressing T again, which is
+   * what a tool that vanishes after one click is worth: nothing by accident.
+   */
+  const identity = useLocalIdentity();
+  const createTextAtScreenPoint = useCallback(
+    (screenPoint: Point): void => {
+      if (!canEdit) return; // no edits on a board that failed to load
+      const world = screenToWorld(cameraRef.current, screenPoint);
+      // One click makes one text, and one text is one undo step however fast the clicks come.
+      undo.boundary();
+      const id = createText(doc, world, identity);
+      undo.boundary();
+      if (id === null) return;
+      setTool(DEFAULT_TOOL);
+      selectionRef.current.startEdit(id);
+    },
+    [doc, canEdit, undo, identity, setTool],
+  );
+
+  // One canvas measurer for this board, shared with every text object on it.
+  const measurer = useMemo(() => defaultMeasurer(), []);
+
   const gesture = useTransformGesture({
     doc,
     camera,
@@ -108,7 +152,13 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     // A drag is one undo step whatever it did on the way (TC-14): the gesture announces
     // itself at `begin` and again when the pointer is released or taken away.
     onGestureStart: undo.boundary,
-    onGestureEnd: undo.boundary,
+    // A resize may have made a text narrower or wider, and a text's height is whatever its
+    // content now needs: it is measured once more, inside the same undo step (TC-27).
+    // Ids that are not text are ignored, which is how a mixed selection is left alone.
+    onGestureEnd: () => {
+      remeasureTextBoxes(doc, selectionRef.current.ids, measurer);
+      undo.boundary();
+    },
   });
 
   /** The marquee adds to what is already selected (sel.marquee). */
@@ -123,6 +173,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     canEdit,
     marqueeActive: marquee.rect !== null,
     undo,
+    tool,
   });
 
   /**
@@ -151,8 +202,36 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   // nothing is being typed in — an editor and a delete button are not a good pair.
   const selected = objects.filter((object) => selection.ids.has(object.id));
   const box = selection.editingId === null ? unionRects(selected.map(objectBounds)) : null;
+
+  /**
+   * Story 9: the text controls the bar shows for exactly one selected text object. The size
+   * is read from the document rather than from the snapshot, because the snapshot only holds
+   * the fields every object has. Deleting is the bar's own delete, unchanged: one press, one
+   * undo step, whatever type it happens to take away (TC-28).
+   */
+  const selectedText =
+    canEdit && selected.length === 1 && isTextSnapshot(selected[0])
+      ? readText(doc, selected[0].id)
+      : undefined;
+  const textId = selectedText?.id;
+
+  const changeTextSize = useCallback(
+    (size: TextSize): void => {
+      if (!canEdit || !textId) return;
+      // A size change is its own undo step, and its own measurement: the box that comes back
+      // the same size it was costs the document nothing (TC-13).
+      undo.boundary();
+      setTextSize(doc, textId, size);
+      remeasureTextBox(doc, textId, measurer);
+      undo.boundary();
+    },
+    [canEdit, doc, measurer, textId, undo],
+  );
+
   const barAt =
-    box && canEdit && selected.length >= 2
+    box &&
+    canEdit &&
+    (selected.length >= 2 || (selected.length === 1 && selectedText !== undefined))
       ? worldToScreen(camera, { x: box.x + box.width / 2, y: box.y })
       : null;
 
@@ -166,6 +245,8 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
             selectionRef.current.clear();
           }}
           marquee={marquee}
+          tool={tool.tool}
+          onTextToolClick={createTextAtScreenPoint}
           overlay={
             <>
               {/* While somebody's text is being edited the handles are put away: a press on
@@ -213,12 +294,24 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
             data-testid="selection-bar-anchor"
             style={{ left: `${barAt.x}px`, top: `${barAt.y}px` }}
           >
-            <SelectionBar ids={selection.ids} snapshot={objects} onDelete={deleteSelection} />
+            <SelectionBar
+              ids={selection.ids}
+              snapshot={objects}
+              onDelete={deleteSelection}
+              text={
+                selectedText
+                  ? { size: selectedText.size, onSize: changeTextSize }
+                  : null
+              }
+            />
           </div>
         ) : null}
         <ConnectionStatus state={connection} />
         <Toolbar
           onCreateSticky={createAtViewportCentre}
+          tool={tool.tool}
+          onSelectTool={() => tool.setTool('select')}
+          onTextTool={() => tool.setTool('text')}
           disabled={!canEdit}
           undo={undoState}
         />

@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 5/5 | 0 | 0 | 34/36 |
 | 7 | 8/8 | 0 | 1 | 43/44 |
 | 8 | 7/7 | 0 | 0 | 50/51 |
+| 9 | 5/6 | 0 | 1 | 56/57 |
 
-**New work** 46/47, **regressions** 1, **repairs** 1, **cumulative** 50/51.
+**New work** 51/53, **regressions** 1, **repairs** 2, **cumulative** 56/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE | 99.0 | None | None | None | — | — | green | 34/36 |  | 0 / 1 | 2 | — | throttled 83%, server peak 79 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 211.4 | None | None | None | — | — | green | 43/44 |  | 0 / 0 | 5 | — | throttled 97%, server peak 79 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 170.4 | None | None | None | — | — | green | 50/51 |  | 0 / 0 | 4 | — | throttled 90%, server peak 79 GB |
+| 9 | Write free text anywhere on the board | DONE | 148.5 | None | None | None | — | — | green | 56/57 |  | 0 / 1 | 4 | — | throttled 92%, server peak 79 GB |
 
-**Totals:** 7 stories, 1123 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/7, final acceptance 50/51, stalled 0, partial 0, 22757 lines in src+tests.
+**Totals:** 8 stories, 1271 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/8, final acceptance 56/57, stalled 0, partial 0, 26598 lines in src+tests.
 
 ## How it happened
 
@@ -43,6 +45,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 7 by the agent | 3031 / 395 | `SharePanel.tsx` (352), `App.tsx` (204), `Board.tsx` (173), `styles.css` (135), `state.ts` (122), `router.ts` (117), +15 more |
 | 7 | 9 by the agent | 5402 / 507 | `useTransformGesture.ts` (399), `board-model.ts` (360), `useSelection.ts` (345), `geometry.ts` (314), `StickyNote.tsx` (259), `Board.tsx` (206), +10 more |
 | 8 | 5 by the agent | 2375 / 27 | `undo.ts` (144), `NOTES.md` (133), `UndoButtons.tsx` (93), `useUndo.ts` (58), `Board.tsx` (45), `styles.css` (37), +7 more |
+| 9 | 9 by the agent | 4429 / 482 | `text.ts` (371), `textLayout.ts` (231), `TextEditor.tsx` (230), `TextObject.tsx` (215), `StickyTextEditor.tsx` (209), `text-edit.ts` (207), +18 more |
 
 ### Earlier stories broken or fixed
 
@@ -50,6 +53,8 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 3: 6/7 → 5/7; broke 1.
 - **Story 7 broke 0, fixed 1** earlier held-out tests (story 7: Select, move, resize and delete several objects at once; fix(sel): a browser's focus and a deferred frame must not undo a selection; test(sel): end-to-end multi-select (TC-32 to TC-36); test(sel): marquee, transform gesture and keyboard component tests (TC-20 to TC-31); feat(sel): multi-select board UI — registry-rendered objects, outlines, selection bar, marquee, transform gesture, keyboard commands; test(sel): selection reducer unit tests (TC-13 to TC-15); test(sel): registry unit tests and the test-only testbox type (TC-11, TC-12); feat(sel): shared rectangle maths and generic group operations over any object type; test(sel): unit tests for the shared rectangle maths and the group operations (TC-01 to TC-10)). Source files it changed most: `useTransformGesture.ts` (399), `board-model.ts` (360), `useSelection.ts` (345), `geometry.ts` (314), `StickyNote.tsx` (259), `Board.tsx` (206), +10 more.
   - story 3: 5/7 → 6/7; fixed 1
+- **Story 9 broke 0, fixed 1** earlier held-out tests (story 9: Write free text anywhere on the board; test(text): component tests for the two tools and for text objects (TC-14 to TC-25); feat(text): TextObject, a generalised TextEditor, the size toolbar and horizontal-only handles; feat(tool): Select and Text tools with V, T, N and Escape; test(text): box sync writes only after local changes (TC-12, TC-13); feat(text): text layout and local-only box sync; test(text): layout tests with a fake measurer (TC-07 to TC-11, TC-32); feat(text): the text object model and the shared text-edit helpers; test(text): unit tests for the text object model (TC-01 to TC-06)). Source files it changed most: `text.ts` (371), `textLayout.ts` (231), `TextEditor.tsx` (230), `TextObject.tsx` (215), `StickyTextEditor.tsx` (209), `text-edit.ts` (207), +18 more.
+  - story 3: 6/7 → 7/7; fixed 1
 
 ### Interruptions and dead time
 

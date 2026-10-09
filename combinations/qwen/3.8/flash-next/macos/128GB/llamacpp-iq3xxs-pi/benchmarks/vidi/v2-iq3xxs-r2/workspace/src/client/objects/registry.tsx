@@ -1,15 +1,17 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import {
   markObjectTypeKnown,
   objectBounds,
   STICKY_TYPE,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import { rectContains, type Point } from '../../shared/geometry';
+import { setTextWidthFixed, TEXT_TYPE } from '../../shared/objects/text';
+import { rectContains, type Point, type Rect } from '../../shared/geometry';
 import type { EndEditNext } from '../board/useSelection';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * The object type registry (`sel.registry`): the one place that knows what a board object
@@ -58,6 +60,18 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** True when the object carries text the user can type into (story 2 stickies). */
   editableText: boolean;
+  /**
+   * Which handles a selection of only this type gets. `'horizontal'` for a type whose height
+   * is its content and cannot be dragged (a text object): the box is drawn, and only its two
+   * side handles are. Absent means every handle.
+   */
+  handles?: 'all' | 'horizontal';
+  /**
+   * Resize one object of this type to `to`, for a type where resizing is not simply making
+   * its box that size: a text object stores a *width mode* next to its width, so its side
+   * handle pins the width instead of scaling a box. Absent means the generic box resize.
+   */
+  resizeObject?(doc: Y.Doc, id: string, to: Rect): void;
   /** Is `worldPoint` on this object? Rectangular types: inside their bounds. */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
@@ -131,5 +145,27 @@ registerObjectType(STICKY_TYPE, {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: boundsContain,
+});
+
+/**
+ * What a text object's side handle does: pin the width the drag reached, which brings the
+ * fixed width mode with it. Height is not asked for — it is what the text now needs, and the
+ * client that made the drag measures it (`useTextBoxSync`).
+ */
+function resizeTextWidth(doc: Y.Doc, id: string, to: Rect): void {
+  setTextWidthFixed(doc, id, to.width);
+}
+
+registerObjectType(TEXT_TYPE, {
+  Component: TextObject,
+  // Wider, never taller: the height is the text, and the narrowest it may be pinned to is
+  // the narrowest box one of these can have.
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  resizeObject: resizeTextWidth,
   hitTest: boundsContain,
 });

@@ -32,8 +32,9 @@ describe('the Sticky note button (TC-28)', () => {
   it('TC-28: with no notes on the board, the button creates one in the middle and starts editing', async () => {
     await renderBoard();
     const button = stickyToolbarButton();
-    // Exact UI copy (PRD: left-side vertical toolbar with a "Sticky note" button).
-    expect(button.getAttribute('aria-label')).toBe('Sticky note');
+    // Exact UI copy (PRD: left-side vertical toolbar with a "Sticky note" button), with the
+    // shortcut story 9 named in brackets next to it.
+    expect(button.getAttribute('aria-label')).toBe('Sticky note (N)');
     expect(button.getAttribute('title')).toBe('Sticky note – or double-click the board');
     expect(boardNotes()).toEqual([]);
 

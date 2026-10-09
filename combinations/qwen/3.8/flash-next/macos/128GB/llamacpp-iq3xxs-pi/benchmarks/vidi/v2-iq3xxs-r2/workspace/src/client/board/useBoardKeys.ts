@@ -11,6 +11,7 @@ import {
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { Selection } from './useSelection';
+import { DEFAULT_TOOL, type ToolControls } from './useTool';
 
 export interface BoardKeyOptions {
   readonly doc: Y.Doc;
@@ -28,6 +29,12 @@ export interface BoardKeyOptions {
    * through it, and every action below this file performs opens a step of its own first.
    */
   readonly undo: UndoController;
+  /**
+   * Story 9: the tool mode. `v` and `t` move the pointer between the two tools, `n` creates
+   * a note and leaves the tools as it found them, and Escape puts the pointer back on Select
+   * before it does anything else.
+   */
+  readonly tool: ToolControls;
 }
 
 const DELETE_KEYS = ['Delete', 'Backspace'];
@@ -49,8 +56,8 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * The board's keyboard: Ctrl/Cmd+A, Escape, the arrow keys, Delete, and story 8's
- * Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y.
+ * The board's keyboard: Ctrl/Cmd+A, Escape, the arrow keys, Delete, story 8's
+ * Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y, and story 9's V, T and N.
  *
  * Two rules cover most of the surprises here. Nothing is handled while this client is
  * typing in an object, or while the keypress belongs to a field of its own — Backspace has
@@ -69,10 +76,11 @@ export function useBoardKeys({
   snapshot,
   canEdit,
   marqueeActive,
+  tool,
 }: BoardKeyOptions): void {
   // One listener for the lifetime of the board; it reads the current values through a ref.
-  const live = useRef({ doc, selection, snapshot, canEdit, marqueeActive, undo });
-  live.current = { doc, selection, snapshot, canEdit, marqueeActive, undo };
+  const live = useRef({ doc, selection, snapshot, canEdit, marqueeActive, undo, tool });
+  live.current = { doc, selection, snapshot, canEdit, marqueeActive, undo, tool };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -92,6 +100,14 @@ export function useBoardKeys({
       }
       if (key === 'Escape') {
         if (live.current.marqueeActive) return; // the marquee takes this one
+        // Story 9: while a tool is up, Escape is about the tool (TC-16) — it puts the pointer
+        // back on Select and says nothing else, so the selection is still there to be cleared
+        // by the second press, which is what it always did.
+        if (live.current.tool.tool !== DEFAULT_TOOL) {
+          event.preventDefault();
+          live.current.tool.setTool(DEFAULT_TOOL);
+          return;
+        }
         if (sel.ids.size === 0) return;
         event.preventDefault();
         sel.clear();
@@ -113,6 +129,14 @@ export function useBoardKeys({
       }
 
       if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+      // Story 9: `v` and `t` pick a tool, and `n` — the story 2 Sticky note shortcut — now
+      // also puts the pointer back on Select, because a tool that stayed up would plant the
+      // next click's text on top of the note it just made (TC-17).
+      if (live.current.tool.press(key)) {
+        event.preventDefault();
+        return;
+      }
 
       const arrow = ARROW_KEYS.get(key);
       if (arrow) {

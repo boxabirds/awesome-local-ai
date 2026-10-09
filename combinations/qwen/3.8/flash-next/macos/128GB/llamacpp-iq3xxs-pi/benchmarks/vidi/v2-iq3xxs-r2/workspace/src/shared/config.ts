@@ -132,3 +132,27 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** How many steps one person's undo history keeps; older steps are discarded. */
 export const UNDO_MAX_STEPS = 200;
+
+// Story 9: free text anywhere on the board.
+
+/** How wide an automatic text box may get before its lines wrap, in board units. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** The narrowest a text box can be fixed to by a side handle, in board units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Longest text a text object keeps. */
+export const TEXT_MAX_CHARS = 5_000;
+/** The four text sizes, in board units of font size. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Text created by the Text tool starts at M. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height as a multiple of the font size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif, shared by the text on screen and the measurer. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/**
+ * How much room an automatic text box leaves past its longest line, in board units, so a
+ * selected text's right handle never sits on top of the last glyph. Capped, together with
+ * the measured line, by `TEXT_MAX_AUTO_WIDTH_WORLD`.
+ */
+export const TEXT_BOX_PADDING_WORLD = 8;

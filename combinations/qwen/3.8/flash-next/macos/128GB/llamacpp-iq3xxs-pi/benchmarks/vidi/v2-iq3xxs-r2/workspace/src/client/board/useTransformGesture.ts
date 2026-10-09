@@ -77,6 +77,32 @@ interface Gesture {
   readonly pressed: string[] | null;
   /** False until the pointer has moved far enough for this to be a gesture, not a click. */
   started: boolean;
+  /**
+   * One object, of a type that is not resized by making its box bigger or smaller (a text
+   * object: its side handle pins a width mode). Decided with `ids`, so a gesture says once
+   * what it is going to write. Null for a mixed selection, which is resized as boxes are.
+   */
+  soloResize: SoloResize;
+}
+
+/** A single object's type-specific resize, or null when the generic box resize applies. */
+type SoloResize = { id: string; resize: (doc: Y.Doc, id: string, to: Rect) => void } | null;
+
+/**
+ * The solo resize of a gesture: exactly one object, and its type declares a resize of its
+ * own. Anything else — two objects, an unknown type, a type without a declaration — takes the
+ * generic path, which is every type from stories 1–8 and mixed selections from story 9 on.
+ */
+function soloResizeFor(
+  objects: readonly ObjectSnapshot[],
+  ids: readonly string[],
+): SoloResize {
+  if (ids.length !== 1) return null;
+  const [id] = ids;
+  const object = objects.find((entry) => entry.id === id);
+  if (!object) return null;
+  const resize = getObjectType(object.type)?.resizeObject;
+  return resize ? { id, resize } : null;
 }
 
 function zoomOf(camera: Camera): number {
@@ -181,6 +207,7 @@ export function useTransformGesture({
     current.starts.clear();
     for (const id of current.ids) current.starts.set(id, objectBounds(byId.get(id)!));
     current.box = unionRects([...current.starts.values()]);
+    current.soloResize = soloResizeFor(objects, current.ids);
     current.started = true;
     live.current.onGestureStart?.();
     setDragging(true);
@@ -248,7 +275,17 @@ export function useTransformGesture({
         const start = current.starts.get(id);
         if (start) next.set(id, scaleWithin(start, box, to));
       });
+      const solo = current.soloResize;
       write(() => {
+        // The type decides what its own handle did. A text object takes the width and nothing
+        // else: not the height, which is its content and is measured afterwards, and not the
+        // x the west handle would have moved, because the width a text wraps at belongs to
+        // its top-left corner.
+        if (solo !== null) {
+          const soloTo = next.get(solo.id);
+          if (soloTo) solo.resize(live.current.doc, solo.id, soloTo);
+          return;
+        }
         resizeObjects(live.current.doc, next);
       });
     },
@@ -355,6 +392,7 @@ export function useTransformGesture({
         ids: [],
         pressed,
         started: false,
+        soloResize: null,
       };
       listen();
     },

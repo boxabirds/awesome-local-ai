@@ -15,6 +15,7 @@ import {
 } from '../../shared/config';
 import type { Camera, Point } from './camera';
 import { useCameraApi } from './useCamera';
+import { DEFAULT_TOOL, type Tool } from '../board/useTool';
 
 const DOT_RADIUS_PX = 1.5;
 const DOT_COLOUR = '#c7ccd6';
@@ -105,6 +106,13 @@ export interface BoardViewportProps {
    * no Shift the story 1 pan is untouched (TC-21).
    */
   marquee?: MarqueeHandlers;
+  /**
+   * Story 9: which pointer tool this tab is on. `text` puts the text cursor over the board
+   * and takes every press in it — the tool's whole job is to put a text where the pointer was.
+   */
+  tool?: Tool;
+  /** The Text tool's click, in screen pixels inside the viewport (`text.create_click`). */
+  onTextToolClick?(point: Point): void;
   /** Drawn above the board, in screen pixels: the selection box, its handles, the marquee. */
   overlay?: ReactNode;
 }
@@ -120,6 +128,8 @@ export function BoardViewport({
   onCreateStickyAt,
   onEmptyClick,
   marquee,
+  tool = DEFAULT_TOOL,
+  onTextToolClick,
   overlay,
 }: BoardViewportProps): JSX.Element {
   const api = useCameraApi();
@@ -137,6 +147,40 @@ export function BoardViewport({
   const marqueeIdRef = useRef<number | null>(null);
 
   const { camera, panning } = api;
+
+  // The Text tool's click belongs to whoever owns the document, and that handler is rebuilt
+  // on every render; the listener below lives for the whole time the tool is up.
+  const textClickRef = useRef(onTextToolClick);
+  textClickRef.current = onTextToolClick;
+
+  /*
+   * While the Text tool is up, every press inside the viewport belongs to it, the object
+   * under the pointer included: writing over a sticky note is the point, and an object that
+   * got the press would start a select, a move or a caret of its own instead. A capture
+   * listener on the document sees the press before anything drawn inside the board does —
+   * React's own handlers are delegated to the root, and the root is inside here.
+   *
+   * Outside the viewport the press is left alone, or the toolbar's buttons, the share panel
+   * and the zoom controls would stop answering.
+   */
+  useEffect(() => {
+    if (tool !== 'text') return;
+    const onDocumentPointerDown = (event: PointerEvent): void => {
+      const element = viewportRef.current;
+      const target = event.target as Node | null;
+      if (!element || !target || !element.contains(target)) return;
+      // Touch is out of scope, and only the left button writes.
+      if (event.pointerType === 'touch' || event.button !== 0) return;
+      event.stopPropagation();
+      event.preventDefault();
+      const rect = element.getBoundingClientRect();
+      textClickRef.current?.({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+    };
+    document.addEventListener('pointerdown', onDocumentPointerDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDocumentPointerDown, true);
+    };
+  }, [tool]);
 
   // Wheel must be non-passive (React's onWheel is passive) so page zoom/scroll is prevented.
   useEffect(() => {
@@ -272,7 +316,10 @@ export function BoardViewport({
   };
 
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
-    // Only empty board space creates a note: a note stops the event itself (TC-35).
+    // Only empty board space creates a note: a note stops the event itself (TC-35). While
+    // the Text tool is up, each press of a double click has already written a text, so a
+    // note arriving as well would be one object too many.
+    if (tool === 'text') return;
     if (event.target !== event.currentTarget) return;
     const element = event.currentTarget;
     onCreateStickyAt?.(boardPoint(element, event.clientX, event.clientY));
@@ -284,6 +331,7 @@ export function BoardViewport({
       className="vidi6-viewport"
       data-testid="viewport"
       data-state={panning ? 'panning' : 'idle'}
+      data-tool={tool}
       style={gridBackground(camera)}
       aria-label="Board"
       onPointerDown={onPointerDown}

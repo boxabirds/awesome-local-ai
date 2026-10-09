@@ -595,3 +595,120 @@ button:focus-visible,
   font-size: 12px;
   color: #5a6172;
 }
+
+/* -------------------------------------------------------------------------
+   Story 9: free text anywhere on the board.
+   The toolbar leads with the two pointer tools, in the order the PRD gives
+   them (Select, Text, Sticky note). A tool is a mode, so it is drawn pressed;
+   the Sticky note button underneath stays an action.
+   --------------------------------------------------------------------- */
+.vidi6-toolbar-tool[aria-pressed='true'] {
+  color: #1d4ed8;
+  background: #eef4ff;
+  border-color: #2563eb;
+}
+
+/* The glyphs are cut from the button's own colour: no images, no icon font. */
+.vidi6-tool-glyph {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.vidi6-tool-select {
+  background: currentColor;
+  clip-path: polygon(14% 2%, 14% 82%, 36% 62%, 47% 92%, 62% 86%, 51% 57%, 78% 55%);
+}
+
+.vidi6-tool-text::before {
+  content: 'T';
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+
+/* The Text tool: the pointer becomes the text cursor it is going to leave behind, and
+   nothing under it takes the press — not an object, not a handle, not the caret of the
+   text already being typed. The capture listener in BoardViewport does the same thing
+   for the events; this is what tells the person where the press will go. */
+.vidi6-viewport[data-tool='text'] {
+  cursor: text;
+}
+
+.vidi6-viewport[data-tool='text'] .vidi6-world {
+  pointer-events: none;
+}
+
+/* A text object: no fill, no border, no padding. The selection outline is the only box
+   one of these has, and its width is the width its lines wrap at, so the two agree. */
+.vidi6-text-object {
+  position: absolute;
+  box-sizing: border-box;
+  background: none;
+  color: #1f2430;
+  cursor: grab;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  outline-style: solid;
+  outline-offset: 2px;
+}
+
+.vidi6-text-object[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.vidi6-text-content {
+  position: relative;
+}
+
+/* The editor lies exactly over the text it is editing — same width, same font size, same
+   line height, all four edges on the box — so the caret sits between the glyphs it is
+   really between. Its own height comes from the box, which comes from the text. */
+.vidi6-text-editor {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  border: none;
+  resize: none;
+  outline: none;
+  background: transparent;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  line-height: inherit;
+  color: #1f2430;
+  caret-color: #1f2430;
+  font-family: inherit;
+}
+
+/* The size buttons the selection bar shows for one text (PRD: the small text toolbar). */
+.vidi6-toolbar-group {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.vidi6-text-size {
+  min-width: 26px;
+  padding: 2px 6px;
+  border: 1px solid #d7dbe2;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #5b6270;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.vidi6-text-size:hover {
+  background: #f2f3f6;
+}
+
+.vidi6-text-size[aria-pressed='true'] {
+  border-color: #2563eb;
+  background: #eef4ff;
+  color: #1d4ed8;
+}

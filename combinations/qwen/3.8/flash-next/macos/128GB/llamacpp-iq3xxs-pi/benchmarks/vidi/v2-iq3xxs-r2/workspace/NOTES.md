@@ -517,3 +517,109 @@ Unit 224 (14 files), component 158 (19 files), integration 62 (5 files), e2e 36 
 only, as ever on this machine — 6 of them `tests/e2e/undo.spec.ts`), plus the persistence
 suite's 4 on its own config. The nightly suite compiles and is listed; the soak and load runs
 themselves were not run for this story, which does not touch what they measure.
+
+# Story 9 — Write free text anywhere on the board
+
+## Followed from the design exactly
+
+- The `text` schema is `objects[id] = { type:'text', x, y, width, height, z, createdAt,
+  createdBy, text: Y.Text, size, widthMode }`; nothing text-specific is added to selection,
+  move or delete code, which is what makes `text.consistent` true (TC-33, TC-34).
+- The stored box is measured and written by the client that made the local change, in the
+  same undo window, and is never rewritten by a client that only received it — so TC-12 and
+  TC-13 hold, and five people typing into one board produce one writer per change.
+- `layoutText` takes a `Measurer` so every wrapping rule is unit-tested with a fake
+  (TC-07 to TC-11, TC-32) and the canvas only appears when one exists.
+- The toolbar order the PRD gives (Select, Text, Sticky note), `aria-pressed` on the two
+  pointer tools, the Sticky note button's label becoming "Sticky note (N)", `canEdit` false
+  disabling the Text button and taking an active Text tool back to Select.
+
+## Decisions and deviations
+
+- **`TextSnapshot extends ObjectSnapshotBase`, not `ObjectSnapshot`.** `ObjectSnapshot` is a
+  union of the per-type snapshots, and an interface cannot extend a union. The shared
+  `snapshot()` reads text objects through the same base fields it always read, and the text
+  fields are read by `readText` in `src/shared/objects/text.ts`. A stale `type` from a synced
+  document is still just a string, so every read falls back to a default instead of drawing
+  nothing.
+- **`newObjectId()` and `topZ(doc)` are exported from `board-model.ts`** rather than
+  re-derived in `text.ts`: the id scheme and the "on top of everything" rule belong to the
+  model, and copying them would let the two drift. Neither export knows what a text is, which
+  is the direction the requirement asks for.
+- **`createdBy` needs an author and story 6 does not exist yet.** `src/client/useLocalIdentity.ts`
+  is a per-tab random id, nothing more. It is deliberately not called `useIdentity`: when
+  story 6 arrives with names and cursors it owns that name and this file goes away.
+- **The Text tool intercepts a press at the document, in the capture phase.** React 19
+  delegates its own handlers to the root, so anything listening inside the viewport sees a
+  press too late to stop it; a capture listener on `document` is the one place that sees it
+  first. It stops propagation for presses inside the viewport only, so the toolbar, the share
+  panel and the zoom controls go on answering, and CSS puts
+  `pointer-events: none` on the world layer so the cursor, the pan and the marquee agree with
+  the events. A press is turned into a text on `pointerdown` rather than on `click`: while the
+  tool is up nothing pans the board, so there is no drag to distinguish from a click.
+- **The tool goes back to Select after it has placed a text** (PRD step 2, TC-17). My first
+  attempt kept the tool up so several texts could be placed in a row; that is not what is
+  specified, and it is not what a tool that puts things on a shared board should do — the
+  second click of a double click would otherwise be a second text.
+- **`n` is new in this story.** Story 2 gave the Sticky note button a tooltip with no
+  shortcut in it, so `toolForShortcut` introduces `n` and routes it to the same
+  create-a-note-at-the-view-centre action the button uses; TC-18 is its regression test. It is
+  listed in the same map as `v` and `t` because a key that changes the tool and a key that
+  creates an object must not have two opinions about what the current tool should be.
+- **Task order:** task 8 is implemented before task 7's tests are written. TC-17 asserts that
+  an editor is mounted for the new id, which needs a registered text object that renders;
+  the alternative was a test file that could not pass. The commits are `feat` for both
+  implementations, then `test` for both suites.
+
+## The e2e side of story 9 (task 10)
+
+`tests/e2e/text.spec.ts` (8 tests) and `tests/e2e/helpers/text.ts`. The design names no
+end-to-end helper file, so the new helpers sit beside the ones stories 3 and 7 grew rather
+than inside them; `tests/e2e/helpers/text.ts` reads text objects out of the document and
+drives the Text tool, and nothing in it knows what a sticky note is.
+
+- **The new text's id comes from the screen, not from the document.** `createTextOnBoardAt`
+  used to diff `boardNotes()` before and after the click; on TC-30, where five people each
+  place a heading at the same moment, that diff found somebody else's heading and typed into
+  the wrong object. It now asks which text object *this* screen is editing
+  (`editingTextId`: the element with `data-editing="true"` that holds the editor), which is
+  the object the click made by definition.
+- **`boardNotes()` lists every object, including texts.** Any test that counts sticky notes
+  filters `type === 'sticky'` first — otherwise a heading that was just restored by Ctrl+Z
+  looks like a note that came back too.
+- **Ctrl+Z does not restore a selection**, because selection is per-person and undo is not
+  about people. The mixed note-and-text test therefore asserts the objects came back (one
+  sticky, one text saying what it said), not that the count badge returned.
+- **A text's top-left is the point that was clicked** (PRD `text.tool`: "its top-left at the
+  clicked point"), which is the opposite of a sticky note, which centres itself. The two
+  tests that place a heading above a cluster of notes are written that way round.
+- **Wrapping is measured off the browser.** TC-26 and TC-27 count the line boxes the browser
+  made (`Range.getClientRects()` over the painted text, `renderedLines`) instead of counting
+  what the client's own layout pass decided, since the point of those two tests is that the
+  client measured with the fonts it actually has. TC-26 asserts the box the document holds
+  and the box that is painted agree to within 2 units.
+- **TC-29 compares characters, not strings.** Two people typing into one `Y.Text` merge into
+  one run whose *order* depends on which insert won at each position, so the test asserts
+  both screens hold the same string and that its sorted characters are exactly the ones the
+  two of them typed — every character once, nothing lost, nothing doubled.
+- **TC-30 opens `MAX_CONCURRENT_EDITORS` contexts** (5 here), one per heading, and drives
+  them concurrently: `Promise.all` over people pressing `t`, clicking, typing and pressing
+  Escape. Then every screen must show all five, drawn as well as stored
+  (`[data-note-type="text"]` counted on each page).
+- Ports are the same 27426/27427 as every earlier suite, inside the allowed range.
+
+## Blocked on this machine (story 9)
+
+- TC-26 is specified for Chromium, Firefox and WebKit, because where a line ends is the
+  browsers' business and a client that only looks right in its own font engine is wrong
+  twice. Firefox and WebKit cannot be launched on this machine (`SIGABRT` at process launch,
+  documented for stories 1, 3 and 8), so all 8 tests in `tests/e2e/text.spec.ts` ran in
+  Chromium. Nothing in the two wrapping tests is Chromium-specific: they read the line boxes
+  the browser made and allow 2 units of slack on a width, so wherever the three browsers can
+  start — `E2E_BROWSERS=all` — the same case runs three times.
+
+## Current test totals for story 9
+
+Unit 243 (16 files), component 190 (22 files), integration 62 (5 files), e2e 44 (Chromium
+only, as ever on this machine — 8 of them `tests/e2e/text.spec.ts`), plus the persistence
+suite's 4 and the nightly suite's runs on their own configs, which this story does not touch.
