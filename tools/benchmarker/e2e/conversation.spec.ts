@@ -545,3 +545,17 @@ test.describe("D. layout: pinned heads, compact numbers, folded cells", () => {
     await expect(page.locator('[data-page="call"] [data-block="thinking"] > button.cc-head')).toHaveAttribute("aria-expanded", "false");
   });
 });
+
+test.describe("A3. the machine lanes under the strip", () => {
+  test("the engine's speed and the host's load, each on the strip's time axis, with the reading's own words on each point", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    const lanes = page$(page).locator("[data-lane]");
+    await expect(lanes).toHaveCount(6);
+    expect(await lanes.evaluateAll((els) => els.map((e) => e.getAttribute("data-lane")))).toEqual(["decode", "cpu", "load", "stall", "cache", "gpuPower"]);
+    await expect(page$(page).locator('[data-lane="decode"] .lane-name')).toHaveText("Engine speed");
+    await expect(page$(page).locator('[data-lane="decode"] [data-point]')).toHaveCount(2);
+    await expect(page$(page).locator('[data-lane="load"] [data-point]').last()).toHaveAttribute("data-label", "load 1.00 per CPU at 33.0 s");
+    await expect(page$(page).locator('[data-lane="stall"] [data-point]').last()).toHaveAttribute("data-label", "stalled 7.0% at 33.0 s");
+    await expect(page$(page).locator('[data-lane="gpuPower"] [data-point]')).toHaveCount(1);
+  });
+});

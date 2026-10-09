@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cutText, eventText, thinkingWithheld, readingFigures, EventStore, matchesQuery, needsClamp, SEGMENT_KIND, splitHighlights, storyRunId, timeline, type ConversationEvent } from "./conversation.ts";
+import { cutText, eventText, thinkingWithheld, readingFigures, machineLanes, EventStore, matchesQuery, needsClamp, SEGMENT_KIND, splitHighlights, storyRunId, timeline, turns, type ConversationEvent } from "./conversation.ts";
 import { SEGMENTS } from "./runView.ts";
 
 const ev = (ord: number, tMs: number, kind = "call", refIdx = ord): ConversationEvent => ({ ord, tMs, kind, refIdx, cursor: `${tMs}:${ord}` });
@@ -199,5 +199,44 @@ describe("a machine reading's figures on the conversation page", () => {
   it("shows paging only when there was some, and leaves out what the reading could not say", () => {
     const e = { ...base, host: { cpu_busy_pct: null, load1: 2, major_faults_per_s: 3.5, disk_read_mb_per_s: 2.8, psi: { cpu: { some_pct: null }, memory: { some_pct: null }, io: { some_pct: null } }, top: [] } } as never;
     expect(readingFigures(e)).toBe("nominal · free 24% · swap 2.0 GB · GPU 100% · load 2.0 · faults 3.5/s · disk read 2.8 MB/s");
+  });
+});
+
+describe("machine lanes: the host's load and the engine's speed on the strip's time axis", () => {
+  const cond = (tMs: number, host: unknown, gpu: unknown = null) => ({ ...ev(tMs, tMs, "condition", 0), host, gpu } as unknown as ConversationEvent);
+  const req = (tMs: number, decodeTokS: unknown) => ({ ...ev(tMs + 1, tMs, "request", 0), decodeTokS } as unknown as ConversationEvent);
+  const lane = (lanes: ReturnType<typeof machineLanes>, key: string) => lanes.find((l) => l.key === key)!;
+
+  it("puts each figure on the strip's axis: x is 0..1 of the story, with the value beside it", async () => {
+    const all = turns([req(2000, 100), req(8000, 25), cond(2000, { cpus: 32, load1: 16, cpu_busy_pct: 40, cache_gb: 8, psi: { cpu: { some_pct: 1 }, memory: { some_pct: 3 }, io: { some_pct: 0.5 } } }, { powerW: 300 }),
+      cond(8000, { cpus: 32, load1: 32, cpu_busy_pct: 90, cache_gb: 6, psi: { cpu: { some_pct: 0 }, memory: { some_pct: 0 }, io: { some_pct: 7 } } }, { powerW: 150 })]);
+    const lanes = machineLanes(all, { fromMs: 0, toMs: 10000 });
+    expect(lanes.map((l) => l.key)).toEqual(["decode", "cpu", "load", "stall", "cache", "gpuPower"]);
+    expect(lane(lanes, "decode").points).toEqual([{ x: 0.2, v: 100, label: "100 tok/s at 2.0 s" }, { x: 0.8, v: 25, label: "25 tok/s at 8.0 s" }]);
+    expect(lane(lanes, "cpu").points.map((p) => [p.x, p.v])).toEqual([[0.2, 40], [0.8, 90]]);
+    expect(lane(lanes, "load").points.map((p) => p.v)).toEqual([0.5, 1]);
+    expect(lane(lanes, "stall").points.map((p) => p.v)).toEqual([3, 7]);
+    expect(lane(lanes, "cache").points.map((p) => p.v)).toEqual([8, 6]);
+    expect(lane(lanes, "gpuPower").points.map((p) => p.v)).toEqual([300, 150]);
+  });
+  it("a request matched to a call is folded into that call's turn, and its speed is still a point, at the request's own time", () => {
+    const call = { ...ev(1, 6000, "call", 0), outTok: 10 } as unknown as ConversationEvent;
+    const request = { ...ev(2, 2500, "request", 0), callIdx: 0, decodeTokS: 80 } as unknown as ConversationEvent;
+    const all = turns([call, request]);
+    expect(all.map((t) => t.kind)).toEqual(["call"]);
+    expect(machineLanes(all, { fromMs: 0, toMs: 10000 }).find((l) => l.key === "decode")!.points).toEqual([{ x: 0.25, v: 80, label: "80 tok/s at 2.5 s" }]);
+  });
+  it("a lane no reading can fill is left out, never drawn flat at zero", () => {
+    const all = turns([cond(2000, { load1: 4, cpu_busy_pct: null }), req(3000, null)]);
+    const lanes = machineLanes(all, { fromMs: 0, toMs: 10000 });
+    expect(lanes.map((l) => l.key)).toEqual([]);
+  });
+  it("load is read against the CPU count only when the reading has it", () => {
+    const all = turns([cond(2000, { load1: 4 })]);
+    expect(machineLanes(all, { fromMs: 0, toMs: 10000 })).toEqual([]);
+  });
+  it("readings from before the host figures existed give the lanes the older readings can fill (GPU power) and nothing else", () => {
+    const all = turns([cond(2000, null, { powerW: 200 })]);
+    expect(machineLanes(all, { fromMs: 0, toMs: 10000 }).map((l) => l.key)).toEqual(["gpuPower"]);
   });
 });

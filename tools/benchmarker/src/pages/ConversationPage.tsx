@@ -6,7 +6,7 @@
 // app's own words.
 import { useEffect, useRef, useState } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
-import { clock, cutText, readingFigures, thinkingWithheld, kindsFromParam, kindsToParam, nearestTurn, openToolAt, spanFromParam, spanToParam, interventionEvents, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
+import { clock, cutText, readingFigures, thinkingWithheld, kindsFromParam, kindsToParam, nearestTurn, openToolAt, spanFromParam, spanToParam, interventionEvents, machineLanes, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
 import { callHref, type Route } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { GLOSSARY } from "../../shared/glossary.ts";
@@ -31,6 +31,11 @@ const STRIP_CALL_H = 44;
 const STRIP_TOOL_H = 6;
 const DRAG_PX = 4;
 const MIN_MARK_W = 2;
+const LANE_H = 28;
+const LANE_PAD = 3;
+const LANE_POINT_R = 3;
+const MIN_LANE_SCALE = 1e-9;
+const SMALL_MAX = 10;
 export const NOT_AVAILABLE = "Not available.";
 const callRowId = (idx: number) => `call-${idx}`;
 /** How often the live mark's age is refreshed. */
@@ -126,6 +131,7 @@ export function ConversationPage({ route, run, story, storyId, state, params }: 
           <Strip all={all} from={from} toMs={toMs} range={range} onJump={jumpTo} onRange={setRange} />
         </div>
         <div className="rp-body">
+          <Lanes all={all} from={from} toMs={toMs} />
           {all.length === 0 ? <p className="rp-empty small">None.</p> : (
             <div className="table-scroll">
               <table className="rp-table conv-table turns" aria-label={GLOSSARY.inOrder.name}>
@@ -260,6 +266,28 @@ function OtherRow({ t, i, ctx }: { t: Turn; i: number; ctx: RowCtx }) {
       <td className="what"><span className={`kind kind-${t.kind}`}>{what}</span>{figures ? <div className="figures small">{figures}</div> : null}</td>
       <td className="said">{text ? <Clamped text={text} query={ctx.query} /> : null}</td>
     </tr>
+  );
+}
+
+/** The machine under the strip, on its time axis: the engine's speed from the model server's requests and what the host was doing at each reading
+ * (CPU, load per CPU, stalls, page cache, GPU power). A lane no reading can fill is absent, so a story from before the readings shows none. */
+function Lanes({ all, from, toMs }: { all: Turn[]; from: number; toMs: number }) {
+  const lanes = machineLanes(all, { fromMs: from, toMs });
+  if (!lanes.length) return null;
+  const y = (v: number, max: number) => LANE_H - LANE_PAD - (Math.max(0, v) / Math.max(MIN_LANE_SCALE, max)) * (LANE_H - 2 * LANE_PAD);
+  return (
+    <div className="conv-lanes" data-fact="machine-lanes">
+      {lanes.map((l) => (
+        <div key={l.key} className="conv-lane" data-lane={l.key}>
+          <div className="lane-caption small"><span className="lane-name">{l.label}</span> <span className="lane-max">up to {l.max < SMALL_MAX ? l.max.toFixed(1) : l.max.toFixed(0)} {l.unit}</span></div>
+          <svg viewBox={`0 0 ${STRIP_W} ${LANE_H}`} preserveAspectRatio="none" role="img" aria-label={`${l.label} over the story`} className="lane-svg">
+            <line x1="0" y1={LANE_H - LANE_PAD} x2={STRIP_W} y2={LANE_H - LANE_PAD} className="strip-base" />
+            {l.points.length > 1 ? <polyline className="lane-line" points={l.points.map((p) => `${p.x * STRIP_W},${y(p.v, l.max)}`).join(" ")} /> : null}
+            {l.points.map((p, i) => <circle key={i} className="lane-point" cx={p.x * STRIP_W} cy={y(p.v, l.max)} r={LANE_POINT_R} data-point="" data-label={p.label}><title>{p.label}</title></circle>)}
+          </svg>
+        </div>
+      ))}
+    </div>
   );
 }
 

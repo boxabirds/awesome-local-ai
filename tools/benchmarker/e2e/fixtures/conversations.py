@@ -55,8 +55,10 @@ def swift_s2():
     push(T0 + 30000, "call", 3, idx=3, think=50, text=20, nTools=0, outTok=None, inTok=None, cacheTok=None, stop="endTurn", sub=0, thinkFlags=[], textFlags=[],
          sentMs=T0 + 29000, firstMs=T0 + 29500, thinking=inline("Done."), textBody=inline(SEVEN_LINES))
     push(T0 + 31000, "request", 0, idx=0, callIdx=2, promptTok=900, prefillTok=900, generatedTok=120, cachedTok=0, prefillS=0.4, decodeS=1.2, ttftS=None, prefillTokS=2250.0, decodeTokS=100.0, draftAccepted=40, draftProposed=60, meanLen=2.7)
-    push(T0 + 32000, "condition", 0, ac=1, lowPower=0, thermal="nominal", swapGb=0.0, freePct=41.5, footprintGb=58.2, gpu={"busyPct": 97.0, "sclkMhz": 2500, "memGb": 22.1, "tempC": 71.0, "powerW": 310.0, "throttle": None})
-    push(T0 + 33000, "condition", 1, ac=1, lowPower=0, thermal="nominal", swapGb=0.1, freePct=40.0, footprintGb=58.4, gpu=None)
+    push(T0 + 32000, "condition", 0, ac=1, lowPower=0, thermal="nominal", swapGb=0.0, freePct=41.5, footprintGb=58.2, gpu={"busyPct": 97.0, "sclkMhz": 2500, "memGb": 22.1, "tempC": 71.0, "powerW": 310.0, "throttle": None},
+         host={"cpus": 32, "load1": 16.0, "cpu_busy_pct": 40.0, "cache_gb": 8.0, "psi": {"cpu": {"some_pct": 1.0}, "memory": {"some_pct": 3.0}, "io": {"some_pct": 0.5}}})
+    push(T0 + 33000, "condition", 1, ac=1, lowPower=0, thermal="nominal", swapGb=0.1, freePct=40.0, footprintGb=58.4, gpu=None,
+         host={"cpus": 32, "load1": 32.0, "cpu_busy_pct": 90.0, "cache_gb": 6.0, "psi": {"cpu": {"some_pct": 0.0}, "memory": {"some_pct": 0.0}, "io": {"some_pct": 7.0}}})
     # Late-placed: an engine request whose time is early (call 0) but which arrived after everything else.
     push(T0 + 4900, "request", 1, idx=1, callIdx=0, promptTok=1500, prefillTok=1500, generatedTok=300, cachedTok=0, prefillS=0.8, decodeS=2.0, ttftS=None, prefillTokS=1875.0, decodeTokS=150.0, draftAccepted=None, draftProposed=None, meanLen=None)
     for i, e in enumerate(ev): e["ord"] = i
