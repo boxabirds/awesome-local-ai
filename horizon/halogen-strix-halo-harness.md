@@ -40,6 +40,19 @@ One pi task per repository for crash recovery (stale checkpoints removed by hand
 at a time (two cause device-lost errors); cold boot can take several minutes and memory fragmentation can block a launch until a
 reboot; the halogen download is at least 124 GB.
 
+## Is halogen open source? The page does not say
+
+The harness is MIT-licensed; that covers its scripts, not the engine. For halogen the page gives **no source repository, no maker
+(it says only "Upstream"), no registry for the image, no licence and no description of the `.hgn` format**. It is distributed as a
+Docker image the launcher pulls by tag (`HALOGEN_IMAGE_TAG`), and its weights come from a Hugging Face account (`peonist-ai`: one
+repository for the model, four for the NPU models). That fits a closed binary but does not say so. The owner's recollection is that
+it is closed source; **unconfirmed**.
+
+If it is closed: we could not read its quantisation, sampler or draft logic, so every figure would need to say the engine could not
+be inspected; we could pin only by image digest (a tag can move) and would record it; and the weights confound that cost us
+the Strata comparison could not be ruled out by reading code. Benchmarking a closed engine is allowed here; the result simply
+carries that limit.
+
 ## What it could tell us
 
 - **A second engine for Flash-Next on the machine we already benchmark gufo on.** Our Strix Halo box runs Flash-Next under gufo
