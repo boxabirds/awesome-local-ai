@@ -3,6 +3,7 @@ import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
   mergeStories, judgeReady, storyJudgeReady, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, rescoreFault, runUsage, RECENT_S, type DbenchJob,
   jobsByRun, jobReason, buildRows, buildFullRows, parseFinalize, publicStory, type FullRow, type RecordStory,
+  builtUnderEarlierSuite, withoutLiveHeldout,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -742,5 +743,29 @@ describe("what a run's final re-score recorded (finalize.json): kept whole on th
     expect(rescoreFault({ results: [{ story: 12, harness_fault: " no browser " }] })).toBe("no browser");
     expect(rescoreFault({ results: [{ story: 12, passed: 60, total: 75 }] })).toBeNull();
     expect(rescoreFault(null)).toBeNull();
+  });
+});
+
+describe("a run built under an earlier suite: its live per-story held-out figures are not available", () => {
+  // 9 Oct 2026: Opus v2-r1 was built while the held-out suite was vidi v2.0-pre1, which asked for a button label the spec does not
+  // (every test failed from story 5: 0/36 ... 0/75). Its score of record is the pre2 re-score, 75/75, by the owner's decision.
+  const OPUS_R1 = { rescore: "done", score: "75/75", built_under: { version: "vidi-v2.0-pre1", pack_version: "vidi-v2.0-pre1+94b980f-dirty", scored_under: "vidi-v2.0-pre2" } };
+
+  it("is recognised by the record's built_under: built under one suite version, scored under another", () => {
+    expect(builtUnderEarlierSuite(OPUS_R1)).toBe(true);
+    expect(builtUnderEarlierSuite({ rescore: "done", built_under: { version: "vidi-v2.0-pre2", scored_under: "vidi-v2.0-pre2" } })).toBe(false);
+    expect(builtUnderEarlierSuite({ rescore: "done" })).toBe(false);
+    expect(builtUnderEarlierSuite(null)).toBe(false);
+    expect(builtUnderEarlierSuite(undefined)).toBe(false);
+  });
+
+  it("withholds only the held-out figures of a story: its time, tokens and conversation are still its own", () => {
+    const st = storyEntry("5", { title: "Share a board", status: "DONE", accept: { passed: 0, total: 36, by_story: { "01": { passed: 0, total: 10 }, "05": { passed: 0, total: 5 } } },
+      agent: { seconds: 660, tokens: { output: 47_000 } } } as never);
+    const kept = withoutLiveHeldout(st);
+    expect(kept).toMatchObject({ passed: null, total: null, ownPassed: null, ownTotal: null, byStory: null });
+    expect(kept.id).toBe("5");
+    expect(kept.title).toBe("Share a board");
+    expect(kept.usage).toEqual(st.usage);
   });
 });

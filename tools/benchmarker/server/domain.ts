@@ -596,6 +596,18 @@ function memoryOf(raw: unknown): StoryMemory | null {
            engine: typeof m.engine === "string" ? m.engine : null, cache: anyCache ? cache : null };
 }
 
+/** Whether finalize.json says the run was built under one held-out suite version and scored (its score of record) under another: its live
+ * per-story held-out figures come from the earlier suite, which the record's own re-score replaces. */
+export function builtUnderEarlierSuite(finalize: RawFinalize | null | undefined): boolean {
+  const b = finalize?.built_under as { version?: unknown; scored_under?: unknown } | undefined;
+  return typeof b?.version === "string" && typeof b?.scored_under === "string" && b.version !== b.scored_under;
+}
+
+/** The story without its live held-out figures (they show as not available); everything else about it stays. */
+export function withoutLiveHeldout(s: RecordStory): RecordStory {
+  return { ...s, passed: null, total: null, ownPassed: null, ownTotal: null, byStory: null };
+}
+
 export function storyEntry(
   id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown; memory_start?: unknown } & RawUsage,
 ): RecordStory {
