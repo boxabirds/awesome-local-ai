@@ -1,3 +1,72 @@
+commit 2cbce48acd1d25e7d470519daa4ca3f86ae30455
+agent  Fri Oct 9 16:53:13 2026 +0000
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                           | 133 ++++++++
+ PROGRESS.md                        |   2 +-
+ src/client/board/useSelection.ts   |  17 +-
+ tests/component/Selection.test.tsx |  30 +-
+ tests/e2e/helpers/undo.ts          |  62 ++++
+ tests/e2e/undo.spec.ts             | 615 +++++++++++++++++++++++++++++++++++++
+ 6 files changed, 855 insertions(+), 4 deletions(-)
+commit 704b7a0bdcaf5602772fe33686e31808a7a1bab5
+agent  Fri Oct 9 14:59:34 2026 +0000
+
+    test(undo): component tests for step boundaries and the undo controls (TC-14 to TC-21)
+
+
+ PROGRESS.md                             |   6 +-
+ tests/component/UndoBoundaries.test.tsx | 230 +++++++++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 233 ++++++++++++++++++++++++++++++++
+ 3 files changed, 466 insertions(+), 3 deletions(-)
+commit 35b32fb2af80e8b0cf6b3e26e82ec682e8a67629
+agent  Fri Oct 9 14:50:02 2026 +0000
+
+    feat(undo): step boundaries for gestures, typing and tools, plus the undo controls
+
+
+ PROGRESS.md                             |  8 +--
+ src/client/board/Board.tsx              | 45 ++++++++++++++--
+ src/client/board/Toolbar.tsx            |  7 ++-
+ src/client/board/UndoButtons.tsx        | 93 +++++++++++++++++++++++++++++++++
+ src/client/board/useBoardKeys.ts        | 35 +++++++++++--
+ src/client/board/useUndo.ts             | 58 ++++++++++++++++++++
+ src/client/objects/StickyNote.tsx       |  7 +++
+ src/client/objects/StickyTextEditor.tsx | 35 +++++++++++++
+ src/client/styles.css                   | 37 +++++++++++++
+ 9 files changed, 313 insertions(+), 12 deletions(-)
+commit c59c2dfeb98ca9c15dfc966a9f18164b73e70140
+agent  Fri Oct 9 14:38:40 2026 +0000
+
+    feat(undo): the undo history of one person over one board (UndoController)
+
+
+ src/client/board/undo.ts | 110 ++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 103 insertions(+), 7 deletions(-)
+commit c7b0cfda01beb6fd3aa04a26bb75d111ccd75f77
+agent  Fri Oct 9 14:38:29 2026 +0000
+
+    test(undo): unit tests for the undo history and the typing boundary (TC-01 to TC-13)
+
+
+ PROGRESS.md                        |   2 +-
+ src/client/board/undo.ts           |  34 ++++
+ src/shared/config.ts               |  10 ++
+ tests/unit/fake-clock.ts           |  26 +++
+ tests/unit/peer.ts                 |  72 ++++++++
+ tests/unit/undo-boundaries.test.ts | 157 +++++++++++++++++
+ tests/unit/undo-history.test.ts    | 338 +++++++++++++++++++++++++++++++++++++
+ 7 files changed, 638 insertions(+), 1 deletion(-)
+commit 9d176b9555ec4f1bf87a91e67780522a2cf66762
+vidi-agent  Fri Oct 9 15:03:07 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit 3f695871bcc45e01bbd7a6569c80932b59a2b691
 agent  Fri Oct 9 13:58:13 2026 +0000
 
