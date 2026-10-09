@@ -1,3 +1,88 @@
+commit c5916999e687c54fa36a6bc8ab8e29a5e535bca6
+agent  Fri Oct 9 04:05:43 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                     |   9 +
+ PROGRESS.md                                  |   4 +-
+ playwright.config.ts                         |   2 +
+ playwright.nightly.config.ts                 |  12 ++
+ src/client/board/useBoardDoc.ts              |   3 +
+ src/client/canvas/testHooks.ts               |   1 +
+ src/client/canvas/useCamera.ts               |   9 +
+ src/client/objects/StickyNote.tsx            |  30 ++-
+ src/client/sync/connectBoard.ts              |  10 +
+ tests/e2e/helpers/participants.ts            |  61 ++++++
+ tests/e2e/live-collaboration.nightly.spec.ts | 184 ++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts         | 276 +++++++++++++++++++++++++++
+ 12 files changed, 590 insertions(+), 11 deletions(-)
+commit 5270e222f1d5c0089d40ce03ab9950252b43f965
+agent  Fri Oct 9 03:01:49 2026 +0000
+
+    story 3: client connection, /b/:boardId route, status badge with component coverage (TC-19..21)
+
+
+ NOTES.md                                  |   5 +
+ PROGRESS.md                               |   4 +-
+ src/client/App.tsx                        |  54 ++++++--
+ src/client/board/useBoardDoc.ts           |  29 ++++-
+ src/client/board/useSelection.ts          |  20 ++-
+ src/client/canvas/testHooks.ts            |   2 +
+ src/client/objects/StickyTextEditor.tsx   |  43 ++++++
+ src/client/sync/ConnectionStatus.tsx      |  46 +++++++
+ src/client/sync/connectBoard.ts           | 104 +++++++++++++++
+ tests/component/ConnectionStatus.test.tsx | 210 ++++++++++++++++++++++++++++++
+ 10 files changed, 494 insertions(+), 23 deletions(-)
+commit fefad6aa9ce141465545d18716db793b21c00c9c
+agent  Fri Oct 9 02:53:57 2026 +0000
+
+    story 3: worker entry + BoardRoom Durable Object with full integration coverage (TC-04..06, TC-07..18, TC-31)
+
+
+ NOTES.md                               |   14 +
+ PROGRESS.md                            |    8 +-
+ package-lock.json                      | 1243 +-------------------------------
+ package.json                           |   11 +-
+ src/shared/board-id.ts                 |   21 +-
+ src/shared/board-model.ts              |    2 +-
+ src/shared/protocol.ts                 |   69 +-
+ src/worker/board-room.ts               |  147 ++++
+ src/worker/index.ts                    |   33 +
+ tests/integration/board-room.test.ts   |  285 ++++++++
+ tests/integration/global-setup.ts      |   26 +
+ tests/integration/random-ops.ts        |   62 ++
+ tests/integration/worker-entry.test.ts |   99 +++
+ tests/integration/ws-client.ts         |  110 +++
+ tests/unit/protocol.test.ts            |    5 +-
+ tsconfig.json                          |    3 +-
+ tsconfig.worker.json                   |   18 +
+ vitest.config.ts                       |   11 +
+ wrangler.jsonc                         |   17 +-
+ 19 files changed, 955 insertions(+), 1229 deletions(-)
+commit aec719778866f785eb8c443239d9eaf099229552
+agent  Fri Oct 9 02:17:11 2026 +0000
+
+    story 3 scaffold: board id + protocol decode unit tests (TC-01..03, red)
+
+
+ PROGRESS.md                 |    2 +-
+ package-lock.json           | 1495 ++++++++++++++++++++++++++++++++++++++++---
+ package.json                |    8 +-
+ src/shared/board-id.ts      |   13 +
+ src/shared/config.ts        |    8 +
+ src/shared/protocol.ts      |   25 +
+ tests/unit/board-id.test.ts |   42 ++
+ tests/unit/protocol.test.ts |  131 ++++
+ 8 files changed, 1645 insertions(+), 79 deletions(-)
+commit 7618b20b023928cb46a5447555ff69e9c2061f9b
+vidi-agent  Fri Oct 9 02:00:40 2026 +0000
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 10a5f808108260fbcdc8bd46a108eb50791b5593
 agent  Fri Oct 9 01:59:51 2026 +0000
 
