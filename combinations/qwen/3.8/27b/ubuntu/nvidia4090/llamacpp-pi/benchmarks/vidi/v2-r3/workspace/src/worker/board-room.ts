@@ -34,6 +34,7 @@ export interface BoardStoreLike {
   migrate(): void;
   append(update: Uint8Array): void;
   load(doc: Y.Doc): LoadResult;
+  existsReadOnly(): boolean;
   compactIfNeeded(doc: Y.Doc, hooks?: CompactHooks): boolean;
   compact(doc: Y.Doc, hooks?: CompactHooks): boolean;
   needsCompaction(): boolean;
@@ -88,9 +89,10 @@ export class BoardRoom extends DurableObject<Env> {
     });
     this.doc = doc;
     this.state = 'loading';
+    // Story 5: no migration here — an unknown board must stay unmaterialized
+    // (share.not_found). load() on a tableless board yields an empty board.
     let result: LoadResult;
     try {
-      this.store.migrate();
       result = this.store.load(doc);
     } catch (err) {
       result = { ok: false, reason: 'sql-error', error: String(err) };
@@ -112,6 +114,13 @@ export class BoardRoom extends DurableObject<Env> {
   async fetch(req: Request): Promise<Response> {
     if (req.method !== 'GET') {
       return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    // Story 5 (share.not_found): rooms can no longer be created implicitly
+    // by connecting. An unknown board never upgrades; no storage is
+    // materialized for it.
+    if (!this.store.existsReadOnly()) {
+      return new Response('Not Found', { status: 404 });
     }
 
     if (this.state === 'storage-failed') {
@@ -173,6 +182,26 @@ export class BoardRoom extends DurableObject<Env> {
     });
     this.ctx.waitUntil(kickoff);
     return response;
+  }
+
+  /**
+   * Story 5 (share.board_api): idempotently create this board. Runs the
+   * migration and writes the board's created_at exactly once; a repeat
+   * call (including by a racing creator) reports `exists` and leaves
+   * created_at untouched.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    const sql = this.ctx.storage.sql;
+    const existing = sql.exec('SELECT value FROM storage_meta WHERE key = ?', 'created_at').raw().next();
+    if (!existing.done) return 'exists';
+    sql.exec('INSERT INTO storage_meta (key, value) VALUES (?, ?)', 'created_at', String(Date.now()));
+    return 'created';
+  }
+
+  /** Story 5 (share.board_api): read-only exists() RPC for GET /api/boards/:id. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   /** Hibernation API entry point for accepted sockets. */
@@ -373,6 +402,7 @@ export class BoardRoom extends DurableObject<Env> {
     const counts = { append: 0, load: 0 };
     this.store = {
       migrate: () => real.migrate(),
+      existsReadOnly: () => real.existsReadOnly(),
       append: (update) => {
         if (spec.append) {
           counts.append += 1;

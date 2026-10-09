@@ -2,7 +2,7 @@ import * as encoding from 'lib0/encoding';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoard } from './hooks';
 import { createSticky, getStickyText } from '../../src/shared/board-model';
 import { boardUrl, RoomClient, sameNotes, waitUntil } from './ws-client';
 import { makeRandomOps } from './random-ops';
@@ -10,7 +10,7 @@ import { makeRandomOps } from './random-ops';
 describe('BoardRoom advanced behavior', () => {
   it('TC-12: 5 clients x 200 seeded random ops converge to identical boards', async () => {
     const seed = 0x5eed_2024;
-    const board = newBoardId();
+    const board = await createBoard();
     const clients: RoomClient[] = [];
     const ops: Array<ReturnType<typeof makeRandomOps>> = [];
     for (let i = 0; i < 5; i++) {
@@ -39,7 +39,7 @@ describe('BoardRoom advanced behavior', () => {
   }, 30_000);
 
   it('TC-14: a late joiner receives the full state, not just the delta', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     const B = await RoomClient.connect(boardUrl(board));
     await A.waitForSync();
@@ -61,7 +61,7 @@ describe('BoardRoom advanced behavior', () => {
   });
 
   it('TC-15: malformed data closes the offending client with 1003 and leaves the room healthy', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     let A = await RoomClient.connect(boardUrl(board));
     const B = await RoomClient.connect(boardUrl(board));
     await A.waitForSync();
@@ -103,7 +103,7 @@ describe('BoardRoom advanced behavior', () => {
   }, 30_000);
 
   it('TC-16: awareness frames are echoed to all connected clients', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     await A.waitForSync();
     const B = await RoomClient.connect(boardUrl(board));
@@ -123,8 +123,8 @@ describe('BoardRoom advanced behavior', () => {
   });
 
   it('TC-17: separate boards do not mix', async () => {
-    const board1 = newBoardId();
-    const board2 = newBoardId();
+    const board1 = await createBoard();
+    const board2 = await createBoard();
     const A = await RoomClient.connect(boardUrl(board1));
     const B = await RoomClient.connect(boardUrl(board2));
     await A.waitForSync();
@@ -141,7 +141,7 @@ describe('BoardRoom advanced behavior', () => {
   });
 
   it('TC-18: after a full disconnect and reconnect, the board state survives and a new client converges', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     const B = await RoomClient.connect(boardUrl(board));
     await A.waitForSync();
@@ -173,7 +173,7 @@ describe('BoardRoom advanced behavior', () => {
   });
 
   it('TC-31: an abrupt disconnect does not break later broadcast', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     const B = await RoomClient.connect(boardUrl(board));
     const C = await RoomClient.connect(boardUrl(board));

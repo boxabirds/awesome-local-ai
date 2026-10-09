@@ -13,14 +13,18 @@
  *  store-load, store-compact {force?, failAfterChunkDelete?},
  *  store-corrupt-log-row {seq, mode}, store-corrupt-snapshot-chunk {idx, mode},
  *  store-repair-snapshot-chunk {idx}, store-status,
+ *  board-initialize, raw-sql {sql, params?},
  *  room-reset, room-inject {append?, load?, reset?}, room-compact-now,
  *  corrupt-snapshot, repair-snapshot
+ * and the worker-level fault route
+ *  /__test/faults/create-board {mode: 'throw' | 'exists' | 'clear'}
  */
 import * as Y from 'yjs';
 import { snapshot } from '../shared/board-model';
 import type { Env } from './index';
 import { BoardStore, type CompactHooks } from './board-store';
 import type { BoardRoom } from './board-room';
+import { injectInitializeForTests } from './create-board';
 
 interface HookSession {
   store: BoardStore;
@@ -90,7 +94,38 @@ export async function testHookRequest(req: Request, env: Env, pathname: string):
   const json = (body: unknown, status = 200): Response =>
     new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
   const parts = pathname.split('/').filter(Boolean);
-  if (parts.length !== 4 || parts[0] !== '__test' || parts[1] !== 'boards') {
+  if (parts[0] !== '__test') {
+    return json({ ok: false, error: 'unknown test route' }, 404);
+  }
+  // Worker-level fault injection (story 5, TC-12): replaces the
+  // initialize() RPC that createBoard makes. Not per-board because creation
+  // picks the id; the tests clear it again afterwards.
+  if (parts[1] === 'faults' && parts[2] === 'create-board') {
+    if (req.method !== 'POST') return json({ ok: false, error: 'POST only' }, 405);
+    let body: Record<string, unknown> = {};
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      /* bodyless */
+    }
+    const mode = body.mode;
+    if (mode === 'throw') {
+      injectInitializeForTests(async () => {
+        throw new Error('injected initialize failure');
+      });
+      return json({ ok: true });
+    }
+    if (mode === 'exists') {
+      injectInitializeForTests(async () => 'exists');
+      return json({ ok: true });
+    }
+    if (mode === 'clear') {
+      injectInitializeForTests(null);
+      return json({ ok: true });
+    }
+    return json({ ok: false, error: "expected { mode: 'throw' | 'exists' | 'clear' }" }, 400);
+  }
+  if (parts.length !== 4 || parts[1] !== 'boards') {
     return json({ ok: false, error: 'unknown test route' }, 404);
   }
   const boardId = decodeURIComponent(parts[2]);
@@ -113,18 +148,30 @@ export async function testHookRequest(req: Request, env: Env, pathname: string):
 }
 
 /** Runs inside the Durable Object; every storage touch is real SQLite. */
-export function runTestHook(
+export async function runTestHook(
   storage: DurableObjectStorage,
   room: BoardRoom,
   boardId: string,
   op: string,
   body: Record<string, unknown>,
-): unknown {
+): Promise<unknown> {
   const sql = storage.sql;
   switch (op) {
     case 'store-migrate': {
       const store = new BoardStore(storage);
       store.migrate();
+      return { ok: true };
+    }
+    case 'board-initialize': {
+      // Runs the real creation RPC (migrate + created_at written once).
+      return { result: await room.initialize() };
+    }
+    case 'raw-sql': {
+      // Raw storage access for states no other hook can build (e.g. a
+      // legacy updates table without a schema-version row, TC-08b).
+      const sqlText = String(body.sql);
+      const params = Array.isArray(body.params) ? (body.params as unknown[]) : [];
+      sql.exec(sqlText, ...params);
       return { ok: true };
     }
     case 'store-append': {
@@ -199,27 +246,43 @@ export function runTestHook(
       return { ok: true };
     }
     case 'store-status': {
-      const updates = firstRow(sql.exec('SELECT COUNT(*), COALESCE(SUM(bytes), 0) FROM updates').raw());
-      const chunks = firstRow(sql.exec('SELECT COUNT(*) FROM snapshot_chunks').raw());
-      const snapshotBytes = firstRow(
-        sql.exec('SELECT COALESCE(SUM(length(data)), 0) FROM snapshot_chunks').raw(),
-      );
-      const throughSeq = firstRow(
-        sql.exec('SELECT value FROM storage_meta WHERE key = ?', 'snapshot_through_seq').raw(),
-      );
-      const schemaVersion = firstRow(
-        sql.exec('SELECT value FROM storage_meta WHERE key = ?', 'storage_schema_version').raw(),
-      );
-      const quarantined = [...sql.exec('SELECT seq, error FROM quarantined_updates ORDER BY seq').raw()].map(
-        ([seq, error]) => ({ seq: Number(seq), error: String(error) }),
-      );
+      // Story 5: an unknown board has no tables at all, so every probe must
+      // be guarded (this is how tests assert "nothing was materialized").
+      // Only the board's own storage tables are listed (workerd adds internal
+      // tables like __miniflare_do_name to every DO database).
+      const tables: string[] = [];
+      for (const row of sql
+        .exec(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('updates', 'snapshot_chunks', 'quarantined_updates', 'storage_meta')",
+        )
+        .raw()) {
+        tables.push(String(row[0]));
+      }
+      const has = (t: string): boolean => tables.includes(t);
+      const count = (table: string, query: string): number =>
+        has(table) ? Number(firstRow(sql.exec(query).raw())?.[0] ?? 0) : 0;
+      const meta = (key: string): string | null => {
+        if (!has('storage_meta')) return null;
+        const row = firstRow(sql.exec('SELECT value FROM storage_meta WHERE key = ?', key).raw());
+        return row ? String(row[0]) : null;
+      };
+      const throughSeq = meta('snapshot_through_seq');
       return {
-        updates: { count: Number(updates?.[0] ?? 0), bytes: Number(updates?.[1] ?? 0) },
-        chunks: Number(chunks?.[0] ?? 0),
-        snapshotBytes: Number(snapshotBytes?.[0] ?? 0),
-        throughSeq: Number(throughSeq?.[0] ?? 0),
-        schemaVersion: schemaVersion ? String(schemaVersion[0]) : null,
-        quarantined,
+        tables,
+        createdAt: meta('created_at'),
+        schemaVersion: meta('storage_schema_version'),
+        updates: {
+          count: count('updates', 'SELECT COUNT(*) FROM updates'),
+          bytes: count('updates', 'SELECT COALESCE(SUM(bytes), 0) FROM updates'),
+        },
+        chunks: count('snapshot_chunks', 'SELECT COUNT(*) FROM snapshot_chunks'),
+        snapshotBytes: count('snapshot_chunks', 'SELECT COALESCE(SUM(length(data)), 0) FROM snapshot_chunks'),
+        throughSeq: throughSeq === null ? 0 : Number(throughSeq),
+        quarantined: has('quarantined_updates')
+          ? [...sql.exec('SELECT seq, error FROM quarantined_updates ORDER BY seq').raw()].map(
+              ([seq, error]) => ({ seq: Number(seq), error: String(error) }),
+            )
+          : [],
       };
     }
     case 'room-reset': {

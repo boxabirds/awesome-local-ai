@@ -1,11 +1,11 @@
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
+import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import {
   CATCH_UP_TEST_OUTAGE_MS,
   E2E_EVENTUAL_TIMEOUT_MS,
   MAX_CONCURRENT_EDITORS,
 } from '../../src/shared/config';
 import {
+  apiCreateBoard,
   createNoteAt,
   deleteNote,
   expectSameBoard,
@@ -22,11 +22,6 @@ import {
   typeText,
 } from './helpers';
 
-/** A valid 128-bit board id (16 bytes base64url). */
-function newBoardId(): string {
-  return randomBytes(16).toString('base64url');
-}
-
 interface Participant {
   context: BrowserContext;
   page: Page;
@@ -39,8 +34,11 @@ async function join(browser: Browser, boardId: string): Promise<Participant> {
   return { context, page };
 }
 
-async function two(browser: Browser): Promise<{ a: Participant; b: Participant; board: string }> {
-  const board = newBoardId();
+async function two(
+  browser: Browser,
+  request: APIRequestContext,
+): Promise<{ a: Participant; b: Participant; board: string }> {
+  const board = await apiCreateBoard(request);
   const a = await join(browser, board);
   const b = await join(browser, board);
   return { a, b, board };
@@ -63,8 +61,8 @@ const P3 = { x: 400, y: 550 };
 const P4 = { x: 880, y: 550 };
 
 test.describe('live collaboration (real browsers + wrangler dev)', () => {
-  test('TC-22: every change type Alex makes appears for Sam', async ({ browser }) => {
-    const { a, b } = await two(browser);
+  test('TC-22: every change type Alex makes appears for Sam', async ({ browser, request }) => {
+    const { a, b } = await two(browser, request);
     const alex = a.page;
     const sam = b.page;
     try {
@@ -101,8 +99,8 @@ test.describe('live collaboration (real browsers + wrangler dev)', () => {
     }
   });
 
-  test('TC-23: simultaneous typing on the same note keeps every character', async ({ browser }) => {
-    const { a, b } = await two(browser);
+  test('TC-23: simultaneous typing on the same note keeps every character', async ({ browser, request }) => {
+    const { a, b } = await two(browser, request);
     const alex = a.page;
     const sam = b.page;
     try {
@@ -132,8 +130,8 @@ test.describe('live collaboration (real browsers + wrangler dev)', () => {
     }
   });
 
-  test('TC-24: dragging the same note to different places settles identically', async ({ browser }) => {
-    const { a, b } = await two(browser);
+  test('TC-24: dragging the same note to different places settles identically', async ({ browser, request }) => {
+    const { a, b } = await two(browser, request);
     const alex = a.page;
     const sam = b.page;
     try {
@@ -153,8 +151,8 @@ test.describe('live collaboration (real browsers + wrangler dev)', () => {
     }
   });
 
-  test('TC-25: deleting a note someone is editing removes it cleanly', async ({ browser }) => {
-    const { a, b } = await two(browser);
+  test('TC-25: deleting a note someone is editing removes it cleanly', async ({ browser, request }) => {
+    const { a, b } = await two(browser, request);
     const alex = a.page;
     const sam = b.page;
     const consoleErrors: string[] = [];
@@ -191,8 +189,8 @@ test.describe('live collaboration (real browsers + wrangler dev)', () => {
     }
   });
 
-  test('TC-26: full capacity — every change from each editor reaches all others', async ({ browser }) => {
-    const board = newBoardId();
+  test('TC-26: full capacity — every change from each editor reaches all others', async ({ browser, request }) => {
+    const board = await apiCreateBoard(request);
     const ps: Participant[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) ps.push(await join(browser, board));
     try {
@@ -228,8 +226,8 @@ test.describe('live collaboration (real browsers + wrangler dev)', () => {
     }
   });
 
-  test('TC-27: offline catch-up — badge Reconnecting then Connected, both see all notes', async ({ browser }) => {
-    const board = newBoardId();
+  test('TC-27: offline catch-up — badge Reconnecting then Connected, both see all notes', async ({ browser, request }) => {
+    const board = await apiCreateBoard(request);
     const alexP = await join(browser, board);
     const samP = await join(browser, board);
     const alex = alexP.page;
@@ -287,8 +285,8 @@ test.describe('live collaboration (real browsers + wrangler dev)', () => {
     }
   }, 180_000);
 
-  test('TC-28: selection and the text editor are local only', async ({ browser }) => {
-    const { a, b } = await two(browser);
+  test('TC-28: selection and the text editor are local only', async ({ browser, request }) => {
+    const { a, b } = await two(browser, request);
     const alex = a.page;
     const sam = b.page;
     try {

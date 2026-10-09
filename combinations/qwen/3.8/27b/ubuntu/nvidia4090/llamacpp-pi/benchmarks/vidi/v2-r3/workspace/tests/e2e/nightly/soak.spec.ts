@@ -1,10 +1,10 @@
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
+import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import {
   MAX_CONCURRENT_EDITORS,
   type StickyColor,
 } from '../../../src/shared/config';
 import {
+  apiCreateBoard,
   createNoteAt,
   moveNote,
   noteCount,
@@ -21,10 +21,6 @@ import {
  * the board idle for 45s and TC-30 soaks the room with continuous edits for
  * 60s. Latency is measured and logged against the budget, never asserted.
  */
-
-function newBoardId(): string {
-  return randomBytes(16).toString('base64url');
-}
 
 const COLORS = Object.keys({
   yellow: 0,
@@ -82,8 +78,8 @@ function pct(sorted: number[], p: number): number {
 }
 
 test.describe('nightly soak (chromium)', () => {
-  test('TC-29: an idle board never drops — badge stays connected for 45s', async ({ browser }) => {
-    const board = newBoardId();
+  test('TC-29: an idle board never drops — badge stays connected for 45s', async ({ browser, request }) => {
+    const board = await apiCreateBoard(request);
     const a = await join(browser, board);
     const b = await join(browser, board);
     try {
@@ -114,8 +110,8 @@ test.describe('nightly soak (chromium)', () => {
     }
   }, 120_000);
 
-  test('TC-30: capacity soak — 5 editors, 60s of continuous edits, converge identically', async ({ browser }) => {
-    const board = newBoardId();
+  test('TC-30: capacity soak — 5 editors, 60s of continuous edits, converge identically', async ({ browser, request }) => {
+    const board = await apiCreateBoard(request);
     const ps: Participant[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) ps.push(await join(browser, board));
     try {

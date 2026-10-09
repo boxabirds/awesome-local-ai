@@ -8,7 +8,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
-import AppRoot from '../../src/client/App';
+// Story 5: the board UI moved from App to Board (App now renders the
+// pages router), so the load-failed behaviour is exercised on Board
+// directly — same component tree, same assertions.
+import { Board } from '../../src/client/Board';
 
 // jsdom has no ResizeObserver or pointer capture.
 beforeAll(() => {
@@ -61,7 +64,7 @@ describe('TC-23: App in load_failed is not editable (zero model mutations)', () 
   it('blocks create, delete, drag, edit, colour — no board-model mutation calls', async () => {
     const spies = MUTATION_METHODS.map((name) => vi.spyOn(bm, name) as unknown as ReturnType<typeof vi.fn>);
 
-    const { unmount } = render(<AppRoot />);
+    const { unmount } = render(<Board boardId="test-load-failed" />);
     // Wait for the mocked provider to close with 4500 and the seed note to render.
     await screen.findByText("This board couldn't be loaded. Retrying…", undefined, { timeout: 5000 });
     await screen.findByRole('group', { name: 'Sticky note' });

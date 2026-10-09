@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoard } from './hooks';
 import {
   createSticky,
   deleteObject,
@@ -14,7 +14,7 @@ import { encodeFrame, MESSAGE_SYNC } from '../../src/shared/protocol';
 import { boardUrl, RoomClient, sameNotes, waitUntil } from './ws-client';
 
 async function twoClients(): Promise<{ A: RoomClient; B: RoomClient }> {
-  const board = newBoardId();
+  const board = await createBoard();
   const A = await RoomClient.connect(boardUrl(board));
   const B = await RoomClient.connect(boardUrl(board));
   await A.waitForSync();
@@ -24,7 +24,7 @@ async function twoClients(): Promise<{ A: RoomClient; B: RoomClient }> {
 
 describe('BoardRoom (workerd, real worker + real Durable Object)', () => {
   it('TC-07: room is created on first connect; a fresh client sees an empty board', async () => {
-    const A = await RoomClient.connect(boardUrl(newBoardId()));
+    const A = await RoomClient.connect(boardUrl(await createBoard()));
     await A.waitForSync();
     expect(A.notes()).toHaveLength(0);
     A.close();
@@ -118,7 +118,7 @@ describe('BoardRoom (workerd, real worker + real Durable Object)', () => {
   });
 
   it('TC-13: the 6th editor (MAX_CONCURRENT_EDITORS + 1) can join and be heard', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const clients: RoomClient[] = [];
     for (let i = 0; i < 6; i++) {
       const c = await RoomClient.connect(boardUrl(board));

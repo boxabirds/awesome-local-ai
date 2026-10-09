@@ -39,13 +39,15 @@ function rawGet(path: string, extraHeaders: Record<string, string>): Promise<{ s
  * invalid ids never reach the room, so no WebSocket is ever upgraded.)
  */
 describe('worker routing (real Worker + real Durable Objects via wrangler dev)', () => {
-  it('TC-04: an invalid board id is rejected with 400 and never upgrades a room', async () => {
+  it('TC-04: an invalid board id is rejected with 404 and never upgrades a room', async () => {
+    // Story 5 redefined this: malformed ids are no longer distinguishable
+    // from unknown ones (share.not_found), so both get 404.
     const res = await rawGet('/api/rooms/not%20a%20valid%20id', {
       Upgrade: 'websocket',
       Connection: 'Upgrade',
     });
-    expect(res.status).toBe(400);
-    expect(res.body).toContain('Bad Request');
+    expect(res.status).toBe(404);
+    expect(res.body).toContain('Not Found');
   });
 
   it('TC-05: a valid id without the WebSocket upgrade gets 426', async () => {

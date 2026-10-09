@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -18,6 +18,15 @@ const BASE = `http://127.0.0.1:${PORT}`;
  */
 export default async function () {
   process.env.INTEGRATION_BASE = BASE;
+  // Story 5 (TC-32) asserts on the served client bundle, so build it first;
+  // the suite is self-contained regardless of the state of dist/.
+  const build = spawnSync('npx', ['vite', 'build', '--mode', 'test'], {
+    cwd: REPO_ROOT,
+    stdio: 'pipe',
+  });
+  if (build.status !== 0) {
+    throw new Error(`client build failed: ${String(build.stderr)}`);
+  }
   const server: ChildProcess = spawn(
     'npx',
     [

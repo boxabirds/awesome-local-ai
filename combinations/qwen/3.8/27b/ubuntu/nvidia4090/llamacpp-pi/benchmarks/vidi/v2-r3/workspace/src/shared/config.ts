@@ -5,6 +5,7 @@
  * Story 2 — sticky notes
  * Story 3 — live collaboration
  * Story 4 — persistence
+ * Story 5 — sharing a board by link
  */
 
 // Story 1
@@ -49,3 +50,8 @@ export const LOAD_RETRY_MIN_INTERVAL_MS = 5000; // LoadFailed room retries load 
 export const PERSIST_TESTED_NOTES = 2000; // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000; // PRD persist.large_board
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// Story 5
+export const CREATE_BUDGET_MS = 2000; // PRD share.create: click to board visible
+export const LINK_COPIED_MS = 2000; // "Link copied" confirmation duration
+export const BOARD_CHECK_RETRY_BASE_MS = 1000; // backoff doubles up to RECONNECT_MAX_BACKOFF_MS

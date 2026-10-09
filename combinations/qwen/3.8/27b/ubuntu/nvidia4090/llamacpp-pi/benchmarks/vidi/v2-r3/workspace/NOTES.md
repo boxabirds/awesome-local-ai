@@ -1,4 +1,4 @@
-# NOTES — Story 4 (and the story 1–3 gap fill)
+# NOTES — Stories 4–5 (and the story 1–3 gap fill)
 
 ## 1. The repository was empty: stories 1 and 2 had to be gap-filled
 
@@ -168,3 +168,98 @@ alive and to carry no product-visible state in this story.
   integration; 29044/29045 persistence e2e (`WranglerProcess`); 29046/29047
   production hook check. All servers we start pass an explicit
   `--inspector-port` in range.
+
+## 10. Story 5 — share a board with a link
+
+- **Deviation — `nextBoardPageState` signature.** The design gives
+  `(state, result, attempt)`; that shape cannot produce
+  `{ kind: 'ready', boardId }` because the reducer never knows which board it
+  is checking. The implementation is `(state, boardId, result, attempt)` —
+  first parameter added, everything else per design (same states, same
+  backoff arithmetic, same terminal outcomes).
+- **TC-09 ordering: upgrade check before existence check.** A request for an
+  *unknown* board must be 404 *when it carries an `Upgrade: websocket`
+  header*, but story 3 TC-05 still requires 426 for a non-upgrade request to
+  a *valid* board. `fetch` therefore orders: malformed id → 404; missing
+  upgrade header → 426; unknown board → 404; then the room handshake. Both
+  stories hold.
+- **`existsReadOnly` legacy rules (design line 45).** `true` when
+  `storage_meta.created_at` exists, or (legacy) `updates` has any row, or
+  (legacy) `snapshot_chunks` has any row; `false` when the board has no
+  tables at all. Each table query is guarded by the table list, so a
+  partially-migrated board (e.g. only `updates`) cannot crash the check.
+- **workerd internal table `__miniflare_do_name`.** workerd creates this
+  internal table in every DO database, so `name NOT LIKE 'sqlite_%'` would
+  report *every* board as existing. `boardTables()` uses an explicit
+  whitelist: `name IN ('updates', 'snapshot_chunks', 'quarantined_updates',
+  'storage_meta')` (worker store and test hook share the same list).
+- **Migration moved out of the constructor.** `new BoardStore(storage)` no
+  longer migrates. Tables are created by `initialize()` (board creation) and
+  lazily by the first `append()` to a table-less board (legacy upgrade path,
+  which writes the schema version but no `created_at` — exactly the TC-08(a)
+  shape). The room constructor's `load()` therefore never mutates storage; a
+  table-less board loads as an *empty* board (`{ok, quarantined: 0}`), which
+  is the "unknown board" case the room 404s on before the upgrade.
+- **TC-12 (initialize throws → 500, nothing persisted).** Board-level
+  injection can't be reached from the worker (the room is a different DO
+  class instance), so `create-board.ts` exposes
+  `injectInitializeForTests` (a worker-process variable) and the hook route
+  `POST /__test/faults/create-board` sets `mode: 'throw' | 'exists' |
+  'clear'`. The test exercises the real `POST /api/boards` handler end to
+  end.
+- **`raw-sql` hook op (TC-08(b)).** Seeding a *legacy* board (an `updates`
+  row with no schema version, no `created_at`) is impossible through
+  `store-append*` (its session migrates first). `POST /__test/boards/:id/
+  raw-sql` runs one parameterized statement against the board's SQLite
+  database; it is only mounted under `TEST_HOOKS`.
+- **E2E: `apiCreateBoard(request, baseUrl?)` helper (helpers.ts).** Rooms no
+  longer materialize on first connect, so every e2e test that opens a board
+  creates it via `POST /api/boards` first. `live-collaboration` and the
+  nightly soak use the shared `webServer` (the context `request` fixture's
+  baseURL); `persistence` passes its own `proc.url`. The only ids still made
+  raw are the ones that must *not* exist (bad-link test) and the
+  hook-seeded legacy boards (persistence TC-21/24 — the seed creates their
+  tables, so they are "existing" boards by data, story 4-era simulation).
+- **TC-31 needs `room-reset` after seeding.** The `store-append-many` hook
+  itself constructs the room (to get storage) — at that moment the board is
+  empty, so the constructed room holds a stale empty doc. Same caveat as
+  persistence TC-21/24: reset after seeding so the first real connection
+  reloads from disk.
+- **`store-status` extended, not changed.** All story 4 fields keep their
+  names; added `tables: string[]` and `createdAt: string | null`. The
+  integration `StoreStatus` type mirrors this.
+- **Integration `global-setup` now builds the client.** Story 5's server
+  serves the SPA (`/`, `/b/:id`) from `dist/client`, so the setup runs
+  `vite build --mode test` before starting wrangler (same as the e2e
+  `webServer`).
+- **`app-load-failed.test.tsx` renders `<Board>` directly.** `App` now hosts
+  the router (home page at `/`), so the story 4 "load failed" test mounts
+  `<Board boardId="test-load-failed" />` — the exact same component the
+  board page would mount. `canEdit` is re-exported from `App.tsx` for the
+  story 4 test import.
+- **TC-21 (component) fake timers.** The retry loop uses real timers in the
+  test only through `vi.advanceTimersByTime`; `await act(async () => {})`
+  flushes the microtask queue between advances, and assertions use `act` +
+  synchronous queries (no `findBy*` — those spin their own timer loop and
+  deadlock under fake timers).
+- **Firefox/WebKit not covered (environment limitation).** The tasks list
+  TC-27/TC-29 "in firefox and webkit too", but this machine has only
+  Chromium installed (`~/.cache/ms-playwright` holds chromium builds only;
+  installing other browsers is not possible offline). The Playwright config
+  therefore keeps a single chromium project (extended to match
+  `(live-collaboration|share)\.spec\.ts`); no firefox/webkit projects are
+  declared, so no suite fails for a missing browser. The share flows are
+  DOM/clipboard only (no browser-specific APIs beyond `navigator.clipboard`,
+  which is exercised on Chromium), so porting is a config change.
+- **Clipboard in component tests.** jsdom has no `navigator.clipboard`;
+  `SharePanel.test.tsx` defines it via `Object.defineProperty` per test
+  (allow / reject variants). e2e TC-26 uses a context with
+  `permissions: ['clipboard-read', 'clipboard-write']` for the real API and
+  reads the link back with `navigator.clipboard.readText()`; TC-29's init
+  script replaces `writeText` with a rejecting promise to force the manual
+  fallback and asserts `window.getSelection()` equals the full link.
+- **Click→board budget is logged, never asserted** (TC-26 e2e): the
+  2000 ms `CREATE_BUDGET_MS` is a UX target; the measured value is printed
+  with a within/over marker.
+- **No new ports.** Story 5 reuses the existing allocation (29040–29047);
+  29050/29051 were used only for manual debugging during development.

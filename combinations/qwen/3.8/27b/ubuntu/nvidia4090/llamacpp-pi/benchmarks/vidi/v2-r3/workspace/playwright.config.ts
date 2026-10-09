@@ -16,7 +16,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testMatch: /live-collaboration\.spec\.ts/,
+      testMatch: /(live-collaboration|share)\.spec\.ts/,
       use: { browserName: 'chromium' },
     },
     {

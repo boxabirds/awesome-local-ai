@@ -12,6 +12,10 @@ export interface StoreLoad {
 }
 
 export interface StoreStatus {
+  /** Table names in the board's SQLite db (empty for an unknown board). */
+  tables: string[];
+  /** created_at storage_meta value, or null (never set for legacy boards). */
+  createdAt: string | null;
   updates: { count: number; bytes: number };
   chunks: number;
   snapshotBytes: number;
@@ -59,6 +63,25 @@ export const unb64 = (s: string): Uint8Array => {
   return out;
 };
 
+/** Story 5: create a real board through the worker API and return its id. */
+export async function createBoard(): Promise<string> {
+  const res = await fetch(`${BASE}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) {
+    throw new Error(`POST /api/boards -> ${res.status} ${await res.text()}`);
+  }
+  return ((await res.json()) as { id: string }).id;
+}
+
+/** Story 5, TC-12: worker-level create-board fault injection. */
+export async function setCreateBoardFault(mode: 'throw' | 'exists' | 'clear'): Promise<void> {
+  const res = await fetch(`${BASE}/__test/faults/create-board`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ mode }),
+  });
+  if (!res.ok) throw new Error(`setCreateBoardFault -> ${res.status}`);
+}
+
 export const hooks = {
   status: (boardId: string): Promise<StoreStatus> =>
     call(boardId, 'store-status') as unknown as Promise<StoreStatus>,
@@ -83,6 +106,7 @@ export const hooks = {
     boardId: string,
     spec: { append?: 'once' | 'always'; load?: 'once' | 'always'; reset?: boolean },
   ) => call(boardId, 'room-inject', spec),
+  boardInitialize: (boardId: string) => call(boardId, 'board-initialize'),
   roomCompactNow: (boardId: string) => call(boardId, 'room-compact-now'),
   corruptSnapshot: (boardId: string) => call(boardId, 'corrupt-snapshot'),
   repairSnapshot: (boardId: string) => call(boardId, 'repair-snapshot'),

@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS,
@@ -14,6 +14,19 @@ import {
 
 /** Camera that puts world (0,0) at the centre of a 1280x800 viewport, zoom 1. */
 const CAM = { x: -640, y: -400, zoom: 1 };
+
+/**
+ * Story 5 (share.board_api): create a board via POST /api/boards. Rooms no
+ * longer materialize on first connect, so every test opens a board it (or
+ * its fixture) created this way. Pass a base URL for specs that own their
+ * server process; otherwise the context's baseURL is used.
+ */
+export async function apiCreateBoard(request: APIRequestContext, baseUrl?: string): Promise<string> {
+  const res = await request.post(baseUrl ? `${baseUrl}/api/boards` : '/api/boards');
+  if (res.status() !== 201) throw new Error(`POST /api/boards → ${res.status()}`);
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
 
 /** Wait for the app to load and complete its first sync (badge hidden). */
 export async function openBoard(page: Page, boardId: string): Promise<void> {

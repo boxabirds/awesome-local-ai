@@ -120,11 +120,62 @@ export class BoardStore {
   /**
    * Appends one accepted update to the log. Throws on SQL failure — the
    * room catches it, resets itself and closes its sockets with 1011.
+   *
+   * Story 5: an append may be the first write to a board whose storage
+   * predates our schema; initialize it lazily (creation via
+   * `initialize()` already has).
    */
   append(update: Uint8Array): void {
+    if (this.boardTables().length === 0) this.migrate();
     this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?1, ?2)', update, update.length);
     this.rowCount += 1;
     this.logBytes += update.length;
+  }
+
+  /**
+   * Cheap, read-only existence probe (story 5, share.not_found). Per the
+   * existence rule: a board exists if its storage has
+   * storage_meta.created_at, or (legacy) at least one row in updates or
+   * snapshot_chunks. Unknown boards have no tables at all, so the probe
+   * short-circuits before touching any table (never writes, never throws).
+   */
+  existsReadOnly(): boolean {
+    const tables = this.boardTables();
+    if (tables.length === 0) return false;
+    const sql = this.storage.sql;
+    if (tables.includes('storage_meta')) {
+      const created = sql
+        .exec('SELECT value FROM storage_meta WHERE key = ?', 'created_at')
+        .raw().next();
+      if (!created.done) return true;
+    }
+    if (tables.includes('updates')) {
+      const update = sql.exec('SELECT seq FROM updates LIMIT 1').raw().next();
+      if (!update.done) return true;
+    }
+    if (tables.includes('snapshot_chunks')) {
+      const chunk = sql.exec('SELECT idx FROM snapshot_chunks LIMIT 1').raw().next();
+      if (!chunk.done) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Names of the board's own storage tables that exist (empty for an
+   * unknown board). Whitelisted: workerd adds internal tables (e.g.
+   * __miniflare_do_name) to every DO database that would otherwise make
+   * every board look "existing".
+   */
+  boardTables(): string[] {
+    const names: string[] = [];
+    for (const row of this.storage.sql
+      .exec(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('updates', 'snapshot_chunks', 'quarantined_updates', 'storage_meta')",
+      )
+      .raw()) {
+      names.push(String(row[0]));
+    }
+    return names;
   }
 
   /** True once the in-memory log counters cross either compaction threshold. */
@@ -140,6 +191,11 @@ export class BoardStore {
    * 'sql-error' } without deleting or quarantining anything.
    */
   load(doc: Y.Doc): LoadResult {
+    if (this.boardTables().length === 0) {
+      // Story 5: an unknown board has no tables at all (construction no
+      // longer migrates). Loading it yields an empty board, not an error.
+      return { ok: true, quarantined: 0 };
+    }
     const sql = this.storage.sql;
     try {
       const chunks: Uint8Array[] = [];

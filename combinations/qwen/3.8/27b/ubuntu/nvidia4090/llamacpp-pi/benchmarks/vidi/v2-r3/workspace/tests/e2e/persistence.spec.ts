@@ -22,6 +22,7 @@ import {
 } from '../../src/shared/config';
 import { buildLargeBoard, buildRetroBoard, type FixtureResult } from '../fixtures/boards';
 import {
+  apiCreateBoard,
   createNoteAt,
   moveNote,
   noteCount,
@@ -38,6 +39,12 @@ import { WranglerProcess } from './wrangler-process';
 const PORT = 29044;
 const INSPECTOR_PORT = 29045;
 
+/**
+ * Story 5: TC-21/TC-24 seed boards straight through storage hooks, which
+ * create the tables — those legacy-shaped boards are never created via the
+ * API (the hooks are the story 4-era simulation). Fresh boards (TC-19/20)
+ * go through apiCreateBoard.
+ */
 function newBoardId(): string {
   return randomBytes(16).toString('base64url');
 }
@@ -78,11 +85,11 @@ async function restart(proc: WranglerProcess): Promise<void> {
 }
 
 test.describe('persistence e2e (real wrangler dev --persist-to restarts)', () => {
-  test('TC-19: overnight return — the restart forgets memory, not the board', async ({ browser }) => {
+  test('TC-19: overnight return — the restart forgets memory, not the board', async ({ browser, request }) => {
     const proc = new WranglerProcess(PORT, INSPECTOR_PORT);
     await proc.start();
     try {
-      const boardId = newBoardId();
+      const boardId = await apiCreateBoard(request, proc.url);
       const ctx = await browser.newContext();
       const page = await ctx.newPage();
       await openBoard(page, boardId);
@@ -128,11 +135,11 @@ test.describe('persistence e2e (real wrangler dev --persist-to restarts)', () =>
     }
   });
 
-  test('TC-20: leave immediately — a seen note survives exit and restart', async ({ browser }) => {
+  test('TC-20: leave immediately — a seen note survives exit and restart', async ({ browser, request }) => {
     const proc = new WranglerProcess(PORT, INSPECTOR_PORT);
     await proc.start();
     try {
-      const boardId = newBoardId();
+      const boardId = await apiCreateBoard(request, proc.url);
       const alexCtx = await browser.newContext();
       const alex = await alexCtx.newPage();
       await openBoard(alex, boardId);

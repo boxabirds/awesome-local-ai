@@ -11,7 +11,7 @@ import {
   CLOSE_UNSUPPORTED_DATA,
 } from '../../src/shared/protocol';
 import { buildRetroBoard } from '../fixtures/boards';
-import { hooks } from './hooks';
+import { createBoard, hooks } from './hooks';
 import { boardUrl, RoomClient, sameNotes, waitUntil } from './ws-client';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -23,7 +23,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  */
 describe('BoardRoom persistence (TC-12..TC-18, TC-26)', () => {
   it('TC-12: a broadcast update is already in storage; a fresh load from storage contains it', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     const B = await RoomClient.connect(boardUrl(board));
     await A.waitForSync();
@@ -49,7 +49,7 @@ describe('BoardRoom persistence (TC-12..TC-18, TC-26)', () => {
   });
 
   it('TC-13: everyone leaves; a rebuilt room over the same storage serves the identical board', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     const B = await RoomClient.connect(boardUrl(board));
     await A.waitForSync();
@@ -80,7 +80,7 @@ describe('BoardRoom persistence (TC-12..TC-18, TC-26)', () => {
   });
 
   it('TC-14: an append failure closes everyone 1011 without broadcasting; the change survives reconnect', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     const B = await RoomClient.connect(boardUrl(board));
     await A.waitForSync();
@@ -114,6 +114,8 @@ describe('BoardRoom persistence (TC-12..TC-18, TC-26)', () => {
   });
 
   it('TC-15: a corrupted snapshot closes clients 4500; sync traffic sent before the close stores nothing', async () => {
+    // Story 5: this board is seeded through storage hooks and is never
+    // created via the API — it exercises the legacy existence rule.
     const board = newBoardId();
     const fixture = buildRetroBoard();
     await hooks.appendMany(board, fixture.perNoteUpdates);
@@ -161,7 +163,7 @@ describe('BoardRoom persistence (TC-12..TC-18, TC-26)', () => {
   }, 30_000);
 
   it('TC-17: a garbage Yjs update closes the sender 1003 and stores nothing', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     const B = await RoomClient.connect(boardUrl(board));
     await A.waitForSync();
@@ -192,7 +194,7 @@ describe('BoardRoom persistence (TC-12..TC-18, TC-26)', () => {
   });
 
   it('TC-18: after the room is rebuilt, sockets accepted earlier still receive broadcasts', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     await A.waitForSync(); // A's socket is accepted; the room is ready
 
@@ -212,7 +214,7 @@ describe('BoardRoom persistence (TC-12..TC-18, TC-26)', () => {
   });
 
   it('TC-26: a SQL failure in load closes connecting clients with 4500', async () => {
-    const board = newBoardId();
+    const board = await createBoard();
     const A = await RoomClient.connect(boardUrl(board));
     await A.waitForSync();
     A.close();
