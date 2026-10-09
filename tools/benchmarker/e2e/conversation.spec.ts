@@ -558,4 +558,15 @@ test.describe("A3. the machine lanes under the strip", () => {
     await expect(page$(page).locator('[data-lane="stall"] [data-point]').last()).toHaveAttribute("data-label", "stalled 7.0% at 33.0 s");
     await expect(page$(page).locator('[data-lane="gpuPower"] [data-point]')).toHaveCount(1);
   });
+
+  test("the lanes span the same width as the strip, so one x is one moment in both", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    await expect(page$(page).locator("[data-lane]")).toHaveCount(6);
+    const box = async (sel: string) => (await page$(page).locator(sel).first().boundingBox())!;
+    const strip = await box("svg.conv-strip");
+    const lane = await box('[data-lane="cpu"] svg');
+    expect(Math.abs(lane.x - strip.x), "left edges").toBeLessThanOrEqual(1);
+    expect(Math.abs(lane.width - strip.width), "widths").toBeLessThanOrEqual(1);
+  });
 });
