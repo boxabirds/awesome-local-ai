@@ -1,3 +1,43 @@
+commit 10a5f808108260fbcdc8bd46a108eb50791b5593
+agent  Fri Oct 9 01:59:51 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  14 +-
+ PROGRESS.md                               |  16 +--
+ package-lock.json                         |  48 ++++++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        |  19 ++-
+ src/client/board/Toolbar.tsx              |  53 +++++++
+ src/client/board/useBoardDoc.ts           |  61 ++++++++
+ src/client/board/useNoteKeys.ts           |  33 +++++
+ src/client/board/useSelection.ts          |  35 +++++
+ src/client/canvas/BoardViewport.tsx       |  87 ++++++++++-
+ src/client/objects/NoteToolbar.tsx        |  94 ++++++++++++
+ src/client/objects/StickyNote.tsx         | 193 +++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          |  74 ++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 117 +++++++++++++++
+ src/client/objects/stickyStyles.ts        |  65 +++++++++
+ src/shared/board-model.ts                 | 157 ++++++++++++++++++++
+ src/shared/config.ts                      |  17 +++
+ tests/component/StickyNote.test.tsx       | 181 +++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx |  83 +++++++++++
+ tests/component/Toolbars.test.tsx         |  64 +++++++++
+ tests/component/harness.tsx               |  32 +++++
+ tests/e2e/sticky-notes.spec.ts            | 193 +++++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |  20 +++
+ tests/unit/board-model.test.ts            | 232 ++++++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            | 116 +++++++++++++++
+ 25 files changed, 1991 insertions(+), 16 deletions(-)
+commit 4624bb2bb7c6795e68fb466745316d9105af42ce
+vidi-agent  Thu Oct 8 23:38:58 2026 +0000
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit 0e77fa2ffd7d7b74e018ad96ef7dd599738e2709
 agent  Thu Oct 8 23:37:56 2026 +0000
 

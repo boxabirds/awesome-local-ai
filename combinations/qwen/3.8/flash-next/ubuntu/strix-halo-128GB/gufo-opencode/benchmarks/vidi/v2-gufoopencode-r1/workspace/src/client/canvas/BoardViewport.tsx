@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
-import { canZoomIn, canZoomOut, zoomPercent } from './camera';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import * as Y from 'yjs';
+import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './camera';
 import type { Point, Size } from './camera';
+import { createSticky, type StickySnapshot } from '../../shared/board-model';
+import { DRAG_THRESHOLD_PX } from '../../shared/config';
 import { gridStyle, worldLayerStyle } from './boardStyles';
 import { NavigationHint } from './NavigationHint';
 import { installTestHooks, uninstallTestHooks } from './testHooks';
 import { useCamera } from './useCamera';
 import { ZoomControls } from './ZoomControls';
+import { Toolbar } from '../board/Toolbar';
+import { StickyNote } from '../objects/StickyNote';
 
 // Wheel events with deltaMode LINE/PAGE are converted to pixels with these.
 const WHEEL_LINE_PIXELS = 16;
@@ -30,10 +35,23 @@ function pointRelativeTo(element: Element, clientX: number, clientY: number): Po
   return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
-export function BoardViewport(props: { children?: ReactNode }) {
+export interface BoardViewportProps {
+  children?: ReactNode;
+  doc?: Y.Doc;
+  notes?: readonly StickySnapshot[];
+  selectedId?: string | null;
+  editingId?: string | null;
+  onSelect?(id: string | null): void;
+  onStartEdit?(id: string): void;
+  onEndEdit?(next: 'selected' | 'unselected'): void;
+}
+
+export function BoardViewport(props: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const gestureScaleRef = useRef(1);
   const pointerIdRef = useRef<number | null>(null);
+  const panStartRef = useRef<Point | null>(null);
+  const panMovedRef = useRef(false);
   const [viewport, setViewport] = useState<Size>(() => ({
     width: window.innerWidth,
     height: window.innerHeight
@@ -122,11 +140,31 @@ export function BoardViewport(props: { children?: ReactNode }) {
     return element === viewportRef.current || element.dataset.grid === 'true';
   };
 
+  const selectRef = useRef(props.onSelect);
+  const startEditRef = useRef(props.onStartEdit);
+  selectRef.current = props.onSelect;
+  startEditRef.current = props.onStartEdit;
+
+  const createAtWorld = useCallback((world: Point): void => {
+    const doc = props.doc;
+    if (doc === undefined) return;
+    const id = createSticky(doc, world);
+    if (id === false) return;
+    selectRef.current?.(id);
+    startEditRef.current?.(id);
+  }, [props.doc]);
+
+  const createCentre = useCallback((): void => {
+    createAtWorld(screenToWorld(cam.camera, { x: viewport.width / 2, y: viewport.height / 2 }));
+  }, [createAtWorld, cam.camera, viewport.width, viewport.height]);
+
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (event.button !== 0 || !isBoardSurface(event.target)) return;
       event.currentTarget.setPointerCapture(event.pointerId);
       pointerIdRef.current = event.pointerId;
+      panStartRef.current = { x: event.clientX, y: event.clientY };
+      panMovedRef.current = false;
       setIsPanning(true);
       cam.beginPan({ x: event.clientX, y: event.clientY });
     },
@@ -136,6 +174,10 @@ export function BoardViewport(props: { children?: ReactNode }) {
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (pointerIdRef.current === null) return;
+      const start = panStartRef.current;
+      if (start !== null && Math.hypot(event.clientX - start.x, event.clientY - start.y) >= DRAG_THRESHOLD_PX) {
+        panMovedRef.current = true;
+      }
       cam.panMove({ x: event.clientX, y: event.clientY });
     },
     [cam]
@@ -147,12 +189,34 @@ export function BoardViewport(props: { children?: ReactNode }) {
     if (element !== null && pointerIdRef.current !== null && element.hasPointerCapture(pointerIdRef.current)) {
       element.releasePointerCapture(pointerIdRef.current);
     }
+    const wasClick = !panMovedRef.current;
     pointerIdRef.current = null;
+    panStartRef.current = null;
     setIsPanning(false);
     cam.endPan();
+    if (wasClick) selectRef.current?.(null);
   }, [cam]);
 
+  const handleDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (!isBoardSurface(event.target)) return;
+      const element = viewportRef.current;
+      if (element === null) return;
+      const rect = element.getBoundingClientRect();
+      createAtWorld(screenToWorld(cam.camera, { x: event.clientX - rect.left, y: event.clientY - rect.top }));
+    },
+    [cam.camera, createAtWorld]
+  );
+
   const camera = cam.camera;
+
+  // Render in a stable order (by id) so a z change from bringToFront only
+  // updates each note's z-index instead of reordering the DOM. Reordering would
+  // detach the node the browser has a pointer capture on and end a drag early.
+  const orderedNotes = useMemo(
+    () => (props.notes === undefined ? undefined : [...props.notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))),
+    [props.notes]
+  );
 
   return (
     <>
@@ -173,6 +237,7 @@ export function BoardViewport(props: { children?: ReactNode }) {
         onPointerUp={handlePanEnd}
         onPointerCancel={handlePanEnd}
         onLostPointerCapture={handlePanEnd}
+        onDoubleClick={handleDoubleClick}
       >
         <div data-testid="dot-grid" data-grid="true" style={gridStyle(camera)} />
         <div data-testid="world-layer" style={{ ...worldLayerStyle(camera), pointerEvents: 'none' }}>
@@ -192,8 +257,22 @@ export function BoardViewport(props: { children?: ReactNode }) {
             <div style={{ position: 'absolute', left: 0, top: 9.25, width: 20, height: 1.5, background: '#e05252' }} />
           </div>
           {props.children}
+          {orderedNotes?.map((note) => (
+            <StickyNote
+              key={note.id}
+              note={note}
+              doc={props.doc!}
+              zoom={camera.zoom}
+              selected={props.selectedId === note.id}
+              editing={props.editingId === note.id}
+              onSelect={(id) => props.onSelect?.(id)}
+              onStartEdit={(id) => props.onStartEdit?.(id)}
+              onEndEdit={(next) => props.onEndEdit?.(next)}
+            />
+          ))}
         </div>
       </div>
+      {props.doc !== undefined ? <Toolbar onCreateSticky={createCentre} /> : null}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
