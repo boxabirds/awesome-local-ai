@@ -2,7 +2,7 @@
 
 The lake (`collected/`), the warehouse and analytics databases (`insights/`), the recordings and the other files under
 `~/expts/awesome-local-ai-bench-private/state/` exist on one disk only. This backs them up every day to two restic
-repositories: one on this Mac and one on gruntus (over ssh), and after each backup says how long each target has left at
+repositories: one on this Mac and one on another machine (the RTX 4090 box, over ssh), and after each backup says how long each target has left at
 the last week's rate of growth.
 
 Status: **built and tested; not installed.** `test_forecast.py` and `test_backup.py` run without restic (a recording fake
@@ -25,13 +25,13 @@ stands in for it). Nothing below has been run against a real restic repository y
 ## To install (each step needs the owner's yes)
 
 ```sh
-brew install restic                                           # this Mac only: gruntus needs just sshd and a directory
+brew install restic                                           # this Mac only: the backup machine needs just sshd and a directory
 mkdir -p ~/.config/bench-backup && chmod 700 ~/.config/bench-backup
 openssl rand -base64 32 > ~/.config/bench-backup/password && chmod 600 ~/.config/bench-backup/password
 # KEEP A COPY OF THAT PASSWORD ELSEWHERE (a password manager): without it every backup is unreadable.
-ssh gruntus 'mkdir -p ~/bench-backup'
+ssh <backup-host> 'mkdir -p ~/bench-backup'
 cp ops/backup/config.example.toml ~/.config/bench-backup/config.toml
-cp ops/backup/com.awesome-local-ai.bench-backup.plist ~/Library/LaunchAgents/
+uv run ops/backup/backup.py --print-plist > ~/Library/LaunchAgents/com.awesome-local-ai.bench-backup.plist   # paths for this user, not stored in the repo
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.awesome-local-ai.bench-backup.plist
 ```
 

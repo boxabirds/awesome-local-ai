@@ -3,5 +3,5 @@ state = "~/expts/awesome-local-ai-bench-private/state"
 password_file = "~/.config/bench-backup/password"
 repos = [
   "~/bench-backup-local/repo",                           # on this Mac: protects against a bad migration, not a dead disk
-  "sftp:julian@gruntus:/home/julian/bench-backup/repo",  # on gruntus: the copy on another machine
+  "sftp:<user>@<backup-host>:<directory>/bench-backup/repo",  # on another machine (the RTX 4090 box): the copy that survives this disk
 ]

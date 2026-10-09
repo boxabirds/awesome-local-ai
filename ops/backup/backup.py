@@ -24,6 +24,8 @@ EXCLUDES = ("insights/*.db", "insights/*.db-wal", "insights/*.db-shm", "insights
 KEEP_DAILY, KEEP_WEEKLY = "14", "8"
 STAGING = Path("backups") / "staging"
 HISTORY, STATUS = "history.jsonl", "status.json"
+LAUNCHD_LABEL = "com.awesome-local-ai.bench-backup"
+RUN_HOUR, RUN_MINUTE = 3, 30                        # when the daily job starts, local time
 
 
 @dataclass
@@ -147,6 +149,21 @@ def run(cfg: Config, runner=None, now: float | None = None) -> dict:
     return status
 
 
+def render_plist(home: Path, script: Path) -> str:
+    """The launchd job for this user (a stored plist would carry one user's home directory into the repository)."""
+    import plistlib
+    uv = home / ".local" / "bin" / "uv"
+    log = home / ".dbench" / "bench-backup.log"
+    return plistlib.dumps({
+        "Label": LAUNCHD_LABEL,
+        "ProgramArguments": [str(uv), "run", "--quiet", str(script)],
+        "EnvironmentVariables": {"PATH": f"/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{home / '.local' / 'bin'}", "HOME": str(home)},
+        "WorkingDirectory": str(script.parent),
+        "StartCalendarInterval": {"Hour": RUN_HOUR, "Minute": RUN_MINUTE},
+        "StandardOutPath": str(log), "StandardErrorPath": str(log),
+    }).decode()
+
+
 def load_config(path: Path) -> Config:
     raw = tomllib.loads(Path(path).expanduser().read_text())
     return Config(state=Path(raw["state"]).expanduser(), password_file=Path(raw["password_file"]).expanduser(), repos=list(raw["repos"]))
@@ -155,7 +172,12 @@ def load_config(path: Path) -> Config:
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="~/.config/bench-backup/config.toml")
-    cfg = load_config(Path(ap.parse_args(argv).config))
+    ap.add_argument("--print-plist", action="store_true", help="print the launchd job for this user and exit")
+    args = ap.parse_args(argv)
+    if args.print_plist:
+        print(render_plist(Path.home(), Path(__file__).resolve()))
+        return 0
+    cfg = load_config(Path(args.config))
     status = run(cfg)
     for repo, r in status["repos"].items():
         print(f"{repo}: {'ok' if r['ok'] else 'FAILED'}; {r.get('capacity', {}).get('message', '')}; {r['staleness']['message']}")
