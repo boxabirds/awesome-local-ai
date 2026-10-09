@@ -8,19 +8,26 @@
     "build": "vite build --mode production",
     "build:test": "vite build --mode test",
     "preview": "vite preview --port 27424 --strictPort --host 127.0.0.1",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
+    "test:integration": "npm run build:test && vitest run --project integration",
     "test:e2e": "npm run e2e:build && playwright test",
     "e2e:build": "vite build --mode test",
-    "e2e:server": "wrangler dev --ip 127.0.0.1 --port ${AGENT_PORT_E2E:-27426} --inspector-port ${AGENT_PORT_E2E_WRANGLER:-27427} --log-level=warn"
+    "e2e:server": "wrangler dev --ip 127.0.0.1 --port ${AGENT_PORT_E2E:-27426} --inspector-port ${AGENT_PORT_E2E_WRANGLER:-27427} --log-level=warn",
+    "test:e2e:nightly": "npm run e2e:build && playwright test -c playwright.nightly.config.ts"
   },
   "dependencies": {
+    "lib0": "^0.2.119",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.23.0",
+    "@cloudflare/workers-types": "^5.20261009.1",
     "@playwright/test": "1.56",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
@@ -31,7 +38,7 @@
     "jsdom": "^30.1.2",
     "typescript": "^5.9.3",
     "vite": "^8.3.4",
-    "vitest": "^5.0.3",
+    "vitest": "^4.1.11",
     "wrangler": "^4.149.0"
   }
 }

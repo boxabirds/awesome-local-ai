@@ -77,8 +77,14 @@ export function minimalEdit(
 
 /**
  * Write `next` into `ytext` with the smallest possible change (one delete and/or one
- * insert, inside one transaction), so concurrent typing by another person (story 3) is
- * never destroyed. A value that already matches writes nothing, so no update is emitted.
+ * insert, inside one transaction). A value that already matches writes nothing, so no
+ * update is emitted.
+ *
+ * The change is measured against what the shared text holds now, so this is the right
+ * tool when `next` is meant to *become* the whole note (a clamp to the character limit,
+ * or a model-level rewrite). An editor typing into a note it is not alone in must use
+ * `applyLocalEdit` instead: whatever the shared text has that the editor has not seen
+ * yet would otherwise be treated as something to delete.
  */
 export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
   const current = ytext.toString();
@@ -92,6 +98,87 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
   const doc = ytext.doc ?? ytext.parent;
   if (doc instanceof Y.Doc) doc.transact(apply, origin);
   else apply();
+}
+
+/**
+ * Write the edit the editor itself made: the change between what the editor showed when
+ * it last wrote (`previous`) and what it shows now (`next`), applied at that same place
+ * in the shared text. Anything the shared text holds that the editor has not seen —
+ * a word somebody else typed a moment ago — is left alone, which is what
+ * `live.concurrent_text` asks for: every typed character survives on every screen.
+ *
+ * Offsets come from the editor, so a remote change that landed before them can leave the
+ * insert one space out; it cannot lose a character. The editor mirrors remote changes as
+ * they arrive, so its offsets stay close to the shared text's.
+ */
+export function applyLocalEdit(
+  ytext: Y.Text,
+  previous: string,
+  next: string,
+  origin: unknown,
+): void {
+  if (previous === next) return;
+  const { start, deleteLength, insertText } = minimalEdit(previous, next);
+  const current = ytext.toString();
+  const removed = previous.slice(start, start + deleteLength);
+  const at = removalOffset(current, removed, start);
+  const remove = Math.max(0, Math.min(deleteLength, current.length - at));
+  if (remove === 0 && insertText.length === 0) return;
+  const apply = (): void => {
+    if (remove > 0) ytext.delete(at, remove);
+    if (insertText.length > 0) ytext.insert(at, insertText);
+  };
+  const doc = ytext.doc ?? ytext.parent;
+  if (doc instanceof Y.Doc) doc.transact(apply, origin);
+  else apply();
+}
+
+/**
+ * Where the characters the editor removed are to be found in the shared text: at the
+ * offset the editor had them, if they are still there; next occurrence after that, if
+ * somebody inserted text in front of them; then anywhere; and if the other side changed
+ * the text we were deleting, our own offset is as good a place as any. Position is the
+ * one thing a plain string cannot carry across replicas — this is what keeps a deletion
+ * from eating the wrong character while a stranger is typing in front of it.
+ */
+function removalOffset(current: string, removed: string, expected: number): number {
+  const limit = Math.max(0, Math.min(expected, current.length));
+  if (removed.length === 0) return limit;
+  const near = current.indexOf(removed, limit);
+  if (near >= 0) return near;
+  const anywhere = current.indexOf(removed);
+  if (anywhere >= 0) return anywhere;
+  return limit;
+}
+
+/** One operation of a `Y.Text` delta. */
+export interface TextDeltaOp {
+  readonly insert?: string | object;
+  readonly delete?: number;
+  readonly retain?: number;
+}
+
+/**
+ * Where the first change in a remote delta landed, and how much longer (or shorter) it
+ * made the text — everything a caret needs to step over a change that arrived in front of
+ * it, and to stay put when the change was behind it.
+ */
+export function remoteShift(ops: readonly TextDeltaOp[]): { at: number; shift: number } {
+  let at = 0;
+  let shift = 0;
+  let changed = false;
+  for (const op of ops) {
+    if (op.insert !== undefined) {
+      changed = true;
+      shift += typeof op.insert === 'string' ? op.insert.length : 1;
+    } else if (op.delete !== undefined) {
+      changed = true;
+      shift -= op.delete;
+    } else if (op.retain !== undefined && !changed) {
+      at += op.retain;
+    }
+  }
+  return { at, shift };
 }
 
 /**

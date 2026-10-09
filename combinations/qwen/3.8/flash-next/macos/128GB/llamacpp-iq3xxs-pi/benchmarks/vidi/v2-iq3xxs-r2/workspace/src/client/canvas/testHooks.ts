@@ -1,5 +1,6 @@
 import type * as Y from 'yjs';
 import type { Camera } from './camera';
+import type { ConnectionState } from '../sync/connectBoard';
 
 /**
  * Everything the test build exposes on `window`. Optional members may be missing until
@@ -10,6 +11,12 @@ export interface TestHooks {
   setCamera(camera: Camera): void;
   /** The board document the page is editing, for tests that assert the model. */
   boardDoc?(): Y.Doc;
+  /**
+   * What this page's connection is doing, in the client's own terms rather than the
+   * badge's words — so a test can tell 'the badge is hidden because the connection is
+   * fine' apart from 'the badge is hidden because it was never there'.
+   */
+  connectionState?(): ConnectionState;
 }
 
 /** The parts of `window` the test-mode hook adds. */

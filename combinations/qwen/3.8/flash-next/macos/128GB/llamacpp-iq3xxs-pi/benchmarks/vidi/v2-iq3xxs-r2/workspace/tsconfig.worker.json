@@ -1,0 +1,10 @@
+{
+  // The Worker and the Durable Object, typechecked against the Workers runtime types
+  // instead of the DOM ones the client uses (see `tsconfig.json` for the client half).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"]
+  },
+  "include": ["src/worker", "src/shared", "tests/integration"]
+}

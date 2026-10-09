@@ -1,3 +1,4 @@
+import { cloudflareTest } from '@cloudflare/vitest-pool-workers';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
@@ -11,6 +12,17 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
+        },
+      },
+      {
+        // Real Worker and Durable Object requests, run inside workerd itself: the room
+        // is the unit under test, so none of it is mocked (design's mock-vs-real table).
+        extends: true,
+        plugins: [cloudflareTest({ wrangler: { configPath: './wrangler.jsonc' } })],
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.ts'],
+          testTimeout: 30_000,
         },
       },
       {

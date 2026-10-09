@@ -1,7 +1,10 @@
+import { act } from 'react';
 import { describe, expect, it } from 'vitest';
+import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import { PROSE_1000, PROSE_1200, SHORT_NOTE } from '../fixtures/texts';
 import {
+  boardDoc,
   boardNotes,
   click,
   counterElement,
@@ -22,6 +25,20 @@ import {
 /** Press somewhere that is not the note, so the note loses the edit. */
 async function clickOutside(): Promise<void> {
   await click({ x: 200, y: 700 });
+}
+
+/**
+ * Type into a note from the other side of the board: a transaction that this client did
+ * not make, which is how a change from another person arrives.
+ */
+function remoteType(id: string, at: number, text: string): void {
+  const doc = boardDoc();
+  const object = doc.getMap('objects').get(id) as Y.Map<unknown> | undefined;
+  const ytext = object?.get('text');
+  if (!(ytext instanceof Y.Text)) throw new Error(`note ${id} has no text to type into`);
+  act(() => {
+    doc.transact(() => ytext.insert(at, text));
+  });
 }
 
 describe('starting and ending a text edit (TC-23, TC-24, TC-38)', () => {
@@ -190,5 +207,72 @@ describe('the character limit and counter while typing (TC-14, TC-15, TC-17)', (
     // jsdom has no font metrics, so the fit stays at the maximum size.
     expect(displayed?.style.fontSize).toBe('24px');
     expect(editorElement()?.style.fontSize).toBe('24px');
+  });
+});
+
+describe('two people typing in one note (live.concurrent_text, TC-23)', () => {
+  it('a word the other person typed while we were typing survives', async () => {
+    await renderBoard();
+    const id = createNote({ x: 0, y: 0 });
+    await selectNote(id);
+    await startEditingNote(id);
+    typeText('green');
+
+    remoteType(id, 0, 'red ');
+    await flushFrames();
+    // The other person's word appears in the textarea this person is typing into...
+    expect(editorElement()?.value).toBe('red green');
+    // ...and the caret, which was at the end of the note, has stepped over it.
+    expect(editorElement()?.selectionStart).toBe('red green'.length);
+
+    // Typing on now cannot un-type what came from the other side: the write is measured
+    // against what this textarea held a moment ago, not against the document.
+    typeText('!');
+    expect(getStickyTextFor(id)).toBe('red green!');
+    expect(editorElement()?.value).toBe('red green!');
+  });
+
+  it('nothing is lost when both of them keep typing', async () => {
+    await renderBoard();
+    const id = createNote({ x: 0, y: 0 });
+    await selectNote(id);
+    await startEditingNote(id);
+
+    for (const [ours, theirs] of [
+      ['a', 'z'],
+      ['b', 'y'],
+      ['c', 'x'],
+    ] as const) {
+      typeText(ours);
+      remoteType(id, 0, theirs);
+      await flushFrames();
+    }
+
+    const text = getStickyTextFor(id);
+    // Six characters were typed across the two of them, and six are there — none lost,
+    // none doubled; only their order is the merge's business.
+    expect([...text].sort().join('')).toBe('abcxyz');
+    expect(editorElement()?.value).toBe(text);
+  });
+
+  it('the caret steps over a change in front of it and stays put behind one', async () => {
+    await renderBoard();
+    const id = createNote({ x: 0, y: 0 });
+    await selectNote(id);
+    await startEditingNote(id);
+    typeText('green');
+    const editor = editorElement();
+    if (!editor) throw new Error('no editor');
+    editor.setSelectionRange(2, 2); // gr|een
+
+    remoteType(id, 5, '!'); // the other person worked behind the caret
+    await flushFrames();
+    expect(editor.value).toBe('green!');
+    expect(editor.selectionStart).toBe(2);
+
+    remoteType(id, 0, 'red '); // and now in front of it
+    await flushFrames();
+    expect(editor.value).toBe('red green!');
+    expect(editor.selectionStart).toBe(6);
   });
 });

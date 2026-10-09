@@ -308,3 +308,32 @@ button:focus-visible,
   background: #fff59d;
   box-shadow: inset 0 0 0 1px rgb(17 22 33 / 20%);
 }
+
+/* Connection status, top centre: the only thing this app says about the wire. Amber
+   while the board is not live, green for the moment it comes back, and gone otherwise —
+   so it never sits on top of somebody's work. */
+.vidi6-connection-status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  /* Never in the way of a drag or a click on the note underneath. */
+  pointer-events: none;
+}
+
+.vidi6-connection-status--pending {
+  color: #6b4500;
+  background: #fff3d6;
+  border-color: #eec15f;
+}
+
+.vidi6-connection-status--ok {
+  color: #14532d;
+  background: #e4f7ea;
+  border-color: #86c9a1;
+}

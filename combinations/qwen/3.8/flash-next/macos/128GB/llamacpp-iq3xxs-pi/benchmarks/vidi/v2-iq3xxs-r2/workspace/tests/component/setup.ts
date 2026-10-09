@@ -1,5 +1,8 @@
 import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+// jsdom has no WebSocket and `App` connects its document to a board room, so the stub
+// room the component tests talk through is installed here, before anything mounts.
+import './fixtures/socket';
 
 /** Design fixture: default laptop viewport, used by the ResizeObserver stub below. */
 export const VIEWPORT_FIXTURE = { width: 1280, height: 800 };
@@ -47,6 +50,7 @@ class ResizeObserverStub {
 }
 
 globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
+
 
 /**
  * jsdom's requestAnimationFrame fires on a ~16ms timer, which makes the camera's

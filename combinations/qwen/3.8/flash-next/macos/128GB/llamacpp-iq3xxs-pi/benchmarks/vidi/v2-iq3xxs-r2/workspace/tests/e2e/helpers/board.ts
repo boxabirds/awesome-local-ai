@@ -173,13 +173,14 @@ export async function pressShortcut(page: Page, key: string): Promise<void> {
 export const VIEWPORT_SIZE = { width: 1280, height: 800 };
 export const VIEWPORT_CENTRE = { x: 640, y: 400 };
 
-/** Navigate to the board and wait until the starting point is centred. */
-export async function gotoBoard(page: Page): Promise<void> {
-  await page.goto('/');
-  // Two separate waits so a failure says which one broke: a missing viewport means the
-  // server is not serving the client build; a wrong camera means it did not open centred.
+/**
+ * Wait for the board to be open and centred on its starting point. Two separate waits
+ * so a failure says which one broke: a missing viewport means the server is not serving
+ * the client build; a wrong camera means it did not open centred.
+ */
+export async function waitForCentredBoard(page: Page, timeout = 15_000): Promise<void> {
   try {
-    await page.locator('[data-testid="viewport"]').waitFor({ timeout: 15_000 });
+    await page.locator('[data-testid="viewport"]').waitFor({ timeout });
     await page.waitForFunction(
       () => {
         const viewport = document.querySelector<HTMLElement>('[data-testid="viewport"]');
@@ -190,12 +191,18 @@ export async function gotoBoard(page: Page): Promise<void> {
           Number(viewport.dataset.cameraZoom) === 1
         );
       },
-      { timeout: 15_000 },
+      { timeout },
     );
   } catch (error) {
     // A stale or wrong-mode build under the e2e server is the usual reason for getting here.
     throw new Error(`could not reach a centred board at ${page.url()}: ${String(error)}`);
   }
+}
+
+/** Navigate to the board and wait until the starting point is centred. */
+export async function gotoBoard(page: Page): Promise<void> {
+  await page.goto('/');
+  await waitForCentredBoard(page);
 }
 
 /**

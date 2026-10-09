@@ -2,7 +2,13 @@ import { useEffect, useRef, useState, type JSX, type KeyboardEvent as ReactKeybo
 import type * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import {
+  applyLocalEdit,
+  clampToLimit,
+  counterVisible,
+  remoteShift,
+  type TextDeltaOp,
+} from './StickyText';
 
 export interface StickyTextEditorProps {
   /** The note's shared text; every `input` event is written to it immediately. */
@@ -16,19 +22,30 @@ export interface StickyTextEditorProps {
 /**
  * The textarea that edits a sticky note.
  *
- * It is uncontrolled: the value is written into the `Y.Text` on every `input` event
- * (skipped while an IME is composing, flushed on `compositionend`), so ending editing
- * needs no write of its own. Input that would pass the 1,000 character limit is cut
- * before it reaches the document and the caret is restored to the end of what was kept.
+ * It is uncontrolled: the edit the person made is written into the `Y.Text` on every
+ * `input` event (skipped while an IME is composing, flushed on `compositionend`), so
+ * ending editing needs no write of its own. Input that would pass the 1,000 character
+ * limit is cut before it reaches the document and the caret is restored to the end of
+ * what was kept.
+ *
+ * Two people in one note (story 3) is what shapes the rest of it. The write is the
+ * difference between what the textarea held last time and what it holds now
+ * (`applyLocalEdit`), never the difference between the textarea and the shared text —
+ * otherwise a word the other person typed a moment ago would look like something to
+ * delete, and one character in fifty would vanish. Changes from the other side are
+ * mirrored into the textarea as they arrive, with the caret stepped over them, so what
+ * this person sees, what they type into, and what the document holds stay the same text.
  */
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  /** What the textarea held the last time it was written to the document. */
+  const lastValueRef = useRef(ytext.toString());
   const [length, setLength] = useState(() => ytext.toString().length);
 
-  /** Mirror the textarea into the document, clamped to the character limit. */
+  /** Write this person's own edit into the document, clamped to the character limit. */
   const sync = (): void => {
     const el = textareaRef.current;
     if (!el) return;
@@ -38,7 +55,8 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       // The dropped characters are simply gone: the caret sits at the end of what stayed.
       el.setSelectionRange(clamped.length, clamped.length);
     }
-    applyTextDiff(ytext, el.value, LOCAL_ORIGIN);
+    applyLocalEdit(ytext, lastValueRef.current, el.value, LOCAL_ORIGIN);
+    lastValueRef.current = el.value;
     setLength(el.value.length);
   };
 
@@ -48,6 +66,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     if (!el) return;
     const initial = ytext.toString();
     if (el.value !== initial) el.value = initial;
+    lastValueRef.current = el.value;
     setLength(initial.length);
     el.focus();
     if (typeof el.setSelectionRange === 'function') {
@@ -55,10 +74,25 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     }
   }, [ytext]);
 
-  // Keep the counter honest when the text changes elsewhere (story 3).
+  // A change from the other side of the board: the counter follows it, and so does the
+  // textarea, with the caret stepped over whatever landed in front of it. Nothing is
+  // mirrored into an IME composition, which would break the text being composed; it is
+  // written once the composition ends.
   useEffect(() => {
-    const observer = (): void => {
-      setLength(ytext.toString().length);
+    const observer = (event: Y.YTextEvent, transaction?: Y.Transaction): void => {
+      if (transaction?.origin === LOCAL_ORIGIN) return;
+      const next = ytext.toString();
+      setLength(next.length);
+      const el = textareaRef.current;
+      if (el === null || composingRef.current || el.value === next) return;
+      const { at, shift } = remoteShift(event.delta as unknown as TextDeltaOp[]);
+      const selectionStart = el.selectionStart ?? 0;
+      const selectionEnd = el.selectionEnd ?? 0;
+      el.value = next;
+      lastValueRef.current = next;
+      const step = (offset: number): number =>
+        offset <= at ? offset : Math.max(at, offset + shift);
+      el.setSelectionRange(step(selectionStart), step(selectionEnd));
     };
     ytext.observe(observer);
     return () => {

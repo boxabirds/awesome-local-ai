@@ -5,9 +5,11 @@ import {
   STICKY_TEXT_MAX_CHARS,
 } from '../../src/shared/config';
 import {
+  applyLocalEdit,
   applyTextDiff,
   clampToLimit,
   counterVisible,
+  remoteShift,
 } from '../../src/client/objects/StickyText';
 import { LOCAL_ORIGIN } from '../../src/shared/board-model';
 import { PROSE_1000, PROSE_1200, RETRO_ITEM, SHORT_NOTE } from '../fixtures/texts';
@@ -20,6 +22,42 @@ function attached(initial = ''): { doc: Y.Doc; ytext: Y.Text } {
   const ytext = doc.getText('text');
   if (initial.length > 0) doc.transact(() => ytext.insert(0, initial), LOCAL_ORIGIN);
   return { doc, ytext };
+}
+
+/**
+ * Two documents and a network that is not instant: every update either side makes is
+ * queued, and `sync()` is the moment the two of them hear about each other.
+ */
+function connected(initial = ''): { a: Y.Doc; b: Y.Doc; sync: () => void } {
+  const a = new Y.Doc();
+  const b = new Y.Doc();
+  if (initial.length > 0) {
+    const seed = new Y.Doc();
+    seed.getText('text').insert(0, initial);
+    const seedUpdate = Y.encodeStateAsUpdate(seed);
+    Y.applyUpdate(a, seedUpdate, 'remote');
+    Y.applyUpdate(b, seedUpdate, 'remote');
+    seed.destroy();
+  }
+  const queued: Array<[to: Y.Doc, update: Uint8Array]> = [];
+  const queue = (from: Y.Doc, to: Y.Doc): void => {
+    from.on('update', (update: Uint8Array, origin: unknown) => {
+      // What arrived from the other side is not sent back again.
+      // A copy: Yjs does not expect the same array to be applied to two documents.
+      if (origin !== 'remote') queued.push([to, update.slice()]);
+    });
+  };
+  queue(a, b);
+  queue(b, a);
+  return {
+    a,
+    b,
+    sync: (): void => {
+      for (const [to, update] of queued.splice(0, queued.length)) {
+        Y.applyUpdate(to, update, 'remote');
+      }
+    },
+  };
 }
 
 /** The `Y.Text` delta events a change produced, flattened into operations. */
@@ -133,6 +171,78 @@ describe('applyTextDiff (TC-13)', () => {
     // Another client appended while we were typing in front.
     applyTextDiff(ytext, 'Fast onboarding', LOCAL_ORIGIN);
     expect(ytext.toString()).toBe('Fast onboarding');
+  });
+});
+
+describe('applyLocalEdit (live.concurrent_text)', () => {
+  it('writes the change the editor made, not the difference to the shared text', () => {
+    const { ytext } = attached('green');
+    // Somebody else put "red " in front while our editor still showed "green" and we
+    // were appending "!". Only our own append may be written.
+    ytext.insert(0, 'red ');
+    applyLocalEdit(ytext, 'green', 'green!', LOCAL_ORIGIN);
+    expect(ytext.toString()).toContain('red ');
+    expect(ytext.toString()).toContain('!');
+  });
+
+  it('never deletes what only the shared text has', () => {
+    const { ytext } = attached('abcdef');
+    ytext.insert(1, 'X'); // the shared text is aXbcdef; the editor still shows abcdef
+    applyLocalEdit(ytext, 'abcdef', 'abef', LOCAL_ORIGIN); // we deleted 'cd', nothing else
+    expect(ytext.toString()).toBe('aXbef');
+  });
+
+  it('writes nothing when the editor did not change', () => {
+    const { doc, ytext } = attached('green');
+    let updates = 0;
+    const listener = (): void => {
+      updates += 1;
+    };
+    doc.on('update', listener);
+    applyLocalEdit(ytext, 'green', 'green', LOCAL_ORIGIN);
+    doc.off('update', listener);
+    expect(updates).toBe(0);
+  });
+
+  it('survives a shared text shorter than the editor thought it was', () => {
+    const { ytext } = attached('abcdef');
+    ytext.delete(0, 6);
+    expect(() => applyLocalEdit(ytext, 'abcdef', 'abcXdef', LOCAL_ORIGIN)).not.toThrow();
+    expect(ytext.toString()).toContain('X');
+  });
+
+  it('TC-23: two people typing into one note keep every character they typed', () => {
+    const { a, b, sync } = connected('green');
+    const aText = a.getText('text');
+    const bText = b.getText('text');
+    // Neither has seen the other: each editor's own previous value is still 'green'.
+    applyLocalEdit(aText, 'green', 'red green', LOCAL_ORIGIN);
+    applyLocalEdit(bText, 'green', 'green blue', LOCAL_ORIGIN);
+    sync();
+    expect(aText.toString()).toBe(bText.toString());
+    expect(aText.toString()).toContain('red ');
+    expect(aText.toString()).toContain('blue');
+  });
+});
+
+describe('remoteShift', () => {
+  it('reports where a remote insert landed and how long it was', () => {
+    expect(remoteShift([{ retain: 3 }, { insert: 'red ' }])).toEqual({ at: 3, shift: 4 });
+  });
+
+  it('counts a remote delete against the caret', () => {
+    expect(remoteShift([{ retain: 2 }, { delete: 5 }])).toEqual({ at: 2, shift: -5 });
+  });
+
+  it('measures the first change, which is the one the caret is next to', () => {
+    expect(remoteShift([{ retain: 1 }, { insert: 'a' }, { retain: 2 }, { insert: 'bb' }])).toEqual({
+      at: 1,
+      shift: 3,
+    });
+  });
+
+  it('an empty delta moves nothing', () => {
+    expect(remoteShift([])).toEqual({ at: 0, shift: 0 });
   });
 });
 

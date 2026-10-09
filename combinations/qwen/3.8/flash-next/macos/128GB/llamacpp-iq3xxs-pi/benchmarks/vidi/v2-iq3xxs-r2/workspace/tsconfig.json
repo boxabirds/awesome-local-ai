@@ -25,5 +25,9 @@
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts"
-  ]
+  ],
+  // The Worker half of the project (and the integration tests that run inside workerd)
+  // typecheck against `tsconfig.worker.json`, which has the Workers runtime types in
+  // place of the DOM ones.
+  "exclude": ["src/worker", "tests/integration"]
 }

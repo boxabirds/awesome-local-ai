@@ -1,10 +1,18 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
-  // Story 1 serves the client as static assets only. Story 3 adds the Worker `main`
-  // (and with it an asset binding) and the Durable Objects.
+  "compatibility_date": "2026-08-22", // the newest date the workerd bundled with the integration test runner supports (see NOTES.md)
+  // Story 3 adds the Worker `main` (routing plus the room), the `ASSETS` binding the
+  // Worker falls back to, and one BoardRoom Durable Object per board. The class is
+  // SQLite-backed from the start so story 4 needs no class migration.
+  "main": "src/worker/index.ts",
   "assets": {
-    "directory": "./dist/client"
-  }
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

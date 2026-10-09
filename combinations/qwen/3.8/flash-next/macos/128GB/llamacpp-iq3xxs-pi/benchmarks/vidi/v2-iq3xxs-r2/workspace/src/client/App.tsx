@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type JSX } from 'react';
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
@@ -14,9 +14,37 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 
 const DELETE_KEYS = ['Delete', 'Backspace'];
+
+/** The two addresses for a board: in the path, and in the hash (the one we hand out). */
+const BOARD_IN_PATH = /^\/b\/([^/]+)$/;
+const BOARD_IN_HASH = /^#\/b\/([^/]+)$/;
+
+/**
+ * Which board this page is on.
+ *
+ * `/b/<id>` and `/#/b/<id>` both work — the Worker answers either with the app — and an
+ * address without a usable board id gets a new one written into the URL, so opening the
+ * app straight from the root is still a board, and reloading it is the same board.
+ */
+function boardIdFromLocation(): string {
+  const { pathname, hash } = window.location;
+  for (const candidate of [BOARD_IN_HASH.exec(hash)?.[1], BOARD_IN_PATH.exec(pathname)?.[1]]) {
+    if (candidate !== undefined && isValidBoardId(candidate)) return candidate;
+  }
+  const fresh = newBoardId();
+  window.history.replaceState(null, '', `#/b/${fresh}`);
+  return fresh;
+}
+
+/** The link to hand somebody so they land on this very board. */
+function boardLink(boardId: string): string {
+  return `${window.location.origin}/#/b/${boardId}`;
+}
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -29,17 +57,23 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * Full-window board (story 1) plus the sticky notes of story 2: the Yjs document, this
- * client's selection, the toolbars and the keyboard shortcuts.
+ * Full-window board (story 1) plus the sticky notes of story 2, on one board address
+ * (story 3): the Yjs document, this client's selection, the toolbars, the keyboard
+ * shortcuts and the connection status.
  *
  * Everything a note does goes through `board-model`, so the same document can be synced
- * (story 3) and persisted (story 4) without touching any of this.
+ * (story 3) and persisted (story 4) without touching any of this. Selection and editing
+ * stay in here — local React state — which is why nobody else's screen reacts to what
+ * this cursor is doing.
  */
 export function App(): JSX.Element {
   const viewport = useViewportSize();
   const cameraApi = useCamera(viewport);
   const { camera, hasNavigated } = cameraApi;
-  const { doc, notes } = useBoardDoc();
+  // The board is chosen once: a page is one board, and a different board is a different
+  // page (a new link), not a re-render.
+  const [boardId] = useState<string>(boardIdFromLocation);
+  const { doc, notes, connection } = useBoardDoc(boardId);
   const selection = useSelection();
 
   // Handlers that run long after a render read the latest values through refs.
@@ -129,7 +163,8 @@ export function App(): JSX.Element {
             />
           ))}
         </BoardViewport>
-        <Toolbar onCreateSticky={createAtViewportCentre} />
+        <ConnectionStatus state={connection} />
+        <Toolbar onCreateSticky={createAtViewportCentre} shareUrl={boardLink(boardId)} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}

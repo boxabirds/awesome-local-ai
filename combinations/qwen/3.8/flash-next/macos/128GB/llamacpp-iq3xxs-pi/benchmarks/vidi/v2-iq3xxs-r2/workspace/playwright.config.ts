@@ -32,11 +32,18 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 1,
   workers: process.env.CI ? 2 : undefined,
   reporter: [['list']],
+  // The nightly checks (`*.nightly.spec.ts`) run on their own via `test:e2e:nightly`;
+  // they are too slow to be part of every commit.
+  testIgnore: /\.nightly\.spec\.ts$/,
   timeout: 60_000,
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: 'on-first-retry',
     viewport: VIEWPORT,
+    // An action that cannot happen (a note another person deleted, a control that is
+    // covered) is reported as itself after ten seconds instead of eating the whole test
+    // budget — which matters most in the soak, where notes disappear all the time.
+    actionTimeout: 10_000,
   },
   projects: browsers.map((name) => ({
     name,

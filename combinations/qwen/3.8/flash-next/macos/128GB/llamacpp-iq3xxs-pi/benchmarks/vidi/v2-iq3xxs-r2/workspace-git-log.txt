@@ -1,3 +1,101 @@
+commit 1ff879d8d04cf108a5615a43ffa9773eeb56aaab
+agent  Fri Oct 9 05:06:34 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ PROGRESS.md                                  | 130 ++++++++-
+ package.json                                 |   3 +-
+ playwright.config.ts                         |   7 +
+ playwright.nightly.config.ts                 |  21 ++
+ src/client/board/useBoardDoc.ts              |   9 +-
+ src/client/canvas/testHooks.ts               |   7 +
+ src/client/objects/StickyText.ts             |  91 ++++++-
+ src/client/objects/StickyTextEditor.tsx      |  54 +++-
+ src/worker/board-room.ts                     |  51 +++-
+ tests/component/ConnectionStatus.test.tsx    |  47 +++-
+ tests/component/StickyTextEditor.test.tsx    |  84 ++++++
+ tests/component/fixtures/socket.ts           | 107 ++++++++
+ tests/component/setup.ts                     |  51 +---
+ tests/e2e/helpers/board.ts                   |  21 +-
+ tests/e2e/helpers/participants.ts            | 392 +++++++++++++++++++++++++++
+ tests/e2e/live-collaboration.nightly.spec.ts | 298 ++++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts         | 375 +++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts               | 110 ++++++++
+ 18 files changed, 1767 insertions(+), 91 deletions(-)
+commit a9415da7478d14f30720d6f6357b5eac2b4aee6b
+agent  Fri Oct 9 03:10:48 2026 +0000
+
+    story 3: connectBoard + ConnectionStatus, /b/:boardId board links and Share board; TC-19 to TC-21
+
+
+ PROGRESS.md                               |   2 +-
+ src/client/App.tsx                        |  47 +++++++++++--
+ src/client/board/Toolbar.tsx              |  26 +++++++-
+ src/client/board/useBoardDoc.ts           |  27 ++++++--
+ src/client/styles.css                     |  29 ++++++++
+ src/client/sync/ConnectionStatus.tsx      |  45 +++++++++++++
+ src/client/sync/connectBoard.ts           |  90 +++++++++++++++++++++++++
+ src/shared/protocol.ts                    |   7 ++
+ src/worker/index.ts                       |   4 +-
+ tests/component/ConnectionStatus.test.tsx | 107 ++++++++++++++++++++++++++++++
+ tests/component/setup.ts                  |  49 ++++++++++++++
+ 11 files changed, 416 insertions(+), 17 deletions(-)
+commit cd02ab2603acd940d855fe0cb27dad0e26894cf7
+agent  Fri Oct 9 02:51:41 2026 +0000
+
+    story 3: BoardRoom relays y-protocols sync and awareness; integration tests TC-04 to TC-18, TC-31
+
+
+ PROGRESS.md                            |   8 +-
+ src/worker/board-room.ts               | 187 ++++++++++++++-
+ tests/fixtures/random-ops.ts           | 164 ++++++++++++++
+ tests/integration/board-room.test.ts   | 380 +++++++++++++++++++++++++++++++
+ tests/integration/helpers/ws-client.ts | 400 +++++++++++++++++++++++++++++++++
+ tests/integration/worker.test.ts       | 153 +++++++++++--
+ 6 files changed, 1261 insertions(+), 31 deletions(-)
+commit b33262b3bc3167d4caf0924e53b95d74bc85ae6b
+agent  Fri Oct 9 02:09:47 2026 +0000
+
+    story 3: Worker entry routes /api/rooms/:boardId to the BoardRoom, assets fallback for the client
+
+
+ PROGRESS.md                      |  4 +--
+ package-lock.json                |  8 ++++++
+ package.json                     |  4 ++-
+ src/shared/protocol.ts           | 54 ++++++++++++++++++++++++++++++++--
+ src/worker/board-room.ts         | 23 +++++++++++++++
+ src/worker/index.ts              | 62 ++++++++++++++++++++++++++++++++++++++++
+ tests/integration/worker.test.ts | 34 ++++++++++++++++++++++
+ tests/unit/protocol.test.ts      |  8 ++----
+ tsconfig.json                    |  6 +++-
+ tsconfig.worker.json             | 10 +++++++
+ vitest.config.ts                 | 12 ++++++++
+ wrangler.jsonc                   | 18 ++++++++----
+ 12 files changed, 227 insertions(+), 16 deletions(-)
+commit 3d76c89c194c927ebe4072bca6dcdc003ee83386
+agent  Fri Oct 9 02:01:23 2026 +0000
+
+    story 3: board id and protocol decode unit tests (TC-01 to TC-03) against stubs
+
+
+ PROGRESS.md                 |    2 +-
+ package-lock.json           | 1594 +++++++++++++++++++++++++++++++++++++++++--
+ package.json                |    6 +-
+ src/shared/board-id.ts      |   46 ++
+ src/shared/config.ts        |   24 +
+ src/shared/protocol.ts      |   34 +
+ tests/unit/board-id.test.ts |   79 +++
+ tests/unit/protocol.test.ts |  150 ++++
+ 8 files changed, 1872 insertions(+), 63 deletions(-)
+commit b0e3b1e450a898ad67b63129438154f4a1e47a26
+vidi-agent  Fri Oct 9 02:42:37 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit d23142adf2b8509c88bf06b32eb150eaa2520ac2
 agent  Fri Oct 9 01:40:56 2026 +0000
 
