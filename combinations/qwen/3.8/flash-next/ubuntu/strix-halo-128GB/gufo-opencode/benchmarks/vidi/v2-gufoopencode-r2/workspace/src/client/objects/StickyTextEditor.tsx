@@ -43,6 +43,33 @@ export function StickyTextEditor({
     setLength(len);
   }, [ytext]);
 
+  // Mirror remote edits into the textarea while typing (story 3: concurrent
+  // editors). Caret is kept at the same distance from the text end so typing
+  // at the end stays at the end while remote characters arrive.
+  useEffect(() => {
+    const observer = (event: Y.YTextEvent, txn: Y.Transaction): void => {
+      if (txn.origin === LOCAL_ORIGIN) return;
+      const el = ref.current;
+      if (!el) return;
+      const next = ytext.toString();
+      if (!composingRef.current) {
+        const oldLen = el.value.length;
+        const selStart = el.selectionStart ?? oldLen;
+        const selEnd = el.selectionEnd ?? oldLen;
+        el.value = next;
+        const clamp = (fromEnd: number): number =>
+          Math.max(0, Math.min(next.length, next.length - fromEnd));
+        const a = clamp(oldLen - selStart);
+        const f = clamp(oldLen - selEnd);
+        el.setSelectionRange(Math.min(a, f), Math.max(a, f));
+        fitFontSize(el, STICKY_TEXT_BOX_WORLD);
+      }
+      setLength(next.length);
+    };
+    ytext.observe(observer);
+    return () => ytext.unobserve(observer);
+  }, [ytext]);
+
   // Click outside the note ends editing unselected (sticky.edit_end).
   useEffect(() => {
     const onWindowPointerDown = (e: PointerEvent) => {

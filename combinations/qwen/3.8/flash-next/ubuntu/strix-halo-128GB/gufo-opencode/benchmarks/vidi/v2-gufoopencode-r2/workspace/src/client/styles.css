@@ -341,3 +341,28 @@ body {
   outline: 2px solid #3572e6;
   outline-offset: 1px;
 }
+
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #fff;
+  pointer-events: none;
+}
+
+.connection-status--connecting {
+  background: #616161;
+}
+
+.connection-status--reconnecting {
+  background: #b26a00;
+}
+
+.connection-status--confirmed {
+  background: #1b7f37;
+}

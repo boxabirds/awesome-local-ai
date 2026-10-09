@@ -8,18 +8,29 @@
     "build": "vite build",
     "build:test": "vite build --mode test",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:nightly": "playwright test --config playwright.nightly.config.ts",
+    "test:integration": "vite build && vitest run --config vitest.integration.config.ts",
+    "setup:chromium": "node scripts/setup-chromium.mjs",
+    "pretest:e2e": "npm run setup:chromium && npm run build:test",
+    "pretest:e2e:nightly": "npm run setup:chromium && npm run build:test"
   },
   "dependencies": {
+    "lib0": "^0.2.119",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.21",
+    "@cloudflare/workers-types": "^5.20261009.1",
     "@playwright/test": "^1.63.0",
+    "@sparticuz/chromium": "^153.0.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",

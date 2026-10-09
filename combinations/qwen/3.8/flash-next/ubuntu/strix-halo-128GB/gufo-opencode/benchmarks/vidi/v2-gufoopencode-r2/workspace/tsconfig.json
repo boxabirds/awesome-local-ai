@@ -18,6 +18,15 @@
     "tests",
     "vite.config.ts",
     "vitest.config.ts",
-    "playwright.config.ts"
+    "vitest.integration.config.ts",
+    "playwright.config.ts",
+    "playwright.nightly.config.ts",
+    "playwright.launch.ts"
+  ],
+  // Worker-side code and its integration tests typecheck under
+  // tsconfig.worker.json (workerd globals instead of the DOM).
+  "exclude": [
+    "src/worker",
+    "tests/integration"
   ]
 }

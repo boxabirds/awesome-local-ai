@@ -42,3 +42,27 @@ if (typeof window.PointerEvent === 'undefined') {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).PointerEvent = window.MouseEvent;
 }
+
+// Component tests never talk to a real server: the y-websocket provider
+// constructed by App stays in 'connecting' forever against this stub, which
+// is the connection state the board-level tests were written assuming.
+class FakeWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+
+  readyState = 0;
+  binaryType = 'arraybuffer';
+
+  constructor(public readonly url: string) {}
+
+  addEventListener(): void {}
+  removeEventListener(): void {}
+  send(): void {}
+  close(): void {
+    this.readyState = 3;
+  }
+}
+
+globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;

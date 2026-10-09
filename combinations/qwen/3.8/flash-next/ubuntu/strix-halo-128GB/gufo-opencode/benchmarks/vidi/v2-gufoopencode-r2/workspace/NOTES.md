@@ -96,3 +96,59 @@
   (grep count 0); present in build:test.
 - npm run test:unit: 41/41. npm run test:component: 33/33.
 - npx playwright test --project=chromium: 12/12 (7 story 1 + 5 story 2).
+
+## Story 3 notes
+
+- `@cloudflare/vitest-pool-workers` pinned to ^0.12 (needs vitest ^2–^3; 0.13+ requires vitest 4).
+- Typecheck split: `src/worker` + `tests/integration` compile under `tsconfig.worker.json`
+  (`@cloudflare/workers-types`), everything else under the DOM-based `tsconfig.json`.
+  `npm run typecheck` runs both.
+- `vitest.config.ts` keeps one file with three projects; the workers pool is unknown to plain
+  vitest types, so the integration project is a plain object cast to `UserWorkspaceConfig`
+  (pool: `'workers'`).
+- BoardRoom relays awareness bytes verbatim to every socket including the sender (per design;
+  keeps idle y-websocket clients alive). Y-protocols ignores same-clock awareness updates, so
+  this does not loop.
+- lib0's `Decoder` exposes `.arr` (not `.buf`); `decodeMessage` bounds-checks every varuint
+  against `arr.length` because lib0 reads past-the-end bytes as 0 instead of failing.
+- Yjs `encodeStateVector` of a fresh doc is never empty (1 byte), so a hand-crafted
+  `[0,0,0]` sync frame with a truly empty state vector is rejected by the room with
+  `CLOSE_UNSUPPORTED_DATA` — that path is exercised by TC-15, not a bug.
+- Vitest projects (single config file) cannot host the workers pool: `pool: 'workers'` is then
+  resolved as a custom-pool file path. The integration suite therefore lives in its own
+  `vitest.integration.config.ts` (`defineWorkersConfig` from `@cloudflare/vitest-pool-workers/config`).
+- `isolatedStorage: false` in the integration pool options: BoardRoom keeps nothing in DO storage
+  (story 4 will add it), and the per-test storage snapshot/restore breaks with the long-lived
+  WebSocket handles the room holds ("Isolated storage failed" on suite teardown).
+- workerd test-side sockets (`SELF.fetch` upgrade + `accept()`): a self-initiated `close()` never
+  delivers a `close` event and the socket stays CLOSING (never CLOSED); only room-initiated closes
+  fire events. Tests poll `readyState !== OPEN` for self-closes and `close` events for room closes.
+- `y-protocols` `readSyncMessage` swallows Yjs update-application errors internally
+  (`readSyncStep2`/`readUpdate` try/catch). The BoardRoom passes an errorHandler that rethrows,
+  so a malformed update closes only the offending socket (TC-15 run 4).
+- Test names with non-ASCII characters trip a miniflare "non-ASCII header value" warning (the
+  test title rides in an internal header). Integration test names stay ASCII.
+- `StickyTextEditor` originally never observed its `Y.Text` for remote changes: while editing,
+  every input flushed `applyTextDiff(ytext, textarea.value)` against a stale local value, so a
+  concurrent editor's characters were treated as deletions (last-writer-wins). Fixed by mirroring
+  remote transactions into the textarea with caret kept at a fixed distance from the text end.
+  Unit/component tests could not catch this (single writer); TC-23 e2e did.
+- Playwright `context.setOffline(true)` does NOT drop established WebSocket connections
+  (probe: badge state unchanged for 25s of "offline"). y-websocket only notices via its 30s
+  silence timeout (`messageReconnectTimeout`, check tick every 3s), so an offline badge appears
+  ~33s after `setOffline`; reconnect lands <1s after going back online. TC-27 timeouts account
+  for this. Badge text history is captured with an in-page MutationObserver because the
+  Connected badge hides after CONNECTED_CONFIRMATION_MS and polling can miss the window.
+- Firefox/WebKit cannot launch here (missing GTK/WPE system libs), so `playwright.config.ts`
+  includes those projects only with `E2E_ALL_BROWSERS=1`; default `npm run test:e2e` runs
+  chromium, per the "Chromium is sufficient if other browsers are not installed" rule.
+  TC-22/TC-23 on firefox/webkit (tasks.md 8 Done-when) is therefore environment-blocked.
+- Nightly soak: Playwright actions have no default timeout, so one click waiting on a
+  never-visible toolbar hung TC-30 to the 10-minute test timeout; nightly config now sets
+  `actionTimeout: 4000` and the soak skips conflicted actions. `E2E_SOAK_MS` overrides the
+  60s soak for quick smoke runs. Last full nightly: ~1300 change deliveries, p50 6ms
+  p95 11ms (budget 1000ms, reported not asserted).
+- `reuseExistingServer` skips the webServer command, so a reused wrangler serves whatever build
+  `dist/client` holds: a later `npm run build` (production) silently removes the `__vidi6` test
+  hooks and e2e fails with "missing-hook". Both e2e pretest scripts now run `build:test`, and
+  orphan wrangler processes must be killed when a backgrounded run gets interrupted.

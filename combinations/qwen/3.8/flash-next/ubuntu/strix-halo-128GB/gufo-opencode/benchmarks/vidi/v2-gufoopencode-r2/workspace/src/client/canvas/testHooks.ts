@@ -1,6 +1,7 @@
 import type { Camera } from './camera';
 import type * as Y from 'yjs';
 import type { StickySnapshot } from '../../shared/board-model';
+import type { ConnectionState } from '../sync/connectBoard';
 
 export interface BoardTestHooks {
   doc: Y.Doc;
@@ -11,6 +12,7 @@ export interface Vidi6TestHooks {
   setCamera(camera: Camera): void;
   getCamera(): Camera;
   board?: BoardTestHooks;
+  connectionState?: () => ConnectionState;
 }
 
 declare global {

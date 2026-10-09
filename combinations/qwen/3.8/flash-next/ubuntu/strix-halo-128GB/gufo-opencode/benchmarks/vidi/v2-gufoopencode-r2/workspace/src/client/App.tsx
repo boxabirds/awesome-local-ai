@@ -5,18 +5,32 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import type { Point } from './canvas/camera';
 
+// Story 3 routing: `/b/<boardId>` opens that board; `/` (or anything invalid)
+// generates a fresh id. Temporary until story 5 adds board management.
+function boardIdFromLocation(): string {
+  const match = /^\/b\/([^/]+)$/.exec(window.location.pathname);
+  const candidate = match === null ? '' : decodeURIComponent(match[1]);
+  const id = isValidBoardId(candidate) ? candidate : newBoardId();
+  window.history.replaceState(null, '', `/b/${id}`);
+  return id;
+}
+
 export function App() {
-  const { doc, notes } = useBoardDoc();
+  const [boardId] = useState(boardIdFromLocation);
+  const { doc, notes, connection } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const [viewport, setViewport] = useState<ViewportHandle | null>(null);
 
-  // Test-only: expose the live doc and note snapshot for e2e assertions.
+  // Test-only: expose the live doc, note snapshot and connection state for
+  // e2e assertions.
   useEffect(() => {
-    installTestHook({ board: { doc, getNotes: () => snapshot(doc) } });
-  }, [doc]);
+    installTestHook({ board: { doc, getNotes: () => snapshot(doc) }, connectionState: () => connection });
+  }, [doc, connection]);
 
   // Selection and editing are per-client and must not survive the note (TC-37).
   useEffect(() => {
@@ -71,6 +85,7 @@ export function App() {
 
   return (
     <>
+      <ConnectionStatus state={connection} />
       <Toolbar onCreateSticky={createStickyAtCentre} />
       <BoardViewport
         onCreateStickyAtWorld={createStickyAtWorld}

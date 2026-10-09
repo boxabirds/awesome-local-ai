@@ -1,17 +1,19 @@
-// Owns the single in-memory Y.Doc for this page and exposes an immutable
-// snapshot of the board objects via useSyncExternalStore. Story 3 attaches a
-// network provider to this same doc; story 4 persists it.
+// Owns the single in-memory Y.Doc for this page, exposes an immutable
+// snapshot of the board objects via useSyncExternalStore, and keeps the
+// provider connection state (story 3). Story 4 persists this same doc.
 
-import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  connection: ConnectionState;
 }
 
-export function useBoardDoc(): BoardDoc {
+export function useBoardDoc(boardId: string): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -19,6 +21,13 @@ export function useBoardDoc(): BoardDoc {
     docRef.current = doc;
   }
   const doc = docRef.current;
+
+  const [connection, setConnection] = useState<ConnectionState>('connecting');
+  useEffect(() => {
+    setConnection('connecting');
+    const handle = connectBoard(doc, boardId, setConnection);
+    return () => handle.destroy();
+  }, [doc, boardId]);
 
   const snapRef = useRef<readonly StickySnapshot[]>(snapshot(doc));
   const subscribe = useCallback(
@@ -38,5 +47,5 @@ export function useBoardDoc(): BoardDoc {
   const getSnapshot = useCallback(() => snapRef.current, []);
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  return { doc, notes };
+  return { doc, notes, connection };
 }
