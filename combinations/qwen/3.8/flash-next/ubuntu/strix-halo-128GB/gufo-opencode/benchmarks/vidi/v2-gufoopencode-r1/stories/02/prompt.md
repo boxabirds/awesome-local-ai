@@ -7,8 +7,7 @@ The full specification is at `spec/` (read-only; do not modify it). For this sto
 - `spec/stories/002-capture-ideas-on-sticky-notes-and-rearrange-them/design.md` — how to build it (files, named settings, interfaces, test cases)
 - `spec/stories/002-capture-ideas-on-sticky-notes-and-rearrange-them/tasks.md` — the ordered tasks, each with a "Done when"
 
-Stories already processed in this repository, in order: 1 (partial).
-Story 1 was ended before it was complete. Tasks in its tasks.md that were not verified then: none recorded. Do not do those tasks for their own sake. If story 2 needs behaviour story 1 was meant to provide and it is missing, implement it to story 1's design and record it in `NOTES.md` under "Gap filled from story 1". Never stub, mock or fake product code to stand in for it.
+Stories already implemented in this repository, in order: 1.
 Stories 6 and 13-17 are NOT part of this build. Where a design mentions them (presence, offline device copies, sign-in, dashboard, comments, export), leave the hook out; do not implement those stories.
 
 Rules:
