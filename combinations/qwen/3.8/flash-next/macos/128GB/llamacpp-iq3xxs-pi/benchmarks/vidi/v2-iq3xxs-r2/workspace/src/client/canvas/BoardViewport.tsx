@@ -79,6 +79,18 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+/**
+ * The marquee the viewport drives with its Shift+drag (story 7). The rectangle itself is
+ * drawn by the caller, which has the camera and the objects; the viewport only reports the
+ * pointer, in screen pixels.
+ */
+export interface MarqueeHandlers {
+  begin(screen: Point): void;
+  move(screen: Point): void;
+  end(): void;
+  cancel(): void;
+}
+
 export interface BoardViewportProps {
   children?: ReactNode;
   /**
@@ -88,6 +100,13 @@ export interface BoardViewportProps {
   onCreateStickyAt?(point: Point): void;
   /** A click on empty board space that did not pan the board (sticky.select). */
   onEmptyClick?(): void;
+  /**
+   * Shift+drag on empty board space draws a marquee instead of panning (sel.marquee). With
+   * no Shift the story 1 pan is untouched (TC-21).
+   */
+  marquee?: MarqueeHandlers;
+  /** Drawn above the board, in screen pixels: the selection box, its handles, the marquee. */
+  overlay?: ReactNode;
 }
 
 /**
@@ -100,6 +119,8 @@ export function BoardViewport({
   children,
   onCreateStickyAt,
   onEmptyClick,
+  marquee,
+  overlay,
 }: BoardViewportProps): JSX.Element {
   const api = useCameraApi();
   const apiRef = useRef(api);
@@ -111,6 +132,9 @@ export function BoardViewport({
   // Distinguishes a click on empty board space from a pan, so only the first one clears
   // the selection. `DRAG_THRESHOLD_PX` is the same threshold the notes use.
   const pressRef = useRef<{ x: number; y: number; dragged: boolean } | null>(null);
+  // Which pointer is drawing a marquee, when one is. Kept apart from the pan pointer
+  // because the two must never both be live on the same press.
+  const marqueeIdRef = useRef<number | null>(null);
 
   const { camera, panning } = api;
 
@@ -198,11 +222,25 @@ export function BoardViewport({
       element.setPointerCapture(event.pointerId);
     }
     const point = boardPoint(element, event.clientX, event.clientY);
+    if (event.shiftKey && marquee) {
+      // Shift+drag on empty space draws a selection rectangle; without it, nothing here
+      // changes from story 1 (TC-21).
+      marqueeIdRef.current = event.pointerId;
+      if (typeof element.setPointerCapture === 'function') {
+        element.setPointerCapture(event.pointerId);
+      }
+      marquee.begin(point);
+      return;
+    }
     pressRef.current = { x: point.x, y: point.y, dragged: false };
     api.beginPan(point);
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (marqueeIdRef.current === event.pointerId && marquee) {
+      marquee.move(boardPoint(event.currentTarget, event.clientX, event.clientY));
+      return;
+    }
     if (pointerIdRef.current !== event.pointerId) return;
     const element = event.currentTarget;
     const point = boardPoint(element, event.clientX, event.clientY);
@@ -216,6 +254,14 @@ export function BoardViewport({
   };
 
   const onPointerEnd = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (marqueeIdRef.current === event.pointerId && marquee) {
+      marqueeIdRef.current = null;
+      // A release selects; a cancel (`pointercancel`) discards, and the selection is
+      // unchanged either way (TC-22).
+      if (event.type === 'pointercancel') marquee.cancel();
+      else marquee.end();
+      return;
+    }
     if (pointerIdRef.current !== event.pointerId) return;
     pointerIdRef.current = null;
     const press = pressRef.current;
@@ -263,6 +309,7 @@ export function BoardViewport({
         />
         {children}
       </div>
+      {overlay}
     </div>
   );
 }

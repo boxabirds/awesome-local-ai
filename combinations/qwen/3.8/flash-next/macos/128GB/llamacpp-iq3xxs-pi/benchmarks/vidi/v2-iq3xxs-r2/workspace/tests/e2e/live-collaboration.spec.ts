@@ -223,10 +223,16 @@ test('TC-26: a full room of editors all sees everything the others do', async ({
   const seats = capacity();
   const people = await createParticipants(browser, await createBoardLink(browser), seats);
   try {
-    // Each seat owns a column of the board, so a note is never in two places at once.
+    /*
+     * Each seat owns a column of the board, so a note is never in two places at once. The
+     * steps clear a note's own 200 units of width and height by enough to leave the next
+     * double-click on board rather than on the note before it — and, since story 7, off the
+     * resize handles the selection draws on that note's border. The notes still overlap
+     * whatever the spacing: twenty-five of them will not fit on one screen.
+     */
     const spotFor = (seat: number, index: number): Point => ({
       x: 260 + seat * Math.floor(800 / seats),
-      y: 150 + index * 100,
+      y: 150 + index * 140,
     });
     const notesExpected = seats * 5;
 

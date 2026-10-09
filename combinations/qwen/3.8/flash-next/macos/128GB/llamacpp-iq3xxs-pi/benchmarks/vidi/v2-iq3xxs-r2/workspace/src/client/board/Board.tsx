@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type JSX } from 'react';
+import { useCallback, useRef, type JSX } from 'react';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { ZoomControls } from '../canvas/ZoomControls';
@@ -6,43 +6,48 @@ import {
   canZoomIn,
   canZoomOut,
   screenToWorld,
+  worldToScreen,
   zoomPercent,
   type Point,
 } from '../canvas/camera';
 import { CameraApiContext, useCamera, useViewportSize } from '../canvas/useCamera';
 import { useBoardDoc } from './useBoardDoc';
-import { useSelection } from './useSelection';
+import { useSelection, type EndEditNext } from './useSelection';
+import { useTransformGesture } from './useTransformGesture';
+import { useBoardKeys } from './useBoardKeys';
+import { MarqueeRect, useMarquee } from './Marquee';
+import { SelectionBar } from './SelectionBar';
+import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
-import { StickyNote } from '../objects/StickyNote';
+import { getObjectComponent } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit as connectionAllowsEditing } from '../sync/connectBoard';
-import { createSticky, deleteObject } from '../../shared/board-model';
-
-const DELETE_KEYS = ['Delete', 'Backspace'];
+import { createSticky, deleteObjects, objectBounds } from '../../shared/board-model';
+import { unionRects } from '../../shared/geometry';
 
 /**
- * The board itself: everything stories 1–4 built, mounted on one board id that has
- * already been checked for (`BoardPage`, story 5).
+ * The board itself: everything stories 1–4 built, mounted on one board id that has already
+ * been checked for (`BoardPage`, story 5).
  *
- * The id is a prop and never discovered here. Story 3 read it out of the address bar and
- * wrote one when the address did not have it, which was fine while an address *was* a
- * board; now a board is created by `POST /api/boards`, and a page that renders this
- * component has already been told the board exists. That is also why a mistyped link can
- * no longer leave an empty board behind.
+ * Story 7 moved three things out of `StickyNote` and into components that work for every
+ * object type: which objects are selected (`useSelection`, now a set), what happens when
+ * the pointer presses something (`useTransformGesture`), and what the keys do
+ * (`useBoardKeys`). What is left here is the wiring — the document, the camera, and one
+ * component per object, rendered through the registry so a type this build does not know is
+ * skipped instead of breaking the page.
  *
- * Everything a note does goes through `board-model`, so the same document can be synced
- * (story 3) and persisted (story 4) without touching any of this. Selection and editing
- * stay in here — local React state — which is why nobody else's screen reacts to what
- * this cursor is doing.
+ * Selection, editing, the gesture and the marquee stay in React state, never in the
+ * document: a board with six people has six selections on it and exactly one of them is
+ * yours.
  */
 export function Board({ boardId }: { boardId: string }): JSX.Element {
   const viewport = useViewportSize();
   const cameraApi = useCamera(viewport);
   const { camera, hasNavigated } = cameraApi;
-  const { doc, notes, connection } = useBoardDoc(boardId);
-  const selection = useSelection();
-  // A board that could not be loaded is shown empty and refuses every edit (story 4);
-  // no other connection state refuses anything.
+  const { doc, objects, connection } = useBoardDoc(boardId);
+  const selection = useSelection(objects);
+  // A board that could not be loaded is shown and refuses every edit (story 4); no other
+  // connection state refuses anything.
   const canEdit = connectionAllowsEditing(connection);
 
   // Handlers that run long after a render read the latest values through refs.
@@ -50,8 +55,6 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   cameraRef.current = camera;
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
-  const notesRef = useRef(notes);
-  notesRef.current = notes;
 
   /**
    * Create a note centred on a screen point: `createSticky` stores the top-left, so it
@@ -74,41 +77,53 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     createAtScreenPoint({ x: viewport.width / 2, y: viewport.height / 2 });
   }, [createAtScreenPoint, viewport.width, viewport.height]);
 
-  // Enter edits the selected note, Delete/Backspace deletes it — never while typing.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (isEditableTarget(event.target)) return;
-      const { selectedId, editingId } = selectionRef.current;
-      if (editingId !== null) return; // the keys edit text, not the note
-      if (DELETE_KEYS.includes(event.key)) {
-        if (!selectedId || !canEdit) return;
-        event.preventDefault();
-        deleteObject(doc, selectedId);
-        selectionRef.current.select(null);
-        return;
-      }
-      if (event.key === 'Enter') {
-        if (!selectedId || !canEdit) return; // Enter with nothing selected does nothing (TC-36)
-        if (!notesRef.current.some((note) => note.id === selectedId)) return;
-        event.preventDefault();
-        selectionRef.current.startEdit(selectedId);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, canEdit]);
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: objects,
+    canEdit,
+  });
 
-  // A note can leave the document while it is selected (deleted by anyone, from any
-  // client), in which case the local selection is dropped with it.
-  useEffect(() => {
-    const { selectedId, editingId } = selection;
-    if (selectedId === null && editingId === null) return;
-    const present = new Set(notes.map((note) => note.id));
-    const stale =
-      (selectedId !== null && !present.has(selectedId)) ||
-      (editingId !== null && !present.has(editingId));
-    if (stale) selection.select(null);
-  }, [notes, selection]);
+  /** The marquee adds to what is already selected (sel.marquee). */
+  const marquee = useMarquee(camera, objects, (ids) => {
+    selectionRef.current.setMany(ids, true);
+  });
+
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit,
+    marqueeActive: marquee.rect !== null,
+  });
+
+  /**
+   * Editing ends either because the object was pressed again (it stays selected) or because
+   * the pointer went down somewhere else, which is also a click and so takes its own
+   * selection with it — story 2's rule, kept for the object it applies to.
+   */
+  const endEdit = useCallback((next: EndEditNext): void => {
+    if (next === 'unselected') selectionRef.current.clear();
+    selectionRef.current.endEdit();
+  }, []);
+
+  const deleteSelection = useCallback((): void => {
+    if (!canEdit) return;
+    const ids = [...selectionRef.current.ids];
+    if (ids.length === 0) return;
+    deleteObjects(doc, ids);
+    selectionRef.current.clear();
+  }, [canEdit, doc]);
+
+  // The selection bar sits above its bounding box, in screen pixels, and only while
+  // nothing is being typed in — an editor and a delete button are not a good pair.
+  const selected = objects.filter((object) => selection.ids.has(object.id));
+  const box = selection.editingId === null ? unionRects(selected.map(objectBounds)) : null;
+  const barAt =
+    box && canEdit && selected.length >= 2
+      ? worldToScreen(camera, { x: box.x + box.width / 2, y: box.y })
+      : null;
 
   return (
     <CameraApiContext.Provider value={cameraApi}>
@@ -116,24 +131,59 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         <BoardViewport
           onCreateStickyAt={createAtScreenPoint}
           onEmptyClick={() => {
-            selectionRef.current.select(null);
+            selectionRef.current.clear();
           }}
+          marquee={marquee}
+          overlay={
+            <>
+              {/* While somebody's text is being edited the handles are put away: a press on
+                  one would resize the very object that has the caret in it, and the box is
+                  not what the user is looking at. The outline on the object stays. */}
+              {selection.editingId === null ? (
+                <SelectionOverlay
+                  ids={selection.ids}
+                  snapshot={objects}
+                  camera={camera}
+                  onHandlePointerDown={gesture.onHandlePointerDown}
+                />
+              ) : null}
+              <MarqueeRect rect={marquee.rect} camera={camera} />
+            </>
+          }
         >
-          {notes.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={doc}
-              zoom={camera.zoom}
-              selected={selection.selectedId === note.id}
-              editing={selection.editingId === note.id}
-              onSelect={selection.select}
-              onStartEdit={selection.startEdit}
-              onEndEdit={selection.endEdit}
-              readOnly={!canEdit}
-            />
-          ))}
+          {objects.map((object) => {
+            const Component = getObjectComponent(object);
+            // An object of a type this build does not know is not drawn, not selectable
+            // and not resized (TC-08): a document written by a later story still opens.
+            if (!Component) return null;
+            return (
+              <Component
+                key={object.id}
+                object={object}
+                doc={doc}
+                zoom={camera.zoom}
+                selected={selection.ids.has(object.id)}
+                selectedCount={selection.ids.size}
+                editing={selection.editingId === object.id}
+                dragging={gesture.dragging && selection.ids.has(object.id)}
+                readOnly={!canEdit}
+                onSelect={selection.click}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                onStartEdit={selection.startEdit}
+                onEndEdit={endEdit}
+              />
+            );
+          })}
         </BoardViewport>
+        {barAt ? (
+          <div
+            className="vidi6-selection-bar-anchor"
+            data-testid="selection-bar-anchor"
+            style={{ left: `${barAt.x}px`, top: `${barAt.y}px` }}
+          >
+            <SelectionBar ids={selection.ids} snapshot={objects} onDelete={deleteSelection} />
+          </div>
+        ) : null}
         <ConnectionStatus state={connection} />
         <Toolbar onCreateSticky={createAtViewportCentre} disabled={!canEdit} />
         <ZoomControls
@@ -147,15 +197,5 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         <NavigationHint visible={!hasNavigated} />
       </main>
     </CameraApiContext.Provider>
-  );
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
   );
 }

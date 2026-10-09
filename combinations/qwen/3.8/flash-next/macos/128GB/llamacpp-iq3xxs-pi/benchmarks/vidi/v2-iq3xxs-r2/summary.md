@@ -13,8 +13,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | 6/7 | 0 | 0 | 26/27 |
 | 4 | 4/4 | 1 | 0 | 29/31 |
 | 5 | 5/5 | 0 | 0 | 34/36 |
+| 7 | 8/8 | 0 | 1 | 43/44 |
 
-**New work** 31/32, **regressions** 1, **repairs** 0, **cumulative** 34/36.
+**New work** 39/40, **regressions** 1, **repairs** 1, **cumulative** 43/44.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -23,8 +24,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | See other people's edits appear live on the same board | DONE | 204.2 | None | None | None | — | — | green | 26/27 |  | 0 / 1 | 4 | — | throttled 78%, server peak 79 GB |
 | 4 | Return to a board and find everything as it was left | DONE | 208.7 | None | None | None | — | — | green | 29/31 |  | 0 / 0 | 4 | — | throttled 83%, server peak 79 GB |
 | 5 | Share a board with others using a link | DONE | 99.0 | None | None | None | — | — | green | 34/36 |  | 0 / 1 | 2 | — | throttled 83%, server peak 79 GB |
+| 7 | Select, move, resize and delete several objects at once | DONE | 211.4 | None | None | None | — | — | green | 43/44 |  | 0 / 0 | 5 | — | throttled 97%, server peak 79 GB |
 
-**Totals:** 5 stories, 741 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/5, final acceptance 34/36, stalled 0, partial 0, 15647 lines in src+tests.
+**Totals:** 6 stories, 952 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/6, final acceptance 43/44, stalled 0, partial 0, 20542 lines in src+tests.
 
 ## How it happened
 
@@ -37,11 +39,14 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | 5 by the agent | 5543 / 218 | `board-room.ts` (261), `PROGRESS.md` (146), `protocol.ts` (95), `StickyText.ts` (91), `connectBoard.ts` (90), `index.ts` (66), +16 more |
 | 4 | 6 by the agent | 3347 / 193 | `board-room.ts` (459), `board-store.ts` (412), `BoardSocket.ts` (297), `connectBoard.ts` (139), `room-state.ts` (102), `NOTES.md` (78), +14 more |
 | 5 | 7 by the agent | 3031 / 395 | `SharePanel.tsx` (352), `App.tsx` (204), `Board.tsx` (173), `styles.css` (135), `state.ts` (122), `router.ts` (117), +15 more |
+| 7 | 9 by the agent | 5402 / 507 | `useTransformGesture.ts` (399), `board-model.ts` (360), `useSelection.ts` (345), `geometry.ts` (314), `StickyNote.tsx` (259), `Board.tsx` (206), +10 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 4 broke 1, fixed 0** earlier held-out tests (story 4: Return to a board and find everything as it was left; story 4 task 7+8: client load-failure state with the red badge; component tests for badge, edit lock and close-code mapping (TC-22, TC-23, TC-28); story 4 task 4+5: persistent hibernating BoardRoom; integration tests for durability, failures and hibernation (TC-12 to TC-18, TC-26); story 4 task 3: BoardStore integration tests on real DO SQLite (TC-03..TC-11, TC-25); probe-doc quarantine and compaction gap guard; story 4 task 2: BoardStore (SQLite schema, append, load with quarantine, chunked compaction); TC-01/TC-02 green; story 4 task 1: unit tests for chunking, compaction threshold and room state machine (TC-01, TC-02, TC-27) with stubs). Source files it changed most: `board-room.ts` (459), `board-store.ts` (412), `BoardSocket.ts` (297), `connectBoard.ts` (139), `room-state.ts` (102), `NOTES.md` (78), +14 more.
   - story 3: 6/7 → 5/7; broke 1.
+- **Story 7 broke 0, fixed 1** earlier held-out tests (story 7: Select, move, resize and delete several objects at once; fix(sel): a browser's focus and a deferred frame must not undo a selection; test(sel): end-to-end multi-select (TC-32 to TC-36); test(sel): marquee, transform gesture and keyboard component tests (TC-20 to TC-31); feat(sel): multi-select board UI — registry-rendered objects, outlines, selection bar, marquee, transform gesture, keyboard commands; test(sel): selection reducer unit tests (TC-13 to TC-15); test(sel): registry unit tests and the test-only testbox type (TC-11, TC-12); feat(sel): shared rectangle maths and generic group operations over any object type; test(sel): unit tests for the shared rectangle maths and the group operations (TC-01 to TC-10)). Source files it changed most: `useTransformGesture.ts` (399), `board-model.ts` (360), `useSelection.ts` (345), `geometry.ts` (314), `StickyNote.tsx` (259), `Board.tsx` (206), +10 more.
+  - story 3: 5/7 → 6/7; fixed 1
 
 ### Interruptions and dead time
 

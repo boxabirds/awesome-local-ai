@@ -3,7 +3,9 @@ import * as Y from 'yjs';
 import {
   OBJECTS_MAP,
   initDoc,
+  objectSnapshots,
   snapshot,
+  type ObjectSnapshot,
   type StickySnapshot,
 } from '../../shared/board-model';
 import { registerTestHooks } from '../canvas/testHooks';
@@ -14,6 +16,12 @@ export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Sticky notes to render, sorted by `(z, id)`; unknown object types are skipped. */
   readonly notes: readonly StickySnapshot[];
+  /**
+   * Every object in the document, sorted the same way, including the types this build does
+   * not know (story 7: select-all and the marquee are computed over all of them, and only
+   * the known ones are selectable).
+   */
+  readonly objects: readonly ObjectSnapshot[];
   /** What the connection to this board's room is doing, for the status badge. */
   readonly connection: ConnectionState;
 }
@@ -39,11 +47,14 @@ export function useBoardDoc(boardId: string): BoardDoc {
   // long ago it was registered.
   const connectionRef = useRef<ConnectionState>(connection);
   connectionRef.current = connection;
-  const objects = doc.getMap<Y.Map<unknown>>(OBJECTS_MAP);
+  const objectsMap = doc.getMap<Y.Map<unknown>>(OBJECTS_MAP);
 
   // Cached by hand: `snapshot()` allocates, and returning a new array on every call
   // would make `useSyncExternalStore` re-render forever.
-  const cache = useRef<{ snapshot: readonly StickySnapshot[] } | null>(null);
+  const cache = useRef<{
+    snapshot: readonly StickySnapshot[];
+    objects: readonly ObjectSnapshot[];
+  } | null>(null);
 
   const subscribe = useCallback(
     (onStoreChange: () => void): (() => void) => {
@@ -51,21 +62,27 @@ export function useBoardDoc(boardId: string): BoardDoc {
         cache.current = null;
         onStoreChange();
       };
-      objects.observeDeep(observer);
+      objectsMap.observeDeep(observer);
       return () => {
         cache.current = null;
-        objects.unobserveDeep(observer);
+        objectsMap.unobserveDeep(observer);
       };
     },
-    [objects],
+    [objectsMap],
   );
 
   const getSnapshot = useCallback((): readonly StickySnapshot[] => {
-    if (!cache.current) cache.current = { snapshot: snapshot(doc) };
+    if (!cache.current) cache.current = { snapshot: snapshot(doc), objects: objectSnapshots(doc) };
     return cache.current.snapshot;
   }, [doc]);
 
+  const getObjects = useCallback((): readonly ObjectSnapshot[] => {
+    if (!cache.current) cache.current = { snapshot: snapshot(doc), objects: objectSnapshots(doc) };
+    return cache.current.objects;
+  }, [doc]);
+
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const objectList = useSyncExternalStore(subscribe, getObjects, getObjects);
 
   // The component and e2e tests assert the document itself (and story 3 needs the same
   // hook point), so it is exposed through the test-only hook.
@@ -85,5 +102,5 @@ export function useBoardDoc(boardId: string): BoardDoc {
     };
   }, [doc, boardId]);
 
-  return { doc, notes, connection };
+  return { doc, notes, objects: objectList, connection };
 }

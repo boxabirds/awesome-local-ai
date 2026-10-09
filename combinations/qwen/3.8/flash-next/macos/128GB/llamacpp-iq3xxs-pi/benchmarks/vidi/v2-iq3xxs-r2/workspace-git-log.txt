@@ -1,3 +1,126 @@
+commit 3f695871bcc45e01bbd7a6569c80932b59a2b691
+agent  Fri Oct 9 13:58:13 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ PROGRESS.md | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+commit 698b81be8b9c8f908951204a4054920508064406
+agent  Fri Oct 9 13:56:56 2026 +0000
+
+    fix(sel): a browser's focus and a deferred frame must not undo a selection
+
+
+ src/client/board/useSelection.ts       | 53 ++++++++++++++--------------------
+ src/client/objects/StickyNote.tsx      | 21 ++++++++++++++
+ tests/component/Selection.test.tsx     | 27 +++++++++++++++++
+ tests/component/fixtures/selection.tsx | 24 +++++++++++++++
+ tests/e2e/live-collaboration.spec.ts   | 10 +++++--
+ tests/unit/selection.test.ts           | 37 ++++++++++++++++++++++++
+ 6 files changed, 139 insertions(+), 33 deletions(-)
+commit 59000fd5582654c57dcdafc28428d821b7580cc0
+agent  Fri Oct 9 13:56:38 2026 +0000
+
+    test(sel): end-to-end multi-select (TC-32 to TC-36)
+
+
+ tests/e2e/helpers/selection.ts | 208 +++++++++++++++++++++++++
+ tests/e2e/multi-select.spec.ts | 341 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 549 insertions(+)
+commit 24eb9e4969f1908f257eaef6074d2e91dbe78ecb
+agent  Fri Oct 9 12:48:36 2026 +0000
+
+    test(sel): marquee, transform gesture and keyboard component tests (TC-20 to TC-31)
+
+
+ src/client/board/Board.tsx                |   8 +-
+ src/client/board/SelectionOverlay.tsx     |   3 +-
+ src/client/board/useBoardKeys.ts          |  19 +-
+ src/client/board/useTransformGesture.ts   |  30 ++-
+ src/shared/geometry.ts                    |  11 +-
+ tests/component/BoardKeys.test.tsx        | 279 +++++++++++++++++++
+ tests/component/Marquee.test.tsx          | 154 +++++++++++
+ tests/component/Selection.test.tsx        | 207 +++++++++++++++
+ tests/component/TransformGesture.test.tsx | 352 ++++++++++++++++++++++++
+ tests/component/fixtures/selection.tsx    | 426 ++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts               |  17 ++
+ 11 files changed, 1494 insertions(+), 12 deletions(-)
+commit 57a600649e7a40585386236dba0c1a5217d38f60
+agent  Fri Oct 9 12:06:43 2026 +0000
+
+    feat(sel): multi-select board UI — registry-rendered objects, outlines, selection bar, marquee, transform gesture, keyboard commands
+
+
+ src/client/board/Board.tsx              | 198 ++++++++++-------
+ src/client/board/Marquee.tsx            | 132 ++++++++++++
+ src/client/board/SelectionBar.tsx       |  34 +++
+ src/client/board/SelectionOverlay.tsx   | 115 ++++++++++
+ src/client/board/useBoardDoc.ts         |  31 ++-
+ src/client/board/useBoardKeys.ts        | 129 +++++++++++
+ src/client/board/useSelection.ts        | 246 +++++++++++++++------
+ src/client/board/useTransformGesture.ts | 369 ++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  47 ++++
+ src/client/objects/StickyNote.tsx       | 238 +++++---------------
+ src/client/objects/registry.tsx         |  81 ++++++-
+ src/client/styles.css                   |  78 +++++++
+ src/shared/board-model.ts               |   8 +
+ src/shared/geometry.ts                  |  52 +++--
+ tests/unit/geometry.test.ts             |  71 ++++--
+ tests/unit/selection.test.ts            |  10 +-
+ 16 files changed, 1463 insertions(+), 376 deletions(-)
+commit ca2ad258f3bf39152f2288ec89ed454783e1eaff
+agent  Fri Oct 9 11:12:34 2026 +0000
+
+    test(sel): selection reducer unit tests (TC-13 to TC-15)
+
+
+ PROGRESS.md                      |   2 +-
+ src/client/board/useSelection.ts |  46 +++++++++-
+ tests/unit/selection.test.ts     | 185 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 228 insertions(+), 5 deletions(-)
+commit 69084b42fb647f8299359e28d3575309ea49fbde
+agent  Fri Oct 9 11:07:11 2026 +0000
+
+    test(sel): registry unit tests and the test-only testbox type (TC-11, TC-12)
+
+
+ PROGRESS.md                     |   2 +-
+ src/client/objects/registry.tsx |  66 +++++++++++++++++++++++
+ tests/fixtures/testbox.tsx      | 114 ++++++++++++++++++++++++++++++++++++++++
+ tests/unit/registry.test.ts     | 103 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 284 insertions(+), 1 deletion(-)
+commit 49c7c5808f2cc3652aade0e3fe0e1518aaa0dc72
+agent  Fri Oct 9 11:01:19 2026 +0000
+
+    feat(sel): shared rectangle maths and generic group operations over any object type
+
+
+ PROGRESS.md                          |   4 +-
+ src/shared/board-model.ts            | 267 +++++++++++++++++++++++++++--------
+ src/shared/geometry.ts               | 169 ++++++++++++++++++++--
+ tests/unit/board-model-group.test.ts |   5 +-
+ 4 files changed, 377 insertions(+), 68 deletions(-)
+commit 839bdb638630b9ee51b42f69c74be0b63363b30b
+agent  Fri Oct 9 10:54:52 2026 +0000
+
+    test(sel): unit tests for the shared rectangle maths and the group operations (TC-01 to TC-10)
+
+
+ src/shared/board-model.ts            |  85 ++++++-
+ src/shared/config.ts                 |  14 ++
+ src/shared/geometry.ts               |  82 +++++++
+ tests/unit/board-model-group.test.ts | 450 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 233 ++++++++++++++++++
+ 5 files changed, 860 insertions(+), 4 deletions(-)
+commit 0364975370da0a5ca297eb6066e880a78db15458
+vidi-agent  Fri Oct 9 11:27:09 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 6090b0defc165bc8e59da8d615d95cfe8d83bedd
 agent  Fri Oct 9 10:19:15 2026 +0000
 

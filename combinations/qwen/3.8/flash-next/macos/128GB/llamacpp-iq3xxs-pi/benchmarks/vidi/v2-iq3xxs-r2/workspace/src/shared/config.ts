@@ -108,3 +108,17 @@ export const LINK_COPIED_MS = 2_000;
  * failure doubles it, up to story 3's `RECONNECT_MAX_BACKOFF_MS`.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1_000;
+
+// Story 7: select, move, resize and delete several objects at once.
+
+/** The side of a resize handle, in screen pixels (it never scales with zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest sticky note, in board units.
+ */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest object of any type, in board units — one global maximum for every type. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** How far one arrow key press moves the selection, in board units. */
+export const NUDGE_STEP_WORLD = 1;
+/** How far Shift+arrow moves the selection, in board units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

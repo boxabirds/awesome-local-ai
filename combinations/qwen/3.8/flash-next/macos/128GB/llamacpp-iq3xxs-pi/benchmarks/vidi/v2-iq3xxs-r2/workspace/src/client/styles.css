@@ -268,6 +268,84 @@ button:focus-visible,
   color: #b42318;
 }
 
+/* -------------------------------------------------------------------------
+   Story 7: selecting, moving, resizing and deleting several objects at once.
+   The selection layer sits above the world layer in *screen* pixels, so a handle is
+   HANDLE_SIZE_PX wide however far away the board is zoomed.
+   --------------------------------------------------------------------- */
+.vidi6-selection-layer {
+  position: absolute;
+  inset: 0;
+  /* Only a holder: presses reach the objects underneath, except on a handle. */
+  pointer-events: none;
+}
+
+.vidi6-selection-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #2563eb;
+  border-radius: 2px;
+}
+
+.vidi6-selection-handle {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid #2563eb;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+
+/* The Shift+drag rectangle: a drawing about the screen, never a thing to press. */
+.vidi6-marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed #2563eb;
+  background: rgb(37 99 235 / 12%);
+  pointer-events: none;
+}
+
+/* The selection bar hangs above the middle of its bounding box, in screen pixels. */
+.vidi6-selection-bar-anchor {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+}
+
+.vidi6-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  padding: 4px 8px;
+  background: #ffffff;
+  border: 1px solid #d7dbe2;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(17 22 33 / 12%);
+  white-space: nowrap;
+}
+
+.vidi6-selection-count {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: #1f2430;
+}
+
+.vidi6-selection-delete {
+  padding: 2px 8px;
+  color: #5b6270;
+  background: #ffffff;
+  border: 1px solid #d7dbe2;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.vidi6-selection-delete:hover {
+  color: #b42318;
+}
+
 /* Left-side vertical toolbar with the Sticky note button. */
 .vidi6-toolbar {
   position: fixed;
