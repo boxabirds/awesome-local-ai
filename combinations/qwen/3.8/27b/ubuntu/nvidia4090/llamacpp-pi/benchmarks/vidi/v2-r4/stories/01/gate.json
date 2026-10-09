@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\nadded 143 packages, and audited 144 packages in 2s\n\n28 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-DNG1wsT9.css    1.64 kB \u2502 gzip:  0.72 kB\ndist/client/assets/index-tPJJ3lOx.js   226.29 kB \u2502 gzip: 70.95 kB\n\n\u001b[32m\u2713 built in 78ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.2,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.4,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/7dcf64bda7/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m14 passed\u001b[39m\u001b[22m\u001b[90m (14)\u001b[39m\n\u001b[2m   Start at \u001b[22m 14:44:32\n\u001b[2m   Duration \u001b[22m 104ms\u001b[2m (transform 53%, tests 27%, import 15%, worker 5%)\u001b[22m\n\n",
+      "passed": 14,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/7dcf64bda7/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 79\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 95\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 103\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m   Start at \u001b[22m 14:44:32\n\u001b[2m   Duration \u001b[22m 537ms\u001b[2m (environment 60%, tests 20%, setup 8%, transform 6%, import 5%, worker 1%)\u001b[22m\n\n",
+      "passed": 13,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 1,
+      "seconds": 3.4,
+      "tail": "                              \u2551\n    \u2551                                                            \u2551\n    \u2551 <3 Playwright Team                                         \u2551\n    \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\n    Error Context: test-results/navigation-story-1-pan-and-428ec--zoom-keeps-the-point-fixed-firefox/error-context.md\n\n  2) [firefox] \u203a tests/e2e/navigation.spec.ts:94:3 \u203a story 1: pan and zoom around an infinite board \u203a workflow 2: zoom to the maximum via +, then Reset view recovers \n\n    Error: browserType.launch: Executable doesn't exist at ~/.cache/vidi-agent-ms-playwright/firefox-1543/firefox/firefox\n    \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n    \u2551 Looks like Playwright was just installed or updated.       \u2551\n    \u2551 Please run the following command to download new browsers: \u2551\n    \u2551                                                            \u2551\n    \u2551     npx playwright install                                 \u2551\n    \u2551                                                            \u2551\n    \u2551 <3 Playwright Team                                         \u2551\n    \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\n    Error Context: test-results/navigation-story-1-pan-and-de73a-ia-then-Reset-view-recovers-firefox/error-context.md\n\n  3) [firefox] \u203a tests/e2e/navigation.spec.ts:133:3 \u203a story 1: pan and zoom around an infinite board \u203a workflow 3: far travel \u2014 at 1,000,000 units the board still pans exactly \n\n    Error: browserType.launch: Executable doesn't exist at ~/.cache/vidi-agent-ms-playwright/firefox-1543/firefox/firefox\n    \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n    \u2551 Looks like Playwright was just installed or updated.       \u2551\n    \u2551 Please run the following command to download new browsers: \u2551\n    \u2551                                                            \u2551\n    \u2551     npx playwright install                                 \u2551\n    \u2551                                                            \u2551\n    \u2551 <3 Playwright Team                                         \u2551\n    \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\n    Error Context: test-results/navigation-story-1-pan-and-a357c-he-board-still-pans-exactly-firefox/error-context.md\n\n  4) [firefox] \u203a tests/e2e/navigation.spec.ts:162:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-31: repeated zoom gestures (wheel and shortcuts) never change page zoom \n\n    Error: browserType.launch: Executable doesn't exist at ~/.cache/vidi-agent-ms-playwright/firefox-1543/firefox/firefox\n    \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n    \u2551 Looks like Playwright was just installed or updated.       \u2551\n    \u2551 Please run the following command to download new browsers: \u2551\n    \u2551                                                            \u2551\n    \u2551     npx playwright install                                 \u2551\n    \u2551                                                            \u2551\n    \u2551 <3 Playwright Team                                         \u2551\n    \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\n    Error Context: test-results/navigation-story-1-pan-and-d10a6-cuts-never-change-page-zoom-firefox/error-context.md\n\n  4 failed\n    [firefox] \u203a tests/e2e/navigation.spec.ts:47:3 \u203a story 1: pan and zoom around an infinite board \u203a workflow 1: first visit \u2014 hint shows, drag moves the board exactly, pointer zoom keeps the point fixed \n    [firefox] \u203a tests/e2e/navigation.spec.ts:94:3 \u203a story 1: pan and zoom around an infinite board \u203a workflow 2: zoom to the maximum via +, then Reset view recovers \n    [firefox] \u203a tests/e2e/navigation.spec.ts:133:3 \u203a story 1: pan and zoom around an infinite board \u203a workflow 3: far travel \u2014 at 1,000,000 units the board still pans exactly \n    [firefox] \u203a tests/e2e/navigation.spec.ts:162:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-31: repeated zoom gestures (wheel and shortcuts) never change page zoom \n  4 passed (3.0s)\n",
+      "passed": 4,
+      "failed": 4
+    }
+  },
+  "all_green": false
+}
