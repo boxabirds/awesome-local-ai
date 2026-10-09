@@ -436,7 +436,7 @@ export function liveFromJob(job: DbenchJob, queue: QueuePlace | undefined): Live
 
 // ---------- stories ----------
 
-interface RawAccept {
+export interface RawAccept {
   passed?: number;
   total?: number;
   by_story?: Record<string, { passed?: number; total?: number }>;
@@ -596,16 +596,17 @@ function memoryOf(raw: unknown): StoryMemory | null {
            engine: typeof m.engine === "string" ? m.engine : null, cache: anyCache ? cache : null };
 }
 
-/** Whether finalize.json says the run was built under one held-out suite version and scored (its score of record) under another: its live
- * per-story held-out figures come from the earlier suite, which the record's own re-score replaces. */
-export function builtUnderEarlierSuite(finalize: RawFinalize | null | undefined): boolean {
+/** The suite version a run's score of record was made under, when finalize.json says the run was built under a different one: its live
+ * per-story held-out figures come from the earlier suite, which that re-score replaces. Null when the run was not (or doesn't say). */
+export function builtUnderEarlierSuite(finalize: RawFinalize | null | undefined): string | null {
   const b = finalize?.built_under as { version?: unknown; scored_under?: unknown } | undefined;
-  return typeof b?.version === "string" && typeof b?.scored_under === "string" && b.version !== b.scored_under;
+  return typeof b?.version === "string" && typeof b?.scored_under === "string" && b.version !== b.scored_under ? b.scored_under : null;
 }
 
-/** The story without its live held-out figures (they show as not available); everything else about it stays. */
-export function withoutLiveHeldout(s: RecordStory): RecordStory {
-  return { ...s, passed: null, total: null, ownPassed: null, ownTotal: null, byStory: null };
+/** The story as the later suite scored it: its `accept` is the re-score's accept-summary (null when that story was not re-scored: then it has
+ * no held-out figure at all, never the earlier suite's). */
+export function acceptUnderScoringSuite<T extends { accept?: RawAccept | null }>(raw: T, rescored: RawAccept | null): T {
+  return { ...raw, accept: rescored };
 }
 
 export function storyEntry(
