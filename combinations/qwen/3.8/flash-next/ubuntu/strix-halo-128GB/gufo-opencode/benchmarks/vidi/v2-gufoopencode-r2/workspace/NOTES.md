@@ -53,3 +53,46 @@
 - npm run test:unit: 13/13. npm run test:component: 15/15.
 - npx playwright test --project=chromium: 7/7 (see Chromium note above for the
   build-loss afterward).
+
+# Notes for story 2
+
+## Resolved since story 1
+
+- Chromium e2e IS runnable here: the intact cached builds under
+  ~/.cache/vidi-agent-ms-playwright turned out to be readable from
+  this session. Running e2e with
+  `PLAYWRIGHT_BROWSERS_PATH=~/.cache/vidi-agent-ms-playwright
+  npx playwright test --project=chromium` works (12/12). The Firefox/WebKit
+  system-library blockage above still stands.
+
+## Deviations from design / spec
+
+- createSticky returns `string | false` (the design contract said `string`) so
+  TC-39 can reject non-finite coordinates with zero Y.Doc updates instead of
+  throwing.
+- BoardViewport gained three optional props (onCreateStickyAtWorld,
+  onClearSelection, onViewportHandle with a ViewportHandle camera accessor) so
+  App can resolve screen-space interactions (double-click point, Sticky note
+  button centre, constant-size note toolbar) that the component contract did
+  not anticipate; without them the world->screen math would have to leak.
+- Notes are rendered in stable createdAt order with CSS `zIndex: note.z`
+  instead of re-sorted children. React moves keyed children via remove +
+  insertBefore, which detaches the dragged node, silently kills pointer
+  capture, and froze drags the moment bringToFront fired mid-drag (found by
+  TC-31/32). z-order semantics (snapshot still sorted by z; bringToFront
+  unchanged) are untouched.
+- The note toolbar is counter-scaled in CSS
+  (translateX(-50%) scale(1/var(--note-zoom))) instead of being rendered in a
+  separate screen-space layer, keeping it a child of the note it belongs to.
+- e2e helpers: setCamera now polls data-camera until the rAF-coalesced camera
+  commit has rendered before returning, otherwise the next mouse action (e.g.
+  double-click create) would run in handlers closed over the previous camera
+  (caused flaky TC-31/32 placement).
+
+## Verified on this machine
+
+- npm run typecheck: clean.
+- npm run build: clean; window.__vidi6 absent from the production bundle
+  (grep count 0); present in build:test.
+- npm run test:unit: 41/41. npm run test:component: 33/33.
+- npx playwright test --project=chromium: 12/12 (7 story 1 + 5 story 2).

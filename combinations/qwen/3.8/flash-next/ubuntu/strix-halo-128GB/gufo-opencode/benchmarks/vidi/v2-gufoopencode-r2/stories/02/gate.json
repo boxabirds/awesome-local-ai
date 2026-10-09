@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 1.9,
+      "tail": "\nadded 228 packages, and audited 229 packages in 2s\n\n44 packages are looking for funding\n  run `npm fund` for details\n\n3 vulnerabilities (1 moderate, 2 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm WARN deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v6.4.4 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 80 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.26 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-ChZa79wV.css  \u001b[39m\u001b[1m\u001b[2m  4.72 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  1.33 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-DuJLwM6g.js   \u001b[39m\u001b[1m\u001b[2m304.95 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 95.22 kB\u001b[22m\n\u001b[32m\u2713 built in 776ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/58ef6c3b6a/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 20\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 16\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m41 passed\u001b[39m\u001b[22m\u001b[90m (41)\u001b[39m\n\u001b[2m   Start at \u001b[22m 19:40:01\n\u001b[2m   Duration \u001b[22m 413ms\u001b[2m (transform 142ms, setup 0ms, collect 224ms, tests 47ms, environment 1ms, prepare 201ms)\u001b[22m\n\n",
+      "passed": 41,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.4,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/58ef6c3b6a/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 71\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 68\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 91\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 106\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 110\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 159\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m33 passed\u001b[39m\u001b[22m\u001b[90m (33)\u001b[39m\n\u001b[2m   Start at \u001b[22m 19:40:02\n\u001b[2m   Duration \u001b[22m 852ms\u001b[2m (transform 185ms, setup 160ms, collect 716ms, tests 605ms, environment 1.22s, prepare 433ms)\u001b[22m\n\n",
+      "passed": 33,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 4.7,
+      "tail": "angler:info] GET / 200 OK (8ms)\n\nRunning 12 tests using 12 workers\n\n[WebServer] [wrangler:info] GET / 200 OK (4ms)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (8ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (8ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (8ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (16ms)\n[WebServer] [wrangler:info] GET / 200 OK (9ms)\n[WebServer] [wrangler:info] GET / 200 OK (9ms)\n[WebServer] [wrangler:info] GET / 200 OK (8ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (24ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (25ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (24ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (26ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (31ms)\n[WebServer] [wrangler:info] GET / 200 OK (13ms)\n[WebServer] [wrangler:info] GET / 200 OK (35ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (35ms)\n[WebServer] [wrangler:info] GET / 200 OK (33ms)\n[WebServer] [wrangler:info] GET / 200 OK (22ms)\n[WebServer] [wrangler:info] GET / 200 OK (6ms)\n[WebServer] [wrangler:info] GET / 200 OK (8ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (6ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (13ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (11ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (16ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (16ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (16ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (17ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (17ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (19ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (19ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (27ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (28ms)\n[WebServer] [wrangler:info] GET / 200 OK (17ms)\n[WebServer] [wrangler:info] GET /assets/index-ueBmnEM9.js 200 OK (5ms)\n[WebServer] [wrangler:info] GET /assets/index-ChZa79wV.css 200 OK (11ms)\n  \u2713   3 [chromium] \u203a tests/e2e/navigation.spec.ts:43:1 \u203a TC-24: ctrl+wheel keeps the point under the pointer fixed (240ms)\n  \u2713   1 [chromium] \u203a tests/e2e/navigation.spec.ts:75:1 \u203a TC-26: Reset view from far away at max zoom returns to 100% centred (267ms)\n  \u2713   5 [chromium] \u203a tests/e2e/sticky.spec.ts:115:1 \u203a TC-33: font auto-fit shrinks long text, fades overflow, never escapes the note (230ms)\n  \u2713   8 [chromium] \u203a tests/e2e/sticky.spec.ts:29:1 \u203a TC-30: double-click creates a note centred on the point and typing fills it (226ms)\n  \u2713   4 [chromium] \u203a tests/e2e/navigation.spec.ts:107:1 \u203a TC-31: ctrl+wheel over the board never changes page zoom (251ms)\n  \u2713   7 [chromium] \u203a tests/e2e/navigation.spec.ts:20:1 \u203a TC-28: first visit shows the navigation hint; dragging removes it (339ms)\n  \u2713  11 [chromium] \u203a tests/e2e/sticky.spec.ts:149:1 \u203a TC-34: panned far away, the Sticky note button creates a note at the screen centre (321ms)\n  \u2713   6 [chromium] \u203a tests/e2e/navigation.spec.ts:31:1 \u203a TC-23: dragging 200x100 moves the origin marker exactly 200x100 px (356ms)\n  \u2713  12 [chromium] \u203a tests/e2e/navigation.spec.ts:89:1 \u203a TC-27: panning at 1,000,000 units is exact and grid spacing holds (323ms)\n  \u2713   2 [chromium] \u203a tests/e2e/sticky.spec.ts:46:1 \u203a TC-31: at 50% zoom a drag keeps the grabbed point under the pointer; recolour and delete (474ms)\n  \u2713   9 [chromium] \u203a tests/e2e/navigation.spec.ts:63:1 \u203a TC-25: clicking + until disabled ends at 400% (422ms)\n  \u2713  10 [chromium] \u203a tests/e2e/sticky.spec.ts:75:1 \u203a TC-32: at 200% zoom a drag lands at half world distance and draws the dragged note on top (460ms)\n\n  12 passed (4.1s)\n",
+      "passed": 12,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

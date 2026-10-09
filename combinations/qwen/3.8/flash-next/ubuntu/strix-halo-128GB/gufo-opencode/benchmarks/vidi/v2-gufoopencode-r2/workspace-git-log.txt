@@ -1,3 +1,44 @@
+commit 40699cbe3e6e4e9a3810639dffaa4cb85d375557
+agent  Fri Oct 9 19:39:51 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  43 +++++
+ PROGRESS.md                               |  16 +-
+ package-lock.json                         |  48 +++++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        |  95 ++++++++++-
+ src/client/board/Toolbar.tsx              |  38 +++++
+ src/client/board/useBoardDoc.ts           |  42 +++++
+ src/client/board/useSelection.ts          |  34 ++++
+ src/client/canvas/BoardViewport.tsx       |  67 +++++++-
+ src/client/canvas/testHooks.ts            |  16 +-
+ src/client/objects/NoteToolbar.tsx        |  65 ++++++++
+ src/client/objects/StickyNote.tsx         | 229 +++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          |  85 ++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 109 ++++++++++++
+ src/client/styles.css                     | 191 +++++++++++++++++++++
+ src/shared/board-model.ts                 | 162 ++++++++++++++++++
+ src/shared/config.ts                      |  13 ++
+ tests/component/StickyNote.test.tsx       | 186 +++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 101 +++++++++++
+ tests/component/Toolbars.test.tsx         |  66 ++++++++
+ tests/component/stickyHelpers.tsx         |  70 ++++++++
+ tests/e2e/helpers/board.ts                |  31 ++++
+ tests/e2e/sticky.spec.ts                  | 161 ++++++++++++++++++
+ tests/fixtures/texts.ts                   |  39 +++++
+ tests/unit/board-model.test.ts            | 268 ++++++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            | 137 +++++++++++++++
+ 26 files changed, 2293 insertions(+), 22 deletions(-)
+commit 6c1384635a66cbe0586dd2c291744eff6d057236
+vidi-agent  Fri Oct 9 18:54:58 2026 +0000
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit 63d051921e47a5a08ffef2fdf877d6efcb37c4d4
 agent  Fri Oct 9 18:54:12 2026 +0000
 

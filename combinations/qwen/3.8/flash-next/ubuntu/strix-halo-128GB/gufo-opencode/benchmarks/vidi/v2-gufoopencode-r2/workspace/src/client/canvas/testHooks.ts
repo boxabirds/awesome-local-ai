@@ -1,8 +1,16 @@
 import type { Camera } from './camera';
+import type * as Y from 'yjs';
+import type { StickySnapshot } from '../../shared/board-model';
+
+export interface BoardTestHooks {
+  doc: Y.Doc;
+  getNotes(): readonly StickySnapshot[];
+}
 
 export interface Vidi6TestHooks {
   setCamera(camera: Camera): void;
   getCamera(): Camera;
+  board?: BoardTestHooks;
 }
 
 declare global {
@@ -11,11 +19,11 @@ declare global {
   }
 }
 
-// Test-only hook used by e2e to jump far away and to read camera state.
-// Guarded by import.meta.env.MODE so it is dead-code eliminated from
+// Test-only hooks used by e2e and component tests to read and drive app state.
+// Guarded by import.meta.env.MODE so they are dead-code eliminated from
 // production builds (call sites check the mode before importing/calling).
-export function installTestHook(hooks: Vidi6TestHooks): void {
+export function installTestHook(hooks: Partial<Vidi6TestHooks>): void {
   if (import.meta.env.MODE === 'test') {
-    window.__vidi6 = hooks;
+    window.__vidi6 = { ...window.__vidi6, ...hooks } as Vidi6TestHooks;
   }
 }

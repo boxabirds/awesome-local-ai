@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useCamera } from './useCamera';
-import { type Size, type Point, worldToScreen, canZoomIn, canZoomOut, zoomPercent } from './camera';
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { type Camera, type Size, type Point, worldToScreen, screenToWorld, canZoomIn, canZoomOut, zoomPercent } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
 
@@ -23,7 +23,30 @@ function mod(value: number, period: number): number {
   return ((value % period) + period) % period;
 }
 
-export function BoardViewport({ children }: { children?: ReactNode }): React.JSX.Element {
+// Imperative view of the camera for siblings rendered by App (the note
+// toolbar and the Sticky note button need world <-> screen conversions).
+export interface ViewportHandle {
+  camera: Camera;
+  screenToWorld(p: Point): Point;
+  worldToScreen(p: Point): Point;
+  centerWorld(): Point;
+}
+
+export interface BoardViewportProps {
+  children?: ReactNode;
+  // A double-click landed on empty board space, in world coordinates.
+  onCreateStickyAtWorld?(world: Point): void;
+  // A click without dragging landed on empty board space.
+  onClearSelection?(): void;
+  onViewportHandle?(handle: ViewportHandle): void;
+}
+
+export function BoardViewport({
+  children,
+  onCreateStickyAtWorld,
+  onClearSelection,
+  onViewportHandle,
+}: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
@@ -115,6 +138,10 @@ export function BoardViewport({ children }: { children?: ReactNode }): React.JSX
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [api.zoomStep, api.reset]);
 
+  // A press on bare board space that releases without moving past the drag
+  // threshold counts as a click on empty space (clears selection in App).
+  const emptyPressRef = useRef<{ x: number; y: number } | null>(null);
+
   // Drag pans only when it starts on bare board surface (viewport or grid),
   // so future board objects can stop propagation.
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -129,6 +156,7 @@ export function BoardViewport({ children }: { children?: ReactNode }): React.JSX
       }
     }
     const rect = el.getBoundingClientRect();
+    emptyPressRef.current = { x: e.clientX, y: e.clientY };
     api.beginPan({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     setPanning(true);
   };
@@ -142,9 +170,39 @@ export function BoardViewport({ children }: { children?: ReactNode }): React.JSX
   };
 
   const endPanning = () => {
+    emptyPressRef.current = null;
     api.endPan();
     setPanning(false);
   };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const press = emptyPressRef.current;
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < DRAG_THRESHOLD_PX) {
+      onClearSelection?.();
+    }
+    endPanning();
+  };
+
+  // Double-click on empty board creates a sticky note centred on the point.
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = viewportRef.current;
+    if (!el) return;
+    if (e.target !== el && e.target !== gridRef.current) return;
+    const rect = el.getBoundingClientRect();
+    const world = screenToWorld(camera, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+    onCreateStickyAtWorld?.(world);
+  };
+
+  // Expose an imperative viewport handle for App-rendered siblings.
+  useEffect(() => {
+    onViewportHandle?.({
+      camera,
+      screenToWorld: (p: Point) => screenToWorld(camera, p),
+      worldToScreen: (p: Point) => worldToScreen(camera, p),
+      centerWorld: () =>
+        screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }),
+    });
+  }, [camera, viewport, onViewportHandle]);
 
   const spacingPx = GRID_SPACING_WORLD * zoom;
   const originScreen = worldToScreen(camera, { x: 0, y: 0 });
@@ -160,9 +218,10 @@ export function BoardViewport({ children }: { children?: ReactNode }): React.JSX
       style={{ cursor: panning ? 'grabbing' : 'grab' }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={endPanning}
+      onPointerUp={onPointerUp}
       onPointerCancel={endPanning}
       onLostPointerCapture={endPanning}
+      onDoubleClick={onDoubleClick}
     >
       <div
         ref={gridRef}
