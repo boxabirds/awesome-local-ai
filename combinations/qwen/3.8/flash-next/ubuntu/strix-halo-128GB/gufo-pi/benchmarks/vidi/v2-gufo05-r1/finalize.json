@@ -16,8 +16,8 @@
       "5": "its accounting check failed; recomputed from the full log, still so"
     },
     "accounting_version": 4,
-    "harness_commit": "fb2954a1c",
-    "at": "2026-10-09T01:18:52Z"
+    "harness_commit": "eb8cc2508",
+    "at": "2026-10-09T15:46:49Z"
   },
   "guard": {
     "story": 12,
