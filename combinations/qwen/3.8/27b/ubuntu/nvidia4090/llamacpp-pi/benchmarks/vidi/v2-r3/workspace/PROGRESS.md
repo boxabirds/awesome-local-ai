@@ -1,21 +1,20 @@
-# Story 11: Sketch freehand with a pen
+# Story 12 — Drop images onto the board
 
-Your progress on this story's tasks. Keep the Status column up to date as you work.
+| Task | Description | Status |
+|------|-------------|--------|
+| 1 | Unit tests for format sniffing, file validation, image format (TC-01, TC-02, TC-08, TC-09) | done |
+| 2 | Unit tests for image model (TC-03, TC-04, TC-05, TC-06, TC-07) | done |
+| 3 | Worker: assets API (R2 upload/serve, magic-byte sniff, 10 MB limit, immutable GET) | done |
+| 4 | Integration tests for assets API (TC-10, TC-11, TC-12, TC-13, TC-15, TC-16) | done |
+| 5 | Shared image object model (snapshot fields, placeholders, ready/failed, displayStatus) | done |
+| 6 | Client image insert: drop/paste/picker, validation, upload, retry, offline gate, toasts | done |
+| 7 | ImageObject render + registry entry (states, resize, min size, error handling) | done |
+| 8 | Component tests (TC-17, TC-18, TC-19, TC-21, TC-22, TC-23, TC-24, TC-29) | done |
+| 9 | E2E tests (TC-25, TC-26, TC-27, TC-28) | done |
 
-| # | Task | Status |
-|---|---|---|
-| 1 | Write stroke model and geometry unit tests first (TC-01 to TC-08) | done |
-| 2 | Implement stroke model: RDP simplify, split, smooth path, createStroke, scaled points | done |
-| 3 | Implement Pen tool: capture, local preview, commit on finish/cancel/limit, options toolbar, viewport routing | done |
-| 4 | Implement StrokeObject rendering and registry entry with line-distance hit test and aspect-locked resize | done |
-| 5 | Component tests for Pen tool and StrokeObject (TC-09 to TC-16, TC-21) | done |
-| 6 | E2E pen workflows: annotate, shared sketch, tidy up (TC-17 to TC-20) | done |
+## Notes
 
-## Verification sweep (after all tasks)
-- [x] `npm run build` + `npm run typecheck` — clean
-- [x] `npm run test:unit` — 178 passed
-- [x] `npm run test:component` — 78 passed
-- [x] `npm run test:e2e` (full chromium suite) — 35 passed (31 pre-existing + 4 pen)
-- [x] `npm run test:integration` — 45 passed
-
-Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
+- Test-first tasks 1-2: tests written before the implementation they cover.
+- Fixture images are generated (PNG via zlib) or synthesized (magic-byte bytes); no external
+  image files are downloaded.
+- All green: typecheck clean; 214 unit, 89 component, 53 integration, 39 e2e (chromium) passing.

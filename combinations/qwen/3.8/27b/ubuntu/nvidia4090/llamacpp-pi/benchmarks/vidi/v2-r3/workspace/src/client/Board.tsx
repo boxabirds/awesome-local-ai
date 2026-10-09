@@ -5,6 +5,10 @@ import {
   createSticky,
   deleteObjects,
 } from '../shared/board-model';
+import type { ImageSnap } from '../shared/objects/image';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { Toast } from './ui/Toast';
 import { createText, setTextSize } from '../shared/objects/text';
 import type { Point, Size } from './canvas/camera';
 import { screenToWorld } from './canvas/camera';
@@ -87,6 +91,78 @@ export function Board(props: { boardId: string }): ReactElement {
   // Story 8 (undo.session_only): one undo controller per board document.
   const undoState = useUndo(doc);
 
+  // Story 12: the persistent client identity (localStorage) — the uploader
+  // recognizes their own failed/stale images after a reload and offers
+  // Remove (the file is gone, so no Retry). New images carry this id.
+  const identityIdRef = useRef<string>('');
+  if (identityIdRef.current === '') {
+    let id = '';
+    try {
+      id = localStorage.getItem('vidi6.clientId') ?? '';
+    } catch {
+      id = '';
+    }
+    if (id === '') {
+      id = crypto.randomUUID();
+      try {
+        localStorage.setItem('vidi6.clientId', id);
+      } catch {
+        // storage unavailable (private mode): fall back to a per-session id
+      }
+    }
+    identityIdRef.current = id;
+  }
+
+  // Story 12 (image.insert): drop / paste / picker image adds.
+  const imageInsert = useImageInsert({
+    doc,
+    boardId: props.boardId,
+    camera: cam.camera,
+    viewSize: size,
+    connection: connectionState,
+    identityId: identityIdRef.current,
+    editable,
+    boundary: undoState.boundary,
+  });
+
+  // Story 12 (image.unfinished): a 30-second render clock while any image is
+  // uploading, so 'unfinished' (stale > 5 min) appears without a reload.
+  const anyImageUploading = objects.some(
+    (o) => o.type === 'image' && (o as ImageSnap).status === 'uploading',
+  );
+  const [imageNow, setImageNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!anyImageUploading) return;
+    setImageNow(Date.now());
+    const t = window.setInterval(() => setImageNow(Date.now()), 30_000);
+    return () => window.clearInterval(t);
+  }, [anyImageUploading]);
+
+  const removeImage = useCallback(
+    (id: string) => {
+      if (!editable) return;
+      imageInsert.forget(id);
+      undoState.boundary();
+      deleteObjects(doc, [id]);
+      undoState.boundary();
+    },
+    [doc, editable, imageInsert.forget, undoState.boundary],
+  );
+
+  const imageCtx = useMemo(
+    () => ({
+      identityId: identityIdRef.current,
+      progress: imageInsert.progress,
+      now: imageNow,
+      canRetry: (id: string) => imageInsert.canRetry(id),
+      onRetry: (id: string) => {
+        if (editable) imageInsert.retry(id);
+      },
+      onRemove: removeImage,
+    }),
+    [imageInsert.progress, imageInsert.canRetry, imageInsert.retry, imageNow, removeImage, editable],
+  );
+
   // Marquee: Shift+drag on empty space adds fully-contained ids to the set.
   const marquee = useMarquee(cam.camera, objects, (ids) => selection.setMany(ids, true));
 
@@ -162,6 +238,7 @@ export function Board(props: { boardId: string }): ReactElement {
     selection,
     snapshot: objects,
     onNewSticky: createStickyCenter,
+    onImagePicker: imageInsert.openPicker,
   });
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = toolApi;
 
@@ -175,7 +252,6 @@ export function Board(props: { boardId: string }): ReactElement {
   // Story 9 (text.tool_ui): the Text tool click creates a text object whose
   // top-left corner is at the click point, then returns to the Select tool
   // and edits the new object (shared createdId effect above).
-  const identityIdRef = useRef(crypto.randomUUID());
   const createTextAt = useCallback(
     (world: Point) => {
       if (!editable) return; // load_failed: the board is not editable
@@ -272,6 +348,10 @@ export function Board(props: { boardId: string }): ReactElement {
       ref={rootRef}
       className="app"
       style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#f3f5f8' }}
+      onDragOver={(e) => imageInsert.onDragOver(e.nativeEvent)}
+      onDrop={(e) => imageInsert.onDrop(e.nativeEvent)}
+      onDragEnter={(e) => imageInsert.onDragEnter(e.nativeEvent)}
+      onDragLeave={(e) => imageInsert.onDragLeave(e.nativeEvent)}
     >
       <ConnectionStatus state={connectionState} />
       <BoardViewport
@@ -336,6 +416,7 @@ export function Board(props: { boardId: string }): ReactElement {
               editing={selection.editingId === o.id}
               editable={editable}
               undo={undoState.controller}
+              imageCtx={imageCtx}
               onObjectPointerDown={transform.onObjectPointerDown}
               onStartEdit={(id: string) => {
                 if (editable) selection.startEdit(id);
@@ -365,6 +446,7 @@ export function Board(props: { boardId: string }): ReactElement {
         onSelectTool={setTool}
         onShapeKind={setShapeKind}
         onCreateSticky={createStickyCenter}
+        onImagePicker={imageInsert.openPicker}
         disabled={!editable}
         canUndo={undoState.canUndo}
         canRedo={undoState.canRedo}
@@ -387,6 +469,8 @@ export function Board(props: { boardId: string }): ReactElement {
       />
       <NavigationHint visible={!cam.hasNavigated} />
       <SharePanel boardId={props.boardId} />
+      <DropHighlight active={imageInsert.dragActive} />
+      <Toast toasts={imageInsert.toasts} />
     </div>
   );
 }

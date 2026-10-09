@@ -544,3 +544,53 @@ draw", so an *intentional* tool switch discards the points; the PRD's
   timing-sensitive pre-existing specs untouched by this story. The final full
   run was green (35/35).
 - **No new ports.** Story 11 reuses 29040 (shared e2e `webServer`).
+
+## 15. Story 12 — drop images onto the board
+
+- **Asset ids are 22-char board ids, not UUIDs.** The spec prose says "uuid",
+  but TC-02 asserts a 22/22-char key is *valid* while the asset-key pattern
+  (`ASSET_KEY_PATTERN`) accepts `<22>/<22>`; a UUID (36 chars) would fail the
+  pattern. The worker therefore mints asset ids with `newBoardId()` (22 chars),
+  and `assetKeyFor(boardId, assetId)` validates both halves as 22-char ids.
+- **Raw-path routing for `/api/assets` (defense in depth).** workerd normalises
+  dot segments in the URL *before* the fetch handler, so `../` traversal is
+  invisible at the wire level in integration tests. The worker still matches
+  the assets route on the raw request path (`req.url.slice(req.url.indexOf('/', 8))`)
+  and the handler itself 404s any non-matching/relative segment. The
+  integration test asserts the observable property ("the traversal response is
+  not an image"); the handler-level unit test proves the literal 404.
+- **`UPLOAD_ORIGIN` is untracked by the UndoManager.** Upload-settle writes
+  (placeholder → ready/failed) are separate transactions with their own origin;
+  the story 8 UndoManager only tracks `LOCAL_ORIGIN` + the remote origin, so
+  "add images" stays exactly one undo step regardless of how many uploads
+  settle afterwards.
+- **Persistent client identity.** `vidi6.clientId` in localStorage (randomUUID
+  fallback) so the uploader recognises their *own* failed/stale image after a
+  reload and offers Remove instead of Retry (the in-memory File is gone).
+  New objects carry this identity.
+- **Object ids are the objects-map keys** (codebase convention: `createSticky`
+  and friends never write an `id` field). Image placeholders follow suit;
+  component/e2e tests read ids from the map keys, not from a field.
+- **Paste inserts only image MIME types.** Clipboard content whose files are
+  not in `IMAGE_ACCEPTED_TYPES` is silently ignored (no toast) — text pastes
+  are left to the text editor; drops and the picker run the full
+  `validateFiles` (type/size/count toasts).
+- **The 30-second render clock runs only while something uploads** (for the
+  `displayStatus` "unfinished" derivation, stale > 5 min), so idle boards pay
+  no re-render cost.
+- **e2e drops use the real `DragEvent` constructor with a `DataTransfer`**
+  built from fixture bytes inside the page (`tests/e2e/drop-files.ts`);
+  Playwright has no API to put files into a DataTransfer from Node. jsdom
+  (component tests) has neither, so those tests dispatch plain Events with a
+  duck-typed `dataTransfer`.
+- **e2e pins the camera to (0,0,1) after `openBoard`** (openBoard itself uses
+  the -640,-400 camera of the shared helpers; screen==world is required for
+  the exact placement/resize assertions).
+- **Failed-state controls fit only above ~48px of object height.** The box
+  keeps the object's size (overflow hidden), so on very small images the
+  Retry/Remove row clips. e2e TC-28 deliberately uses a 320x240 image so the
+  controls are clickable; the design contract (box == object size) is kept.
+- **TC-26 relies on browser content sniffing** for `<input type=file>`: a PDF
+  renamed `.png` reports `application/pdf` in Chromium/Firefox/WebKit and is
+  refused client-side with the exact type toast (the worker's magic-byte
+  sniff is the trust boundary; the client check is UX).

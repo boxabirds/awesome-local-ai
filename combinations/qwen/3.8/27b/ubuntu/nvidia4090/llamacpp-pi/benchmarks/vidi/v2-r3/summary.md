@@ -20,8 +20,9 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 9 | 4/6 | 7 | 1 | 38/57 | 3 |
 | 10 | 6/8 | 2 | 3 | 45/65 | 4 |
 | 11 | 5/5 | 6 | 3 | 47/70 | 2 |
+| 12 | 3/5 | 2 | 7 | 55/75 | 3 |
 
-**New work** 39/66, **regressions** 19, **repairs** 27, **cumulative** 47/70.
+**New work** 42/71, **regressions** 21, **repairs** 34, **cumulative** 55/75.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -35,8 +36,9 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 9 | Write free text anywhere on the board | DONE, on partial 1, 2 | 65.8 | None | None | None | — | — | red | 38/57 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 1, 2 | 72.6 | None | None | None | — | — | green | 45/65 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 | 11 | Sketch freehand with a pen | DONE, on partial 1, 2 | 40.0 | None | None | None | — | — | red | 47/70 |  | 0 / 0 | 2 | — | throttled 0%, server peak 18 GB |
+| 12 | Drop images onto the board | DONE, on partial 1, 2 | 60.6 | None | None | None | — | — | red | 55/75 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 10 stories, 763 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/10, final acceptance 47/70, stalled 0, partial 2, 19271 lines in src+tests.
+**Totals:** 11 stories, 823 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/11, final acceptance 55/75, stalled 0, partial 2, 22466 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -51,6 +53,7 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 - Story 9, built on partial 1, 2: held-out tests on the partial base 38/57; partial story's tests fixed 16, regressed 0; 0 stub-like lines added to src/.
 - Story 10, built on partial 1, 2: held-out tests on the partial base 45/65; partial story's tests fixed 15, regressed 0; 0 stub-like lines added to src/.
 - Story 11, built on partial 1, 2: held-out tests on the partial base 47/70; partial story's tests fixed 15, regressed 0; 0 stub-like lines added to src/.
+- Story 12, built on partial 1, 2: held-out tests on the partial base 55/75; partial story's tests fixed 18, regressed 0; 8 stub-like lines added to src/.
 
 ## How it happened
 
@@ -68,6 +71,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 6 by the agent | 2306 / 205 | `text.ts` (186), `TextEditor.tsx` (148), `textLayout.ts` (135), `TextObject.tsx` (128), `StickyTextEditor.tsx` (126), `Board.tsx` (84), +15 more |
 | 10 | 1 by the agent | 3352 / 98 | `ConnectorObject.tsx` (274), `ConnectorTool.tsx` (230), `connector.ts` (177), `ShapeObject.tsx` (172), `shape.ts` (149), `useActiveTool.ts` (135), +16 more |
 | 11 | 1 by the agent | 1658 / 16 | `PenTool.tsx` (228), `stroke.ts` (145), `PenToolbar.tsx` (107), `StrokeObject.tsx` (96), `simplify.ts` (95), `config.ts` (54), +9 more |
+| 12 | 1 by the agent | 3281 / 19 | `useImageInsert.ts` (351), `ImageObject.tsx` (249), `image.ts` (242), `assets.ts` (115), `Board.tsx` (86), `image-format.ts` (71), +15 more |
 
 ### Earlier stories broken or fixed
 
@@ -95,6 +99,11 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 7: 5/8 → 6/8; broke 1; fixed 2.
   - story 9: 4/6 → 2/6; broke 2.
   - story 10: 6/8 → 5/8; broke 1.
+- **Story 12 broke 2, fixed 7** earlier held-out tests (story 12: Drop images onto the board). Source files it changed most: `useImageInsert.ts` (351), `ImageObject.tsx` (249), `image.ts` (242), `assets.ts` (115), `Board.tsx` (86), `image-format.ts` (71), +15 more.
+  - story 2: 6/10 → 9/10; fixed 3
+  - story 7: 6/8 → 5/8; broke 2; fixed 1.
+  - story 9: 2/6 → 4/6; fixed 2
+  - story 10: 5/8 → 6/8; fixed 1
 
 ### Interruptions and dead time
 

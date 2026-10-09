@@ -54,6 +54,8 @@ export function Toolbar(props: {
   onSelectTool(t: ToolId): void;
   onShapeKind(k: ShapeKind): void;
   onCreateSticky(): void;
+  /** Story 12: opens the system file picker for adding images (I key too). */
+  onImagePicker(): void;
   disabled?: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -159,6 +161,25 @@ export function Toolbar(props: {
         onClick={() => props.onSelectTool('pen')}
       />
       <div style={{ height: 1, background: '#e4e7ec', margin: '2px 0' }} />
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Add images (I) — or drag & drop or paste"
+        disabled={props.disabled}
+        onClick={props.onImagePicker}
+        style={{
+          width: 40,
+          height: 40,
+          fontSize: 18,
+          borderRadius: 8,
+          border: '1px solid #d5d9e0',
+          background: props.disabled ? '#e8eaee' : '#E8F0FE',
+          cursor: props.disabled ? 'not-allowed' : 'pointer',
+          opacity: props.disabled ? 0.6 : 1,
+        }}
+      >
+        ▣
+      </button>
       <button
         type="button"
         aria-label="Sticky note"

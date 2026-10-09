@@ -59,6 +59,14 @@ export interface ObjectSnapshot {
   baseWidth?: number;
   baseHeight?: number;
   thickness?: string;
+  // type-specific (story 12): images
+  assetKey?: string | null;
+  contentType?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  status?: 'uploading' | 'ready' | 'failed';
+  uploadStartedAt?: number;
+  uploaderId?: string;
 }
 
 export type StickySnapshot = ObjectSnapshot & {
@@ -390,6 +398,15 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       o.baseHeight = (item.get('baseHeight') as number) ?? 0;
       o.color = (item.get('color') as PenColor) ?? DEFAULT_PEN_COLOR;
       o.thickness = (item.get('thickness') as string) ?? DEFAULT_PEN_THICKNESS;
+    }
+    if (type === 'image') {
+      o.assetKey = (item.get('assetKey') as string | null) ?? null;
+      o.contentType = (item.get('contentType') as string) ?? 'image/png';
+      o.naturalWidth = (item.get('naturalWidth') as number) ?? 0;
+      o.naturalHeight = (item.get('naturalHeight') as number) ?? 0;
+      o.status = (item.get('status') as 'uploading' | 'ready' | 'failed') ?? 'uploading';
+      o.uploadStartedAt = (item.get('uploadStartedAt') as number) ?? 0;
+      o.uploaderId = (item.get('uploaderId') as string) ?? '';
     }
     out.push(o);
   });

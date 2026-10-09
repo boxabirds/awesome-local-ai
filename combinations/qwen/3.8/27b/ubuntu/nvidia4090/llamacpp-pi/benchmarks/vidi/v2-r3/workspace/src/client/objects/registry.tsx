@@ -14,6 +14,7 @@ import {
   STROKE_HIT_TOLERANCE_PX,
   STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
 } from '../../shared/config';
 import type { PenThickness } from '../../shared/objects/stroke';
 import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
@@ -21,6 +22,7 @@ import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { UndoController } from '../board/undo';
 import { ConnectorObject } from './ConnectorObject';
+import { ImageRegistryObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { StrokeObject } from './StrokeObject';
@@ -67,6 +69,18 @@ export interface ObjectProps {
   onStartEdit(id: string): void;
   /** Leave text editing (selection is kept). */
   onEndEdit(): void;
+  /**
+   * Story 12: the image context (identity for the uploader view, progress,
+   * retry/remove). Only image objects read it; other types ignore it.
+   */
+  imageCtx?: {
+    readonly identityId: string;
+    readonly progress: ReadonlyMap<string, number>;
+    readonly now: number;
+    canRetry(id: string): boolean;
+    onRetry(id: string): void;
+    onRemove(id: string): void;
+  };
 }
 
 export interface ObjectTypeSpec {
@@ -211,6 +225,20 @@ registerObjectType('stroke', {
       Math.max(t / 2, STROKE_HIT_TOLERANCE_PX / zoom)
     );
   },
+});
+
+/**
+ * Register the story 12 image type: resizable with a locked aspect ratio
+ * (image.aspect_resize), minimum IMAGE_MIN_SIZE_WORLD, no editable text,
+ * bounds hit test.
+ */
+registerObjectType('image', {
+  Component: ImageRegistryObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p) => boundsHitTest(obj, p),
 });
 
 /**

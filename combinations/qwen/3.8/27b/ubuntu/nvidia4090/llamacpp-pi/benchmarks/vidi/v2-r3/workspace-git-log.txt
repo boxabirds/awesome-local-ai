@@ -1,3 +1,49 @@
+commit 45231a1498415ddb768e5ebff1e550c5f1d197e0
+agent  Fri Oct 9 13:40:57 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                |  50 +++++
+ PROGRESS.md                             |  31 +--
+ playwright.config.ts                    |   2 +-
+ src/client/Board.tsx                    |  86 +++++++-
+ src/client/board/Toolbar.tsx            |  21 ++
+ src/client/images/DropHighlight.tsx     |  24 +++
+ src/client/images/uploadImage.ts        |  64 ++++++
+ src/client/images/useImageInsert.ts     | 351 ++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  68 +++++++
+ src/client/objects/ImageObject.tsx      | 249 ++++++++++++++++++++++
+ src/client/objects/registry.tsx         |  28 +++
+ src/client/tools/useActiveTool.ts       |  17 +-
+ src/client/ui/Toast.tsx                 |  52 +++++
+ src/shared/board-model.ts               |  17 ++
+ src/shared/config.ts                    |  37 ++++
+ src/shared/image-format.ts              |  71 +++++++
+ src/shared/objects/image.ts             | 242 ++++++++++++++++++++++
+ src/worker/assets.ts                    | 115 +++++++++++
+ src/worker/index.ts                     |  62 +++++-
+ src/worker/test-hooks.ts                |  53 ++++-
+ tests/component/ImageObject.test.tsx    | 143 +++++++++++++
+ tests/component/useImageInsert.test.tsx | 277 +++++++++++++++++++++++++
+ tests/e2e/drop-files.ts                 |  44 ++++
+ tests/e2e/images.spec.ts                | 233 +++++++++++++++++++++
+ tests/fixtures/images/index.ts          | 146 +++++++++++++
+ tests/integration/assets-api.test.ts    | 234 +++++++++++++++++++++
+ tests/unit/assets-handler.test.ts       | 135 ++++++++++++
+ tests/unit/image-format.test.ts         |  82 ++++++++
+ tests/unit/image-model.test.ts          | 263 ++++++++++++++++++++++++
+ tests/unit/validate-files.test.ts       |  89 ++++++++
+ wrangler.jsonc                          |  14 ++
+ 31 files changed, 3281 insertions(+), 19 deletions(-)
+commit e94583864cab75037fb24c9657ce45b97af3515a
+vidi-agent  Fri Oct 9 12:40:31 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)
 commit d2a01b45a21643c96e993597ffa427ed383c31a0
 agent  Fri Oct 9 12:33:44 2026 +0100
 

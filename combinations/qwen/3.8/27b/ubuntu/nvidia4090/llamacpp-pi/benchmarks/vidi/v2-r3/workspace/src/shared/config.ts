@@ -165,3 +165,40 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
  * `stroke.object`).
  */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// Story 12
+
+/** The image MIME types vidi6 accepts for board images (sel 12). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+export type AcceptedImageType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+/** Maximum upload size: 10 MB. */
+export const IMAGE_MAX_BYTES: number = 10 * 1024 * 1024;
+
+/** Maximum number of image files accepted per drop / paste / picker action. */
+export const IMAGE_MAX_FILES_PER_ADD: number = 20;
+
+/**
+ * A dropped image is placed at its natural size unless its longest side
+ * exceeds this many world units, in which case it is scaled down
+ * proportionally to it.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD: number = 800;
+
+/** Neither side of an image may be resized below this many world units. */
+export const IMAGE_MIN_SIZE_WORLD: number = 16;
+
+/** Horizontal gap between the placeholder boxes of one add action. */
+export const IMAGE_LAYOUT_GAP_WORLD: number = 24;
+
+/**
+ * An 'uploading' image whose uploadStartedAt is older than this is shown as
+ * 'unfinished' (the uploader's tab closed or the network died mid-upload).
+ */
+export const IMAGE_UPLOAD_STALE_MS: number = 5 * 60 * 1000;
+
+/** Images never change: one year of immutable caching. */
+export const ASSET_CACHE_MAX_AGE_SECONDS: number = 365 * 24 * 60 * 60;
+
+/** How many leading bytes the worker reads to sniff the image format. */
+export const IMAGE_SNIFF_BYTES: number = 12;

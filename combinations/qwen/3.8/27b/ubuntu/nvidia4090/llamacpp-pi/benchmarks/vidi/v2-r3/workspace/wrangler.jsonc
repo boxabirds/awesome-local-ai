@@ -16,6 +16,13 @@
       }
     ]
   },
+  // Story 12: board image assets.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",
@@ -50,6 +57,13 @@
         {
           "tag": "v1",
           "new_sqlite_classes": ["BoardRoom"]
+        }
+      ],
+      // repeat the R2 binding for the test environment too
+      "r2_buckets": [
+        {
+          "binding": "ASSETS_BUCKET",
+          "bucket_name": "vidi6-assets"
         }
       ]
     }

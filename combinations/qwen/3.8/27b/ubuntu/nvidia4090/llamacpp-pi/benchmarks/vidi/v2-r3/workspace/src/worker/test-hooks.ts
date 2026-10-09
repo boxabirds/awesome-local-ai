@@ -16,8 +16,10 @@
  *  board-initialize, raw-sql {sql, params?},
  *  room-reset, room-inject {append?, load?, reset?}, room-compact-now,
  *  corrupt-snapshot, repair-snapshot
- * and the worker-level fault route
+ * and the worker-level routes (story 12)
  *  /__test/faults/create-board {mode: 'throw' | 'exists' | 'clear'}
+ *  /__test/faults/assets {mode: 'throw' | 'clear'}
+ *  /__test/assets/:op  list {boardId?}, get {key}
  */
 import * as Y from 'yjs';
 import { snapshot } from '../shared/board-model';
@@ -25,6 +27,7 @@ import type { Env } from './index';
 import { BoardStore, type CompactHooks } from './board-store';
 import type { BoardRoom } from './board-room';
 import { injectInitializeForTests } from './create-board';
+import { injectAssetPutFailureForTests } from './assets';
 
 interface HookSession {
   store: BoardStore;
@@ -124,6 +127,54 @@ export async function testHookRequest(req: Request, env: Env, pathname: string):
       return json({ ok: true });
     }
     return json({ ok: false, error: "expected { mode: 'throw' | 'exists' | 'clear' }" }, 400);
+  }
+  // Worker-level R2 fault injection (story 12, TC-15): makes the asset
+  // upload's put() throw so the 500 path is testable. Same pattern as the
+  // create-board fault.
+  if (parts[1] === 'faults' && parts[2] === 'assets') {
+    if (req.method !== 'POST') return json({ ok: false, error: 'POST only' }, 405);
+    let body: Record<string, unknown> = {};
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      /* bodyless */
+    }
+    if (body.mode === 'throw') {
+      injectAssetPutFailureForTests(new Error('injected R2 put failure'));
+      return json({ ok: true });
+    }
+    if (body.mode === 'clear') {
+      injectAssetPutFailureForTests(null);
+      return json({ ok: true });
+    }
+    return json({ ok: false, error: "expected { mode: 'throw' | 'clear' }" }, 400);
+  }
+  // R2 inspection (story 12): list a board's stored keys or fetch one
+  // object's metadata + bytes. Runs in the worker context where the bucket
+  // binding is available.
+  if (parts[1] === 'assets' && (parts[2] === 'list' || parts[2] === 'get')) {
+    if (req.method !== 'POST') return json({ ok: false, error: 'POST only' }, 405);
+    let body: Record<string, unknown> = {};
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      /* bodyless */
+    }
+    if (parts[2] === 'list') {
+      const prefix = typeof body.boardId === 'string' ? `${body.boardId}/` : '';
+      const listing = await env.ASSETS_BUCKET.list({ prefix, limit: 1000 });
+      return json({ keys: listing.objects.map((o) => o.key) });
+    }
+    const key = String(body.key ?? '');
+    const obj = await env.ASSETS_BUCKET.get(key);
+    if (obj === null) return json({ missing: true });
+    const bytes = new Uint8Array(await obj.arrayBuffer());
+    return json({
+      missing: false,
+      size: obj.size,
+      contentType: obj.httpMetadata?.contentType ?? null,
+      bytes: toBase64(bytes),
+    });
   }
   if (parts.length !== 4 || parts[1] !== 'boards') {
     return json({ ok: false, error: 'unknown test route' }, 404);

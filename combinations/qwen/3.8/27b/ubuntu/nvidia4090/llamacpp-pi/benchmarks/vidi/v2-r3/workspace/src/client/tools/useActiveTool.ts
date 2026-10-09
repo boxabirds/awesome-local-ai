@@ -66,6 +66,12 @@ export function useActiveTool(opts: {
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   onNewSticky(): void;
+  /**
+   * Story 12: the I shortcut (and the Image toolbar button) open the file
+   * picker directly — 'image' is an action, not an armable tool; after the
+   * picker the Select tool remains active.
+   */
+  onImagePicker?(): void;
 }): ActiveToolApi {
   const { canEdit, selection, snapshot, onNewSticky } = opts;
   const [tool, setToolState] = useState<ToolId>('select');
@@ -101,6 +107,8 @@ export function useActiveTool(opts: {
   canEditRef.current = canEdit;
   const onNewStickyRef = useRef(onNewSticky);
   onNewStickyRef.current = onNewSticky;
+  const onImagePickerRef = useRef(opts.onImagePicker);
+  onImagePickerRef.current = opts.onImagePicker;
   const editingRef = useRef<string | null>(null);
   editingRef.current = selection.editingId;
   useEffect(() => {
@@ -124,7 +132,14 @@ export function useActiveTool(opts: {
         onNewStickyRef.current();
         return;
       }
-      if (!ARMABLE.has(dest)) return; // image/comment: later stories
+      if (dest === 'image') {
+        // Story 12: I opens the file picker (then Select stays active).
+        if (!canEditRef.current) return;
+        e.preventDefault();
+        onImagePickerRef.current?.();
+        return;
+      }
+      if (!ARMABLE.has(dest)) return; // comment: later stories
       if (!canEditRef.current && dest !== 'select') return;
       e.preventDefault();
       setToolState(dest);
