@@ -22,7 +22,7 @@ import {
   createSticky,
   getStickyText,
   snapshot,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../src/shared/board-model';
 
 export interface FixtureResult {
@@ -31,7 +31,7 @@ export interface FixtureResult {
   perNoteUpdates: Uint8Array[];
   /** A single update holding the whole board (fast seeding). */
   fullUpdate: Uint8Array;
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   ids: string[];
 }
 

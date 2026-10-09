@@ -1,4 +1,4 @@
-# NOTES — Stories 4–5 (and the story 1–3 gap fill)
+# NOTES — Stories 4–7 (and the story 1–3 gap fill)
 
 ## 1. The repository was empty: stories 1 and 2 had to be gap-filled
 
@@ -263,3 +263,55 @@ alive and to carry no product-visible state in this story.
   with a within/over marker.
 - **No new ports.** Story 5 reuses the existing allocation (29040–29047);
   29050/29051 were used only for manual debugging during development.
+
+## 11. Story 7 — multi-select, move, resize, delete
+
+- **Generic `ObjectSnapshot` (base shape).** `board-model.snapshot()` now
+  returns `ObjectSnapshot[]` (`{ id, type, x, y, width?, height?, color?,
+  text?, z, createdAt }`) instead of sticky-only records. Group operations
+  (`objectBounds`, `objectsInRect`, `moveObjects`, `resizeObjects`,
+  `bringObjectsToFront`, `deleteObjects`) and the client selection/registry all
+  key off this, so a future object type needs no changes to the selection or
+  transform code — only a registry entry.
+- **Single-tier type registry.** `src/client/objects/registry.tsx` holds the
+  render map (`registerObjectType` / `getObjectType`) and the sticky is
+  registered at module load. `board-model` keeps a separate `knownTypes` set
+  (`registerKnownObjectType` / `isKnownObjectType`) so the CRDT layer can
+  ignore/validate types it does not own. The two are deliberately independent:
+  the registry is client-rendering, the known-types set is model-integrity.
+- **Selecting a just-created note is deferred.** A note written by
+  `createSticky` is not in the snapshot (hence not in the selection reducer's
+  `presentIds`) at the moment of the write, so a synchronous `selection.click`
+  / `startEdit` is rejected by the reducer (the reducer *must* reject unknown
+  ids — the TC-13/TC-15 unit tests assert that). Fix: `Board` records the new
+  id in `createdIdRef` and an effect (registered *after* `useSelection`'s
+  prune, so `presentIds` is current) selects + edits it once the id appears in
+  the snapshot. The select is retried across renders until it lands because the
+  prune's own dispatch is queued behind the effect that first observes the id.
+- **E2E marquee needs a `clearSelection` first.** The shift-marquee is
+  *additive* (unions the captured ids into the current selection). Creating a
+  note leaves it selected (see above), so an un-cleared leftover note would be
+  unioned into the marquee result and the "N selected" assertions would count
+  one extra. The e2e helper `clearSelection` clicks empty canvas
+  (`(100,750)` — `(1240,780)` is the `zoom-controls` widget, not canvas) before
+  each shift-marquee. This is a test-harness concern, not a product bug.
+- **`resizeRect` corner vs edge aspect lock.** Aspect-locked resize keeps the
+  ratio only for *corner* handles; edge handles change one dimension freely.
+  `clampScale` stops the group at `STICKY_MIN_SIZE_WORLD` so a shrink cannot
+  invert or zero the bounding box. (Story 6/7 stickies are aspect-locked, so a
+  group corner-resize keeps every note square.)
+- **jsdom `setPointerCapture` guard.** jsdom (v30) has no `setPointerCapture` /
+  `releasePointerCapture`. `BoardViewport` and the transform gesture guard both
+  calls with `typeof el.setPointerCapture === 'function'` (best-effort, in a
+  `try/catch`) in *product* code — not a test polyfill — so the same code runs
+  unchanged in Chromium and jsdom. Pointer up/move are listened on `window`
+  (the gesture target may move out from under the pointer).
+- **Transform gesture applies synchronously (not rAF-throttled).** The
+  gesture writes the new geometry straight to the doc on each pointer move.
+  This keeps jsdom component tests deterministic (no rAF flushing); the board is
+  small enough that per-move writes are fine, and the CRDT coalesces them.
+- **Firefox/WebKit not covered (environment limitation).** TC-32 says "also in
+  firefox and webkit"; this machine has Chromium only (offline), so the
+  Playwright config keeps a single chromium project. The multi-select flows are
+  DOM/pointer only (no browser-specific API), so porting is a config change.
+- **No new ports.** Story 7 reuses 29040 (e2e `webServer`) like story 3.

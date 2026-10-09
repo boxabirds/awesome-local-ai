@@ -1,8 +1,9 @@
 import type { ReactElement } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type * as Y from 'yjs';
 import {
   createSticky,
-  deleteObject,
+  deleteObjects,
 } from '../shared/board-model';
 import type { Point, Size } from './canvas/camera';
 import { screenToWorld } from './canvas/camera';
@@ -13,7 +14,12 @@ import { ZoomControls } from './canvas/ZoomControls';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
-import { StickyNote } from './objects/StickyNote';
+import { useMarquee, MarqueeRect } from './board/Marquee';
+import { useTransformGesture } from './board/useTransformGesture';
+import { useBoardKeys } from './board/useBoardKeys';
+import { SelectionOverlay } from './board/SelectionOverlay';
+import { SelectionBar } from './board/SelectionBar';
+import { getObjectType } from './objects/registry';
 import { SharePanel } from './share/SharePanel';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
@@ -34,14 +40,16 @@ declare global {
     __vidi6?: {
       setCamera(x: number, y: number, zoom: number): void;
       connectionState: string;
+      /** Test-only: the board's Y.Doc, for seeding/inspection. */
+      doc?: Y.Doc;
     };
   }
 }
 
 /**
- * The board itself (stories 1-4), keyed by board id. Story 5: rendered by
- * BoardPage only after the board's existence check passed; the page's Share
- * control lives here (share.share_panel).
+ * The board (stories 1-7), keyed by board id. Story 7: objects render through
+ * the type registry; selection, marquee, the transform gesture, the selection
+ * overlay/bar and the keyboard commands are all generic.
  */
 export function Board(props: { boardId: string }): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -59,9 +67,24 @@ export function Board(props: { boardId: string }): ReactElement {
   }, []);
 
   const cam = useCamera(size);
-  const { doc, notes, connectionState } = useBoardDoc(props.boardId);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection(notes);
+  const { doc, objects, connectionState } = useBoardDoc(props.boardId);
+  const selection = useSelection(objects);
   const editable = canEdit(connectionState);
+
+  // Marquee: Shift+drag on empty space adds fully-contained ids to the set.
+  const marquee = useMarquee(cam.camera, objects, (ids) => selection.setMany(ids, true));
+
+  // Generic transform gesture: group move + bounding-box resize.
+  const transform = useTransformGesture({
+    doc,
+    camera: cam.camera,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+  });
+
+  // Selection keyboard commands (select all, clear, nudge, delete, edit).
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
 
   // Test-only hooks (excluded from production builds).
   useEffect(() => {
@@ -69,8 +92,15 @@ export function Board(props: { boardId: string }): ReactElement {
     window.__vidi6 = {
       setCamera: (x, y, zoom) => cam.setCameraDirect({ x, y, zoom }),
       connectionState,
+      doc,
     };
-  }, [cam, connectionState]);
+  }, [cam, connectionState, doc]);
+
+  // The id of a note just created, pending select + edit. A brand-new note is
+  // not in the snapshot (hence not in the selection's present set) at the moment
+  // it is written, so selecting it synchronously would be rejected; we apply it
+  // once the note shows up in the snapshot instead.
+  const createdIdRef = useRef<string | null>(null);
 
   const createStickyAt = useCallback(
     (world: Point) => {
@@ -79,20 +109,39 @@ export function Board(props: { boardId: string }): ReactElement {
         x: world.x - STICKY_SIZE_WORLD / 2,
         y: world.y - STICKY_SIZE_WORLD / 2,
       });
-      if (id) {
-        select(id);
-        startEdit(id);
-      }
+      if (id) createdIdRef.current = id;
     },
-    [doc, select, startEdit, editable],
+    [doc, editable],
   );
+
+  // Select + edit the just-created note once it is present. Runs after
+  // useSelection's prune (registered earlier), so the present set is current;
+  // the select is retried across renders until it lands.
+  useEffect(() => {
+    const id = createdIdRef.current;
+    if (!id) return;
+    if (selection.ids.has(id)) {
+      createdIdRef.current = null; // select took effect
+      return;
+    }
+    if (!objects.some((o) => o.id === id)) return;
+    selection.click(id);
+    selection.startEdit(id);
+  }, [objects, selection]);
 
   const createStickyCenter = useCallback(() => {
     createStickyAt(screenToWorld(cam.camera, { x: size.width / 2, y: size.height / 2 }));
   }, [createStickyAt, cam.camera, size]);
 
-  // Keyboard: zoom shortcuts, Enter to edit, Delete/Backspace to delete the
-  // selected note (never while editing text).
+  const deleteSelection = useCallback(() => {
+    if (!editable) return; // load_failed: deletion is a no-op
+    if (selection.ids.size === 0) return;
+    deleteObjects(doc, [...selection.ids]);
+    selection.clear();
+  }, [doc, selection, editable]);
+
+  // Camera zoom shortcuts (kept from story 1); selection keys live in
+  // useBoardKeys.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
@@ -109,35 +158,21 @@ export function Board(props: { boardId: string }): ReactElement {
       if (mod && e.key === '0') {
         e.preventDefault();
         cam.reset();
-        return;
-      }
-      const target = e.target as HTMLElement | null;
-      const inField =
-        target !== null &&
-        (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable);
-      if (inField) return;
-      if (e.key === 'Enter' && selectedId !== null && editingId === null) {
-        e.preventDefault();
-        if (editable) startEdit(selectedId);
-        return;
-      }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId !== null && editingId === null) {
-        e.preventDefault();
-        if (!editable) return; // load_failed: deletion is a no-op
-        if (deleteObject(doc, selectedId)) select(null);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [cam, selectedId, editingId, doc, select, startEdit, editable]);
+  }, [cam]);
 
-  // A pointerdown outside the note being edited ends editing (unselected).
+  // A pointerdown outside the note being edited ends editing (selection kept).
+  const editingId = selection.editingId;
+  const endEdit = selection.endEdit;
   useEffect(() => {
     if (editingId === null) return;
     const onPointerDown = (e: PointerEvent) => {
       const el = document.querySelector(`[data-note-id="${CSS.escape(editingId)}"]`);
       if (el && el.contains(e.target as Node)) return;
-      endEdit('unselected');
+      endEdit();
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
@@ -158,22 +193,41 @@ export function Board(props: { boardId: string }): ReactElement {
         onEndPan={cam.endPan}
         onWheel={cam.wheel}
         onDblClickEmpty={(world: Point) => createStickyAt(world)}
-        onEmptyClick={() => select(null)}
+        onEmptyClick={() => selection.clear()}
+        onMarqueeStart={(screen) => marquee.begin(screen)}
+        onMarqueeMove={(screen) => marquee.move(screen)}
+        onMarqueeEnd={() => marquee.end()}
+        onMarqueeCancel={() => marquee.cancel()}
       >
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={cam.camera.zoom}
-            selected={note.id === selectedId}
-            editing={note.id === editingId}
-            editable={editable}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
-          />
-        ))}
+        {objects.map((o) => {
+          const spec = getObjectType(o.type);
+          if (!spec) return null; // unknown type: skip
+          const C = spec.Component;
+          return (
+            <C
+              key={o.id}
+              obj={o}
+              doc={doc}
+              zoom={cam.camera.zoom}
+              selected={selection.ids.has(o.id)}
+              editing={selection.editingId === o.id}
+              editable={editable}
+              onObjectPointerDown={transform.onObjectPointerDown}
+              onStartEdit={(id: string) => {
+                if (editable) selection.startEdit(id);
+              }}
+              onEndEdit={() => selection.endEdit()}
+            />
+          );
+        })}
+        <SelectionOverlay
+          ids={selection.ids}
+          snapshot={objects}
+          camera={cam.camera}
+          onHandlePointerDown={transform.onHandlePointerDown}
+        />
+        <SelectionBar ids={selection.ids} snapshot={objects} onDelete={deleteSelection} />
+        <MarqueeRect rect={marquee.rect} zoom={cam.camera.zoom} />
       </BoardViewport>
       <Toolbar onCreateSticky={createStickyCenter} disabled={!editable} />
       <ZoomControls

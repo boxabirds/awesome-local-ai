@@ -2,136 +2,86 @@ import type { ReactElement } from 'react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import {
-  bringToFront,
-  deleteObject,
+  deleteObjects,
   getStickyText,
-  moveObject,
   setStickyColor,
   type StickySnapshot,
 } from '../../shared/board-model';
 import {
-  DRAG_THRESHOLD_PX,
   STICKY_COLORS,
   STICKY_FONT_MAX_PX,
   STICKY_SIZE_WORLD,
   type StickyColor,
 } from '../../shared/config';
+import type { ObjectProps } from './registry';
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import { NoteToolbar } from './NoteToolbar';
 
 const PAD = 12;
-const TEXT_BOX = STICKY_SIZE_WORLD - PAD * 2;
-
-export interface StickyNoteProps {
-  note: StickySnapshot;
-  doc: Y.Doc;
-  zoom: number;
-  selected: boolean;
-  editing: boolean;
-  /**
-   * False while the board failed to load (load_failed): selection still works
-   * but every mutation (drag, edit, colour, delete) is a no-op.
-   */
-  editable: boolean;
-  onSelect(id: string | null): void;
-  onStartEdit(id: string): void;
-  onEndEdit(next: 'selected' | 'unselected'): void;
-}
 
 /**
- * A sticky note in world coordinates (the parent world layer is scaled).
- * Handles select (press without moving), drag to move (beyond the threshold,
- * divided by zoom so the grabbed point stays under the pointer), double-click
- * to edit, and the floating note toolbar. All mutations go through the
- * shared board model.
+ * The story 1 sticky note, now rendered through the story 7 object registry
+ * (sel.all_types). It reads width/height from the object (falling back to the
+ * default square size) and delegates all pointer interaction to the generic
+ * transform gesture via `onObjectPointerDown`. Selection, move, resize and
+ * delete are generic; this component only renders a sticky and its toolbar.
+ *
+ * Note: text editing implies selection; the floating NoteToolbar (colour +
+ * delete) is shown for the single selected sticky. Deleting clears the
+ * selection automatically through the selection `prune`.
  */
-export function StickyNote(props: StickyNoteProps): ReactElement {
-  const { note, doc, zoom, selected, editing, editable } = props;
-  const rootRef = useRef<HTMLDivElement>(null);
+export function StickyNote(props: ObjectProps): ReactElement {
+  const { obj, doc, zoom, selected, editing, editable } = props;
+  const note = obj as StickySnapshot & { id: string };
+  const id = obj.id;
+  const width = obj.width ?? STICKY_SIZE_WORLD;
+  const height = obj.height ?? STICKY_SIZE_WORLD;
+  const textBoxW = width - PAD * 2;
+  const textBoxH = height - PAD * 2;
+
   const measureRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(STICKY_FONT_MAX_PX);
   const [overflow, setOverflow] = useState(false);
-  const dragRef = useRef<{
-    startX: number;
-    startY: number;
-    noteX: number;
-    noteY: number;
-    mode: 'pressed' | 'dragging';
-  } | null>(null);
 
-  // Text auto-fit: measure the current text at candidate sizes.
+  // Text auto-fit: measure the current text at candidate sizes. Re-runs when
+  // the text or the box size changes (e.g. after a resize).
   useLayoutEffect(() => {
     const el = measureRef.current;
     if (!el) return;
     el.textContent = note.text;
-    const fit = fitFontSize(el, TEXT_BOX);
+    const fit = fitFontSize(el, textBoxH);
     setFontPx(fit.fontPx);
     setOverflow(fit.overflow);
-  }, [note.text]);
+  }, [note.text, textBoxW, textBoxH]);
 
-  const ytext = getStickyText(doc, note.id);
+  const ytext = getStickyText(doc, id);
 
   const onPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
     if (editing) return; // the textarea owns the pointer while editing
-    rootRef.current?.setPointerCapture(e.pointerId);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      noteX: note.x,
-      noteY: note.y,
-      mode: 'pressed',
-    };
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    const d = dragRef.current;
-    if (!d) return;
-    const dx = e.clientX - d.startX;
-    const dy = e.clientY - d.startY;
-    if (d.mode === 'pressed' && editable && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
-      d.mode = 'dragging';
-      bringToFront(doc, note.id);
-    }
-    if (d.mode === 'dragging') {
-      // A false return means the note was deleted meanwhile: end the drag.
-      if (!moveObject(doc, note.id, d.noteX + dx / zoom, d.noteY + dy / zoom)) {
-        dragRef.current = null;
-      }
-    }
-  };
-
-  const endDrag = (e: React.PointerEvent, becameSelection: boolean) => {
-    const d = dragRef.current;
-    dragRef.current = null;
-    try {
-      rootRef.current?.releasePointerCapture(e.pointerId);
-    } catch {
-      // capture may already be released
-    }
-    if (becameSelection && d) props.onSelect(note.id);
+    props.onObjectPointerDown(e, id);
   };
 
   const onDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!editable) return; // load_failed: text editing is a no-op
-    props.onStartEdit(note.id);
+    props.onStartEdit(id);
   };
 
   return (
     <div
-      ref={rootRef}
       role="group"
       aria-label="Sticky note"
-      data-note-id={note.id}
+      data-note-id={id}
+      data-object-id={id}
       {...(selected ? { 'data-selected': 'true' } : {})}
       style={{
         position: 'absolute',
-        left: note.x,
-        top: note.y,
-        width: STICKY_SIZE_WORLD,
-        height: STICKY_SIZE_WORLD,
+        left: obj.x,
+        top: obj.y,
+        width,
+        height,
         background: STICKY_COLORS[note.color] ?? STICKY_COLORS.yellow,
         borderRadius: 3,
         boxShadow: '0 2px 8px rgba(0,0,0,0.22)',
@@ -142,9 +92,6 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
         userSelect: 'none',
       }}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={(e) => endDrag(e, true)}
-      onPointerCancel={(e) => endDrag(e, true)}
       onDoubleClick={onDoubleClick}
     >
       <div
@@ -187,7 +134,7 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
           position: 'absolute',
           left: -99999,
           top: 0,
-          width: TEXT_BOX,
+          width: textBoxW,
           visibility: 'hidden',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
@@ -201,12 +148,11 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
         <NoteToolbar
           color={note.color}
           onColor={(c: StickyColor) => {
-            if (editable) setStickyColor(doc, note.id, c);
+            if (editable) setStickyColor(doc, id, c);
           }}
           onDelete={() => {
             if (!editable) return; // load_failed: deletion is a no-op
-            deleteObject(doc, note.id);
-            props.onSelect(null);
+            deleteObjects(doc, [id]);
           }}
         />
       )}

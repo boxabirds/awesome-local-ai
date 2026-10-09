@@ -24,19 +24,40 @@ export interface BoardViewportProps {
   onWheel(e: WheelInput): void;
   onDblClickEmpty(worldPoint: Point): void;
   onEmptyClick(): void;
+  /** Shift+drag marquee (screen-space points). */
+  onMarqueeStart(screen: Point): void;
+  onMarqueeMove(screen: Point): void;
+  onMarqueeEnd(): void;
+  onMarqueeCancel(): void;
   children?: ReactNode;
 }
 
+function capture(el: Element | null, pointerId: number): void {
+  try {
+    if (el && typeof el.setPointerCapture === 'function') el.setPointerCapture(pointerId);
+  } catch {
+    // capture is best-effort (jsdom lacks it)
+  }
+}
+function release(el: Element | null, pointerId: number): void {
+  try {
+    if (el && typeof el.releasePointerCapture === 'function') el.releasePointerCapture(pointerId);
+  } catch {
+    // pointer capture may already be released
+  }
+}
+
 /**
- * Input surface: dot grid + world layer (CSS-transformed). Drag on empty
- * space pans; double-click on empty space creates; a click without movement
- * on empty space clears the selection. Notes stopPropagation so the board
+ * Input surface: dot grid + world layer (CSS-transformed). Drag on empty space
+ * pans; Shift+drag on empty space marquee-selects; double-click on empty space
+ * creates; a click without movement on empty space clears the selection.
+ * Notes, resize handles and the selection bar stop propagation so the board
  * never pans or creates under them.
  */
 export function BoardViewport(props: BoardViewportProps): ReactElement {
   const { camera, size, children } = props;
   const rootRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ local: Point; shift: boolean } | null>(null);
 
   const handlersRef = useRef(props);
   handlersRef.current = props;
@@ -45,31 +66,46 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
     const rect = rootRef.current?.getBoundingClientRect();
     return { x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) };
   };
+  const toScreen = (e: { clientX: number; clientY: number }): Point => ({
+    x: e.clientX,
+    y: e.clientY,
+  });
 
   const onPointerDown = (e: ReactPointerEvent) => {
-    if (e.target !== rootRef.current) return; // notes stop propagation too
-    rootRef.current?.setPointerCapture(e.pointerId);
-    dragRef.current = toLocal(e);
-    handlersRef.current.onBeginPan(dragRef.current);
+    if (e.target !== rootRef.current) return; // notes / handles stop propagation too
+    capture(rootRef.current, e.pointerId);
+    const shift = e.shiftKey;
+    dragRef.current = { local: toLocal(e), shift };
+    if (shift) {
+      handlersRef.current.onMarqueeStart(toScreen(e));
+    } else {
+      handlersRef.current.onBeginPan(dragRef.current.local);
+    }
   };
 
   const onPointerMove = (e: ReactPointerEvent) => {
-    if (!dragRef.current) return;
-    handlersRef.current.onPanMove(toLocal(e));
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (drag.shift) {
+      handlersRef.current.onMarqueeMove(toScreen(e));
+    } else {
+      handlersRef.current.onPanMove(toLocal(e));
+    }
   };
 
   const finishDrag = (e: ReactPointerEvent, wasClick: boolean) => {
-    if (!dragRef.current) return;
-    const start = dragRef.current;
+    const drag = dragRef.current;
+    if (!drag) return;
     dragRef.current = null;
-    try {
-      rootRef.current?.releasePointerCapture(e.pointerId);
-    } catch {
-      // pointer capture may already be released
+    release(rootRef.current, e.pointerId);
+    if (drag.shift) {
+      if (wasClick) handlersRef.current.onMarqueeEnd();
+      else handlersRef.current.onMarqueeCancel();
+      return;
     }
     if (wasClick) {
       const now = toLocal(e);
-      if (Math.hypot(now.x - start.x, now.y - start.y) <= DRAG_THRESHOLD_PX) {
+      if (Math.hypot(now.x - drag.local.x, now.y - drag.local.y) <= DRAG_THRESHOLD_PX) {
         handlersRef.current.onEmptyClick();
       }
     }
@@ -78,6 +114,12 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
 
   const onPointerUp = (e: ReactPointerEvent) => finishDrag(e, true);
   const onPointerCancel = (e: ReactPointerEvent) => finishDrag(e, false);
+  const onLostPointerCapture = () => {
+    if (dragRef.current?.shift) {
+      dragRef.current = null;
+      handlersRef.current.onMarqueeCancel();
+    }
+  };
 
   const onDoubleClick = (e: ReactMouseEvent) => {
     if (e.target !== rootRef.current) return;
@@ -132,7 +174,6 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
         backgroundImage: 'radial-gradient(circle, #b8bcc4 1px, transparent 1.5px)',
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${bgX}px ${bgY}px`,
-        cursor: dragRef.current ? 'grabbing' : 'default',
         overflow: 'hidden',
         touchAction: 'none',
       }}
@@ -140,6 +181,7 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
+      onLostPointerCapture={onLostPointerCapture}
       onDoubleClick={onDoubleClick}
     >
       <div

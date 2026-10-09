@@ -3,7 +3,7 @@ import * as Y from 'yjs';
 import {
   initDoc,
   snapshot,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
@@ -12,10 +12,13 @@ import { connectBoard, type ConnectionState } from '../sync/connectBoard';
  * Re-renders on every document update (local or remote). When a boardId is
  * given, attaches the y-websocket provider for the live room and destroys it
  * on unmount or board change.
+ *
+ * Story 7 (sel.interaction): the snapshot is now a list of generic
+ * `ObjectSnapshot`s (any registered type), not just sticky notes.
  */
 export function useBoardDoc(boardId: string | null): {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  objects: readonly ObjectSnapshot[];
   connectionState: ConnectionState;
 } {
   const docRef = useRef<Y.Doc | null>(null);
@@ -26,12 +29,12 @@ export function useBoardDoc(boardId: string | null): {
   }
   const doc = docRef.current;
 
-  const [notes, setNotes] = useState<readonly StickySnapshot[]>(() => snapshot(doc));
+  const [objects, setObjects] = useState<readonly ObjectSnapshot[]>(() => snapshot(doc));
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
 
   useEffect(() => {
     const handler = () => {
-      setNotes(snapshot(doc));
+      setObjects(snapshot(doc));
     };
     doc.on('update', handler);
     return () => {
@@ -47,5 +50,5 @@ export function useBoardDoc(boardId: string | null): {
     };
   }, [doc, boardId]);
 
-  return { doc, notes, connectionState };
+  return { doc, objects, connectionState };
 }

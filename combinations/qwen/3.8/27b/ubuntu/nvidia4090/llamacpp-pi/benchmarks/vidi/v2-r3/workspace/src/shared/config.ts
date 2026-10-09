@@ -6,6 +6,7 @@
  * Story 3 — live collaboration
  * Story 4 — persistence
  * Story 5 — sharing a board by link
+ * Story 7 — multi-select, move, resize, delete
  */
 
 // Story 1
@@ -55,3 +56,10 @@ export const STORAGE_SCHEMA_VERSION = 1;
 export const CREATE_BUDGET_MS = 2000; // PRD share.create: click to board visible
 export const LINK_COPIED_MS = 2000; // "Link copied" confirmation duration
 export const BOARD_CHECK_RETRY_BASE_MS = 1000; // backoff doubles up to RECONNECT_MAX_BACKOFF_MS
+
+// Story 7
+export const HANDLE_SIZE_PX = 8; // resize handle size in screen pixels (any zoom)
+export const STICKY_MIN_SIZE_WORLD = 50; // sticky notes cannot be resized below this (board units)
+export const MAX_OBJECT_SIZE_WORLD = 20_000; // no object may be resized above this (board units)
+export const NUDGE_STEP_WORLD = 1; // arrow-key nudge (board units)
+export const NUDGE_LARGE_STEP_WORLD = 10; // Shift+arrow-key nudge (board units)

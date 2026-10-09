@@ -8,7 +8,7 @@ import {
   writeSyncStep1,
   writeUpdate,
 } from 'y-protocols/sync';
-import { initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '../../src/shared/board-model';
 import { decodeMessage, encodeFrame, MESSAGE_AWARENESS, MESSAGE_SYNC } from '../../src/shared/protocol';
 
 /** Base URL of the wrangler dev server started by the global setup. */
@@ -196,14 +196,15 @@ export class RoomClient {
     }
   }
 
-  notes(): readonly StickySnapshot[] {
+  notes(): readonly ObjectSnapshot[] {
     return snapshot(this.doc);
   }
 }
 
-export function sameNotes(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): boolean {
+export function sameNotes(a: readonly ObjectSnapshot[], b: readonly ObjectSnapshot[]): boolean {
   if (a.length !== b.length) return false;
-  const key = (n: StickySnapshot) => `${n.id}|${n.x}|${n.y}|${n.color}|${n.text}|${n.z}`;
+  const key = (n: ObjectSnapshot) =>
+    `${n.id}|${n.type}|${n.x}|${n.y}|${n.width ?? ''}|${n.height ?? ''}|${n.color ?? ''}|${n.text ?? ''}|${n.z}`;
   const sa = [...a].map(key).sort();
   const sb = [...b].map(key).sort();
   return sa.every((v, i) => v === sb[i]);

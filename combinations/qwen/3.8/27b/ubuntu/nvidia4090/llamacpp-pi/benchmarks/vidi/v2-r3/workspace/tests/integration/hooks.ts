@@ -1,14 +1,14 @@
-import type { StickySnapshot } from '../../src/shared/board-model';
+import type { ObjectSnapshot } from '../../src/shared/board-model';
 import { BASE } from './ws-client';
 
 /**
  * Client for the worker's /__test hook routes (story 4). All hook
  * operations run inside the board's Durable Object against real SQLite.
  */
-/** Mirror of the worker's LoadResult + the notes of the loaded doc. */
+/** Mirror of the worker's LoadResult + the objects of the loaded doc. */
 export interface StoreLoad {
   result: { ok: boolean; quarantined?: number; reason?: string; error?: string };
-  notes: StickySnapshot[];
+  notes: ObjectSnapshot[];
 }
 
 export interface StoreStatus {
