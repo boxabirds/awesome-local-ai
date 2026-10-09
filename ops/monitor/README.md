@@ -28,6 +28,14 @@ text matches the CLI's own words for it (`triage.USAGE_LIMIT`: "usage limit reac
 "You're out of extra usage", "Credit balance is too low", "spend limit reached", `billing_error`,
 `rate_limit_error`). The run's full output is kept in `ops/monitor-state/triage-last-output.txt`.
 
+## The backup
+
+The detector also reads `state/backups/status.json` in the private bench repository, written by `ops/backup/backup.py` after every
+run (override the path with `BENCH_BACKUP_STATUS`), and logs three facts, none of them urgent: `backup_stale` (a repository's last good
+backup is over 36 hours old, judged at each tick, so a job that stopped running shows too), `backup_failed` (the last run failed, with
+its error) and `backup_capacity` (under a month of room at the last week's growth, with the figures). The repositories are named
+"local" and "remote"; no host name or path is logged.
+
 ## Running it
 
     python3 ops/monitor/monitor.py --dry-run     # what a tick would log; writes nothing
