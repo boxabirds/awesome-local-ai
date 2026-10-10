@@ -606,3 +606,155 @@ body {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* ---- Story 10: shapes and connectors ---- */
+
+.tool-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  touch-action: none;
+}
+
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: grab;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.shape-object[data-selected="true"] {
+  outline: 2px solid #2563eb;
+}
+
+.shape-object:focus-visible {
+  outline: 2px solid #2563eb;
+}
+
+.shape-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shape-label {
+  position: absolute;
+  inset: 12%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  pointer-events: none;
+  user-select: none;
+}
+
+.shape-label-editor {
+  position: absolute;
+  inset: 8%;
+  box-sizing: border-box;
+  width: 84%;
+  height: 84%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: center;
+  resize: none;
+  outline: none;
+  color: #0f172a;
+  font-family: inherit;
+}
+
+.shape-preview {
+  position: absolute;
+  border: 2px dashed #1e88e5;
+  background: rgb(30 136 229 / 0.08);
+  pointer-events: none;
+}
+
+.connector-object {
+  position: absolute;
+  box-sizing: border-box;
+  touch-action: none;
+  pointer-events: none;
+}
+
+.connector-object[data-selected="true"] {
+  /* selection shows end handles (svg), no box outline for a line */
+}
+
+.connector-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+}
+
+.connector-object [data-testid="connector-hit"],
+.connector-object [data-testid="connector-handle-from"],
+.connector-object [data-testid="connector-handle-to"] {
+  pointer-events: all;
+}
+
+.connector-dot {
+  position: absolute;
+  width: calc(2 * 4px);
+  height: calc(2 * 4px);
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #1e88e5;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.connector-dot-highlighted {
+  background: #1e88e5;
+  transform: scale(1.4);
+}
+
+.connector-preview-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.shape-tool-button {
+  position: relative;
+}
+
+.shape-kind-menu {
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.15);
+  white-space: nowrap;
+}
+
+.shape-kind-option {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shape-kind-option[aria-pressed="true"] {
+  background: #dbeafe;
+  color: #1d4ed8;
+}

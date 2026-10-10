@@ -6,6 +6,9 @@ import {
   type StickyColor
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+// Runtime cycle with objects/connector.ts is safe: both sides only call into
+// each other from inside function bodies, never during module evaluation.
+import { collectConnectorBBoxes, detachConnectorsTo } from './objects/connector';
 
 // Origin tag for every local mutation. Story 8 uses it for undo and story 3
 // uses it to avoid echoing local changes back over the network.
@@ -255,6 +258,9 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = [...new Set(ids)].filter((id) => map.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Arrows attached to doomed objects detach to free points in this same
+    // transaction, so the delete is one update and one undo step (story 10).
+    detachConnectorsTo(doc, present);
     for (const id of present) map.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -313,8 +319,20 @@ function byZThenId(a: ObjectSnapshot, b: ObjectSnapshot): number {
 // group operations. Invalid objects are skipped (forward compatibility).
 export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects: ObjectSnapshot[] = [];
+  // Connectors store no geometry of their own (x/y/z of 0); their bounds are
+  // derived from the live endpoints so selection, marquee and undo all see
+  // the real arrow extent (story 10).
+  const connectorBoxes = collectConnectorBBoxes(doc);
   for (const [id, obj] of objectsMap(doc)) {
     const type = obj.get('type');
+    if (type === 'connector') {
+      const r = connectorBoxes.get(id);
+      if (r === undefined) continue; // invalid endpoints: invisible
+      const z = obj.get('z');
+      if (typeof z !== 'number' || !Number.isFinite(z)) continue;
+      objects.push({ id, type, x: r.x, y: r.y, z, width: r.width, height: r.height });
+      continue;
+    }
     const x = obj.get('x');
     const y = obj.get('y');
     const z = obj.get('z');

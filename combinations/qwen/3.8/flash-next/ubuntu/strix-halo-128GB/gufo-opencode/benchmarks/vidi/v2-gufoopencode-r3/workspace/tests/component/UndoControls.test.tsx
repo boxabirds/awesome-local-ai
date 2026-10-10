@@ -26,6 +26,7 @@ const selection: SelectionController = {
   toggle: vi.fn(),
   setMany: vi.fn(),
   clear: vi.fn(),
+  selectNew: vi.fn(),
   startEdit: vi.fn(),
   endEdit: vi.fn()
 };
@@ -55,6 +56,8 @@ function BindController({ controller }: { controller: UndoController }) {
       onCreateSticky={() => undefined}
       tool="select"
       onSelectTool={() => undefined}
+      shapeKind="rect"
+      onSelectShapeKind={() => undefined}
       undo={useUndo(controller, true)}
     />
   );
@@ -99,6 +102,8 @@ describe('undo.controls (buttons)', () => {
         onCreateSticky={() => undefined}
         tool="select"
         onSelectTool={() => undefined}
+                shapeKind="rect"
+                onSelectShapeKind={() => undefined}
         undo={{ canUndo: false, canRedo: false, undo: vi.fn(), redo: vi.fn() }}
       />
     );
@@ -116,6 +121,8 @@ describe('undo.controls (buttons)', () => {
         onCreateSticky={() => undefined}
         tool="select"
         onSelectTool={() => undefined}
+                shapeKind="rect"
+                onSelectShapeKind={() => undefined}
         undo={{ canUndo: true, canRedo: true, undo, redo }}
       />
     );

@@ -295,6 +295,7 @@ describe('sel.transform (gesture)', () => {
       toggle: vi.fn(),
       setMany: vi.fn(),
       clear: vi.fn(),
+      selectNew: vi.fn(),
       startEdit: vi.fn(),
       endEdit: vi.fn()
     } satisfies SelectionController;

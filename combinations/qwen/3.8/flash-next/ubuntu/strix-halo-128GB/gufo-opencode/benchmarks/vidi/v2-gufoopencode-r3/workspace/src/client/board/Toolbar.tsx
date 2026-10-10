@@ -1,23 +1,33 @@
 import type { JSX } from 'react';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS } from '../../shared/config';
-import type { Tool } from './useTool';
+import { DEFAULT_STICKY_COLOR, STICKY_COLORS, SHAPE_KINDS, type ShapeKind } from '../../shared/config';
+import type { ToolId } from '../tools/useActiveTool';
 import { UndoButtons } from './UndoButtons';
 import type { UndoState } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
-  tool: Tool;
-  onSelectTool(tool: Tool): void;
+  tool: ToolId;
+  onSelectTool(tool: ToolId): void;
+  shapeKind: ShapeKind;
+  onSelectShapeKind(kind: ShapeKind): void;
   // Disabled while the board cannot be loaded (load_failed), TC-23.
   disabled?: boolean;
   undo: UndoState;
 }
+
+const KIND_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond'
+};
 
 // Fixed left-side vertical toolbar.
 export function Toolbar({
   onCreateSticky,
   tool,
   onSelectTool,
+  shapeKind,
+  onSelectShapeKind,
   disabled = false,
   undo
 }: ToolbarProps): JSX.Element {
@@ -50,6 +60,50 @@ export function Toolbar({
       >
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path d="M3 4h14M10 4v13" fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </button>
+      <div className="shape-tool-button">
+        <button
+          type="button"
+          aria-label="Shape (S)"
+          aria-pressed={tool === 'shape'}
+          title="Shape – or press S, then drag on the board"
+          onClick={() => onSelectTool('shape')}
+          disabled={disabled}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <rect x="2.5" y="2.5" width="15" height="15" rx="1.5" fill="#fff" stroke="#0f172a" strokeWidth="1.5" />
+          </svg>
+        </button>
+        {tool === 'shape' && (
+          <div className="shape-kind-menu" role="group" aria-label="Shape kind">
+            {SHAPE_KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                className="shape-kind-option"
+                aria-label={KIND_LABELS[k]}
+                aria-pressed={k === shapeKind}
+                onClick={() => {
+                  onSelectShapeKind(k);
+                }}
+              >
+                {KIND_LABELS[k]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        aria-label="Connector (L)"
+        aria-pressed={tool === 'connector'}
+        title="Connector – or press L, then drag between objects"
+        onClick={() => onSelectTool('connector')}
+        disabled={disabled}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M3 17L15 5M15 5h-5M15 5v5" fill="none" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
       <button

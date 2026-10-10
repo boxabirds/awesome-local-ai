@@ -1,6 +1,8 @@
 import type * as Y from 'yjs';
 import { createSticky, getStickyText, snapshot, type StickySnapshot } from '../../shared/board-model';
 import { collectTextSnapshots, type TextSnapshot } from '../../shared/objects/text';
+import { collectConnectorViews, createConnector, type ConnectorView, type Endpoint } from '../../shared/objects/connector';
+import { collectShapeSnapshots, createShape, getShapeLabel, type ShapeSnap } from '../../shared/objects/shape';
 import type { StickyColor } from '../../shared/config';
 import type { SyncStatus } from '../sync/connectBoard';
 import type { Camera } from './camera';
@@ -11,6 +13,18 @@ declare global {
       setCamera(cam: Camera): void;
       getNotes(): readonly StickySnapshot[];
       getTexts(): readonly TextSnapshot[];
+      getShapes(): readonly ShapeSnap[];
+      getConnectors(): readonly ConnectorView[];
+      createShapeAt(opts: {
+        kind: 'rect' | 'ellipse' | 'diamond';
+        x: number;
+        y: number;
+        width?: number;
+        height?: number;
+        square?: boolean;
+        label?: string;
+      }): string | null;
+      createConnectorEnds(from: Endpoint, to: Endpoint): string | null;
       connectionState(): SyncStatus | 'offline';
       createNote(opts: { x: number; y: number; text?: string; color?: StickyColor }): string;
     };
@@ -30,6 +44,20 @@ export function installTestHooks(
     setCamera,
     getNotes: () => snapshot(doc),
     getTexts: () => collectTextSnapshots(doc),
+    getShapes: () => collectShapeSnapshots(doc),
+    getConnectors: () => collectConnectorViews(doc),
+    createShapeAt: ({ kind, x, y, width, height, square, label }) => {
+      const rect =
+        width !== undefined && height !== undefined
+          ? { x, y, width, height }
+          : null;
+      const id = createShape(doc, { kind, rect, at: { x, y }, square }, 'g_test');
+      if (id !== null && label !== undefined && label !== '') {
+        getShapeLabel(doc, id)?.insert(0, label);
+      }
+      return id;
+    },
+    createConnectorEnds: (from, to) => createConnector(doc, from, to, 'g_test'),
     connectionState: () => (connection === null ? 'offline' : connection.status()),
     // Scripted bulk creation for persistence specs: goes through the exact
     // same board-model mutation path as UI actions (local origin → sync →

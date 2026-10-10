@@ -411,3 +411,54 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
   identically at story 8 HEAD (`0ac096b`), so it is environmental, not a
   story 9 regression. Passes reliably alone and with `--workers=1`
   (full suite 43/43 green that way).
+
+## Story 10 decisions (shapes and connectors)
+- `resolveRect` contract nuance: a *provided* non-finite rect returns `null`
+  (caller contract error, no silent fallback); a `null` rect falls back to a
+  default square centred on `at`, and `at` non-finite also returns `null`.
+- `useActiveTool.ts` replaces `useTool.ts` (old file kept but unused):
+  `ACTIVATABLE` tools + `TOOL_SHORTCUTS` (v/n/t/s/l/p/i/c). 'n' is mapped but
+  never activated from keydown because `useBoardKeys` owns sticky creation;
+  Escape returns to Select; `toolCreated(id)` selects the new object and
+  returns to Select in one dispatch batch.
+- `useSelection` gained `selectNew` (same bypass-presence semantics as `edit`)
+  so create+select land in the same tick before the prune effect runs.
+- BoardPage `onToolCreated` wraps the select in `boundary()` calls so create
+  and select are one undo step (the create itself is the captured write).
+- Connectors store x/y/width/height as 0; `snapshotAll` overrides with the
+  bbox derived from `collectConnectorBBoxes` so selection/visibility math is
+  uniform. `hitTest` gained an optional `ctx { doc, zoom }` third argument
+  used only by the connector entry (proximity to the resolved polyline,
+  `CONNECTOR_HIT_TOLERANCE_PX / zoom`).
+- Releasing a handle over the object at the *other* end snaps back (no write)
+  rather than detaching: the target finder is run unfiltered at release and
+  compared against `otherObjectId` (ConnectorObject.tsx).
+- `board-model.ts` <-> `objects/connector.ts` is a deliberate circular import
+  (deleteObjects -> detachConnectorsTo): safe under ESM live bindings since
+  both sides only call inside function bodies.
+- Component test file is `tests/component/ShapeConnector.test.tsx` (design
+  suggested two files, `ShapeTool.test.tsx` + `Connector.test.tsx`; one file
+  with the same TC coverage was chosen to share mount helpers).
+- Fixture: `tests/fixtures/shapes-board.ts` builds the design's checkout-flow
+  board (4 labelled shapes: rect, diamond, ellipse, rect; 3 attached
+  connectors; 1 free-ended connector) with real model calls; smoke-tested in
+  `tests/unit/fixture-shapes.test.ts`.
+- TC-25 e2e drags B *fully* past A (centre beyond A's far side): with partial
+  overlap `nearestSide` keeps the original sides (the arrow still points at
+  the nearest edges), so a side switch only happens once B is entirely on the
+  other side.
+- TC-27 race is built with `page.routeWebSocket('**/api/rooms**')`: page→
+  server frames keep flowing, and after the initial sync every server→Dana
+  frame is buffered; Sam deletes B, Dana (blind) re-attaches her free end to
+  the vanished B, then the held frames are released. Asserts: arrow renders,
+  end resolves to a finite fallback / is detached, and zero `pageerror`s.
+  Playwright's route API uses `onMessage` on the server-side route (not
+  `onMessageFromServer`).
+- The in-editor `scrollHeight` wrap check was dropped for TC-24: the shared
+  `TextEditor` auto-grows its height, so wrapping is asserted on the committed
+  `.shape-label` (Range client-rects line count > 1) plus the centring
+  invariant before/after handle resize.
+- jsdom has no `setPointerCapture`; ShapeTool/ConnectorTool wrap it in
+  try/catch like BoardViewport already does.
+- Browser matrix unchanged: only Chromium binaries are available on this
+  machine, so the story-10 e2e (TC-23..27) run in Chromium.

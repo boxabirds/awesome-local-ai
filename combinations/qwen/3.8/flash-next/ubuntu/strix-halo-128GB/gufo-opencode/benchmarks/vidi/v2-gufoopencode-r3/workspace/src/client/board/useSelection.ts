@@ -17,6 +17,7 @@ export type SelectionAction =
   | { type: 'toggle'; id: string }
   | { type: 'setMany'; ids: readonly string[]; additive: boolean }
   | { type: 'clear' }
+  | { type: 'selectNew'; id: string }
   | { type: 'prune'; present: readonly string[] }
   | { type: 'edit'; id: string }
   | { type: 'endEdit'; next: EndEditNext };
@@ -69,6 +70,15 @@ export function selectionReducer(
         state.editingId !== null && !ids.has(state.editingId) ? null : state.editingId;
       return { ...state, ids, editingId };
     }
+    case 'selectNew': {
+      // Like `edit`, bypasses the presence check: dispatched in the same
+      // tick as createShape/createConnector, before the prune effect has
+      // seen the new id.
+      if (state.ids.size === 1 && state.ids.has(action.id) && state.editingId === null) {
+        return state;
+      }
+      return { ...state, ids: new Set([action.id]), editingId: null };
+    }
     case 'clear': {
       if (state.ids.size === 0 && state.editingId === null) return state;
       return { ...state, ids: new Set(), editingId: null };
@@ -109,6 +119,7 @@ export interface SelectionController {
   toggle(id: string): void;
   setMany(ids: readonly string[], additive: boolean): void;
   clear(): void;
+  selectNew(id: string): void;
   startEdit(id: string): void;
   endEdit(next: EndEditNext): void;
 }
@@ -134,6 +145,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): SelectionCont
     []
   );
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
+  const selectNew = useCallback((id: string) => dispatch({ type: 'selectNew', id }), []);
   const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
   const endEdit = useCallback((next: EndEditNext) => dispatch({ type: 'endEdit', next }), []);
 
@@ -145,9 +157,10 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): SelectionCont
       toggle,
       setMany,
       clear,
+      selectNew,
       startEdit,
       endEdit
     }),
-    [state.ids, state.editingId, click, toggle, setMany, clear, startEdit, endEdit]
+    [state.ids, state.editingId, click, toggle, setMany, clear, selectNew, startEdit, endEdit]
   );
 }

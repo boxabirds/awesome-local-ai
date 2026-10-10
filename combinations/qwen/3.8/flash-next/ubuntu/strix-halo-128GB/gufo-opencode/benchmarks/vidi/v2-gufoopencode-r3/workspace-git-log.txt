@@ -1,3 +1,47 @@
+commit b1638132fc4ebfd20a62949414a34a59f4a8f8ae
+agent  Sat Oct 10 19:27:58 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  51 ++++
+ PROGRESS.md                               |  18 +-
+ src/client/board/Toolbar.tsx              |  62 ++++-
+ src/client/board/useSelection.ts          |  15 +-
+ src/client/canvas/testHooks.ts            |  28 +++
+ src/client/index.css                      | 152 ++++++++++++
+ src/client/objects/ConnectorObject.tsx    | 238 +++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 143 +++++++++++
+ src/client/objects/registry.tsx           |  45 +++-
+ src/client/pages/BoardPage.tsx            |  75 +++++-
+ src/client/tools/ConnectorTool.tsx        | 183 ++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 129 ++++++++++
+ src/client/tools/ShapeToolbar.tsx         |  75 ++++++
+ src/client/tools/useActiveTool.ts         | 107 +++++++++
+ src/shared/board-model.ts                 |  18 ++
+ src/shared/config.ts                      |  25 ++
+ src/shared/geometry/connector-geometry.ts |  68 ++++++
+ src/shared/geometry/polyline.ts           |  23 ++
+ src/shared/objects/connector.ts           | 320 +++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 194 +++++++++++++++
+ tests/component/Selection.test.tsx        |   1 +
+ tests/component/ShapeConnector.test.tsx   | 381 ++++++++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx     |   7 +
+ tests/e2e/connectors.spec.ts              | 255 ++++++++++++++++++++
+ tests/e2e/shapes.spec.ts                  | 148 ++++++++++++
+ tests/fixtures/shapes-board.ts            |  73 ++++++
+ tests/unit/connector-model.test.ts        | 285 ++++++++++++++++++++++
+ tests/unit/fixture-shapes.test.ts         |  38 +++
+ tests/unit/shape-model.test.ts            | 177 ++++++++++++++
+ 29 files changed, 3316 insertions(+), 18 deletions(-)
+commit 8733c281d8048d6ecf0eb20eee26d31e5ba31df0
+vidi-agent  Sat Oct 10 18:18:57 2026 +0000
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit deeeb6fc6951da5f79cf522ae825e1079f8c33d7
 agent  Sat Oct 10 18:15:00 2026 +0000
 

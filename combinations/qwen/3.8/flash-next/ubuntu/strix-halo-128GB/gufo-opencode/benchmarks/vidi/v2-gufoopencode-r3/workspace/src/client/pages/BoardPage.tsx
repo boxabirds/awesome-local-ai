@@ -4,6 +4,7 @@ import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-
 import { isValidBoardId, newBoardId } from '../../shared/board-id';
 import { DEFAULT_TEXT_SIZE } from '../../shared/config';
 import { createText, getTextFields, setTextSize } from '../../shared/objects/text';
+import { getShapeFields, setShapeStyle } from '../../shared/objects/shape';
 import { checkBoard } from '../api';
 import { identity } from '../identity';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
@@ -14,7 +15,10 @@ import { createUndo } from '../board/undo';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { useSelection } from '../board/useSelection';
-import { useTool } from '../board/useTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ShapeToolbar } from '../tools/ShapeToolbar';
+import { useActiveTool } from '../tools/useActiveTool';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useUndo } from '../board/useUndo';
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -163,7 +167,21 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
     );
   }, [board.camera, createAtWorldPoint, viewport, editable]);
 
-  const { tool, setTool } = useTool(editable);
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: editable,
+    selection
+  });
+
+  // A tool-created object becomes the selection and the board returns to
+  // Select (tools.return_to_select); the undo step is bounded around it.
+  const onToolCreated = useCallback(
+    (id: string) => {
+      undoController.boundary();
+      toolCreated(id);
+      undoController.boundary();
+    },
+    [toolCreated, undoController]
+  );
 
   // Text tool click (story 9): create text whose top-left is the clicked
   // world point, start editing it immediately and hand the board back to the
@@ -214,10 +232,14 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
   const singleNote = singleId === null ? undefined : notes.find((n) => n.id === singleId);
   const singleText =
     singleId === null ? undefined : objects.find((o) => o.id === singleId && o.type === 'text');
+  const singleShape =
+    singleId === null ? undefined : objects.find((o) => o.id === singleId && o.type === 'shape');
   const showNoteToolbar =
     editable && singleNote !== undefined && editingId === null && !dragging;
   const showTextToolbar =
     editable && singleText !== undefined && editingId === null && !dragging;
+  const showShapeToolbar =
+    editable && singleShape !== undefined && editingId === null && !dragging;
   const showSelectionBar = editable && selectionCount >= 2 && !dragging;
 
   const deleteSelection = useCallback(() => {
@@ -266,10 +288,24 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
           })}
           {marquee.rect !== null && <MarqueeRect rect={marquee.rect} />}
         </BoardViewport>
+        {tool === 'shape' && editable && (
+          <ShapeTool
+            kind={shapeKind}
+            camera={camera}
+            doc={doc}
+            userId={identity.id}
+            onCreated={onToolCreated}
+          />
+        )}
+        {tool === 'connector' && editable && (
+          <ConnectorTool doc={doc} camera={camera} userId={identity.id} onCreated={onToolCreated} />
+        )}
         <Toolbar
           onCreateSticky={onCreateSticky}
           tool={tool}
           onSelectTool={setTool}
+          shapeKind={shapeKind}
+          onSelectShapeKind={setShapeKind}
           disabled={!editable}
           undo={undoState}
         />
@@ -342,6 +378,41 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
             />
           </div>
         )}
+        {showShapeToolbar &&
+          singleShape !== undefined &&
+          (() => {
+            const shapeFields = getShapeFields(doc, singleShape.id);
+            if (shapeFields === undefined) return null;
+            return (
+              <div
+                className="note-toolbar-anchor"
+                style={{
+                  left: worldToScreen(camera, {
+                    x: singleShape.x + (singleShape.width ?? 0) / 2,
+                    y: singleShape.y
+                  }).x,
+                  top:
+                    worldToScreen(camera, { x: singleShape.x, y: singleShape.y }).y -
+                    NOTE_TOOLBAR_GAP_PX
+                }}
+              >
+                <ShapeToolbar
+                  fill={shapeFields.fill}
+                  stroke={shapeFields.stroke}
+                  onFill={(fill) => {
+                    undoController.boundary();
+                    setShapeStyle(doc, singleShape.id, { fill });
+                    undoController.boundary();
+                  }}
+                  onStroke={(stroke) => {
+                    undoController.boundary();
+                    setShapeStyle(doc, singleShape.id, { stroke });
+                    undoController.boundary();
+                  }}
+                />
+              </div>
+            );
+          })()}
         {showSelectionBar && (
           <div className="selection-bar-anchor">
             <SelectionBar
