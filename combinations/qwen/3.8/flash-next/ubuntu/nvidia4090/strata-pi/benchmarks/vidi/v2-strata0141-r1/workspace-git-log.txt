@@ -1,3 +1,110 @@
+commit 4c9713f32fca48ea8db70feef5589e551d50004b
+agent  Sat Oct 10 17:22:27 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                           | 108 +++++++++
+ PROGRESS.md                        |  10 +-
+ src/client/board/BoardView.tsx     |  33 +++
+ src/client/objects/ShapeObject.tsx |  10 +
+ src/client/styles.css              |   4 +
+ src/client/testHooks.ts            |  46 +++-
+ tests/component/Connector.test.tsx |  80 +++++++
+ tests/component/ShapeTool.test.tsx |  21 +-
+ tests/e2e/connectors.spec.ts       | 474 +++++++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/connectors.ts    | 322 +++++++++++++++++++++++++
+ tests/e2e/helpers/shapes.ts        | 379 +++++++++++++++++++++++++++++
+ tests/e2e/shapes.spec.ts           | 197 +++++++++++++++
+ tests/fixtures/checkout-flow.ts    | 193 +++++++++++++++
+ 13 files changed, 1870 insertions(+), 7 deletions(-)
+commit a6e0dd077f6c5b42c8e3a5e98a9b10795e535c0e
+agent  Sat Oct 10 16:35:38 2026 +0100
+
+    story 10 (tasks 11-14): shape and connector tools, their objects, component tests
+
+
+ src/client/board/BoardView.tsx            |  51 ++++-
+ src/client/board/Toolbar.tsx              |  82 ++++++-
+ src/client/board/useTool.ts               |  51 -----
+ src/client/canvas/BoardViewport.tsx       |  35 ++-
+ src/client/objects/ConnectorObject.tsx    | 350 +++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 281 +++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       | 114 ++++++++++
+ src/client/objects/registry.tsx           |  95 +++++++-
+ src/client/styles.css                     | 239 ++++++++++++++++++++
+ src/client/tools/ConnectorTool.tsx        |  73 ++++++
+ src/client/tools/ShapeTool.tsx            |  45 ++++
+ src/client/tools/toolPointer.ts           |  56 +++++
+ src/client/tools/useActiveTool.ts         | 158 +++++++++++++
+ src/client/tools/useConnectorTool.ts      | 274 +++++++++++++++++++++++
+ src/client/tools/useShapeTool.ts          | 227 +++++++++++++++++++
+ src/shared/geometry/connector-geometry.ts |  53 ++++-
+ src/shared/objects/connector.ts           |  78 +++++--
+ tests/component/Connector.test.tsx        | 361 ++++++++++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 308 +++++++++++++++++++++++++
+ tests/component/harness.tsx               | 205 ++++++++++++++++-
+ tests/component/useActiveTool.test.tsx    | 265 ++++++++++++++++++++++
+ tests/unit/connector-model.test.ts        | 151 ++++++++-----
+ tests/unit/registry.test.ts               |   8 +-
+ 23 files changed, 3395 insertions(+), 165 deletions(-)
+commit 883b2c6b968cc91fc59895a506ba0b9bf8d46c23
+agent  Sat Oct 10 15:33:13 2026 +0100
+
+    story 10 (task 10 follow-up): connector render model derived in one pass (view deriver, resolved endpoint points)
+
+
+ src/shared/board-model.ts       | 64 ++++++++++++++++----------------------
+ src/shared/objects/connector.ts | 69 ++++++++++++++++++++++++++++++++---------
+ 2 files changed, 80 insertions(+), 53 deletions(-)
+commit a3bcab0f4d0a2c5cea0661518a663499686dffff
+agent  Sat Oct 10 15:19:46 2026 +0100
+
+    story 10 (tasks 8, 10): shape model, connector model, connector geometry, polyline maths, derived connector bounds and detach-on-delete
+
+
+ PROGRESS.md                               |   4 +-
+ src/shared/board-model.ts                 | 144 ++++++++-
+ src/shared/geometry/connector-geometry.ts | 117 +++++++-
+ src/shared/geometry/polyline.ts           |  42 ++-
+ src/shared/objects/connector.ts           | 472 +++++++++++++++++++++++++++---
+ tests/unit/polyline.test.ts               |   4 +-
+ 6 files changed, 720 insertions(+), 63 deletions(-)
+commit 43efce2beab448e1f97298a297b417af2b4a02a2
+agent  Sat Oct 10 15:14:13 2026 +0100
+
+    story 10 (task 9): connector model, connector geometry and polyline unit tests (TC-07-TC-14, TC-29), red against stubs
+
+
+ PROGRESS.md                               |   2 +-
+ src/shared/board-model.ts                 |   6 +
+ src/shared/geometry/connector-geometry.ts |  37 +++
+ src/shared/geometry/polyline.ts           |  11 +
+ src/shared/objects/connector.ts           |  92 ++++++
+ src/shared/objects/shape.ts               | 365 +++++++++++++++++++--
+ tests/unit/connector-model.test.ts        | 509 ++++++++++++++++++++++++++++++
+ tests/unit/polyline.test.ts               |  59 ++++
+ 8 files changed, 1057 insertions(+), 24 deletions(-)
+commit aad5b28b84579b5be66a7fe55ade9d511694fe37
+agent  Sat Oct 10 15:07:05 2026 +0100
+
+    story 10 (task 7): shape model unit tests (TC-01-TC-06), red against a not-implemented stub
+
+
+ PROGRESS.md                    |   2 +-
+ src/shared/board-model.ts      |   6 +
+ src/shared/config.ts           |  84 +++++++++++++
+ src/shared/objects/shape.ts    |  58 +++++++++
+ tests/unit/shape-model.test.ts | 270 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 419 insertions(+), 1 deletion(-)
+commit 010c6c0d2c2a4f060ffe718bfe1abde7d036952a
+vidi-agent  Sat Oct 10 14:43:50 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 174 ++++--------------------------------------------------------
+ 1 file changed, 10 insertions(+), 164 deletions(-)
 commit d0de712e8468f71aa1183d75b66058c81653ca69
 agent  Sat Oct 10 13:24:41 2026 +0100
 
