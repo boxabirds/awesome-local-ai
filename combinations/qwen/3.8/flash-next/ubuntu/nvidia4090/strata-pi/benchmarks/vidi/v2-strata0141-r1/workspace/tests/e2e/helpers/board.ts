@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../../src/shared/config';
+import { BOARD_PATH_PREFIX, GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../../src/shared/config';
 
 export { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT };
 
@@ -20,12 +20,27 @@ export const VIEWPORT_CENTRE: ScreenPoint = { x: VIEWPORT_WIDTH / 2, y: VIEWPORT
 
 /** GRID_SPACING_WORLD and UNBOUNDED_PAN_TESTED_EXTENT are re-exported from src/shared/config. */
 
-export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
+/** The board a page is on, read from its address. */
+export function boardIdOfPage(page: Page): string {
+  const url = new URL(page.url());
+  if (!url.pathname.startsWith(BOARD_PATH_PREFIX)) {
+    throw new Error(`page is not on a board: ${url.pathname}`);
+  }
+  return url.pathname.slice(BOARD_PATH_PREFIX.length);
+}
+
+/**
+ * Open a board. With no `boardId` the page starts its own board (the app turns
+ * `/` into `/b/<new address>`); with one it joins that board.
+ * Returns the board address the page ended up on.
+ */
+export async function openBoard(page: Page, options: { boardId?: string } = {}): Promise<string> {
+  await page.goto(options.boardId ? `${BOARD_PATH_PREFIX}${options.boardId}` : '/');
   await page.waitForSelector('[data-testid="board"]');
   await page.waitForSelector('[data-testid="world-layer"]');
   // Wait for the first camera render so measurements are stable.
   await markerPoint(page);
+  return boardIdOfPage(page);
 }
 
 /** Centre of a marker's crosshair bar = the exact screen position of its world point. */

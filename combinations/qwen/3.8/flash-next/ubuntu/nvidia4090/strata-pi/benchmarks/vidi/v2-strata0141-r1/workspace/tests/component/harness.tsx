@@ -9,15 +9,34 @@ import {
   snapshot,
   type StickySnapshot,
 } from '../../src/shared/board-model';
+import type { BoardProvider } from '../../src/client/sync/connectBoard';
 import type { Camera } from '../../src/client/canvas/camera';
 import type { StickyColor } from '../../src/shared/config';
 
+/** A board address for component runs: no room is contacted, but the address is real. */
+export const COMPONENT_BOARD_ID = 'componentboard00000000';
+
 /**
  * Render the full board. With a `doc`, the caller inspects the exact Y.Doc the
- * UI writes to; without one the board creates its own.
+ * UI writes to; without one the board creates its own. Component runs never
+ * open a socket (`connect: false`): the room is covered by the integration suite.
  */
-export function renderBoard(options: { doc?: Y.Doc } = {}) {
-  return render(<App doc={options.doc} />);
+export function renderBoard(
+  options: {
+    doc?: Y.Doc;
+    boardId?: string;
+    connect?: boolean;
+    providerFactory?: (url: string, boardId: string, doc: Y.Doc) => BoardProvider;
+  } = {},
+) {
+  return render(
+    <App
+      doc={options.doc}
+      boardId={options.boardId ?? COMPONENT_BOARD_ID}
+      connect={options.connect ?? false}
+      providerFactory={options.providerFactory}
+    />,
+  );
 }
 
 /** Let the requestAnimationFrame-batched camera update land. */

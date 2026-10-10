@@ -17,6 +17,8 @@ export interface Vidi6TestHooks {
   notes(): StickySnapshot[];
   /** Put a note on the board through the model, for test setup. */
   createNote(params: TestStickyParams): string;
+  /** The connection state the status badge is rendering (story 3). */
+  connectionState(): string;
 }
 
 declare global {
@@ -40,6 +42,7 @@ export function registerCameraApi(api: CameraApi | null): void {
 export interface BoardApi {
   notes: () => StickySnapshot[];
   createNote: (params: TestStickyParams) => string;
+  connectionState: () => string;
 }
 
 let boardApi: BoardApi | null = null;
@@ -59,5 +62,6 @@ export function installTestHooks(): void {
     getCamera: () => cameraApi?.get() ?? null,
     notes: () => boardApi?.notes() ?? [],
     createNote: (params) => boardApi?.createNote(params) ?? '',
+    connectionState: () => boardApi?.connectionState() ?? 'connecting',
   };
 }

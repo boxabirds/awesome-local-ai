@@ -8,6 +8,7 @@ import {
 } from '../../src/shared/config';
 import { LOCAL_ORIGIN } from '../../src/shared/board-model';
 import {
+  applyTextDelta,
   applyTextDiff,
   clampToLimit,
   counterVisible,
@@ -307,5 +308,97 @@ describe('sticky.text - font fit', () => {
     expect(fit).toEqual(expectedFit(MULTI_LINE_TEXT.length, box));
     expect(fit.fontPx).toBeGreaterThanOrEqual(STICKY_FONT_MIN_PX);
     expect(fit.fontPx).toBeLessThanOrEqual(STICKY_FONT_MAX_PX);
+  });
+});
+
+/**
+ * Story 3 (`live.propagate`, `sticky.text`): text written by two people at the
+ * same time must lose nothing. `applyTextDelta` writes only what the writer
+ * changed, never the whole value they remember.
+ */
+describe('applyTextDelta (live typing, no lost update)', () => {
+  const REMOTE = Symbol('remote');
+
+  it('writes only the writer\'s change, leaving text that arrived in between', () => {
+    const doc = new Y.Doc();
+    const ytext = doc.getText('text');
+    ytext.insert(0, 'ship ready');
+
+    // The writer was looking at "ship" and typed "ping"; someone else had
+    // already added " ready", which this editor had not seen yet.
+    applyTextDelta(ytext, 'ship', 'shipping', LOCAL_ORIGIN);
+
+    expect(ytext.toString()).toContain('ready');
+    expect(ytext.toString()).toContain('shipping');
+    expect(ytext.toString()).toBe('shipping ready');
+  });
+
+  it('compared with applyTextDiff, which would have overwritten the other text', () => {
+    const doc = new Y.Doc();
+    doc.getText('text').insert(0, 'ship ready');
+    // The same writer using the whole-value diff: "shipping" replaces the middle.
+    applyTextDiff(doc.getText('text'), 'shipping', LOCAL_ORIGIN);
+    expect(doc.getText('text').toString()).toBe('shipping');
+    expect(doc.getText('text').toString()).not.toContain('ready');
+  });
+
+  it('deleting a character leaves characters other people added elsewhere', () => {
+    const doc = new Y.Doc();
+    const ytext = doc.getText('text');
+    ytext.insert(0, 'ab');
+
+    // "!!" arrived from elsewhere after the writer's copy was taken.
+    ytext.insert(2, '!!');
+    applyTextDelta(ytext, 'ab', 'a', LOCAL_ORIGIN);
+
+    expect(ytext.toString()).toBe('a!!');
+  });
+
+  it('two people typing into one note end up identical, with every character', () => {
+    const docA = new Y.Doc();
+    const docB = new Y.Doc();
+    docA.getText('text').insert(0, 'go ');
+    Y.applyUpdate(docB, Y.encodeStateAsUpdate(docA));
+
+    // Each document forwards what its own writer produced, as a server would.
+    docA.on('update', (update, origin) => {
+      if (origin === LOCAL_ORIGIN) {
+        Y.applyUpdate(docB, update, REMOTE);
+      }
+    });
+    docB.on('update', (update, origin) => {
+      if (origin === LOCAL_ORIGIN) {
+        Y.applyUpdate(docA, update, REMOTE);
+      }
+    });
+
+    const charsA = 'alex';
+    const charsB = 'sam';
+    let mirrorA = docA.getText('text').toString();
+    let mirrorB = docB.getText('text').toString();
+
+    const typeOne = (doc: Y.Doc, mirror: string, char: string): string => {
+      applyTextDelta(doc.getText('text'), mirror, `${mirror}${char}`, LOCAL_ORIGIN);
+      // What the editor shows next is what the document now holds.
+      return doc.getText('text').toString();
+    };
+
+    for (let index = 0; index < Math.max(charsA.length, charsB.length); index += 1) {
+      const charA = charsA[index];
+      const charB = charsB[index];
+      if (charA !== undefined) {
+        mirrorA = typeOne(docA, mirrorA, charA);
+      }
+      if (charB !== undefined) {
+        mirrorB = typeOne(docB, mirrorB, charB);
+      }
+    }
+
+    const textA = docA.getText('text').toString();
+    const textB = docB.getText('text').toString();
+    expect(textB).toBe(textA);
+    expect(textA.startsWith('go ')).toBe(true);
+    // Nothing either person typed is missing, in any order.
+    expect([...textA.slice(3)].sort()).toEqual([...charsA, ...charsB].sort());
   });
 });

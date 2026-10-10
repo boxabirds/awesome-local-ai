@@ -319,3 +319,41 @@ body {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* --- Story 3: connection status badge (top centre) ----------------------- */
+
+.connection-status {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-height: 20px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  /* The badge never covers a note or a control. */
+  z-index: 5;
+}
+
+.connection-status--connecting {
+  color: #1f2933;
+  background: rgb(226 232 240 / 92%);
+}
+
+.connection-status--reconnecting {
+  color: #7c2d12;
+  background: rgb(254 215 170 / 95%);
+}
+
+.connection-status--confirmed {
+  color: #065f46;
+  background: rgb(167 243 208 / 95%);
+}
+
+/* "connected" has nothing to report. */
+.connection-status--connected {
+  color: transparent;
+  background: transparent;
+}

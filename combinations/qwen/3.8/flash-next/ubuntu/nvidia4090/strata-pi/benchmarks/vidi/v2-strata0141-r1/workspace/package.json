@@ -1,37 +1,58 @@
 {
   "name": "vidi6",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24.13"
+  },
   "scripts": {
-    "dev": "vite --port 24066 --strictPort",
+    "dev": "concurrently -n worker,client -c cyan,magenta \"npm:dev:worker\" \"npm:dev:client\"",
+    "dev:worker": "wrangler dev --ip 127.0.0.1 --port 24064",
+    "dev:client": "vite",
+    "start": "npm run dev",
     "build": "vite build",
     "build:test": "vite build --mode test",
-    "typecheck": "tsc --noEmit",
-    "preview": "wrangler dev --ip 127.0.0.1 --port 24064 --inspector-port 24065 --show-interactive-dev-session=false",
+    "preview": "vite preview",
+    "typecheck": "npm run typecheck:app && npm run typecheck:worker",
+    "typecheck:app": "tsc -p tsconfig.json --noEmit",
+    "typecheck:worker": "tsc -p tsconfig.worker.json --noEmit",
+    "test": "vitest run --project unit --project component",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "playwright test",
-    "pretest:e2e": "node scripts/prepare-e2e.mjs"
+    "pretest:integration": "npm run build:test",
+    "test:integration": "vitest run --project integration",
+    "pretest:e2e": "node scripts/prepare-e2e.mjs",
+    "test:e2e": "playwright test --grep-invert @nightly",
+    "pretest:e2e:nightly": "node scripts/prepare-e2e.mjs",
+    "test:e2e:nightly": "playwright test --grep @nightly"
   },
   "dependencies": {
+    "lib0": "^0.2.119",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.0",
+    "@cloudflare/vitest-plugin": "^1.4.0",
+    "@cloudflare/workers-types": "^5.20261009.1",
+    "@playwright/test": "^1.61.1",
     "@sparticuz/chromium": "^153.0.0",
-    "@testing-library/react": "^16.3.3",
+    "@tailwindcss/vite": "^4.3.2",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.7",
-    "@types/node": "^26.6.5",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.2",
-    "jsdom": "^30.1.2",
+    "@vitejs/plugin-react": "^6.0.3",
+    "concurrently": "^10.0.3",
+    "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.3",
-    "wrangler": "^4.149.0"
+    "wrangler": "4.149.0"
   }
 }

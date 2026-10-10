@@ -2,13 +2,20 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_PADDING_WORLD, STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { applyTextDelta, clampToLimit, counterVisible } from './StickyText';
 
 /**
  * The textarea that edits one sticky note's `sticky.text` (anchor `sticky.text`).
  *
- * Every input event writes the minimal diff to Y.Text immediately, so finishing
- * editing performs no additional write and nothing typed is lost.
+ * Every input event writes the change to Y.Text immediately, so finishing editing
+ * performs no additional write and nothing typed is lost.
+ *
+ * What is written is the difference between the text the person was looking at
+ * (`mirrorRef`) and what they changed it to - never the whole value. Someone
+ * else's typing arrives into the same note while this editor is open; writing the
+ * local value back wholesale would overwrite it (story 3, TC-23). After each
+ * write the mirror is re-read from the document, so this editor always shows the
+ * board's text, including other people's characters.
  */
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -21,6 +28,8 @@ export interface StickyTextEditorProps {
 export function StickyTextEditor(props: StickyTextEditorProps) {
   const { ytext, fontPx, background, onEnd } = props;
   const [value, setValue] = useState(() => ytext.toString());
+  /** The text this editor last showed; the base for the next local edit. */
+  const mirrorRef = useRef(ytext.toString());
 
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
@@ -62,7 +71,9 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
       if (transaction.origin === LOCAL_ORIGIN) {
         return;
       }
-      setValue(ytext.toString());
+      const remote = ytext.toString();
+      mirrorRef.current = remote;
+      setValue(remote);
     };
     ytext.observe(observer);
     return () => ytext.unobserve(observer);
@@ -73,10 +84,11 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
     if (kept.length !== next.length) {
       caretRef.current = kept.length; // caret to the end of the kept text
     }
-    if (kept !== value) {
-      setValue(kept);
-    }
-    applyTextDiff(ytext, kept, LOCAL_ORIGIN);
+    applyTextDelta(ytext, mirrorRef.current, kept, LOCAL_ORIGIN);
+    // The document is the board's truth: it can hold other people's typing too.
+    const current = ytext.toString();
+    mirrorRef.current = current;
+    setValue(current);
   };
 
   const handleInput = (event: React.FormEvent<HTMLTextAreaElement>) => {
@@ -106,7 +118,9 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
   const handleBlur = () => {
     const el = ref.current;
     if (el && !composingRef.current) {
-      applyTextDiff(ytext, clampToLimit(el.value), LOCAL_ORIGIN); // defensive flush
+      // Defensive flush: anything still unapplied from this editor only.
+      applyTextDelta(ytext, mirrorRef.current, clampToLimit(el.value), LOCAL_ORIGIN);
+      mirrorRef.current = ytext.toString();
     }
   };
 

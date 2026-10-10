@@ -1,24 +1,51 @@
-import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import {
+  connectBoard,
+  type BoardProvider,
+  type ConnectionState,
+} from '../sync/connectBoard';
 
 /**
- * The board document and its render model.
+ * The board document, its render model, and its live connection.
  *
- * One `Y.Doc` per mounted board (in this story it lives only in memory; story 3
- * attaches a provider to this same doc and story 4 persists it). `snapshot()` is
- * memoised and recomputed only when the document actually changes, and it is
- * exposed through `useSyncExternalStore` so React renders a consistent,
- * immutable view.
+ * One `Y.Doc` per mounted board. Story 3 attaches the board's room to this same
+ * document: local edits go out through the provider and other people's edits
+ * come back into the same document, which is what re-renders the board.
+ *
+ * `snapshot()` is memoised and recomputed only when the document actually
+ * changes, and it is exposed through `useSyncExternalStore` so React renders a
+ * consistent, immutable view.
  */
+export interface BoardDocOptions {
+  /** A document to use instead of creating one (component tests). */
+  doc?: Y.Doc;
+  /** Which board this document is a copy of. */
+  boardId: string;
+  /** False keeps the connection away (component tests run without a server). */
+  connect?: boolean;
+  /**
+   * The provider to reach the room with. Defaults to `y-websocket`; tests pass a
+   * fake so a board can be driven through every connection state.
+   */
+  providerFactory?: (url: string, boardId: string, doc: Y.Doc) => BoardProvider;
+}
+
 export interface BoardDoc {
   readonly doc: Y.Doc;
   readonly notes: readonly StickySnapshot[];
+  readonly connectionState: ConnectionState;
 }
 
 const EMPTY: readonly StickySnapshot[] = Object.freeze([] as StickySnapshot[]);
 
-export function useBoardDoc(providedDoc?: Y.Doc): BoardDoc {
+export function useBoardDoc({
+  doc: providedDoc,
+  boardId,
+  connect = true,
+  providerFactory,
+}: BoardDocOptions): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = providedDoc ?? new Y.Doc();
@@ -26,6 +53,27 @@ export function useBoardDoc(providedDoc?: Y.Doc): BoardDoc {
     docRef.current = doc;
   }
   const doc = docRef.current;
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    connect ? 'connecting' : 'connected',
+  );
+
+  // The room connection belongs to this document's lifetime: it is opened when
+  // the board mounts and destroyed when it unmounts, so a board that is no
+  // longer on screen keeps no socket open and makes no reconnection attempts.
+  useEffect(() => {
+    if (!connect) {
+      setConnectionState('connected');
+      return;
+    }
+    const connection = connectBoard(doc, boardId, {
+      onState: setConnectionState,
+      provider: providerFactory,
+    });
+    return () => {
+      connection.destroy();
+    };
+  }, [boardId, connect, doc, providerFactory]);
 
   // `null` means "dirty": the next read recomputes the snapshot.
   const cacheRef = useRef<readonly StickySnapshot[] | null>(null);
@@ -56,5 +104,5 @@ export function useBoardDoc(providedDoc?: Y.Doc): BoardDoc {
   }, [doc]);
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
-  return { doc, notes };
+  return { doc, notes, connectionState };
 }

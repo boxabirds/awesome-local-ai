@@ -1,3 +1,56 @@
+commit 4de1927c344a82312c967fb9b5acbc6ecfda879d
+agent  Sat Oct 10 00:54:16 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ PROGRESS.md                               |   49 +-
+ package-lock.json                         | 1218 ++++++++++++++++++++++++++---
+ package.json                              |   45 +-
+ src/client/App.tsx                        |   36 +-
+ src/client/board/boardRoute.ts            |   37 +
+ src/client/board/useBoardDoc.ts           |   66 +-
+ src/client/main.tsx                       |    7 +-
+ src/client/objects/StickyText.ts          |   43 +
+ src/client/objects/StickyTextEditor.tsx   |   32 +-
+ src/client/styles.css                     |   38 +
+ src/client/sync/ConnectionStatus.tsx      |   39 +
+ src/client/sync/connectBoard.ts           |  170 ++++
+ src/client/testHooks.ts                   |    4 +
+ src/shared/board-id.ts                    |   52 ++
+ src/shared/board-model.ts                 |    7 +-
+ src/shared/config.ts                      |   43 +
+ src/shared/protocol.ts                    |  108 +++
+ src/worker/board-room.ts                  |  212 +++++
+ src/worker/index.ts                       |   55 ++
+ tests/component/ConnectionStatus.test.tsx |  243 ++++++
+ tests/component/harness.tsx               |   25 +-
+ tests/e2e/helpers/board.ts                |   21 +-
+ tests/e2e/helpers/live.ts                 |  170 ++++
+ tests/e2e/live-collaboration.spec.ts      |  415 ++++++++++
+ tests/e2e/live-nightly.spec.ts            |  343 ++++++++
+ tests/integration/board-room.test.ts      |  437 +++++++++++
+ tests/integration/helpers/room.ts         |  432 ++++++++++
+ tests/integration/worker-entry.test.ts    |  145 ++++
+ tests/unit/board-id.test.ts               |   64 ++
+ tests/unit/protocol.test.ts               |  122 +++
+ tests/unit/room-url.test.ts               |   43 +
+ tests/unit/sticky-text.test.ts            |   93 +++
+ tsconfig.json                             |    3 +-
+ tsconfig.worker.json                      |   20 +
+ vite.config.ts                            |   16 +
+ vitest.config.ts                          |    3 +
+ vitest.integration.config.ts              |   26 +
+ wrangler.jsonc                            |   23 +-
+ 38 files changed, 4740 insertions(+), 165 deletions(-)
+commit 2bfd84ba0fe26148709b34f5e1b72b67ee105a1e
+vidi-agent  Fri Oct 9 22:51:43 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit d18e324ed5f6be585c121343f3583038a5de0c9b
 agent  Fri Oct 9 22:50:55 2026 +0100
 

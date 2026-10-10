@@ -73,3 +73,46 @@ export const STICKY_COLOR_NAMES = Object.keys(STICKY_COLORS) as StickyColor[];
 export function stickyColorLabel(color: StickyColor): string {
   return `${color.charAt(0).toUpperCase()}${color.slice(1)} colour`;
 }
+
+/* ---------------------------------------------------------------------------
+ * Story 3: live collaboration. Every live setting lives here.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Soft simultaneous-editor capacity (anchor `live.capacity`).
+ *
+ * It is a design and test target only: nothing in the product counts
+ * participants or turns a 6th person away (`live.over_capacity`). Tests read
+ * this setting instead of a hard-coded number.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** A change must be visible on every other screen within this many ms. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Upper bound of the y-websocket exponential reconnect backoff. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long the green "Connected" confirmation stays after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** The outage length the catch-up requirement is verified with. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/**
+ * Functional wait used by every e2e test in every story: wall-clock latency is
+ * measured and logged against LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted,
+ * because the model, the browsers and the server share one machine.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+/**
+ * Nightly only (TC-29): how long two boards must sit idle, connected, with no
+ * user activity. Longer than the protocol's own keep-alive window, so a
+ * connection that only survives because someone is typing would fail.
+ */
+export const IDLE_STABILITY_TEST_MS = 45_000;
+/** Nightly only (TC-30): how long the capacity soak keeps editing. */
+export const CAPACITY_SOAK_MS = 60_000;
+/**
+ * Every live-board request goes under this path prefix, with the board address
+ * after it: the Worker routes it to that board's room, the browser opens it as
+ * a WebSocket.
+ */
+export const ROOM_ROUTE_PREFIX = '/api/rooms/';
+/** A board someone is on is addressed as `/b/<boardId>`. */
+export const BOARD_PATH_PREFIX = '/b/';

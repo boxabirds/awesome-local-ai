@@ -23,6 +23,9 @@ export default defineConfig({
           include: ['tests/component/**/*.test.tsx'],
         },
       },
+      // Worker + Durable Object integration tests run inside workerd with their
+      // own config (they cannot share the browser/node resolve conditions).
+      './vitest.integration.config.ts',
     ],
   },
 });

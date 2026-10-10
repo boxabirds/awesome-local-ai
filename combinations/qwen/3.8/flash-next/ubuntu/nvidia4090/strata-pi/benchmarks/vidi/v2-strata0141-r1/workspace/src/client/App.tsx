@@ -6,6 +6,8 @@ import { BoardViewport, viewportCentre, type BoardSurface } from './canvas/Board
 import { screenToWorld } from './canvas/camera';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { BoardProvider } from './sync/connectBoard';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 
@@ -14,11 +16,33 @@ import { StickyNote } from './objects/StickyNote';
  * story 2. The Y.Doc, the selection and the toolbars are wired here; every
  * mutation goes through `src/shared/board-model.ts`.
  *
- * `doc` is injectable so component tests can inspect the exact same document
- * the UI writes to.
+ * `doc` is injectable so component tests can inspect the exact same document the
+ * UI writes to, and `connect` can be turned off so a component test never opens
+ * a socket. Story 3 adds the live connection and its status badge.
  */
-export function App({ doc: providedDoc }: { doc?: Y.Doc } = {}) {
-  const { doc, notes } = useBoardDoc(providedDoc);
+export interface AppProps {
+  /** A document to render instead of creating one (component tests). */
+  doc?: Y.Doc;
+  /** The board this page is on. */
+  boardId: string;
+  /** False keeps the room connection away (component tests). */
+  connect?: boolean;
+  /** A fake room connection, for UI-component tests. */
+  providerFactory?: (url: string, boardId: string, doc: Y.Doc) => BoardProvider;
+}
+
+export function App({
+  doc: providedDoc,
+  boardId,
+  connect = true,
+  providerFactory,
+}: AppProps) {
+  const { doc, notes, connectionState } = useBoardDoc({
+    doc: providedDoc,
+    boardId,
+    connect,
+    providerFactory,
+  });
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const [surface, setSurface] = useState<BoardSurface | null>(null);
 
@@ -49,9 +73,10 @@ export function App({ doc: providedDoc }: { doc?: Y.Doc } = {}) {
     registerBoardApi({
       notes: () => [...snapshot(doc)],
       createNote: (params) => createSticky(doc, params.at, params.color),
+      connectionState: () => connectionState,
     });
     return () => registerBoardApi(null);
-  }, [doc]);
+  }, [doc, connectionState]);
 
   // A selected or edited note that no longer exists (deleted elsewhere).
   useEffect(() => {
@@ -120,6 +145,7 @@ export function App({ doc: providedDoc }: { doc?: Y.Doc } = {}) {
         ))}
       </BoardViewport>
       <Toolbar onCreateSticky={createAtViewportCentre} />
+      <ConnectionStatus state={connectionState} />
     </main>
   );
 }

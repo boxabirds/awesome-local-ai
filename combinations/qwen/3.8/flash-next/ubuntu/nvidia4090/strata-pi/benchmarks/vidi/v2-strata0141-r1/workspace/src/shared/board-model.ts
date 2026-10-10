@@ -58,9 +58,14 @@ const objectMapOf = (doc: Y.Doc): Y.Map<unknown> => doc.getMap<unknown>('objects
 const asObjectMap = (value: unknown): Y.Map<unknown> | undefined =>
   value instanceof Y.Map ? value : undefined;
 
+/** WebCrypto when this environment has it. */
+function webCrypto(): Crypto | undefined {
+  return (globalThis as { crypto?: Crypto }).crypto;
+}
+
 /** Ids are UUIDs so concurrent clients cannot collide (story 3). */
 function randomId(): string {
-  const crypto = globalThis.crypto;
+  const crypto = webCrypto();
   if (crypto && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }

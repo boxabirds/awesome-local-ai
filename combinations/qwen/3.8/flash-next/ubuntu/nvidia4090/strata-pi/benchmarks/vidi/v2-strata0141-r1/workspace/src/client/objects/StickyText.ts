@@ -107,6 +107,49 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
   }
 }
 
+/**
+ * Apply the change a person made to the text they were looking at.
+ *
+ * `previous` is what their editor showed, `next` is what they changed it to, and
+ * only the difference between those two is written to the document - never the
+ * whole value. That is what keeps story 3 honest: if someone else typed in the
+ * same note in the meantime, their characters are still in the document and this
+ * write cannot overwrite them. `applyTextDiff` above cannot promise that, because
+ * it rewrites the middle between the document and a value the writer remembers.
+ *
+ * The position is where the person's own edit was in the text they saw. Another
+ * person's edit elsewhere cannot be disturbed by it; an edit at the very same
+ * spot is resolved by Yjs, which is what "no lost update" means here.
+ */
+export function applyTextDelta(
+  ytext: Y.Text,
+  previous: string,
+  next: string,
+  origin: unknown,
+): void {
+  if (previous === next) {
+    return;
+  }
+  const { start, deleteLength, insert } = minimalDiff(previous, next);
+  if (deleteLength === 0 && insert.length === 0) {
+    return;
+  }
+  const doc = ytext.doc;
+  const write = (): void => {
+    if (deleteLength > 0) {
+      ytext.delete(start, deleteLength);
+    }
+    if (insert.length > 0) {
+      ytext.insert(start, insert);
+    }
+  };
+  if (doc) {
+    doc.transact(write, origin);
+  } else {
+    write();
+  }
+}
+
 /** The counter appears when this many characters (or fewer) are left. */
 export function counterVisible(length: number): boolean {
   const remaining = STICKY_TEXT_MAX_CHARS - length;
