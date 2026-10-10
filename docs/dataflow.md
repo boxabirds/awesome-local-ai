@@ -18,18 +18,22 @@ before relying on this one.
 
 ## The flow
 
+Shapes: a **cylinder** is a database (a SQLite file, `conversations.db` and `analytics.db`
+only). A **hexagon** is a git repository. A plain **box** is a component, or a folder of files
+(the run directory and the lake are just files on disk, with no query layer).
+
 ```mermaid
 flowchart TD
   subgraph node["Benchmark machine"]
-    H[harness runs a story] --> RD[(run directory)]
+    H[harness runs a story] --> RD["run directory (files)"]
   end
-  RD -- "after every story: public files, held-out detail removed" --> PUB[(public repo origin/main)]
-  RD -- "held-out detail, copied" --> PRIV[(private repo origin/main)]
+  RD -- "after every story: public files, held-out detail removed" --> PUB{{public repo origin/main}}
+  RD -- "held-out detail, copied" --> PRIV{{private repo origin/main}}
   JS[judge-submit.sh] --> PRIV
   RD -- "dbench node API /v1/runs: full event stream, server log, conditions, egress, progress" --> COL
 
   subgraph mac["Collecting Mac"]
-    COL[dbench collect, a pass every 10 s] --> LAKE[(lake)]
+    COL[dbench collect, a pass every 10 s] --> LAKE["lake (files)"]
     PUB -- "git fetch every 60 s, read from origin/main" --> ING
     LAKE --> ING[dbench ingest]
     ING --> WH[(conversations.db)]
@@ -64,14 +68,14 @@ flowchart LR
     E_HELD["Held-out detail<br/>accept.json, accept-report.json,<br/>audit.jsonl, artifacts, screenshots"]
   end
   subgraph GH["GitHub"]
-    G_PUB[(Public repo main)]
-    G_PRIV[(Private repo main)]
+    G_PUB{{Public repo main}}
+    G_PRIV{{Private repo main}}
   end
   subgraph NODEAPI["dbench node API"]
     N_RUNS["/v1/runs, /v1/runs/files, /v1/runs/file"]
   end
   subgraph COLLECT["dbench collect (Mac)"]
-    C_LAKE[("Lake<br/>copies + collection.json")]
+    C_LAKE["Lake (files)<br/>copies + collection.json"]
     C_WH[("Warehouse<br/>conversations.db")]
     C_AN[("Analytics<br/>analytics.db")]
     C_API["Conversation API :7761"]
