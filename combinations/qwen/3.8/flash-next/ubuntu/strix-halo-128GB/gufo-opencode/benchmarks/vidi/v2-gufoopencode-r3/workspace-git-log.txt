@@ -1,3 +1,103 @@
+commit 0703617c0972227b057d442dfb42b7d5de5ece40
+agent  Sat Oct 10 09:01:42 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md    | 71 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md |  4 ++--
+ 2 files changed, 73 insertions(+), 2 deletions(-)
+commit 029e9b73877fe222bbadf7b48389f9f014d8ecf9
+agent  Sat Oct 10 08:59:59 2026 +0000
+
+    story 2 task 8: e2e sticky workflows; flush pending drag position on release
+
+
+ src/client/objects/StickyNote.tsx |  35 +++++---
+ tests/e2e/helpers/board.ts        |  49 +++++++++++
+ tests/e2e/sticky.spec.ts          | 179 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 250 insertions(+), 13 deletions(-)
+commit 4ca7809db4401ee37f801982e41e441fc1677ea6
+agent  Sat Oct 10 08:45:06 2026 +0000
+
+    useBoardDoc: fix null-narrowing in snapshot cache closures
+
+
+ src/client/board/useBoardDoc.ts | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+commit 807297293167782ada842e7724f8006a924898e5
+agent  Sat Oct 10 08:44:15 2026 +0000
+
+    story 2 task 7: component tests for sticky notes, text editor and toolbars
+
+
+ PROGRESS.md                               |  12 +-
+ src/client/App.tsx                        |  10 +-
+ src/client/board/useBoardDoc.ts           |  16 +--
+ tests/component/StickyNote.test.tsx       | 176 ++++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx |  97 ++++++++++++++++
+ tests/component/Toolbars.test.tsx         |  78 +++++++++++++
+ 6 files changed, 374 insertions(+), 15 deletions(-)
+commit 31a72ab1a95a721356e6887bb779e34ef5680b6a
+agent  Sat Oct 10 08:35:46 2026 +0000
+
+    story 2 tasks 4-6: sticky text editing, note interaction, toolbars, app wiring
+
+
+ src/client/App.tsx                      | 102 +++++++++++++++-
+ src/client/board/Toolbar.tsx            |  31 +++++
+ src/client/board/useSelection.ts        |  72 ++++++++++++
+ src/client/board/useStickyNoteKeys.ts   |  36 ++++++
+ src/client/canvas/BoardViewport.tsx     |  34 +++++-
+ src/client/canvas/testHooks.ts          |  10 +-
+ src/client/index.css                    | 172 +++++++++++++++++++++++++++
+ src/client/objects/NoteToolbar.tsx      |  64 ++++++++++
+ src/client/objects/StickyNote.tsx       | 199 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts        |  88 +++++++++++---
+ src/client/objects/StickyTextEditor.tsx | 101 ++++++++++++++++
+ tests/unit/sticky-text.test.ts          |   3 +-
+ 12 files changed, 887 insertions(+), 25 deletions(-)
+commit 530939b09ab71a8e49b605b2c1b622b5bbba2b30
+agent  Sat Oct 10 08:19:08 2026 +0000
+
+    story 2 task 3: sticky-text red unit tests (TC-13..17), text fixtures
+
+
+ src/client/objects/StickyText.ts |  27 +++++++++
+ tests/fixtures/texts.ts          |  19 +++++++
+ tests/unit/sticky-text.test.ts   | 120 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 166 insertions(+)
+commit 370c66d7d3bf9d6e199ca36f5c59b593c8167aaa
+agent  Sat Oct 10 08:17:03 2026 +0000
+
+    story 2 task 2: Yjs board model and useBoardDoc snapshot hook
+
+
+ PROGRESS.md                     |   4 +-
+ src/client/board/useBoardDoc.ts |  48 +++++++++++++
+ src/shared/board-model.ts       | 151 ++++++++++++++++++++++++++++++++--------
+ tests/unit/board-model.test.ts  |   8 ++-
+ 4 files changed, 180 insertions(+), 31 deletions(-)
+commit 8426795e738722cf63eea2cb42af65fe1a77351f
+agent  Sat Oct 10 08:15:11 2026 +0000
+
+    story 2 task 1: board-model red unit tests (TC-01..12, TC-39), sticky settings, yjs dep
+
+
+ package-lock.json              |  48 +++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  69 +++++++++++
+ src/shared/config.ts           |  13 ++
+ tests/unit/board-model.test.ts | 267 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 398 insertions(+), 2 deletions(-)
+commit 5fcbf9b6eb9694242a1ef374663647cd7602421e
+vidi-agent  Sat Oct 10 08:11:29 2026 +0000
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit b4f6061d3dc87871aa63f6ec2893399bde7013f1
 agent  Sat Oct 10 08:10:40 2026 +0000
 

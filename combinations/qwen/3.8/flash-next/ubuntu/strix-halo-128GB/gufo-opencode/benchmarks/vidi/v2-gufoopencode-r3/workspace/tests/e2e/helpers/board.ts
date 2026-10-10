@@ -80,3 +80,52 @@ export async function waitForMarkerAt(
     })
     .toBe(true);
 }
+
+export interface NoteState {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  text: string;
+  z: number;
+}
+
+export async function getNotes(page: Page): Promise<NoteState[]> {
+  return page.evaluate(() => {
+    const hook = window.__vidi6;
+    if (!hook) throw new Error('window.__vidi6 missing; run the test build (MODE=test)');
+    return hook.getNotes().map((n) => ({
+      id: n.id,
+      x: n.x,
+      y: n.y,
+      color: n.color as string,
+      text: n.text,
+      z: n.z
+    }));
+  });
+}
+
+export function noteLocator(page: Page, id: string): Locator {
+  return page.locator(`[data-testid="sticky-note"][data-id="${id}"]`);
+}
+
+// Applies the same mapping as worldToScreen for a camera the test controls.
+export function worldToViewport(
+  cam: { x: number; y: number; zoom: number },
+  p: { x: number; y: number }
+): ViewportPoint {
+  return { x: (p.x - cam.x) * cam.zoom, y: (p.y - cam.y) * cam.zoom };
+}
+
+// Types into the sticky textarea via the native value setter so React's
+// onInput handler commits the change (works with large pasted strings).
+export async function typeIntoEditor(page: Page, text: string): Promise<void> {
+  await page.locator('[data-testid="sticky-textarea"]').evaluate((el, value) => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      'value'
+    )!.set!;
+    setter.call(el, value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, text);
+}

@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import type { Point } from './camera';
 import { useBoardCamera } from './useCamera';
+
+export interface BoardViewportProps {
+  children?: ReactNode;
+  // Double-click on empty board space (not on an object): world creation hook.
+  onDoubleClickEmpty?(screenPoint: Point): void;
+  // Press and release on empty board space without dragging.
+  onEmptyClick?(): void;
+}
 
 interface GestureEventLike extends Event {
   readonly scale?: number;
@@ -14,11 +23,13 @@ function mod(value: number, modulus: number): number {
   return ((value % modulus) + modulus) % modulus;
 }
 
-export function BoardViewport({ children }: { children?: ReactNode }) {
+export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick }: BoardViewportProps) {
   const board = useBoardCamera();
   const { camera } = board;
   const rootRef = useRef<HTMLDivElement>(null);
   const panningRef = useRef(false);
+  const panStartRef = useRef<Point | null>(null);
+  const panMovedRef = useRef(false);
   const gestureScaleRef = useRef(1);
   const [panning, setPanning] = useState(false);
 
@@ -27,6 +38,7 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
     panningRef.current = false;
     setPanning(false);
     board.endPan();
+    if (!panMovedRef.current) onEmptyClick?.();
   };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -42,13 +54,30 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
       // while the pointer stays inside the viewport.
     }
     panningRef.current = true;
+    panStartRef.current = { x: e.clientX, y: e.clientY };
+    panMovedRef.current = false;
     setPanning(true);
     board.beginPan({ x: e.clientX, y: e.clientY });
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!panningRef.current) return;
+    const start = panStartRef.current;
+    if (
+      start !== null &&
+      !panMovedRef.current &&
+      Math.hypot(e.clientX - start.x, e.clientY - start.y) >= DRAG_THRESHOLD_PX
+    ) {
+      panMovedRef.current = true;
+    }
     board.panMove({ x: e.clientX, y: e.clientY });
+  };
+
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    // Objects stop propagation; anything reaching here is empty board space.
+    if (target.dataset.panSurface !== 'true') return;
+    onDoubleClickEmpty?.({ x: e.clientX, y: e.clientY });
   };
 
   useEffect(() => {
@@ -133,6 +162,7 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
       onPointerUp={stopPanning}
       onPointerCancel={stopPanning}
       onLostPointerCapture={stopPanning}
+      onDoubleClick={onDoubleClick}
     >
       <div
         data-testid="world-layer"
