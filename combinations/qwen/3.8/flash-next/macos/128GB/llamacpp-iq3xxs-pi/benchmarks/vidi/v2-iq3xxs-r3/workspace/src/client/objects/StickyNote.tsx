@@ -30,6 +30,7 @@ export function StickyNote({
   editing,
   editable,
   dragging,
+  undo,
   onObjectPointerDown,
   onStartEdit,
   onEndEdit,
@@ -116,7 +117,9 @@ export function StickyNote({
           {note.text}
         </div>
       </div>
-      {editing && ytext ? <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} /> : null}
+      {editing && ytext ? (
+        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} undo={undo} />
+      ) : null}
       {fit.overflow ? <div className="text-fade" data-testid="text-fade" aria-hidden="true" /> : null}
     </div>
   );

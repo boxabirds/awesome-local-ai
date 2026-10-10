@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import type * as Y from 'yjs';
 
 import { BoardContents } from '../../../src/client/board/BoardContents';
+import type { UndoController } from '../../../src/client/board/undo';
 import { BoardSession } from '../../../src/client/pages/BoardPage';
 import { CameraProvider } from '../../../src/client/canvas/CameraProvider';
 import {
@@ -40,11 +41,14 @@ export function renderBoard(): void {
  * The story 2 board with an injected document: the same tree `App` renders,
  * so tests can seed and inspect the `Y.Doc` directly (as another client
  * would) around the interaction under test.
+ *
+ * Story 8: a test can bring its own undo history, which is how it counts the
+ * steps the board makes (`undo.session_only` — one per document either way).
  */
-export function renderStickyBoard(doc: Y.Doc): void {
+export function renderStickyBoard(doc: Y.Doc, options: { undo?: UndoController } = {}): void {
   render(
     <CameraProvider>
-      <BoardContents doc={doc} />
+      <BoardContents doc={doc} undo={options.undo} />
     </CameraProvider>,
   );
 }

@@ -616,3 +616,69 @@ quarantined: 1}`, which reaches the room as a load failure (close 4500) and
   are aspect-locked, so a corner pull of (150, 150) on a non-square box scales by
   `max(|scaleX-1|, |scaleY-1|)` — geometry's aspect lock, TC-04/TC-05. Writing the
   expectation as `scaleX` is a test that fails on a correct board.
+
+## Story 8: a history of one's own (TC-01 to TC-24)
+- **`boundary()` is not yjs's name for it.** This build (yjs 13.6.33) has no
+  `UndoManager#boundary`; the method is `stopCapturing()`, which sets
+  `lastChange = 0` so the *next* tracked transaction opens a new stack item. The
+  controller keeps the design's name (`boundary`) and calls that. It also means a
+  boundary is worth calling *after* a command as much as before it: yjs fuses a
+  transaction onto the item above when it lands within `captureTimeout` of the
+  last one, so a command that brackets itself is the only way to be sure neither
+  neighbour joins it.
+- **A batch written with a `null` origin was invisible to the history, and story 8
+  found it.** `recolourSelection` (story 7) wrapped its ids in
+  `document.transact(() => setStickyColor(...))`. `setStickyColor` does pass
+  `LOCAL_ORIGIN`, but a nested `doc.transact` cannot re-origin a transaction that
+  is already open — the outer origin wins, and it was `null`. A recolour therefore
+  could not be undone, which is exactly what TC-15 asks for; the batch now opens
+  with `LOCAL_ORIGIN`. Anything that batches model calls in the client should name
+  its origin on the *outer* transaction, or the change belongs to no one.
+- **Origin filtering is one `Set` per controller, and it must be fresh.** yjs adds
+  the manager itself to the `trackedOrigins` set it is handed, so a module-level
+  constant would let one board's history swallow another's transactions — two
+  boards in one test file and one of them starts undoing the other's typing.
+  `createUndo` builds `new Set([LOCAL_ORIGIN])` per controller (`undo.only_own`
+  rests on that set being the only origin a local tab uses, which stories 2 and 3
+  established and `tests/unit/helpers/peer.ts` now measures).
+- **Undo cascades when an inverse has nothing left to act on.** When the top stack
+  item's inverse changes nothing — the object it moved was deleted by somebody
+  else — yjs's `popStackItem` walks down and applies the next own item. That is
+  accepted here, not fought: TC-07 and TC-23 both end "no error, and nothing of
+  anybody else's moved". A single-step guarantee would need a stack item per
+  gesture frame or an origin-marker yjs does not have.
+- **A fake clock has to exist before yjs is imported.** `lib0/time` binds
+  `getUnixTime = Date.now` at module load, so `vi.setSystemTime` cannot move the
+  clock yjs stamps transactions with — TC-12/TC-13 install fake timers, call
+  `vi.resetModules()`, and only then `await import('yjs')`. One fake clock for the
+  whole file: `vi.useRealTimers()` between tests leaves the previous generation's
+  stopped clock in yjs, and every capture window then reads as eternity.
+- **`addScope` is generic, not `AbstractType<unknown>`.** `Y.Map<string>` is not
+  assignable to `Y.AbstractType<unknown>` — `EventHandler<T, …>` is invariant in
+  `T` — so the controller declares `addScope<T>(type: Y.AbstractType<T>)`. The
+  watched history in `tests/component/UndoControls.test.tsx` declares it as a
+  method for the same reason: an arrow function would pin `T`.
+- **The controller lives in `BoardContents`, not in `App`.** The design draws it
+  beside the app shell, but `App` holds no document — `useBoardDoc` owns the
+  `Y.Doc` inside `BoardContents`, and a history is a document's shadow. `App`
+  renders `<BoardPage key={route.boardId}>`, so a link to another board replaces
+  the component, its document and its history together (`undo.session_only`),
+  which is the behaviour the design asked App to provide.
+- **`useUndoController` falls back to a history that remembers nothing.** With
+  neither an injected nor an owned controller it returns `NO_HISTORY` instead of
+  asserting non-null or casting. Unreachable while a document is here; a board
+  nobody can undo is the safe thing to be wrong about.
+- **`aria-disabled` travels with `disabled`.** TC-18 asks for both, and it is the
+  only way a screen reader hears *why* the button is inert rather than hearing
+  that it is missing. The tooltips carry the shortcuts, which is the PRD's
+  accessibility route for the same reason.
+- **`load_failed` in a component test needs the socket seam.** TC-20's board must
+  be locked by the room, not told it is, so `UndoControls.test.tsx` mocks
+  `y-websocket` — the minimum `connectBoard` touches, enough to receive a 4500.
+  `LoadFailure.test.tsx` keeps the full fake (backoff, close-without-code); if a
+  third file wants it, that is the moment to lift it into `tests/component/helpers/`.
+- **The e2e specs seed through the client, and seeding must not be undoable.**
+  `__vidi6Board.seed` (`src/client/testSeed.ts`) writes in a transaction with no
+  origin, which is why the eight notes of TC-22 are not in Mia's history when she
+  arrives at them. A seeder that used `LOCAL_ORIGIN` would hand her eight steps
+  she never did and a TC-22 that proves nothing.

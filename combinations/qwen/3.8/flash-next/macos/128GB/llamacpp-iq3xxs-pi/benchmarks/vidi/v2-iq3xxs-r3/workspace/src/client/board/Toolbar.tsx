@@ -1,5 +1,8 @@
 import type { JSX } from 'react';
 
+import { UndoButtons } from './UndoButtons';
+import type { UndoActions } from './useUndo';
+
 /**
  * Accessible name and tooltip of the creation button (the tooltip also states
  * the double-click alternative; PRD accessibility constraint).
@@ -18,9 +21,15 @@ export interface ToolbarProps {
    * and the button says so instead of quietly doing nothing.
    */
   disabled?: boolean;
+  /**
+   * Undo and Redo, under the tools (story 8): they act on this person's own
+   * history, so they are disabled by an empty history as much as by a board
+   * that cannot be written to — which `useUndo` has already settled.
+   */
+  undo: UndoActions;
 }
 
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled = false, undo }: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -56,6 +65,9 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX
           />
         </svg>
       </button>
+      {/* Undo and redo are tools too, and they sit under the ones that make
+          things: the order is the order people reach for them in. */}
+      <UndoButtons {...undo} />
     </div>
   );
 }

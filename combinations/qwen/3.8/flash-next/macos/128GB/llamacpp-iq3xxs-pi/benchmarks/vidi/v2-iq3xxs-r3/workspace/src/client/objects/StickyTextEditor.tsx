@@ -4,6 +4,7 @@ import type * as Y from 'yjs';
 
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
+import type { UndoController } from '../board/undo';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 import { mapCaret, type TextDeltaOp } from './remote-text';
 
@@ -14,6 +15,14 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Escape -> 'selected'; pointerdown outside the note -> 'unselected'. */
   onEnd(next: 'selected' | 'unselected'): void;
+  /**
+   * This person's undo history (story 8). The edit is one step: a boundary is
+   * called when it opens and when it closes, so nothing typed is merged with the
+   * drag before it or the click after it, and Ctrl/Cmd+Z typed into the note is
+   * answered against the board's history rather than the textarea's own, which
+   * knows nothing about the board.
+   */
+  readonly undo?: UndoController | undefined;
 }
 
 /**
@@ -35,6 +44,7 @@ export function StickyTextEditor({
   ytext,
   fontPx,
   onEnd,
+  undo,
 }: StickyTextEditorProps): JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState(() => ytext.toString());
@@ -44,9 +54,21 @@ export function StickyTextEditor({
   /** Latest onEnd, so the document listener is attached only once. */
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  /** The history likewise: one object for the life of the board, read as needed. */
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
 
-  // sticky.edit_start: value from the doc, focus, caret at the end.
+  /** Ending the edit also ends its undo step (`undo.capture`). */
+  const closeEdit = (next: 'selected' | 'unselected'): void => {
+    undoRef.current?.boundary();
+    onEndRef.current(next);
+  };
+
+  // sticky.edit_start: value from the doc, focus, caret at the end. Opening the
+  // note is a boundary too, so the first keystroke is never added to whatever
+  // the board did a moment before it.
   useEffect(() => {
+    undoRef.current?.boundary();
     const el = ref.current;
     if (!el) return;
     el.value = ytext.toString();
@@ -66,7 +88,7 @@ export function StickyTextEditor({
     const onPointerDown = (event: PointerEvent): void => {
       const target = event.target;
       if (note && target instanceof Node && note.contains(target)) return;
-      onEndRef.current('unselected');
+      closeEdit('unselected');
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
@@ -143,8 +165,20 @@ export function StickyTextEditor({
     // the textarea default, which inserts a new line.
     if (event.key === 'Escape') {
       event.preventDefault();
-      onEndRef.current('selected');
+      closeEdit('selected');
+      return;
     }
+    // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y are the board's history here, not
+    // the textarea's: the browser would undo a keystroke the document still
+    // holds, and the next character typed would diff the two back together into
+    // one note nobody recognises (TC-16).
+    const history = undoRef.current;
+    if (!history || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+    const key = event.key.toLowerCase();
+    if (key !== 'z' && key !== 'y') return;
+    event.preventDefault();
+    if (key === 'y' || (key === 'z' && event.shiftKey)) history.redo();
+    else history.undo();
   };
 
   const onBlur = (event: ChangeEvent<HTMLTextAreaElement>): void => {

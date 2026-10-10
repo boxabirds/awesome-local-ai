@@ -16,6 +16,7 @@ import { objectBounds, STICKY_TYPE } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /** What the board renders one object with; the same props for every type. */
@@ -35,6 +36,12 @@ export interface ObjectProps {
   readonly dragging: boolean;
   /** False while this client may not write to the board (`canEdit`). */
   readonly editable: boolean;
+  /**
+   * This person's undo history (story 8), for the types that take text: an edit
+   * is one undo step of its own, and Ctrl/Cmd+Z typed into the object belongs to
+   * the board rather than to the browser's field. Types without text ignore it.
+   */
+  readonly undo?: UndoController | undefined;
   /** pointerdown on the object: select it, and maybe start moving it. */
   onObjectPointerDown(event: ReactPointerEvent<HTMLElement>, id: string): void;
   onStartEdit(id: string): void;

@@ -193,3 +193,20 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** Shift + arrow key moves it this much (sel.nudge). */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+/* --- story 8: undoing and redoing your own changes ---------------------- */
+
+/**
+ * How long consecutive local changes stay one undo step (undo.capture): a
+ * pause of at least this long ends a typing burst, and an action boundary
+ * (gesture or edit start and end) ends the window immediately, so a drag and
+ * the click that follows it are never one step.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many steps one person's undo history keeps (undo.bounded): adding a step
+ * beyond this drops the oldest one. Memory only — a reload starts empty
+ * (undo.session_only).
+ */
+export const UNDO_MAX_STEPS = 200;

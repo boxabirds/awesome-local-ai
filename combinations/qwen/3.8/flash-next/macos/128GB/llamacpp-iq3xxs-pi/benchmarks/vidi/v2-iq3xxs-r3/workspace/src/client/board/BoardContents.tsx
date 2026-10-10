@@ -10,6 +10,8 @@ import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
+import { useUndo, useUndoController } from './useUndo';
+import type { UndoController } from './undo';
 import { boundingBox, SelectionOverlay } from './SelectionOverlay';
 import { SelectionBar } from './SelectionBar';
 import { MarqueeRect, useMarquee } from './Marquee';
@@ -23,6 +25,7 @@ import {
   createSticky,
   deleteObjects,
   isStickySnapshot,
+  LOCAL_ORIGIN,
   setStickyColor,
 } from '../../shared/board-model';
 import type { Point } from '../canvas/camera';
@@ -64,6 +67,12 @@ export interface BoardContentsProps {
   boardId?: string | null;
   /** Use an existing document instead of owning one (component tests). */
   doc?: import('yjs').Doc;
+  /**
+   * Use an existing undo history instead of owning one (component tests, which
+   * count the steps the board makes). One controller per board document either
+   * way, and it is destroyed with the document (`undo.session_only`).
+   */
+  undo?: UndoController;
 }
 
 /**
@@ -79,7 +88,7 @@ export interface BoardContentsProps {
  * the object type registry, so a story 9 type arrives to a board that already
  * knows how to do all five (`sel.all_types`).
  */
-export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}): JSX.Element {
+export function BoardContents({ boardId = null, doc, undo: given }: BoardContentsProps = {}): JSX.Element {
   const board = useBoard();
   const {
     doc: document,
@@ -91,6 +100,14 @@ export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}):
   /** Every way this client can change the board, decided in one place. */
   const editable = canEdit(connection);
   const { camera } = board;
+
+  // Story 8: what this person has done on this board, in this tab, and can take
+  // back again. It hangs off the document rather than the address, because that
+  // is where the transactions it watches live — and `BoardPage` is keyed by the
+  // board id, so a link to another board replaces this component, its document
+  // and its history together.
+  const undo = useUndoController(document, given);
+  const undoActions = useUndo(undo, editable);
 
   /** Start editing, if this board may be edited at all (TC-23). */
   const startEditing = useCallback(
@@ -104,20 +121,33 @@ export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}):
   /** One delete for the whole selection, then the selection lets go. */
   const deleteSelection = useCallback((): void => {
     if (!editable) return;
+    // Bracketed by boundaries, so one click on the bar is one undo step and not
+    // the first link in a chain of things that happened to be close together.
+    undo.boundary();
     deleteObjects(document, [...selection.ids]);
+    undo.boundary();
     selection.clear();
-  }, [document, editable, selection]);
+  }, [document, editable, selection, undo]);
 
   /** One recolour for the whole selection, in one update on the wire. */
   const recolourSelection = useCallback(
     (color: StickyColor): void => {
       if (!editable) return;
       const ids = [...selection.ids];
-      document.transact(() => {
-        for (const id of ids) setStickyColor(document, id, color);
-      });
+      undo.boundary();
+      // `LOCAL_ORIGIN`, and not the default `null`: this batch is this client's
+      // own change, and the history only watches for that origin. Left unnamed,
+      // a recolour would be one more thing on the board this person could not
+      // take back (`undo.only_own`, TC-15).
+      document.transact(
+        () => {
+          for (const id of ids) setStickyColor(document, id, color);
+        },
+        LOCAL_ORIGIN,
+      );
+      undo.boundary();
     },
-    [document, editable, selection],
+    [document, editable, selection, undo],
   );
 
   // The gesture, the marquee and the keys all act on the same selection, and all
@@ -129,6 +159,11 @@ export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}):
     selection,
     snapshot: objects,
     canEdit: editable,
+    // Story 8's use of story 7's hooks: a drag opens and closes an undo step, so
+    // every frame it writes joins that one step and the gesture that follows it
+    // does not (`undo.capture`, TC-14, TC-15, TC-17).
+    onGestureStart: undo.boundary,
+    onGestureEnd: undo.boundary,
   });
   const marquee = useMarquee(camera, objects, useCallback(
     (ids: string[]): void => {
@@ -136,7 +171,7 @@ export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}):
     },
     [selection],
   ));
-  useBoardKeys({ doc: document, selection, snapshot: objects, canEdit: editable });
+  useBoardKeys({ doc: document, selection, snapshot: objects, canEdit: editable, undo });
 
   /** Create a note centred on a world point, selected and in edit mode. */
   const createAndEdit = useCallback(
@@ -144,11 +179,13 @@ export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}):
       // Double-click on empty board, and the Sticky note button: both create
       // nothing while the board could not be loaded (TC-23).
       if (!editable) return;
+      undo.boundary();
       const id = createSticky(document, world);
+      undo.boundary();
       if (typeof id !== 'string') return; // non-finite point: nothing happens
       startEditing(id);
     },
-    [document, editable, startEditing],
+    [document, editable, startEditing, undo],
   );
 
   // A board that stops being editable also stops being *edited*: an object that
@@ -257,6 +294,7 @@ export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}):
                 editing={selection.editingId === object.id}
                 editable={editable}
                 dragging={gesture.draggingIds.has(object.id)}
+                undo={undo}
                 onObjectPointerDown={gesture.onObjectPointerDown}
                 onStartEdit={startEditing}
                 onEndEdit={(next) => {
@@ -273,6 +311,7 @@ export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}):
       <ConnectionStatus state={connection} />
       <Toolbar
         disabled={!editable}
+        undo={undoActions}
         onCreateSticky={() => {
           // Centre of the visible board area, wherever the board is panned
           // (sticky.create_button, TC-34).

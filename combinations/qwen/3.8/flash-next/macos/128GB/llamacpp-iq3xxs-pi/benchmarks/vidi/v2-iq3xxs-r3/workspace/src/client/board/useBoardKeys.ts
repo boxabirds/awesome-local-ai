@@ -5,6 +5,7 @@ import { allObjectIds, deleteObjects, moveObjects } from '../../shared/board-mod
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType, isObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 import type { SelectionController } from './useSelection';
 
 export interface BoardKeysOptions {
@@ -16,6 +17,12 @@ export interface BoardKeysOptions {
   readonly snapshot: readonly ObjectSnapshot[];
   /** False while this client may not write: reading keys still work. */
   readonly canEdit: boolean;
+  /**
+   * This person's history (story 8): Ctrl/Cmd+Z and Ctrl+Y are answered from
+   * here, and every command below is bracketed by `boundary()` so one command
+   * is one undo step (`undo.capture`).
+   */
+  readonly undo?: UndoController | undefined;
 }
 
 /** Keys that mean something to the board rather than to the page. */
@@ -25,6 +32,24 @@ const ARROW_DELTAS = new Map<string, { x: number; y: number }>([
   ['ArrowLeft', { x: -1, y: 0 }],
   ['ArrowRight', { x: 1, y: 0 }],
 ]);
+
+/** Ctrl/Cmd+Z, and nothing else wearing the same keys. */
+function isUndoShortcut(event: KeyboardEvent): boolean {
+  return (
+    (event.ctrlKey || event.metaKey) &&
+    !event.altKey &&
+    event.key.toLowerCase() === 'z' &&
+    !event.shiftKey
+  );
+}
+
+/** Ctrl/Cmd+Shift+Z, and Ctrl+Y, which is what Windows says instead. */
+function isRedoShortcut(event: KeyboardEvent): boolean {
+  if (!event.ctrlKey && !event.metaKey) return false;
+  if (event.altKey) return false;
+  const key = event.key.toLowerCase();
+  return key === 'y' || (key === 'z' && event.shiftKey);
+}
 
 /** Is this keystroke the board's, or the field being typed in? */
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -58,20 +83,36 @@ export function useBoardKeys({
   selection,
   snapshot,
   canEdit,
+  undo,
 }: BoardKeysOptions): void {
   // One window listener for the life of the board; every frame reads the newest
   // selection, snapshot and permission through this.
-  const latest = useRef({ doc, selection, snapshot, canEdit });
-  latest.current = { doc, selection, snapshot, canEdit };
+  const latest = useRef({ doc, selection, snapshot, canEdit, undo });
+  latest.current = { doc, selection, snapshot, canEdit, undo };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { selection: chosen, snapshot: objects, doc: document, canEdit: editable } =
+      const { selection: chosen, snapshot: objects, doc: document, canEdit: editable, undo: history } =
         latest.current;
       // Typing belongs to the field it is in, and so does every other key: an
-      // Escape, a Delete or an arrow typed into a note must reach the note.
+      // Escape, a Delete or an arrow typed into a note must reach the note. That
+      // is also why Ctrl/Cmd+Z typed *into a note* is never taken here — the
+      // editor answers it itself, against the same history (TC-16, TC-21).
       if (isEditableTarget(event.target)) return;
       if (chosen.editingId !== null) return;
+
+      // Undo and redo belong to this person's history alone, and they work on
+      // any selection — including an empty one, since the thing to undo is
+      // usually already gone from the board.
+      if (history && (isUndoShortcut(event) || isRedoShortcut(event))) {
+        // A board this client may not write to undoes nothing either; the key is
+        // left where it came from (TC-20).
+        if (!editable) return;
+        event.preventDefault();
+        if (isUndoShortcut(event)) history.undo();
+        else history.redo();
+        return;
+      }
 
       const selectAll = event.key === 'a' && (event.ctrlKey || event.metaKey) && !event.altKey;
       if (selectAll) {
@@ -116,13 +157,19 @@ export function useBoardKeys({
         // No page scroll, and no board pan either: the arrows belong to the
         // selection while there is one.
         event.preventDefault();
+        // One press, one step: the boundary keeps a nudge from being swallowed
+        // into the drag or the previous nudge it happened to follow (`undo.capture`).
+        history?.boundary();
         moveObjects(document, by);
+        history?.boundary();
         return;
       }
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
+        history?.boundary();
         deleteObjects(document, selected);
+        history?.boundary();
         // The ids are gone from the board; the selection lets go in the same
         // breath rather than wait for a snapshot that will never mention them.
         chosen.clear();
