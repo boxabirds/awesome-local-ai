@@ -752,3 +752,246 @@ main[data-board-editable='false'] .sticky-note {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* --- Story 10: shapes (shape.kind, shape.label, shape.colours) ------------ */
+
+/*
+ * A shape is drawn in world units inside the box the document stores, so the box a
+ * person resizes *is* the drawing. Everything on the board is positioned by a
+ * translate of its own `x`/`y`, exactly like a sticky note or a text object.
+ */
+.shape-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  /* The world layer ignores pointers (`sel.marquee_ui`); a shape does not - it is
+   * clicked, dragged, double-clicked and resized like a note or a text object. */
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.shape-object__svg {
+  display: block;
+  overflow: visible;
+}
+
+.shape-object[data-selected='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/*
+ * The label fills the box and centres itself in it, which is what makes a label
+ * stay centred when the shape is resized and re-wrap when the box gets narrower
+ * (TC-24). `foreignObject` gives it the browser's own text layout.
+ */
+.shape-object__label,
+.shape-object__editor-wrap {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  color: #202124;
+}
+
+.shape-object__label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+}
+
+.shape-object__editor {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  text-align: center;
+}
+
+.board .shape-object__editor {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Counter-scaled by the component, so the swatches are the same size at any zoom. */
+.shape-object__toolbar {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  z-index: 10;
+}
+
+.shape-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgb(15 23 42 / 12%);
+}
+
+.shape-toolbar__colours {
+  display: flex;
+  gap: 4px;
+}
+
+.shape-toolbar__swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* An outline colour is shown as a colour of the border, not of the fill. */
+.shape-toolbar__swatch--outline {
+  background: transparent;
+  border-width: 4px;
+}
+
+.shape-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.shape-toolbar__swatch:focus-visible,
+.shape-toolbar__delete:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.shape-toolbar__delete {
+  padding: 6px 10px;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  background: #fee2e2;
+  color: #7f1d1d;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* The box the Shape tool is dragging: world units, drawn in screen units. */
+.shape-preview-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5002;
+}
+
+.shape-preview {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed #2563eb;
+  background: rgb(37 99 235 / 8%);
+}
+
+/* The kind menu, open only while the Shape tool is the tool in hand. */
+.toolbar__kinds {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.toolbar__kind {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #1f2937;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toolbar__kind--active {
+  border-color: #2563eb;
+  background: #dbeafe;
+}
+
+/* --- Story 10: connectors (connector.render, connector.select) ------------ */
+
+/*
+ * The arrow itself is thin, so almost nothing here is clickable: the wrapper and
+ * the SVG root are `pointer-events: none` and only the invisible band drawn along
+ * the line - `CONNECTOR_HIT_TOLERANCE_PX` of screen either side - and the two end
+ * handles take a pointer. A click that lands inside the arrow's bounding box but
+ * away from the line therefore falls through to the board, which decides by
+ * distance (`connector.select`, TC-20).
+ */
+.connector-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.connector-object__svg {
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-object__hit {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.connector-object__line {
+  pointer-events: none;
+}
+
+.connector-object__handle {
+  pointer-events: auto;
+  fill: #fff;
+  stroke: #1d4ed8;
+  cursor: grab;
+}
+
+.connector-object[data-selected='true'] .connector-object__line {
+  stroke: #1d4ed8;
+}
+
+/* The four attach dots and the arrow being dragged: screen space, never clicked. */
+.connector-dots-layer,
+.connector-preview-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.connector-dots-layer {
+  z-index: 5003;
+}
+
+.connector-preview-layer {
+  z-index: 5004;
+}
+
+.connector-dot {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #1d4ed8;
+  border-radius: 50%;
+  background: rgb(29 78 216 / 35%);
+}
+
+.connector-dot[data-active='true'] {
+  background: #1d4ed8;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.connector-preview-line {
+  stroke: #1d4ed8;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}

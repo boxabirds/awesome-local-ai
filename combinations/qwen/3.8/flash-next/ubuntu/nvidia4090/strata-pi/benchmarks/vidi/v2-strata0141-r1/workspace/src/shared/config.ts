@@ -243,3 +243,87 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * step beyond this drops the oldest one.
  */
 export const UNDO_MAX_STEPS = 200;
+
+/* ---------------------------------------------------------------------------
+ * Story 10: shapes and the arrows that stay attached to them. Every shape and
+ * connector setting lives here (anchors `shape.kind`, `shape.size`,
+ * `shape.label`, `shape.colours`, `connector.endpoints`, `connector.tolerance`,
+ * `tool.shortcuts`).
+ * ------------------------------------------------------------------------ */
+
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** Shown in the toolbar kind menu and in each shape's accessible name. */
+export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+/** A click (no drag) creates this square, centred on the click. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** A drag smaller than this is a click, not a resize; it is also the resize minimum. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+export const SHAPE_LABEL_MAX_CHARS = 500;
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/**
+ * Named colour keys only - a colour is a key into these maps, never a raw CSS
+ * string, so both collaborators always resolve the same value (`shape.colours`).
+ */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#ffffff',
+  blue: '#bcd7f7',
+  green: '#c3e9c9',
+  yellow: '#fdf3c0',
+  pink: '#fbd3e0',
+  grey: '#e2e4e8',
+} as const;
+export type ShapeFillColor = keyof typeof SHAPE_FILL_COLORS;
+/** The palette in swatch order: 'no fill' first, then the six fills. */
+export const SHAPE_FILL_NAMES = Object.keys(SHAPE_FILL_COLORS) as ShapeFillColor[];
+export const DEFAULT_SHAPE_FILL: ShapeFillColor = 'white';
+
+export const SHAPE_STROKE_COLORS = {
+  dark: '#202124',
+  black: '#000000',
+  blue: '#1a73e8',
+  green: '#188038',
+  red: '#d93025',
+  grey: '#9aa0a6',
+} as const;
+export type ShapeStrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const SHAPE_STROKE_NAMES = Object.keys(SHAPE_STROKE_COLORS) as ShapeStrokeColor[];
+export const DEFAULT_SHAPE_STROKE: ShapeStrokeColor = 'dark';
+
+/** Swatch labels: `<colour> fill` / `<colour> outline`; 'none' reads "no fill". */
+export function shapeFillLabel(colour: ShapeFillColor): string {
+  return colour === 'none' ? 'no fill' : `${colour} fill`;
+}
+export function shapeStrokeLabel(colour: ShapeStrokeColor): string {
+  return `${colour} outline`;
+}
+
+/** Endpoints closer than this (world units) are a tap, not an arrow. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** Screen-space tolerance for selecting an arrow (`connector.tolerance`). */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** How long the arrowhead is (world units); its tip lands on the end point. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** The side-midpoint attach dots stay this big at any zoom (`connector.dot`). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/** Single keys that pick a tool (`tool.shortcuts`); one entry per tool id. */
+export const TOOL_SHORTCUTS = {
+  v: 'select',
+  n: 'sticky',
+  t: 'text',
+  s: 'shape',
+  l: 'connector',
+  p: 'pen',
+  i: 'image',
+  c: 'comment',
+} as const;

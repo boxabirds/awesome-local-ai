@@ -1,7 +1,15 @@
 import type { Camera } from './canvas/camera';
-import type { StickyColor, TextSize } from '../shared/config';
+import type {
+  ShapeFillColor,
+  ShapeKind,
+  ShapeStrokeColor,
+  StickyColor,
+  TextSize,
+} from '../shared/config';
 import type { StickySnapshot } from '../shared/board-model';
 import type { TextSnapshot } from '../shared/objects/text';
+import type { ShapeSnapshot } from '../shared/objects/shape';
+import type { ConnectorSnapshot, EndpointInput } from '../shared/objects/connector';
 
 /** Test-only note creation arguments, mirroring `createSticky`. */
 export interface TestStickyParams {
@@ -16,6 +24,26 @@ export interface TestTextParams {
   at: { x: number; y: number };
   text?: string;
   size?: TextSize;
+}
+
+/** Test-only shape creation arguments, mirroring `createShape` plus its style. */
+export interface TestShapeParams {
+  at: { x: number; y: number };
+  /** The dragged rectangle's size, with `at` as the corner it grew from; left out
+   * is the click case, which takes the default box centred on `at`. */
+  size?: { width: number; height: number };
+  square?: boolean;
+  kind?: ShapeKind;
+  fill?: ShapeFillColor;
+  stroke?: ShapeStrokeColor;
+  /** Typed-in label, written straight into the shape's `Y.Text`. */
+  label?: string;
+}
+
+/** Test-only connector creation arguments, mirroring `createConnector`. */
+export interface TestConnectorParams {
+  from: EndpointInput;
+  to: EndpointInput;
 }
 
 /** Test-only bulk seeding: `count` notes spread over a rectangle. */
@@ -37,6 +65,14 @@ export interface Vidi6TestHooks {
   texts(): TextSnapshot[];
   /** Put a text object on the board through the model, for test setup. */
   createText(params: TestTextParams): string;
+  /** Every shape on the board, topmost last (story 10 e2e). */
+  shapes(): ShapeSnapshot[];
+  /** Put a shape on the board through the model, for test setup. */
+  createShape(params: TestShapeParams): string;
+  /** Every arrow on the board, topmost last (story 10 e2e). */
+  connectors(): ConnectorSnapshot[];
+  /** Put an arrow on the board through the model, for test setup. */
+  createConnector(params: TestConnectorParams): string;
   /** Seed many notes in one transaction, for test setup (large-board tests). */
   createNotes(params: TestSeedParams): number;
   /** The connection state the status badge is rendering (story 3). */
@@ -76,6 +112,10 @@ export interface BoardApi {
   createNote: (params: TestStickyParams) => string;
   texts: () => TextSnapshot[];
   createText: (params: TestTextParams) => string;
+  shapes: () => ShapeSnapshot[];
+  createShape: (params: TestShapeParams) => string;
+  connectors: () => ConnectorSnapshot[];
+  createConnector: (params: TestConnectorParams) => string;
   connectionState: () => string;
 }
 
@@ -98,6 +138,10 @@ export function installTestHooks(): void {
     createNote: (params) => boardApi?.createNote(params) ?? '',
     texts: () => boardApi?.texts() ?? [],
     createText: (params) => boardApi?.createText(params) ?? '',
+    shapes: () => boardApi?.shapes() ?? [],
+    createShape: (params) => boardApi?.createShape(params) ?? '',
+    connectors: () => boardApi?.connectors() ?? [],
+    createConnector: (params) => boardApi?.createConnector(params) ?? '',
     createNotes: (params) => seedApi?.seed(params) ?? 0,
     connectionState: () => boardApi?.connectionState() ?? 'connecting',
   };

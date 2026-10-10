@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
-import type { Tool } from '../board/useTool';
+import type { ToolId } from '../tools/useActiveTool';
 import {
   canZoomIn,
   canZoomOut,
@@ -19,6 +19,12 @@ interface GestureEventLike extends Event {
   readonly scale: number;
   readonly rotation?: number;
 }
+
+/** The cursor each tool that draws something shows (`text.tool_ui`, `shape.tool`). */
+const CREATION_CURSORS: Partial<Record<ToolId, string>> = {
+  shape: 'crosshair',
+  connector: 'crosshair',
+};
 
 const mod = (value: number, modulus: number): number => ((value % modulus) + modulus) % modulus;
 
@@ -79,6 +85,13 @@ export interface BoardSurface {
   readonly viewport: Size;
   readonly width: number;
   readonly height: number;
+  /**
+   * Where the surface sits in the window (`clientX` minus this is a surface
+   * point). Story 10's tools listen on `window`, outside the surface element, so
+   * they need the offset the surface itself does not: the board is fixed to the
+   * viewport today, and this keeps a tool honest if that ever changes.
+   */
+  readonly origin: Point;
 }
 
 /** The centre of the visible board area, in surface coordinates. */
@@ -102,11 +115,13 @@ export interface BoardViewportProps {
   /** Called whenever the camera or the surface size changes. */
   onSurfaceChange?: (surface: BoardSurface) => void;
   /**
-   * Story 9 (`text.tool_ui`): the tool this client is holding. While Text is
-   * active the cursor changes and a press on the board creates text instead of
-   * panning, marquee-ing or selecting.
+   * The tool this client is holding. While Text is active the cursor changes and a
+   * press on the board creates text instead of panning, marquee-ing or selecting
+   * (`text.tool_ui`). Story 10's Shape and Connector tools take their own press on
+   * `window`, in front of everything here (`shape.tool`, `connector.tool`); this
+   * prop only carries the cursor and the `data-tool` attribute.
    */
-  tool?: Tool;
+  tool?: ToolId;
   /** The Text tool's click: the world point the new text object's top-left gets. */
   onTextClick?: (world: Point) => void;
 }
@@ -298,7 +313,13 @@ export function BoardViewport(props: BoardViewportProps) {
     // the viewport size the surface itself was measured with.
     const width = rect && rect.width > 0 ? rect.width : viewport.width;
     const height = rect && rect.height > 0 ? rect.height : viewport.height;
-    onSurfaceChange({ camera: api.camera, viewport, width, height });
+    onSurfaceChange({
+      camera: api.camera,
+      viewport,
+      width,
+      height,
+      origin: { x: rect?.left ?? 0, y: rect?.top ?? 0 },
+    });
   }, [api.camera, viewport, onSurfaceChange]);
 
   // --- wheel (non-passive so it never scrolls or zooms the page) ------------
@@ -396,7 +417,7 @@ export function BoardViewport(props: BoardViewportProps) {
       data-panning={isPanning ? 'true' : 'false'}
       data-tool={tool}
       style={{
-        cursor: tool === 'text' ? 'text' : undefined,
+        cursor: CREATION_CURSORS[tool] ?? (tool === 'text' ? 'text' : undefined),
         backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, rgba(203, 213, 225, 0) 1.6px)',
         backgroundSize: `${spacingPx}px ${spacingPx}px`,
         // Each CSS tile paints its dot at the tile centre, so the offset is

@@ -829,3 +829,111 @@ whose object is whose).
 - `TEXT_ANNOTATION` (`tests/fixtures/texts.ts`) is exactly 300 characters of the existing
   prose generator, with its length asserted at module load like the other fixtures.
 - The e2e suite is 47 tests, green in about 1m with the worker cap story 8 left in place.
+
+## Story 10 — shapes and arrows (shape.*, connector.*, tools.active_tool)
+
+### Where an arrow's ends live (connector.endpoints)
+
+- An attached end stores `{kind: 'attached', objectId, fallback}` - the object, and
+  the anchor it was attached at in case that object goes away. It stores **no side**.
+  A side is an answer to "which way is the other end?", and that question is answered
+  again on every snapshot from the two shapes' *current* rectangles
+  (`connector.follow`). A stored side would be a fact about a moment that has passed:
+  one person moves A, the other moves B, and the document is left holding a side
+  neither shape faces. TC-07, TC-12 and TC-13 assert the stored shape of an endpoint;
+  the e2e TC-25 reads the side back out of the two points the page resolved, because
+  that is the only place the answer exists.
+- Consequence for the design's "attaching an end to another side of the same object is
+  refused": with no side stored, such a write would change nothing, and this board model
+  never opens a transaction for a change that changes nothing (`board.no_op`) - so it
+  returns `false` with 0 updates, which is the outcome the case asks for. Attaching an
+  end to the object the *other* end is attached to is refused for the same reason it
+  would produce a zero-length arrow (`CONNECTOR_MIN_LENGTH_WORLD`).
+- `resolveEndpoints` is two-pass: each end is aimed at the *centre* of whatever is at
+  the other end (`roughPoint`), and then placed on the side of its own shape nearest
+  that aim. Aiming both ends at the same answer keeps a horizontal pair of shapes
+  horizontal and switches sides exactly once as they pass (the orbit case, TC-10 at
+  0°/44°/46°/90°). `nearestSide` is aspect-correct - `|dx| / width` against
+  `|dy| / height` - so a wide shape is left/right-connected and a tall one top/bottom.
+
+### A connector has no position of its own
+
+- `x/y/width/height` are stored 0 and the board model replaces them at read time:
+  `registerViewDeriver('connector', …)` returns a whole snapshot - derived box **and**
+  the resolved `points` a renderer draws - and `hasDerivedView` keeps connectors out of
+  `moveObjects`/`resizeObjects`, so nothing ever tries to drag an arrow to a place.
+  Story 7's bounds helpers still work unchanged because a derived box is a box.
+- Snapshot extents are clamped to 1e-6 (`MIN_EXTENT_WORLD`) so a vertical or horizontal
+  arrow is not read as "no width" by story 7's `objectBounds`, while `connectorRect`
+  still returns the exact box (TC-25's bbox checks use it).
+- `detachConnectorsTo` runs inside `deleteObjects`' own transaction, so a delete that
+  detaches three arrows is one update and one undo step (TC-13).
+
+### jsdom does not obey CSS, and that hid a real bug
+
+- `.board__world` is `pointer-events: none` (`sel.marquee_ui`) and every object card
+  re-enables pointers for itself. Shapes and arrows were written, tested in jsdom, and
+  were **click-through in a browser** - shapes could not be dragged, double-clicked or
+  resized, and no component test could see it. Fixed by giving `.shape-object`
+  `pointer-events: auto`; `.connector-object` stays `none` on purpose, with only the
+  invisible band along the line (`pointer-events: stroke`) and its two handles taking a
+  pointer, so a click inside an arrow's box but away from its line falls through to the
+  board's own distance test (TC-20).
+- Because that class of bug is invisible to this test project, two tests read the CSS
+  the browser is given (`ShapeTool.test.tsx`, `Connector.test.tsx`) while the drags
+  themselves are proved in Chromium (TC-23, TC-25).
+- jsdom also hit-tests nothing by geometry: in component tests an arrow is selected
+  through the board's distance test, and in a browser its hit line takes the click
+  first. Both go through the same `hitTestObjectAt` helper, which is why the registry's
+  `hitTest` gained an optional `zoom` argument (`CONNECTOR_HIT_TOLERANCE_PX / zoom` is a
+  screen tolerance, `TC-14`/`TC-20`).
+
+### The delete race (TC-27)
+
+- Playwright's `page.route` intercepts HTTP, not WebSocket frames, so the overlap is
+  made by **ordering**: Sam's delete is confirmed on Sam's page while Dana still holds
+  the pointer down, and only then does Dana release. Chromium's CDP
+  `Network.emulateNetworkConditions` (400 ms) widens the window and the test prints
+  whether it applied; nothing the test asserts depends on it.
+- The assertion is deliberately tolerant, because the product has two honest endings:
+  the end is `free` at where the pointer was released, or it is still attached to an id
+  that no longer exists and renders at its stored fallback. Both put a visible arrow end
+  inside the shape's old rectangle, which is what a person there would see, and the test
+  logs which ending it got. Either way the board holds no arrow attached to a live object
+  it is not drawn at, and there are no console errors.
+
+### Fixture, hooks and suite
+
+- `tests/fixtures/checkout-flow.ts`: four labelled shapes (rect, diamond, ellipse, rect)
+  and four arrows - three attached, one ending in empty space below the diamond - built
+  by calling `createShape`, `setShapeStyle`, the label `Y.Text` and `createConnector`, so
+  the fixture cannot describe something the model would refuse. One detail: a shape
+  already in the default colours is not re-styled, because the model refuses a write that
+  changes nothing. It is used twice: as a component test (the whole flow rendered, its
+  ends landing on stated side midpoints, then a shape moved out of the row and two arrows
+  changing side with no write to them) and as an e2e reload test (four shapes, four
+  arrows, labels and styles, come back through storage resolving the same ends).
+- Test hooks gained `shapes()`, `createShape()`, `connectors()`, `createConnector()`;
+  `createShape` takes the dragged rectangle by its top-left corner (what the tool hands
+  the model), so a test that says "a 220x140 shape at (80, 80)" means the same thing a
+  drag means.
+- E2E helpers measure **both** the model (camera-independent) and the drawn DOM - the
+  shape card's box, the SVG geometry of the kind drawn, `Range.getClientRects()` per
+  *word* of a centred label, the arrow line's `x1/y1/x2/y2`. A word-level Range is used
+  rather than one over the whole label because a centred line that kept the space it
+  broke on is not a centred line of text, and the measurement is off by half a space
+  otherwise.
+- Suite: 336 unit, 224 component, 60 integration, 54 e2e, all passing. tasks.md asks for
+  TC-23 in Firefox and WebKit as well; that stays **blocked** on this machine for the
+  reason given at the top of these notes, and the config would run all three wherever
+  browsers exist.
+
+### Known flake, not from this story
+
+- One run out of several of `tests/integration/board-room.test.ts` ("the room holds the
+  board too") failed with `expected [] to deeply equal [ 'room copy' ]` while a Vite
+  build and the e2e server were competing for CPU in the same shell. It is story 3's own
+  timing race in the Durable Object room test, in a file this story never touched, and it
+  passes on re-run: five component runs, six runs of this story's three component files,
+  two runs of `shapes.spec.ts` + `connectors.spec.ts` and the full 54-test e2e suite were
+  green.

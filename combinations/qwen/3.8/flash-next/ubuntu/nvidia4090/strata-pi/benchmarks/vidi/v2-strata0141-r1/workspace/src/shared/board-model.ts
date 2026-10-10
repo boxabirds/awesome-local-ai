@@ -1,6 +1,9 @@
 import * as Y from 'yjs';
 import { rectContains, type Point, type Rect } from './geometry';
+import { resolveEndpoints } from './geometry/connector-geometry';
 import type { TextSnapshot } from './objects/text';
+import type { ShapeSnapshot } from './objects/shape';
+import type { ConnectorSnapshot } from './objects/connector';
 import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
@@ -69,6 +72,16 @@ export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
 /** Is this snapshot a free text object (story 9)? */
 export function isTextSnapshot(obj: ObjectSnapshot): obj is TextSnapshot {
   return obj.type === 'text';
+}
+
+/** Is this snapshot a shape - a rectangle, ellipse or diamond (story 10)? */
+export function isShapeSnapshot(obj: ObjectSnapshot): obj is ShapeSnapshot {
+  return obj.type === 'shape';
+}
+
+/** Is this snapshot an arrow - a connector between two objects (story 10)? */
+export function isConnectorSnapshot(obj: ObjectSnapshot): obj is ConnectorSnapshot {
+  return obj.type === 'connector';
 }
 
 const isFiniteNumber = (value: unknown): value is number =>
@@ -293,15 +306,40 @@ export function isSelectableType(type: string): boolean {
  *
  * Objects of a type nothing can render are skipped, exactly as `snapshot()`
  * skips them, so a board written by a newer client still opens.
+ *
+ * A type whose box is **derived** (story 10's connectors) gets its stored
+ * `x`/`y`/`width`/`height` replaced here, by the box its own geometry reports
+ * against the objects it refers to. Everything downstream - selection, marquee,
+ * the selection box, hit tests - then reads one rectangle for every object, and
+ * an arrow's box is always where the arrow actually is.
  */
 export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
-  const objects: ObjectSnapshot[] = [];
+  const read: ObjectSnapshot[] = [];
   objectMapOf(doc).forEach((value, id) => {
     const obj = objectFrom(id, value);
     if (obj) {
-      objects.push(obj);
+      read.push(obj);
     }
   });
+
+  // The stored boxes are read first: a derived render model is derived from them.
+  const rects = new Map<string, Rect>();
+  for (const obj of read) {
+    if (!VIEW_DERIVERS.has(obj.type)) {
+      rects.set(obj.id, objectBounds(obj));
+    }
+  }
+
+  const objects: ObjectSnapshot[] = [];
+  for (const obj of read) {
+    const derive = VIEW_DERIVERS.get(obj.type);
+    const derived = derive ? derive(obj, rects) : obj;
+    if (!derived) {
+      continue; // nothing to draw: an arrow that refers to nothing is skipped
+    }
+    objects.push(derived);
+  }
+
   objects.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return objects;
 }
@@ -322,6 +360,35 @@ const SNAPSHOT_READERS = new Map<string, SnapshotReader>([['sticky', stickyFrom]
 /** Declare how one object type's snapshot is read. */
 export function registerSnapshotReader(type: string, read: SnapshotReader): void {
   SNAPSHOT_READERS.set(type, read);
+}
+
+/**
+ * How one object type's **render model** is derived instead of stored
+ * (`connector.follow`).
+ *
+ * A connector stores endpoints, not a position: its box is whatever its resolved
+ * endpoints cover, and what an arrow is drawn to is decided against the objects
+ * it refers to. `rects` holds the box of every other object read in the same
+ * pass, so a deriver never reaches back into the document and every derived
+ * value in one frame is computed against the same snapshot of the board.
+ *
+ * Returning `null` means "there is nothing to draw", and the object is skipped.
+ */
+export type ViewDeriver = (
+  snapshot: ObjectSnapshot,
+  rects: ReadonlyMap<string, Rect>,
+) => ObjectSnapshot | null;
+
+const VIEW_DERIVERS = new Map<string, ViewDeriver>();
+
+/** Declare that this type's render model is derived from the objects it refers to. */
+export function registerViewDeriver(type: string, derive: ViewDeriver): void {
+  VIEW_DERIVERS.set(type, derive);
+}
+
+/** Does this type's box come from geometry rather than from its stored numbers? */
+export function hasDerivedView(type: string): boolean {
+  return VIEW_DERIVERS.has(type);
 }
 
 /** A snapshot of one stored object, or `undefined` if it cannot be drawn. */
@@ -410,6 +477,9 @@ export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): 
     if (!entry) {
       return; // deleted elsewhere mid-gesture (TC-05)
     }
+    if (hasDerivedView(typeOf(entry))) {
+      return; // a connector's box is derived from its ends: it has no position of its own
+    }
     if (entry.get('x') === position.x && entry.get('y') === position.y) {
       return; // already there: no update to broadcast
     }
@@ -456,6 +526,9 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
     const entry = asObjectMap(objects.get(id));
     if (!entry) {
       return;
+    }
+    if (hasDerivedView(typeOf(entry))) {
+      return; // resizing a derived box would write numbers nothing reads back
     }
     if (
       entry.get('x') === rect.x &&
@@ -546,6 +619,10 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 /**
  * Delete a group (`sel.group_delete`). Ids that are already gone are skipped; a
  * call with nothing to delete opens no transaction.
+ *
+ * The arrows attached to the deleted objects are detached in the **same**
+ * transaction (`connector.detach`, TC-13): one update, so no client ever sees a
+ * connector attached to an object that no longer exists.
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const objects = objectMapOf(doc);
@@ -554,12 +631,75 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
     return 0;
   }
   doc.transact(() => {
+    // Before the objects go: detaching needs the rectangles they are still at.
+    detachConnectorsTo(doc, present);
     for (const id of present) {
       objects.delete(id);
     }
   }, LOCAL_ORIGIN);
   return present.length;
 }
+
+/**
+ * Turn the attached ends of `deletedIds` into free ends (`connector.detach`).
+ *
+ * Called inside an open transaction - `deleteObjects` above is the caller - and
+ * writing nothing but the endpoints themselves: each attached end becomes a free
+ * end at the anchor it was drawn to, so the arrow stays exactly where it was
+ * when the object it pointed at disappeared (TC-13). An end attached to an
+ * object that survives is left attached.
+ *
+ * Returns how many ends were detached.
+ */
+export function detachConnectorsTo(doc: Y.Doc, deletedIds: readonly string[]): number {
+  const deleted = new Set<string>((deletedIds ?? []).filter((id) => typeof id === 'string'));
+  if (deleted.size === 0) {
+    return 0;
+  }
+  const objects = objectMapOf(doc);
+  const connectors: { entry: Y.Map<unknown>; snapshot: ConnectorSnapshot }[] = [];
+  const rects = new Map<string, Rect>();
+
+  objects.forEach((value, id) => {
+    const snapshot = objectFrom(id, value);
+    if (!snapshot) {
+      return;
+    }
+    if (isConnectorSnapshot(snapshot)) {
+      // Read as stored: the endpoints are what the detach decides on.
+      connectors.push({ entry: value as Y.Map<unknown>, snapshot });
+      return;
+    }
+    rects.set(id, objectBounds(snapshot));
+  });
+
+  const writes: { entry: Y.Map<unknown>; end: 'from' | 'to'; point: Point }[] = [];
+  for (const { entry, snapshot } of connectors) {
+    const resolved = resolveEndpoints(snapshot, rects);
+    for (const end of ['from', 'to'] as const) {
+      const endpoint = snapshot[end];
+      if (endpoint.kind === 'attached' && deleted.has(endpoint.objectId)) {
+        writes.push({ entry, end, point: resolved[end] });
+      }
+    }
+  }
+  if (writes.length === 0) {
+    return 0;
+  }
+  // Inside an open transaction this joins it; on its own it is one update.
+  doc.transact(() => {
+    for (const write of writes) {
+      write.entry.set(write.end, { kind: 'free', x: write.point.x, y: write.point.y });
+    }
+  }, LOCAL_ORIGIN);
+  return writes.length;
+}
+
+/** The stored `type` of an entry, for the checks that are per type. */
+const typeOf = (entry: Y.Map<unknown>): string => {
+  const type = entry.get('type');
+  return typeof type === 'string' ? type : '';
+};
 
 const numberOr = (value: unknown, fallback: number): number =>
   isFiniteNumber(value) ? value : fallback;

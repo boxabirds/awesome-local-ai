@@ -12,9 +12,15 @@ import {
   type StickySnapshot,
 } from '../../src/shared/board-model';
 import { createText, type TextSnapshot } from '../../src/shared/objects/text';
+import { createShape, type ShapeSnapshot } from '../../src/shared/objects/shape';
+import {
+  createConnector,
+  type ConnectorSnapshot,
+  type EndpointInput,
+} from '../../src/shared/objects/connector';
 import type { BoardProvider } from '../../src/client/sync/connectBoard';
 import type { Camera } from '../../src/client/canvas/camera';
-import type { StickyColor } from '../../src/shared/config';
+import type { ShapeKind, StickyColor } from '../../src/shared/config';
 
 /** A board address for component runs: no room is contacted, but the address is real. */
 export const COMPONENT_BOARD_ID = 'componentboard00000000';
@@ -541,11 +547,21 @@ export function editingId(): string | null {
   return value === null || value === '' ? null : value;
 }
 
-export function toolButton(tool: 'select' | 'text'): HTMLButtonElement {
-  return screen.getByTestId(tool === 'select' ? 'select-tool' : 'text-tool') as HTMLButtonElement;
+const TOOL_BUTTON_TEST_IDS = {
+  select: 'select-tool',
+  text: 'text-tool',
+  shape: 'shape-tool',
+  connector: 'connector-tool',
+} as const;
+
+/** Every tool the toolbar has a button for (`tool.shortcuts`). */
+export type ToolbarTool = keyof typeof TOOL_BUTTON_TEST_IDS;
+
+export function toolButton(tool: ToolbarTool): HTMLButtonElement {
+  return screen.getByTestId(TOOL_BUTTON_TEST_IDS[tool]) as HTMLButtonElement;
 }
 
-export function toolPressed(tool: 'select' | 'text'): boolean {
+export function toolPressed(tool: ToolbarTool): boolean {
   return toolButton(tool).getAttribute('aria-pressed') === 'true';
 }
 
@@ -608,4 +624,185 @@ export function pasteIntoTextEditor(text: string): void {
     throw new Error('no text object is being edited');
   }
   fireEvent.change(editor as HTMLTextAreaElement, { target: { value: text } });
+}
+
+/* ------------------------------------------------------------------------- */
+/* Shape helpers (story 10)                                                  */
+/* ------------------------------------------------------------------------- */
+
+export interface CreateShapeOptions {
+  kind?: ShapeKind;
+  /** Where the click lands, or the corner of the box when `rect` is given. */
+  at: { x: number; y: number };
+  /** The box a drag made; left out, the default click size is used. */
+  rect?: { x: number; y: number; width: number; height: number } | null;
+  square?: boolean;
+  createdBy?: string;
+}
+
+/** Create a shape through the model, and let the board re-render. */
+export function createShapeObject(doc: Y.Doc, options: CreateShapeOptions): string {
+  let id = '';
+  act(() => {
+    id =
+      createShape(
+        doc,
+        {
+          kind: options.kind ?? 'rect',
+          rect: options.rect ?? null,
+          at: options.at,
+          square: options.square ?? false,
+        },
+        options.createdBy ?? 'component_client',
+      ) ?? '';
+  });
+  return id;
+}
+
+/** The shapes exactly as the document holds them (sorted by z, then id). */
+export function docShapes(doc: Y.Doc): readonly ShapeSnapshot[] {
+  return objectSnapshots(doc).filter((entry): entry is ShapeSnapshot => entry.type === 'shape');
+}
+
+export function shapeOf(doc: Y.Doc, id: string): ShapeSnapshot {
+  const entry = docShapes(doc).find((candidate) => candidate.id === id);
+  if (!entry) {
+    throw new Error(`shape ${id} is not in the document`);
+  }
+  return entry;
+}
+
+export function shapeElements(): HTMLElement[] {
+  return screen.queryAllByTestId(/^shape-object-/u);
+}
+
+export function shapeElement(id: string): HTMLElement {
+  return screen.getByTestId(`shape-object-${id}`);
+}
+
+/** The SVG that draws it: the element a press, a drag or a double-click lands on. */
+export function shapeSvgElement(id: string): HTMLElement {
+  return screen.getByTestId(`shape-${id}`);
+}
+
+export function shapeLabelElement(id: string): HTMLElement | null {
+  return screen.queryByTestId(`shape-label-${id}`);
+}
+
+export function shapeEditorElement(id: string): HTMLElement | null {
+  return screen.queryByTestId(`shape-editor-${id}`);
+}
+
+export function shapeToolbarElement(): HTMLElement | null {
+  return screen.queryByTestId('shape-toolbar');
+}
+
+export function shapeSwatch(label: string): HTMLButtonElement {
+  return screen.getByRole('button', { name: label }) as HTMLButtonElement;
+}
+
+/** Type into the open shape label editor, one input event per call. */
+export function typeIntoShapeEditor(id: string, text: string): void {
+  const editor = shapeEditorElement(id);
+  if (!editor) {
+    throw new Error(`shape ${id} is not being edited`);
+  }
+  const textarea = editor as HTMLTextAreaElement;
+  fireEvent.change(textarea, { target: { value: `${textarea.value}${text}` } });
+}
+
+/* ------------------------------------------------------------------------- */
+/* Connector helpers (story 10)                                              */
+/* ------------------------------------------------------------------------- */
+
+/** Create a connector through the model, and let the board re-render. */
+export function createConnectorObject(
+  doc: Y.Doc,
+  from: EndpointInput,
+  to: EndpointInput,
+  createdBy = 'component_client',
+): string {
+  let id = '';
+  act(() => {
+    id = createConnector(doc, from, to, createdBy) ?? '';
+  });
+  return id;
+}
+
+/** The connectors exactly as the document holds them (sorted by z, then id). */
+export function docConnectors(doc: Y.Doc): readonly ConnectorSnapshot[] {
+  return objectSnapshots(doc).filter(
+    (entry): entry is ConnectorSnapshot => entry.type === 'connector',
+  );
+}
+
+export function connectorOf(doc: Y.Doc, id: string): ConnectorSnapshot {
+  const entry = docConnectors(doc).find((candidate) => candidate.id === id);
+  if (!entry) {
+    throw new Error(`connector ${id} is not in the document`);
+  }
+  return entry;
+}
+
+export function connectorElements(): HTMLElement[] {
+  return screen.queryAllByTestId(/^connector-object-/u);
+}
+
+export function connectorElement(id: string): HTMLElement {
+  return screen.getByTestId(`connector-object-${id}`);
+}
+
+/** The handle at one end of the selected arrow a person drags (`connector.reattach`). */
+export function connectorHandleElement(end: 'from' | 'to'): HTMLElement {
+  return screen.getByTestId(`connector-handle-${end}`);
+}
+
+export function connectorDots(): HTMLElement[] {
+  return screen.queryAllByTestId('connector-dot');
+}
+
+/** The dot the arrow would attach to, or `null` when none is highlighted. */
+export function activeConnectorDot(): HTMLElement | null {
+  return connectorDots().find((dot) => dot.getAttribute('data-active') === 'true') ?? null;
+}
+
+export function connectorPreviewLine(): HTMLElement | null {
+  return screen.queryByTestId('connector-preview-line');
+}
+
+/** The centre of a shape, in screen coordinates: where to press it. */
+export function shapeCentre(id: string, doc: Y.Doc): { x: number; y: number } {
+  return screenCentre(shapeOf(doc, id));
+}
+
+/** The four side midpoints of a shape, in screen coordinates (`connector.attach`). */
+export function shapeSideMidpoints(doc: Y.Doc, id: string): Record<'top' | 'right' | 'bottom' | 'left', { x: number; y: number }> {
+  const shape = shapeOf(doc, id);
+  const at = (x: number, y: number) => screenOf({ x, y });
+  return {
+    top: at(shape.x + shape.width / 2, shape.y),
+    right: at(shape.x + shape.width, shape.y + shape.height / 2),
+    bottom: at(shape.x + shape.width / 2, shape.y + shape.height),
+    left: at(shape.x, shape.y + shape.height / 2),
+  };
+}
+
+/** A point `px` screen pixels away from the arrow's line, perpendicular to it. */
+export function offsetFromConnector(
+  connector: ConnectorSnapshot,
+  px: number,
+  end: 'from' | 'to' = 'from',
+): { x: number; y: number } {
+  const a = connector.points.from;
+  const b = connector.points.to;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy) || 1;
+  // The unit normal, in world units: the arrow is drawn at the current zoom, so a
+  // screen offset becomes `px / zoom` of board units (`connector.select`).
+  const world = px / readCamera().zoom;
+  const nx = (-dy / length) * world;
+  const ny = (dx / length) * world;
+  const middle = end === 'from' ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : b;
+  return screenOf({ x: middle.x + nx, y: middle.y + ny });
 }

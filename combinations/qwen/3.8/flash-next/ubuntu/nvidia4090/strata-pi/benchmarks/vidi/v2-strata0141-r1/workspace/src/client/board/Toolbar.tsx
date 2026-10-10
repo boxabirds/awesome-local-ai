@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 import { UndoButtons } from './UndoButtons';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
 import type { UndoState } from './useUndo';
+import { SHAPE_KINDS, SHAPE_KIND_LABELS, type ShapeKind } from '../../shared/config';
 
 /**
  * The fixed left toolbar (anchors `sticky.toolbar`, `undo.controls`,
@@ -10,14 +11,22 @@ import type { UndoState } from './useUndo';
  * the two buttons that take a person's own changes back and forward again.
  *
  * The tool buttons show which tool this client is holding (`aria-pressed`), and each
- * label names the keyboard shortcut that does the same thing: V, T, N. Text is
- * disabled on a board this client may not edit (TC-15).
+ * label names the keyboard shortcut that does the same thing: V, T, N, S, L. Text,
+ * Shape and Connector are disabled on a board this client may not edit (TC-15).
+ *
+ * Story 10 adds the Shape button - which opens a kind menu while it is the active
+ * tool, because the kind is chosen *before* drawing, not on the shape afterwards -
+ * and the Connector button. Both are the same buttons the single-letter shortcuts
+ * press, and both do nothing but ask `useActiveTool` for a tool (`tool.shortcuts`).
  */
 export interface ToolbarProps {
   onCreateSticky(): void;
-  /** Story 9 (`text.tool_ui`): the tool this client is holding. */
-  tool?: Tool;
-  onSelectTool?(tool: Tool): void;
+  /** The tool this client is holding (`text.tool_ui`, `tool.shortcuts`). */
+  tool?: ToolId;
+  onSelectTool?(tool: ToolId): void;
+  /** Which shape the Shape tool will draw (`shape.kind`). */
+  shapeKind?: ShapeKind;
+  onShapeKind?(kind: ShapeKind): void;
   /** True while the room could not load the board (`persist.client_status`). */
   disabled?: boolean;
   /** Undo and redo for this board (`undo.controls`). */
@@ -25,13 +34,21 @@ export interface ToolbarProps {
 }
 
 export function Toolbar(props: ToolbarProps) {
-  const { onCreateSticky, tool = 'select', onSelectTool, disabled = false, undo } = props;
+  const {
+    onCreateSticky,
+    tool = 'select',
+    onSelectTool,
+    shapeKind = SHAPE_KINDS[0],
+    onShapeKind,
+    disabled = false,
+    undo,
+  } = props;
 
   const stop = useCallback((event: React.SyntheticEvent) => {
     event.stopPropagation();
   }, []);
 
-  const pickTool = (next: Tool): void => {
+  const pickTool = (next: ToolId): void => {
     if (disabled) {
       return;
     }
@@ -77,6 +94,55 @@ export function Toolbar(props: ToolbarProps) {
           <path d="M5 5h14M12 5v14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
         <span className="toolbar__label">Text</span>
+      </button>
+      <button
+        type="button"
+        className={`toolbar__button${tool === 'shape' ? ' toolbar__button--active' : ''}`}
+        data-testid="shape-tool"
+        aria-label="Shape (S)"
+        title="Shape (S) – drag a box, or click for a default one"
+        disabled={disabled}
+        aria-pressed={tool === 'shape'}
+        onClick={() => pickTool('shape')}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+          <rect x="3.5" y="6.5" width="17" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="2" />
+        </svg>
+        <span className="toolbar__label">Shape</span>
+      </button>
+      {tool === 'shape' ? (
+        <div className="toolbar__kinds" data-testid="shape-kinds" role="group" aria-label="Shape kind">
+          {SHAPE_KINDS.map((kind: ShapeKind) => (
+            <button
+              key={kind}
+              type="button"
+              className={`toolbar__kind${shapeKind === kind ? ' toolbar__kind--active' : ''}`}
+              data-testid={`shape-kind-${kind}`}
+              aria-label={SHAPE_KIND_LABELS[kind]}
+              title={SHAPE_KIND_LABELS[kind]}
+              aria-pressed={shapeKind === kind}
+              onClick={() => onShapeKind?.(kind)}
+            >
+              {SHAPE_KIND_LABELS[kind]}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className={`toolbar__button${tool === 'connector' ? ' toolbar__button--active' : ''}`}
+        data-testid="connector-tool"
+        aria-label="Connector (L)"
+        title="Connector (L) – drag from an object to where the arrow should end"
+        disabled={disabled}
+        aria-pressed={tool === 'connector'}
+        onClick={() => pickTool('connector')}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+          <path d="M4 18L18 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <path d="M12.5 5.5H19v6.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+        <span className="toolbar__label">Connector</span>
       </button>
       <button
         type="button"

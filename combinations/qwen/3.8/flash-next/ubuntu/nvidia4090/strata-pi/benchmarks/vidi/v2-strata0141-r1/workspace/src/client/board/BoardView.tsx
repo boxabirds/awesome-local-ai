@@ -4,11 +4,15 @@ import {
   createSticky,
   deleteObjects,
   getStickyText,
+  isConnectorSnapshot,
+  isShapeSnapshot,
   isTextSnapshot,
   objectSnapshots,
   snapshot,
 } from '../../shared/board-model';
 import { createText, getTextContent, setTextSize } from '../../shared/objects/text';
+import { createShape, getShapeLabel, setShapeStyle } from '../../shared/objects/shape';
+import { createConnector } from '../../shared/objects/connector';
 import { registerBoardApi, registerSeedApi } from '../testHooks';
 import { STICKY_COLOR_NAMES, type TextSize } from '../../shared/config';
 import { useClientId } from '../useClientId';
@@ -24,7 +28,10 @@ import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { useMarquee, MarqueeRect } from './Marquee';
 import { useBoardKeys } from './useBoardKeys';
-import { useTool } from './useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { hitTestObjectAt } from '../objects/registry';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import { UndoControllerContext, useUndo, useUndoController } from './useUndo';
 import type { UndoController } from './undo';
 // Importing the registry is what registers the board's object types; every
@@ -108,7 +115,17 @@ export function BoardView({
   const selection = useSelection(objects);
 
   /** Per-client tool state (`text.tool_ui`): Select or Text, never persisted. */
-  const { tool: activeTool, setTool } = useTool(editable);
+  // The tool this client is holding, now including story 10's Shape and Connector
+  // tools (`tool.shortcuts`, `tool.return_to_select`). Everything story 9 had for
+  // Select and Text is unchanged: this only adds tools the board can be holding and
+  // the `toolCreated` report a new tool makes when it makes something.
+  const active = useActiveTool({
+    canEdit: editable,
+    editing: selection.editingId !== null,
+    select: (ids) => selection.setMany(ids, false),
+  });
+  const activeTool = active.tool;
+  const setTool = active.setTool;
   /** The one measurer this board writes boxes with (`text.layout`). */
   const measure = useMeasurer();
   /** The owner a new text object records (story 6 replaces this with an identity). */
@@ -204,9 +221,19 @@ export function BoardView({
         createTextAt(world);
         return;
       }
+      // One type never gets a click of its own, because it is too thin to land on:
+      // an arrow. A click that missed it by a few pixels is exactly the case a
+      // distance test decides, so the board asks each object in its own type's way
+      // here - and an object that was clicked *on* never reaches here at all, because
+      // its own handler took the click (`sel.registry`, `connector.select`, TC-20).
+      const hit = hitTestObjectAt(objects, world, zoom);
+      if (hit) {
+        selection.click(hit.id);
+        return;
+      }
       selection.clear();
     },
-    [activeTool, createTextAt, selection],
+    [activeTool, createTextAt, objects, selection, zoom],
   );
 
   useBoardKeys({
@@ -306,6 +333,35 @@ export function BoardView({
         }
         return id;
       },
+      // Story 10's two object kinds, for test setup: the e2e tests seed boards and
+      // race against remote deletes through the same model calls the UI makes.
+      shapes: () => objectSnapshots(doc).filter(isShapeSnapshot),
+      createShape: (params) => {
+        const id = createShape(
+          doc,
+          {
+            kind: params.kind ?? 'rect',
+            rect: params.size
+              ? { x: params.at.x, y: params.at.y, width: params.size.width, height: params.size.height }
+              : null,
+            at: params.at,
+            square: params.square ?? false,
+          },
+          'test-hook',
+        );
+        if (id === null) {
+          return '';
+        }
+        if (params.fill !== undefined || params.stroke !== undefined) {
+          setShapeStyle(doc, id, { fill: params.fill, stroke: params.stroke });
+        }
+        if (params.label !== undefined) {
+          getShapeLabel(doc, id)?.insert(0, params.label);
+        }
+        return id;
+      },
+      connectors: () => objectSnapshots(doc).filter(isConnectorSnapshot),
+      createConnector: (params) => createConnector(doc, params.from, params.to, 'test-hook') ?? '',
       connectionState: () => connectionState,
     });
     // Seeding a big board is one transaction, so a test sets up a board the size
@@ -384,6 +440,7 @@ export function BoardView({
               onStartEdit={editNote}
               onEndEdit={(next) => (next === 'selected' ? selection.endEdit() : selection.clear())}
               onObjectPointerDown={gesture.onObjectPointerDown}
+              surface={surface}
             />
           );
         })}
@@ -407,8 +464,29 @@ export function BoardView({
         onCreateSticky={createAtViewportCentre}
         tool={activeTool}
         onSelectTool={setTool}
+        shapeKind={active.shapeKind}
+        onShapeKind={active.setShapeKind}
         disabled={!editable}
         undo={undoState}
+      />
+      {/* Story 10's two tools. Each draws only while it is the tool the board is
+          holding, and each reports the object it made through `toolCreated`
+          (`shape.ui`, `connector.ui`, `tool.return_to_select`). */}
+      <ShapeTool
+        doc={doc}
+        armed={activeTool === 'shape'}
+        shapeKind={active.shapeKind}
+        surface={surface}
+        createdBy={clientId}
+        onCreated={active.toolCreated}
+      />
+      <ConnectorTool
+        doc={doc}
+        armed={activeTool === 'connector'}
+        objects={objects}
+        surface={surface}
+        createdBy={clientId}
+        onCreated={active.toolCreated}
       />
       <ConnectionStatus state={connectionState} />
     </main>

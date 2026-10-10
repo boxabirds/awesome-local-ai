@@ -89,15 +89,17 @@ describe('sel.registry - sticky notes (TC-11)', () => {
 });
 
 describe('sel.registry - unknown types (TC-12)', () => {
-  // TC-12
+  // TC-12. The names here are ones nothing registers: story 10 filled in 'shape'
+  // and 'connector', which is exactly what this anchor is for - a type the registry
+  // has never heard of is the one a board cannot draw, select or transform.
   it('TC-12 a type nothing registered has no spec', () => {
-    expect(getObjectType('shape')).toBeUndefined();
+    expect(getObjectType('not-a-board-type')).toBeUndefined();
     expect(getObjectType('whiteboard-thing')).toBeUndefined();
     expect(getObjectType('')).toBeUndefined();
   });
 
   it('an unknown type therefore declares nothing about resizing', () => {
-    const spec = getObjectType('shape');
+    const spec = getObjectType('not-a-board-type');
     expect(spec?.resizable).toBeUndefined();
     expect(spec?.minSize).toBeUndefined();
   });

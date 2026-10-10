@@ -7,9 +7,17 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { rectContainsPoint, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ConnectorObject, hitTestConnector } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
+import type { ConnectorSnapshot } from '../../shared/objects/connector';
+import type { BoardSurface } from '../canvas/BoardViewport';
 
 /**
  * The object type registry (anchor `sel.registry`).
@@ -57,6 +65,14 @@ export interface ObjectProps<T extends ObjectSnapshot = ObjectSnapshot> {
    * threshold are the board's business (`sel.transform`).
    */
   onObjectPointerDown(event: PointerEventLike, id: string): void;
+  /**
+   * The board surface: camera, viewport and where the surface sits on the screen.
+   * A component that turns a window pointer event into world coordinates needs it,
+   * and needs the same conversion every tool uses - a connector measuring itself
+   * against its own box would place an end somewhere the board is not pointing
+   * (`connector.reattach`).
+   */
+  surface?: BoardSurface | null;
 }
 
 export interface ObjectTypeSpec {
@@ -78,8 +94,15 @@ export interface ObjectTypeSpec {
    * eight, which is how every type before story 9 was drawn.
    */
   handles?: HandlesMode;
-  /** Is this world point on this object? */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Is this world point on this object?
+   *
+   * `zoom` is the camera zoom, because a type whose "on it" is a band of a certain
+   * width *on the screen* - story 10's connector, `connector.tolerance` - has to
+   * convert that band to world units to measure it. A type that only looks at its
+   * rectangle ignores it.
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 /** Which resize handles a type may use: all eight, or its two horizontal edges. */
@@ -120,6 +143,33 @@ export function registerObjectType(type: string, spec: ObjectTypeSpec): void {
 
 export function getObjectType(type: string): ObjectTypeSpec | undefined {
   return registry.get(type);
+}
+
+/**
+ * The topmost object a world point is on, each type asked in its own way
+ * (`sel.registry`, `connector.tolerance`).
+ *
+ * The board asks this when a click reached the surface rather than an object -
+ * which is exactly the case an arrow needs, because a click that landed *near* a
+ * thin line never landed on it, and only a distance test can tell whether that is
+ * the same as on it. Objects are asked topmost first, the order they are drawn in.
+ */
+export function hitTestObjectAt(
+  objects: readonly ObjectSnapshot[],
+  worldPoint: Point,
+  zoom: number,
+): ObjectSnapshot | null {
+  for (let index = objects.length - 1; index >= 0; index -= 1) {
+    const obj = objects[index];
+    const spec = obj ? registry.get(obj.type) : undefined;
+    if (!obj || !spec) {
+      continue;
+    }
+    if (spec.hitTest(obj, worldPoint, zoom)) {
+      return obj;
+    }
+  }
+  return null;
 }
 
 /** Is this type one the board can draw, select and transform? */
@@ -220,6 +270,45 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: hitTestBounds,
+});
+
+/* -------------------------------------------------------------------------- */
+/* Shapes (`shape.*`): the box is the shape, so the box is what a click finds. */
+/* -------------------------------------------------------------------------- */
+
+registerObjectType('shape', {
+  Component: ShapeObject as ComponentType<ObjectProps<never>>,
+  resizable: true,
+  // A shape keeps no proportions: a 200x120 rectangle stays a rectangle when it is
+  // stretched, and Shift is a *drag* constraint (`shape.size`), not a resize one.
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  // A rect, an ellipse and a diamond all fill their bounding box - an ellipse
+  // touches it at four points, a diamond along four edges - and the SVG that draws
+  // them covers the box, so a click anywhere in the box reaches the shape.
+  hitTest: hitTestBounds,
+});
+
+/* -------------------------------------------------------------------------- */
+/* Connectors (`connector.*`): never resized, hit by distance, no text.       */
+/* -------------------------------------------------------------------------- */
+
+registerObjectType('connector', {
+  Component: ConnectorObject as ComponentType<ObjectProps<never>>,
+  // An arrow has no size to change. Its box is derived from its ends
+  // (`connector.follow`), so it gets no handles, `resizeObjects` refuses it and
+  // `moveObjects` leaves it to the objects it is attached to.
+  resizable: false,
+  aspectLocked: false,
+  // Never asked: a type that cannot be resized has no minimum side.
+  minSize: 0,
+  // No text: a double-click on an arrow must not create any (`shape.create`).
+  editableText: false,
+  // Not the box - the line, plus `CONNECTOR_HIT_TOLERANCE_PX` of screen either
+  // side, converted to world units at this zoom (`connector.tolerance`, TC-20).
+  hitTest: (obj, worldPoint, zoom = 1) =>
+    hitTestConnector(obj as ConnectorSnapshot, worldPoint, zoom),
 });
 
 /**
