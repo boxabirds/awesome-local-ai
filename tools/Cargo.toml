@@ -5,7 +5,7 @@
 # backend, and a workspace build would then compile dbench's TLS a second time with it (and aws-lc's cmake build).
 [workspace]
 resolver = "2"
-members = ["dbench", "vidi-gallery"]
+members = ["dbench", "vidi-gallery", "anthropic-token-counter"]
 exclude = ["agent-sandbox", "power-collector"]
 
 # Profiles live here, not in the members (cargo ignores a member's). `release` is for every build on this machine:

@@ -23,3 +23,6 @@ benchmarks/vidi/acceptance/
 
 # Archived runs (plans/20261003-archive-superseded-records.md): kept on this machine only, never committed
 /archive/
+
+# Local secrets (an API key): never committed
+/.env
