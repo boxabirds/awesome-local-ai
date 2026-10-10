@@ -1,3 +1,72 @@
+commit 509661657326a2cc967dc9734d345dc3a739e588
+agent  Sat Oct 10 03:48:49 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                    | 100 ++++++
+ PROGRESS.md                                 |  41 ++-
+ playwright.config.ts                        |   5 +-
+ scratch/scratch.mjs                         |  16 -
+ src/client/App.tsx                          |  80 ++++-
+ src/client/board/Toolbar.tsx                |   8 +-
+ src/client/objects/StickyNote.tsx           |  31 +-
+ src/client/styles.css                       |  12 +
+ src/client/sync/ConnectionStatus.tsx        |  22 +-
+ src/client/sync/connectBoard.ts             |  36 +-
+ src/client/testHooks.ts                     |  21 ++
+ src/worker/board-room.ts                    | 526 ++++++++++++++++++++++------
+ src/worker/board-store.ts                   |  90 ++++-
+ src/worker/index.ts                         |  19 +
+ src/worker/test-hooks.ts                    |  91 +++++
+ tests/component/ConnectionStatus.test.tsx   | 105 +++++-
+ tests/component/LoadFailedBoard.test.tsx    | 175 +++++++++
+ tests/e2e/board-broken.spec.ts              | 113 ++++++
+ tests/e2e/board-persistence.spec.ts         | 304 ++++++++++++++++
+ tests/e2e/helpers/board.ts                  |  13 +-
+ tests/e2e/helpers/wrangler-process.ts       | 223 ++++++++++++
+ tests/e2e/live-collaboration.spec.ts        |  13 +
+ tests/integration/board-persistence.test.ts | 406 +++++++++++++++++++++
+ tests/integration/board-room.test.ts        |   8 +-
+ tests/integration/board-store.test.ts       |   5 +-
+ tests/integration/test-hooks.test.ts        | 117 +++++++
+ tests/integration/worker-entry.test.ts      |  30 +-
+ 27 files changed, 2444 insertions(+), 166 deletions(-)
+commit d33af1fd9527ae5cf0284f035a899c2b342e66fd
+agent  Sat Oct 10 02:06:43 2026 +0100
+
+    story 4 (tasks 2-3): BoardStore over DO SQLite, storage integration tests
+
+
+ scratch/scratch.mjs                   |  16 +
+ src/worker/board-room.ts              |  20 ++
+ src/worker/board-store.ts             | 381 ++++++++++++++++++++--
+ src/worker/room-state.ts              | 101 +++++-
+ tests/fixtures/boards.ts              | 280 ++++++++++++++++
+ tests/integration/board-store.test.ts | 591 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 1359 insertions(+), 30 deletions(-)
+commit 3d6796e57538655da932e9bafe4c255bcbb8c858
+agent  Sat Oct 10 01:13:23 2026 +0100
+
+    story 4 (task 1): storage + room-state unit tests and stubs
+
+
+ PROGRESS.md                           |   4 +-
+ src/shared/config.ts                  |  25 ++++++
+ src/shared/protocol.ts                |  13 +++
+ src/worker/board-store.ts             |  35 ++++++++
+ src/worker/room-state.ts              |  55 ++++++++++++
+ tests/unit/board-store-chunks.test.ts | 118 +++++++++++++++++++++++++
+ tests/unit/room-state.test.ts         | 160 ++++++++++++++++++++++++++++++++++
+ 7 files changed, 408 insertions(+), 2 deletions(-)
+commit e46ccd0e7eb7d332887f2ac3889ed766b73bfde7
+vidi-agent  Sat Oct 10 01:01:55 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 51 ++++++++++-----------------------------------------
+ 1 file changed, 10 insertions(+), 41 deletions(-)
 commit 4de1927c344a82312c967fb9b5acbc6ecfda879d
 agent  Sat Oct 10 00:54:16 2026 +0100
 
