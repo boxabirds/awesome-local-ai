@@ -625,6 +625,17 @@
           "pushed": true
         },
         "commit": "03531e251"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 141
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -1281,6 +1292,17 @@
           "pushed": true
         },
         "commit": "6af181ab6"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 146
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -1956,6 +1978,17 @@
           "pushed": true
         },
         "commit": "19620350e"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 332
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -2634,6 +2667,17 @@
           "pushed": true
         },
         "commit": "6ff9a6990"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 277
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -3283,6 +3327,17 @@
           "pushed": true
         },
         "commit": "5868bbfbf"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 162
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -4014,6 +4069,17 @@
           "pushed": true
         },
         "commit": "ae1969d8a"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 183
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -4679,6 +4745,17 @@
           "pushed": true
         },
         "commit": "cd44528d6"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 213
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -5386,6 +5463,17 @@
           "pushed": true
         },
         "commit": "5c9c147e8"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 215
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -6084,6 +6172,17 @@
           "pushed": true
         },
         "commit": "3c975cb49"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 364
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -6734,6 +6833,17 @@
           "pushed": true
         },
         "commit": "be0c9c918"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 161
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -7422,6 +7532,30 @@
           "8": "done",
           "9": "doing"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-opencode/benchmarks/vidi/v2-gufoopencode-r2/server.log"
+        ],
+        "private": {
+          "copied": 30,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "096d474a0"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "opencode",
+          "calls": 227
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
