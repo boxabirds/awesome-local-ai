@@ -24,6 +24,9 @@ interface GestureEventLike extends Event {
 const CREATION_CURSORS: Partial<Record<ToolId, string>> = {
   shape: 'crosshair',
   connector: 'crosshair',
+  // The pen's own tip is drawn as a round cursor the size of its thickness; the
+  // crosshair under it says where the stroke will start (`pen.cursor`).
+  pen: 'crosshair',
 };
 
 const mod = (value: number, modulus: number): number => ((value % modulus) + modulus) % modulus;
@@ -120,6 +123,13 @@ export interface BoardViewportProps {
    * (`text.tool_ui`). Story 10's Shape and Connector tools take their own press on
    * `window`, in front of everything here (`shape.tool`, `connector.tool`); this
    * prop only carries the cursor and the `data-tool` attribute.
+   *
+   * Story 11's Pen is the one tool that also needs a *refusal* here: while the pen
+   * is in hand a pointer drag belongs to the pen whatever it started on, so the
+   * surface never begins a pan or a marquee (`pen.navigation`, TC-19). Wheel and
+   * pinch are untouched, and a press that begins on an object never reaches that
+   * object's own gesture either, because the Pen tool stops the press on `window`
+   * before it gets here.
    */
   tool?: ToolId;
   /** The Text tool's click: the world point the new text object's top-left gets. */
@@ -224,6 +234,11 @@ export function BoardViewport(props: BoardViewportProps) {
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (tool === 'pen') {
+      // `pen.navigation`: with the pen in hand a drag is a stroke, not a pan and
+      // not a marquee. Nothing is begun here, so nothing is ended here either.
+      return;
+    }
     const target = e.target;
     if (!(target instanceof Element) || target.getAttribute('data-board-surface') !== 'true') {
       return; // only empty board space starts a pan or a marquee

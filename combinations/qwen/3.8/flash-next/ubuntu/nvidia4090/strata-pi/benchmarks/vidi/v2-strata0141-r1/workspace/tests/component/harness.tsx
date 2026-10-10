@@ -14,13 +14,18 @@ import {
 import { createText, type TextSnapshot } from '../../src/shared/objects/text';
 import { createShape, type ShapeSnapshot } from '../../src/shared/objects/shape';
 import {
+  createStroke,
+  worldPoints,
+  type StrokeSnap,
+} from '../../src/shared/objects/stroke';
+import {
   createConnector,
   type ConnectorSnapshot,
   type EndpointInput,
 } from '../../src/shared/objects/connector';
 import type { BoardProvider } from '../../src/client/sync/connectBoard';
 import type { Camera } from '../../src/client/canvas/camera';
-import type { ShapeKind, StickyColor } from '../../src/shared/config';
+import type { ShapeKind, PenColor, PenThickness, StickyColor } from '../../src/shared/config';
 
 /** A board address for component runs: no room is contacted, but the address is real. */
 export const COMPONENT_BOARD_ID = 'componentboard00000000';
@@ -552,6 +557,7 @@ const TOOL_BUTTON_TEST_IDS = {
   text: 'text-tool',
   shape: 'shape-tool',
   connector: 'connector-tool',
+  pen: 'pen-tool',
 } as const;
 
 /** Every tool the toolbar has a button for (`tool.shortcuts`). */
@@ -805,4 +811,158 @@ export function offsetFromConnector(
   const ny = (dx / length) * world;
   const middle = end === 'from' ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : b;
   return screenOf({ x: middle.x + nx, y: middle.y + ny });
+}
+
+/* ------------------------------------------------------------------------- */
+/* Pen and stroke helpers (story 11)                                         */
+/* ------------------------------------------------------------------------- */
+
+export interface CreateStrokeOptions {
+  /** World-space points, in the order they were recorded. */
+  points: { x: number; y: number }[];
+  color?: PenColor;
+  thickness?: PenThickness;
+  createdBy?: string;
+}
+
+/** Create a stroke through the model, and let the board re-render. */
+export function createStrokeObject(doc: Y.Doc, options: CreateStrokeOptions): string {
+  let id = '';
+  act(() => {
+    id =
+      createStroke(
+        doc,
+        {
+          points: options.points,
+          color: options.color ?? 'black',
+          thickness: options.thickness ?? 'medium',
+        },
+        options.createdBy ?? 'component_client',
+      ) ?? '';
+  });
+  return id;
+}
+
+/** The strokes exactly as the document holds them (sorted by z, then id). */
+export function docStrokes(doc: Y.Doc): readonly StrokeSnap[] {
+  return objectSnapshots(doc).filter((entry): entry is StrokeSnap => entry.type === 'stroke');
+}
+
+export function strokeOf(doc: Y.Doc, id: string): StrokeSnap {
+  const entry = docStrokes(doc).find((candidate) => candidate.id === id);
+  if (!entry) {
+    throw new Error(`stroke ${id} is not in the document`);
+  }
+  return entry;
+}
+
+/** A stroke's recorded line, as the board sees it: world points, oldest first. */
+export function strokeWorldPoints(stroke: StrokeSnap): { x: number; y: number }[] {
+  return worldPoints(stroke);
+}
+
+export function strokeElements(): HTMLElement[] {
+  return screen.queryAllByTestId(/^stroke-object-/u);
+}
+
+export function strokeElement(id: string): HTMLElement {
+  return screen.getByTestId(`stroke-object-${id}`);
+}
+
+/** The visible line of a rendered stroke. */
+export function strokeLineElement(id: string): HTMLElement {
+  return screen.getByTestId(`stroke-line-${id}`);
+}
+
+/** The invisible band a click on a stroke's line lands on. */
+export function strokeHitElement(id: string): HTMLElement {
+  return screen.getByTestId(`stroke-hit-${id}`);
+}
+
+export function strokeSelected(id: string): boolean {
+  return strokeElement(id).getAttribute('data-selected') === 'true';
+}
+
+export function penToolbarElement(): HTMLElement | null {
+  return screen.queryByTestId('pen-toolbar');
+}
+
+export function penColorButton(color: PenColor): HTMLButtonElement {
+  return screen.getByTestId(`pen-color-${color}`) as HTMLButtonElement;
+}
+
+export function penThicknessButton(thickness: PenThickness): HTMLButtonElement {
+  return screen.getByTestId(`pen-thickness-${thickness}`) as HTMLButtonElement;
+}
+
+export function penColorPressed(color: PenColor): boolean {
+  return penColorButton(color).getAttribute('aria-pressed') === 'true';
+}
+
+export function penThicknessPressed(thickness: PenThickness): boolean {
+  return penThicknessButton(thickness).getAttribute('aria-pressed') === 'true';
+}
+
+/** The stroke being drawn, which only the person drawing can see. */
+export function penPreviewElement(): HTMLElement | null {
+  return screen.queryByTestId('pen-preview-path');
+}
+
+export function penPreviewPathData(): string | null {
+  return penPreviewElement()?.getAttribute('d') ?? null;
+}
+
+export function penCursorElement(): HTMLElement | null {
+  return screen.queryByTestId('pen-cursor');
+}
+
+export function pressPenTool(): void {
+  fireEvent.click(toolButton('pen'));
+}
+
+/**
+ * Draw with the pen through a list of **screen** points: press, one pointermove per
+ * point, release. Every one of them is dispatched the way `pointerEvent` dispatches
+ * a board press, because the Pen tool listens on `window`, in front of the board.
+ */
+export function penDragThrough(
+  points: readonly { x: number; y: number }[],
+  options: { cancel?: boolean; up?: boolean } = {},
+): void {
+  const first = points[0];
+  if (!first) {
+    return;
+  }
+  pointerEvent('pointerdown', first.x, first.y);
+  for (let index = 1; index < points.length; index += 1) {
+    const point = points[index]!;
+    pointerEvent('pointermove', point.x, point.y);
+  }
+  const last = points[points.length - 1]!;
+  if (options.cancel) {
+    pointerEvent('pointercancel', last.x, last.y);
+  } else if (options.up !== false) {
+    pointerEvent('pointerup', last.x, last.y);
+  }
+}
+
+/** A straight pen drag from one screen point to another. */
+export function penDrag(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  steps = 8,
+): void {
+  const points: { x: number; y: number }[] = [];
+  for (let step = 0; step <= steps; step += 1) {
+    points.push({
+      x: from.x + ((to.x - from.x) * step) / steps,
+      y: from.y + ((to.y - from.y) * step) / steps,
+    });
+  }
+  penDragThrough(points);
+}
+
+/** Press and release without moving: the pen's dot (`pen.dot`). */
+export function penClick(at: { x: number; y: number }): void {
+  penDragThrough([at, at]);
 }

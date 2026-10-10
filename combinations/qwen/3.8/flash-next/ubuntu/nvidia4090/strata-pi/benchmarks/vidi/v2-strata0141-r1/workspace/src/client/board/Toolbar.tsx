@@ -11,13 +11,17 @@ import { SHAPE_KINDS, SHAPE_KIND_LABELS, type ShapeKind } from '../../shared/con
  * the two buttons that take a person's own changes back and forward again.
  *
  * The tool buttons show which tool this client is holding (`aria-pressed`), and each
- * label names the keyboard shortcut that does the same thing: V, T, N, S, L. Text,
- * Shape and Connector are disabled on a board this client may not edit (TC-15).
+ * label names the keyboard shortcut that does the same thing: V, T, N, S, L, P. Text,
+ * Shape, Connector and Pen are disabled on a board this client may not edit (TC-15).
  *
  * Story 10 adds the Shape button - which opens a kind menu while it is the active
  * tool, because the kind is chosen *before* drawing, not on the shape afterwards -
  * and the Connector button. Both are the same buttons the single-letter shortcuts
  * press, and both do nothing but ask `useActiveTool` for a tool (`tool.shortcuts`).
+ *
+ * Story 11 adds the Pen button. It is only a way to hold the pen - the pen's own
+ * colour and thickness live in `PenToolbar`, beside the board, because they are
+ * settings for the *next* stroke rather than a choice about an object that exists.
  */
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -143,6 +147,28 @@ export function Toolbar(props: ToolbarProps) {
           <path d="M12.5 5.5H19v6.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
         <span className="toolbar__label">Connector</span>
+      </button>
+      <button
+        type="button"
+        className={`toolbar__button${tool === 'pen' ? ' toolbar__button--active' : ''}`}
+        data-testid="pen-tool"
+        aria-label="Pen (P)"
+        title="Pen (P) – drag to draw, click for a dot; the pen stays in hand"
+        disabled={disabled}
+        aria-pressed={tool === 'pen'}
+        onClick={() => pickTool('pen')}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+          <path
+            d="M4 17c3-7 5 4 8-2s3 3 8-3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="toolbar__label">Pen</span>
       </button>
       <button
         type="button"

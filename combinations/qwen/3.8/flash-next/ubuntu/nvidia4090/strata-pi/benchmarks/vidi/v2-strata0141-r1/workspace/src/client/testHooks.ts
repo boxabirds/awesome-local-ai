@@ -5,11 +5,14 @@ import type {
   ShapeStrokeColor,
   StickyColor,
   TextSize,
+  PenColor,
+  PenThickness,
 } from '../shared/config';
 import type { StickySnapshot } from '../shared/board-model';
 import type { TextSnapshot } from '../shared/objects/text';
 import type { ShapeSnapshot } from '../shared/objects/shape';
 import type { ConnectorSnapshot, EndpointInput } from '../shared/objects/connector';
+import type { StrokeSnap } from '../shared/objects/stroke';
 
 /** Test-only note creation arguments, mirroring `createSticky`. */
 export interface TestStickyParams {
@@ -46,6 +49,14 @@ export interface TestConnectorParams {
   to: EndpointInput;
 }
 
+/** Test-only stroke creation arguments, mirroring `createStroke`. */
+export interface TestStrokeParams {
+  /** World-space points, in the order they were recorded. */
+  points: { x: number; y: number }[];
+  color?: PenColor;
+  thickness?: PenThickness;
+}
+
 /** Test-only bulk seeding: `count` notes spread over a rectangle. */
 export interface TestSeedParams {
   count: number;
@@ -73,6 +84,10 @@ export interface Vidi6TestHooks {
   connectors(): ConnectorSnapshot[];
   /** Put an arrow on the board through the model, for test setup. */
   createConnector(params: TestConnectorParams): string;
+  /** Every stroke on the board, topmost last (story 11 e2e). */
+  strokes(): StrokeSnap[];
+  /** Put a stroke on the board through the model, for test setup (story 11). */
+  createStroke(params: TestStrokeParams): string;
   /** Seed many notes in one transaction, for test setup (large-board tests). */
   createNotes(params: TestSeedParams): number;
   /** The connection state the status badge is rendering (story 3). */
@@ -116,6 +131,8 @@ export interface BoardApi {
   createShape: (params: TestShapeParams) => string;
   connectors: () => ConnectorSnapshot[];
   createConnector: (params: TestConnectorParams) => string;
+  strokes: () => StrokeSnap[];
+  createStroke: (params: TestStrokeParams) => string;
   connectionState: () => string;
 }
 
@@ -142,6 +159,8 @@ export function installTestHooks(): void {
     createShape: (params) => boardApi?.createShape(params) ?? '',
     connectors: () => boardApi?.connectors() ?? [],
     createConnector: (params) => boardApi?.createConnector(params) ?? '',
+    strokes: () => boardApi?.strokes() ?? [],
+    createStroke: (params) => boardApi?.createStroke(params) ?? '',
     createNotes: (params) => seedApi?.seed(params) ?? 0,
     connectionState: () => boardApi?.connectionState() ?? 'connecting',
   };

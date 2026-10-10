@@ -937,3 +937,131 @@ whose object is whose).
   passes on re-run: five component runs, six runs of this story's three component files,
   two runs of `shapes.spec.ts` + `connectors.spec.ts` and the full 54-test e2e suite were
   green.
+
+## Story 11 — sketch freehand with a pen (pen.*, stroke.*)
+
+### What a stroke stores (`stroke.model`)
+
+A stroke is a polyline plus the box it was recorded at:
+
+```
+type: 'stroke'
+x, y, width, height      the box, in board units: the points' span padded by half the thickness
+baseWidth, baseHeight    the box the points were recorded at
+points: number[]         flattened [x0, y0, ...], relative to (x, y), at baseWidth/baseHeight
+color, thickness         the pen's options, as strings, not numbers
+```
+
+Everything else is derived. `scaledPoints(stroke)` multiplies the stored points by
+`width / baseWidth` (and the height equivalent), which is why resizing a drawing needs no
+write to its points, and why `pen.resize` scales length without touching thickness: the
+line's `stroke-width` is `PEN_THICKNESS_WORLD[thickness]`, never a scale (`stroke.ts`,
+TC-04 to TC-08). `worldPoints(stroke)` is the same list moved back into board space, which
+is what the hit test and the e2e helpers need.
+
+A dot - the pen put down and lifted without moving - stores exactly one point, and its box
+is a thickness square. `smoothPath` of one point is a zero-length path, and round caps
+paint it as a dot (TC-08).
+
+### Simplify, split, smooth (`pen.smooth`, `pen.long_stroke`)
+
+- `simplify(points, tolerance)` is Ramer-Douglas-Peucker with an **explicit stack**, not
+  recursion: TC-12 asks for a 5 010-point drag, and a recursive RDP on that is a stack
+  overflow on a shallow call stack.
+- The tolerance is `STROKE_SIMPLIFY_TOLERANCE_PX` (1) in **screen** pixels, so the tool
+  passes `STROKE_SIMPLIFY_TOLERANCE_PX / zoom` to the simplifier. Drawing the same squiggle
+  at 400% keeps more of it than drawing it at 25% (TC-02), which is the point of stating the
+  tolerance in screen units.
+- `splitPoints(points, max)` cuts at `STROKE_MAX_POINTS` (5 000) and **shares the cut
+  point** between neighbours, so the committed parts join with no gap. Each part is one
+  `createStroke`, one transaction, one undo step (`pen.undo`, TC-12/TC-23).
+- `smoothPath(points)` emits one quadratic per recorded point, each ending at the midpoint
+  of the next segment. That is the standard "connect the midpoints" quadratic chain: it is
+  continuous, it never needs a second pass, and its output is a real path a browser paints,
+  so TC-03 ("a curve, not a polygon") is measured on the `d` the DOM actually holds.
+
+### The preview is local; the commit is one transaction (`pen.share`, `pen.undo`)
+
+`usePenTool` keeps the stroke in progress in a ref and its drawable form in React state.
+Nothing about a stroke in progress is written to the document, so a colleague sees exactly
+one update, the `createStroke` on release (TC-18). Points are appended on every pointer
+event, `getCoalescedEvents()` included; the path is rebuilt in one
+`requestAnimationFrame` callback, which is what `pen.smooth` means at 120 Hz (TC-17).
+
+Each commit is followed by `undo.boundary()`, which is this codebase's "close the step and
+`stopCapturing`": a long stroke's parts are separate undo steps, and the stroke is never
+glued to whatever was typed or moved before it. The pen is a *held* tool, so a commit does
+not set `toolCreated` and the selection does not jump - the pen stays in hand until Escape
+or another tool is pressed (TC-13, TC-22).
+
+### The pen owns the pointer, and only the pointer (`pen.navigation`, `pen.over_objects`)
+
+The gesture's listeners are on `window` in the **capture** phase with `stopPropagation` on
+the press and on every move while a stroke is live - the same shape the Shape and Connector
+tools use. That is the whole of `pen.navigation`: a pointer drag belongs to the pen and
+never reaches the board's pan, marquee or object gesture, whether it started on empty space
+or on a sticky note (TC-19), while `wheel` and pinch-zoom - which are not pointer events -
+keep working untouched. `BoardViewport.onPointerDown` also has an explicit `tool === 'pen'`
+return, so the routing is stated in the viewport as well as enforced by the tool.
+
+### A drawing is only where its ink is (`stroke.hit`, `pen.select`, `pen.resize`)
+
+`StrokeObject` draws the same `d` twice: an invisible path as wide as
+`max(half thickness, STROKE_HIT_TOLERANCE_PX / zoom)` in board units, which takes the
+pointer, and the ink itself, which does not. The wrapper and the `<svg>` are
+`pointer-events: none`. In jsdom CSS is not applied, so the component tests exercise the
+registry's `hitTestStroke` directly (TC-15, TC-16); the e2e test clicks a point the line
+really passes through (TC-20). The registry entry is `resizable: true`, `aspectLocked: true`,
+`minSize: STROKE_MIN_SIZE_WORLD` (4 board units, since a stroke's box is a *drawing's* box,
+not a note's), `editableText: false`, and the SVG's `onDoubleClick` stops propagation, so a
+double-click on a drawing opens nothing.
+
+### Test-only hooks for strokes
+
+`window.__vidi6` gained `strokes()` and `createStroke({ points, color, thickness })`, both
+going through the same `createStroke` the UI calls, so a test can put a drawing on a board
+without pretending to draw it.
+
+### E2E notes
+
+- `tests/e2e/helpers/pen.ts` measures both views, as stories 9 and 10 do: the model
+  snapshot (camera independent) and the drawn SVG - box, `d`, `stroke-width`, hit-band width.
+- `strokeLinePoint(page, id)` converts the middle of the stroke's longest recorded segment
+  through that page's camera. Clicking a drawing means clicking its ink, and the fixture's
+  loop has plenty of box and little ink in the corners.
+- TC-17 samples the preview path **on every animation frame** in the page
+  (`startPreviewSampling` / `stopPreviewSampling`) and drags one point per animation frame
+  (`penFrames`), so the claim is about frames, not about how long the machine took. The
+  assertions are: frames happened, the preview was on nearly all of them, consecutive frames
+  held different paths, and the path grew by a coordinate pair per recorded point - then the
+  board holds one stroke, drawn where it was drawn, with fewer points than the line had.
+- `pen.spec.ts` runs `mode: 'serial'`, the same choice `share.spec.ts`'s restart test makes.
+  These four tests are the heavy ones in the suite (long pointer replays, in-page rAF
+  sampling, two live pages in TC-18 and TC-20). Run in 3-worker parallel with the long
+  replays they reliably knocked over one *other* spec: `text.spec.ts` TC-26 duplicated one
+  typed character once a Yjs echo raced a local insert, and `share.spec.ts` TC-27 took a 500
+  from board creation. Running this file serially and keeping each replay to about 40 recorded
+  points - one animation frame per point, which is what TC-17 actually asks for - is what
+  brought the suite back; the four full runs after that were green, 58 tests each.
+- TC-18 logs release-to-visible latency against `LIVE_UPDATE_LATENCY_BUDGET_MS` (1 000 ms)
+  rather than asserting it: 108-111 ms measured here.
+
+### Cross-browser: TC-17's Firefox and WebKit
+
+Blocked on this machine for the reason at the top of these notes - no Playwright browser
+binaries, only the Chromium that `@sparticuz/chromium` ships. `pretest:e2e` writes
+`.e2e/browser.json` with what it found and `playwright.config.ts` builds one project per
+available browser, so nothing here *skips* Firefox or WebKit: on a machine with them
+installed the same four tests run there too. TC-23's third line (shapes) is blocked the
+same way, and nothing in `pen.spec.ts` uses a Chromium-only API.
+
+### Known flake, not from this story
+
+`tests/e2e/text.spec.ts` TC-26 typed `"...across the room..."` and the board stored
+`"...across tthe room..."` in two runs out of several under load (and once `share.spec.ts`
+TC-27 got `creating a board answered 500: Network connection lost`). Both are pre-existing:
+the suite minus `pen.spec.ts` ran green four times in a row, and neither file is one this
+story touched. The story-9 typing path merges a local insert with the room's echo of it, and
+under CPU and Durable-Object contention that merge can land out of order. Serial `pen.spec.ts`
+(above) is what keeps the contention down; the race itself belongs to story 3 and story 9 and
+was left alone.

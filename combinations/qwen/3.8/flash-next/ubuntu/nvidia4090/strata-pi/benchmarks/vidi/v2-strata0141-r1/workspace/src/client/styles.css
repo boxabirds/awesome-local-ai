@@ -995,3 +995,149 @@ main[data-board-editable='false'] .sticky-note {
   stroke-width: 2;
   stroke-dasharray: 6 4;
 }
+
+/* --- Story 11: the pen and its strokes (pen.tool, pen.render, pen.select) -- */
+
+/*
+ * The pen's options, beside the board rather than inside the tool column: six
+ * colours and three thicknesses, shown while the pen is in hand and gone when it
+ * is not. Like every other piece of board chrome it is `data-board-chrome`, so a
+ * press on a swatch is a press on a button and never the start of a stroke.
+ */
+.pen-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: rgb(255 255 255 / 96%);
+  border: 1px solid #d5dbe3;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 12%);
+}
+
+.pen-toolbar__colors {
+  display: flex;
+  gap: 6px;
+}
+
+.pen-toolbar__swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pen-toolbar__swatch--active {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px #dbeafe;
+}
+
+.pen-toolbar__thicknesses {
+  display: flex;
+  gap: 4px;
+}
+
+.pen-toolbar__thickness {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 56px;
+  padding: 6px 4px;
+  border: 1px solid #d5dbe3;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2933;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pen-toolbar__thickness--active {
+  border-color: #2563eb;
+  background: #e8f0fe;
+  color: #143a63;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.pen-toolbar__thickness-line {
+  width: 32px;
+  border-radius: 999px;
+  background: #1f2933;
+}
+
+.pen-toolbar__swatch:focus-visible,
+.pen-toolbar__thickness:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.pen-toolbar__swatch:disabled,
+.pen-toolbar__thickness:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The stroke being drawn and the pen's tip: screen space, never clicked. */
+.pen-preview-layer,
+.pen-cursor {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.pen-cursor {
+  inset: auto;
+  border-radius: 50%;
+  z-index: 5005;
+  opacity: 0.85;
+}
+
+.pen-preview-layer {
+  z-index: 5004;
+}
+
+.pen-preview__path {
+  fill: none;
+}
+
+/*
+ * The arrow's rule, for a drawing: the wrapper and the SVG root are
+ * `pointer-events: none` and only the invisible band drawn along the line -
+ * `STROKE_HIT_TOLERANCE_PX` of screen either side - takes a pointer. A click
+ * inside a stroke's box but away from its line therefore falls through to the
+ * board, which decides by distance (`pen.select`, TC-16).
+ */
+.stroke-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.stroke-object__svg {
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.stroke-object__hit {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.stroke-object__line {
+  pointer-events: none;
+}
+
+/* A selected stroke keeps its own colour and gains the band it can be clicked on. */
+.stroke-object[data-selected='true'] .stroke-object__hit {
+  stroke: rgb(29 78 216 / 14%);
+}

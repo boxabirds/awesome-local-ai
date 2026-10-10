@@ -6,6 +6,7 @@ import {
   getStickyText,
   isConnectorSnapshot,
   isShapeSnapshot,
+  isStrokeSnapshot,
   isTextSnapshot,
   objectSnapshots,
   snapshot,
@@ -13,8 +14,14 @@ import {
 import { createText, getTextContent, setTextSize } from '../../shared/objects/text';
 import { createShape, getShapeLabel, setShapeStyle } from '../../shared/objects/shape';
 import { createConnector } from '../../shared/objects/connector';
+import { createStroke } from '../../shared/objects/stroke';
 import { registerBoardApi, registerSeedApi } from '../testHooks';
-import { STICKY_COLOR_NAMES, type TextSize } from '../../shared/config';
+import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
+  STICKY_COLOR_NAMES,
+  type TextSize,
+} from '../../shared/config';
 import { useClientId } from '../useClientId';
 import { BoardViewport, viewportCentre, type BoardSurface } from '../canvas/BoardViewport';
 import { screenToWorld, type Camera } from '../canvas/camera';
@@ -32,6 +39,9 @@ import { useActiveTool } from '../tools/useActiveTool';
 import { hitTestObjectAt } from '../objects/registry';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { UndoControllerContext, useUndo, useUndoController } from './useUndo';
 import type { UndoController } from './undo';
 // Importing the registry is what registers the board's object types; every
@@ -126,6 +136,8 @@ export function BoardView({
   });
   const activeTool = active.tool;
   const setTool = active.setTool;
+  /** What the pen is set to, for this client only (`pen.options`). */
+  const pen = usePenOptions();
   /** The one measurer this board writes boxes with (`text.layout`). */
   const measure = useMeasurer();
   /** The owner a new text object records (story 6 replaces this with an identity). */
@@ -362,6 +374,19 @@ export function BoardView({
       },
       connectors: () => objectSnapshots(doc).filter(isConnectorSnapshot),
       createConnector: (params) => createConnector(doc, params.from, params.to, 'test-hook') ?? '',
+      // Story 11's strokes: the e2e tests seed one to tidy up, and read back what a
+      // real drag committed.
+      strokes: () => objectSnapshots(doc).filter(isStrokeSnapshot),
+      createStroke: (params) =>
+        createStroke(
+          doc,
+          {
+            points: params.points,
+            color: params.color ?? DEFAULT_PEN_COLOR,
+            thickness: params.thickness ?? DEFAULT_PEN_THICKNESS,
+          },
+          'test-hook',
+        ) ?? '',
       connectionState: () => connectionState,
     });
     // Seeding a big board is one transaction, so a test sets up a board the size
@@ -487,6 +512,28 @@ export function BoardView({
         surface={surface}
         createdBy={clientId}
         onCreated={active.toolCreated}
+      />
+      {/* Story 11's Pen tool. Its options are session state held here, because the
+          pen is the tool in hand and its colour and thickness are settings for the
+          next stroke, never a property of one that exists (`pen.options`). The pen
+          itself reports nothing: a finished stroke leaves the tool in hand
+          (`pen.stay_active`), so there is no `toolCreated` call to make. */}
+      {activeTool === 'pen' ? (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
+          disabled={!editable}
+        />
+      ) : null}
+      <PenTool
+        doc={doc}
+        armed={activeTool === 'pen'}
+        color={pen.color}
+        thickness={pen.thickness}
+        surface={surface}
+        createdBy={clientId}
       />
       <ConnectionStatus state={connectionState} />
     </main>

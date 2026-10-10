@@ -10,13 +10,16 @@ import { rectContainsPoint, type Point } from '../../shared/geometry';
 import {
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ConnectorObject, hitTestConnector } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
+import { StrokeObject, hitTestStroke } from './StrokeObject';
 import type { ConnectorSnapshot } from '../../shared/objects/connector';
+import type { StrokeSnap } from '../../shared/objects/stroke';
 import type { BoardSurface } from '../canvas/BoardViewport';
 
 /**
@@ -309,6 +312,32 @@ registerObjectType('connector', {
   // side, converted to world units at this zoom (`connector.tolerance`, TC-20).
   hitTest: (obj, worldPoint, zoom = 1) =>
     hitTestConnector(obj as ConnectorSnapshot, worldPoint, zoom),
+});
+
+/* -------------------------------------------------------------------------- */
+/* Strokes (`pen.*`): resizable in proportion, hit by distance to the line.   */
+/* -------------------------------------------------------------------------- */
+
+registerObjectType('stroke', {
+  Component: StrokeObject as ComponentType<ObjectProps<never>>,
+  // A finished stroke is an ordinary board object: it moves, it resizes, it is
+  // deleted, it is undone (`pen.resize`).
+  resizable: true,
+  // Its shape is what a hand drew. Stretching it makes it bigger in proportion -
+  // the recorded path is scaled by one factor for both axes - and the thickness it
+  // was drawn with stays what the pen was set to.
+  aspectLocked: true,
+  // As small as the thinnest line it could have been drawn with: a stroke is never
+  // resized down to nothing.
+  minSize: STROKE_MIN_SIZE_WORLD,
+  // Nothing to type into: a drawing is not text (`pen.draw`).
+  editableText: false,
+  // Not the box - the line, plus `STROKE_HIT_TOLERANCE_PX` of screen either side,
+  // converted to board units at this zoom (`pen.select`, TC-15, TC-16). A click
+  // inside the box but away from the line is answered by nothing here, so it falls
+  // through to the objects below and to the board.
+  hitTest: (obj, worldPoint, zoom = 1) =>
+    hitTestStroke(obj as StrokeSnap, worldPoint, zoom),
 });
 
 /**

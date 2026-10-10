@@ -4,6 +4,7 @@ import { resolveEndpoints } from './geometry/connector-geometry';
 import type { TextSnapshot } from './objects/text';
 import type { ShapeSnapshot } from './objects/shape';
 import type { ConnectorSnapshot } from './objects/connector';
+import type { StrokeSnap } from './objects/stroke';
 import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
@@ -82,6 +83,11 @@ export function isShapeSnapshot(obj: ObjectSnapshot): obj is ShapeSnapshot {
 /** Is this snapshot an arrow - a connector between two objects (story 10)? */
 export function isConnectorSnapshot(obj: ObjectSnapshot): obj is ConnectorSnapshot {
   return obj.type === 'connector';
+}
+
+/** Is this snapshot a freehand drawing - a pen stroke (story 11)? */
+export function isStrokeSnapshot(obj: ObjectSnapshot): obj is StrokeSnap {
+  return obj.type === 'stroke';
 }
 
 const isFiniteNumber = (value: unknown): value is number =>

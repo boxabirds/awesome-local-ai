@@ -6,23 +6,30 @@ import { SHAPE_KINDS, TOOL_SHORTCUTS, type ShapeKind } from '../../shared/config
  *
  * Story 8's `useTool` held two tools; story 10 names the whole set the app will
  * grow into and owns the state for the ones that exist today. The union is the
- * cross-story convention - `sticky`, `pen`, `image` and `comment` are named here
- * because `TOOL_SHORTCUTS` in `src/shared/config.ts` names them, and a tool that
- * does not exist yet is a name nothing can arm (Key decision 5): a board cannot be
- * holding a Pen tool, so asking for one leaves the tool as it was.
+ * cross-story convention - `sticky`, `image` and `comment` are named here because
+ * `TOOL_SHORTCUTS` in `src/shared/config.ts` names them, and a tool that does not
+ * exist yet is a name nothing can arm (Key decision 5): a board cannot be holding a
+ * tool nothing has built a drawing for, so asking for one leaves the tool as it was.
  *
- * Nothing here writes the document. Like `useTool`, this hook holds no `Y.Doc`:
- * the tools (`ShapeTool`, `ConnectorTool`) and `BoardView`'s existing Text creation
- * do the writing, and `toolCreated` is how they report back.
+ * Story 11 arms the one tool story 10 left unarmmed: `pen` (P) draws freehand, and
+ * unlike every other tool it **stays in hand** after it has made something
+ * (`pen.stay_active`), so `toolCreated` - which is what puts a tool back to Select -
+ * is never called for a stroke. Nothing here writes the document. Like
+ * `useTool`, this hook holds no `Y.Doc`: the tools (`ShapeTool`, `ConnectorTool`,
+ * `PenTool`) and `BoardView`'s existing Text creation do the writing, and
+ * `toolCreated` is how the ones that return report back.
  *
  * ```mermaid
  * stateDiagram-v2
  *     [*] --> select
  *     select --> shape : S or the Shape button
  *     select --> connector : L or the Connector button
+ *     select --> pen : P or the Pen button
  *     shape --> select : Escape, V, or a created shape (tool.return)
  *     connector --> select : Escape, L re-pressed is a no-op, or a created connector
  *     shape --> connector : I while the Shape tool is held
+ *     pen --> pen : a finished stroke (`pen.stay_active`)
+ *     pen --> select : Escape or V
  *     select --> select : canEdit becomes false (`text.tool_ui`, TC-15)
  * ```
  */
@@ -39,7 +46,7 @@ export type ToolId =
   | 'comment';
 
 /** The tools this board can actually arm (`tool.shortcuts`). */
-export const ARMLED_TOOL_IDS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const ARMLED_TOOL_IDS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 /**
  * Keys `useBoardKeys` answers (`v`, `t`, `n`): V and Escape return to Select, T

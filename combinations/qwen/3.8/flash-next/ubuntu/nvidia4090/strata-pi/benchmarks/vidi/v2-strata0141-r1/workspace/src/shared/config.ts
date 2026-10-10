@@ -316,6 +316,61 @@ export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 /** The side-midpoint attach dots stay this big at any zoom (`connector.dot`). */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
 
+/* ---------------------------------------------------------------------------
+ * Story 11: freehand pen strokes. Every pen and stroke setting lives here
+ * (anchors `pen.draw`, `pen.options`, `pen.smooth`, `pen.select`,
+ * `pen.long_stroke`).
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The six pen colours. Like the shape palette, a colour is a **key** into this
+ * map, never a raw CSS string, so both collaborators always draw the same line
+ * (`pen.options`).
+ */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+export type PenColor = keyof typeof PEN_COLORS;
+/** The six colours, in swatch order. */
+export const PEN_COLOR_NAMES = Object.keys(PEN_COLORS) as PenColor[];
+/** Accessible name of a swatch: `black pen`, `blue pen`, ... */
+export function penColorLabel(colour: PenColor): string {
+  return `${colour} pen`;
+}
+
+/** Pen thicknesses, in **board** units, so a stroke scales with zoom (`pen.options`). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+/** The three thicknesses, in toolbar order. */
+export const PEN_THICKNESS_NAMES = Object.keys(PEN_THICKNESS_WORLD) as PenThickness[];
+export const PEN_THICKNESS_LABELS: Record<PenThickness, string> = {
+  thin: 'Thin',
+  medium: 'Medium',
+  thick: 'Thick',
+};
+
+/** What a new stroke is drawn with (`pen.options`). */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * How far the finished stroke may stray from the path that was drawn, in
+ * **screen** pixels (`pen.smooth`): the simplification tolerance is this divided
+ * by the zoom held while drawing.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** Recorded points one stroke holds before it is finished and continued (`pen.long_stroke`). */
+export const STROKE_MAX_POINTS = 5000;
+/** How far from the line a click still counts as on it, in **screen** pixels (`pen.select`). */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** The smallest a stroke may be resized to, in board units. */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
 /** Single keys that pick a tool (`tool.shortcuts`); one entry per tool id. */
 export const TOOL_SHORTCUTS = {
   v: 'select',
