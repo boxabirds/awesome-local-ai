@@ -11,6 +11,10 @@ cargo run --release -- --repo /path/to/awesome-local-ai --port 7800
 
 Ctrl-C stops the gallery and every build it started.
 
+The gallery keeps its checkout level with origin: every minute it runs `git pull --ff-only` (never a reset),
+then looks for runs that have become reviewable. If a local edit stands in the way, git refuses, the
+checkout is left as it is, and the reason is printed on the gallery's stderr.
+
 ## What it shows
 
 One section per setup (a combination, or a reference stack such as `reference/opus-5.5`), one card
