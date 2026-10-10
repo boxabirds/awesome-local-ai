@@ -4,23 +4,24 @@ import { describe, expect, it, vi } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { newBoardId } from '../../src/shared/board-id';
-import { TestClient, createNote, snapshotString } from './helpers/ws-client';
+import { TestClient, createBoard, createNote, snapshotString } from './helpers/ws-client';
 
 const UPGRADE = { upgrade: 'websocket', connection: 'Upgrade' };
 
 describe('worker routing', () => {
-  it('TC-04: invalid board id → 400, board namespace never touched', async () => {
+  it('TC-04: invalid board id → 404, board namespace never touched', async () => {
     const spy = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     const response = await SELF.fetch('http://mocked-worker/api/rooms/bad!id', {
       headers: UPGRADE,
     });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });
 
-  it('TC-05: valid board id without Upgrade header → 426', async () => {
-    const response = await SELF.fetch(`http://mocked-worker/api/rooms/${newBoardId()}`);
+  it('TC-05: existing board without Upgrade header → 426', async () => {
+    const boardId = await createBoard();
+    const response = await SELF.fetch(`http://mocked-worker/api/rooms/${boardId}`);
     expect(response.status).toBe(426);
   });
 
@@ -32,7 +33,7 @@ describe('worker routing', () => {
   });
 
   it('TC-13: MAX_CONCURRENT_EDITORS + 1 sockets all accepted; last joiner edits reach the rest', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clients = await Promise.all(
       Array.from({ length: MAX_CONCURRENT_EDITORS + 1 }, () => TestClient.connect(boardId)),
     );
@@ -48,8 +49,8 @@ describe('worker routing', () => {
   });
 
   it('TC-17: rooms are isolated; a note in room1 never reaches room2', async () => {
-    const board1 = newBoardId();
-    const board2 = newBoardId();
+    const board1 = await createBoard();
+    const board2 = await createBoard();
     const [a1, b1] = await Promise.all([
       TestClient.connect(board1),
       TestClient.connect(board1),

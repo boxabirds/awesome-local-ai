@@ -36,3 +36,8 @@ export const LOAD_RETRY_MIN_INTERVAL_MS = 5_000; // minimum time between board l
 export const PERSIST_TESTED_NOTES = 2000; // note count proven to survive a restart
 export const BOARD_LOAD_BUDGET_MS = 3_000; // budget for reload + full render after restart
 export const STORAGE_SCHEMA_VERSION = 1; // versions the board's SQLite tables
+
+// Story 5: sharing boards by link.
+export const CREATE_BUDGET_MS = 2_000; // PRD share.create (reported, not asserted, in e2e)
+export const LINK_COPIED_MS = 2_000; // "Link copied" confirmation duration
+export const BOARD_CHECK_RETRY_BASE_MS = 1_000; // link-check retry; doubles up to RECONNECT_MAX_BACKOFF_MS

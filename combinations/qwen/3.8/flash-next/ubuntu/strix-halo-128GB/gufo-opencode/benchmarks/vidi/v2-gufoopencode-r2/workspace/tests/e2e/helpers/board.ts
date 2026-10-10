@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 export interface Cam {
   x: number;
@@ -6,10 +6,35 @@ export interface Cam {
   zoom: number;
 }
 
-export async function gotoBoard(page: Page): Promise<void> {
-  await page.goto('/');
+/** Story 5: boards are created server-side; POST /api/boards returns the id. */
+export async function createBoardApi(request: APIRequestContext): Promise<string> {
+  const response = await request.post('/api/boards');
+  if (response.status() !== 201) {
+    throw new Error(`POST /api/boards failed with ${response.status()}`);
+  }
+  return ((await response.json()) as { id: string }).id;
+}
+
+export async function gotoBoard(page: Page): Promise<string> {
+  const boardId = await createBoardApi(page.request);
+  await page.goto(`/b/${boardId}`);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await expect(page.getByTestId('world-layer')).toHaveAttribute('data-camera', /,/);
+  // Story 5: BoardScreen mounts once the existence check passes, so the
+  // viewport can appear before the room sync finishes; the final board load
+  // re-centers the camera, which would race later camera changes.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __vidi6?: { connectionState?: () => string } }).__vidi6
+              ?.connectionState?.() ?? 'missing-hook',
+        ),
+      { timeout: 15_000 },
+    )
+    .toBe('connected');
+  return boardId;
 }
 
 export function getCamera(page: Page): Promise<Cam> {

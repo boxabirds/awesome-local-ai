@@ -5,7 +5,7 @@
 // 1, no shared webServer).
 
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
+import { createBoardApi } from '../helpers/board';
 import {
   BOARD_LOAD_BUDGET_MS,
   E2E_EVENTUAL_TIMEOUT_MS,
@@ -62,6 +62,17 @@ async function openBoard(browser: Browser, boardId: string): Promise<Page> {
   return page;
 }
 
+/** Story 5: the first visit creates the board through the API, then opens it. */
+async function openNewBoard(browser: Browser): Promise<{ page: Page; boardId: string }> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const boardId = await createBoardApi(page.request);
+  await page.goto(`/b/${boardId}`);
+  await expect(page.getByTestId('board-viewport')).toBeVisible();
+  await waitForConnected('e2e', page);
+  return { page, boardId };
+}
+
 async function waitForNoteCount(page: Page, count: number, timeoutMs: number): Promise<void> {
   await expect
     .poll(() => getFullNotes(page).then((n) => n.length), { timeout: timeoutMs })
@@ -75,9 +86,7 @@ test.describe('Persistence across process restarts', () => {
     const server = new WranglerProcess({ port: PORT, inspectorPort: INSPECTOR_PORT });
     try {
       await server.start();
-      const boardId = newBoardId();
-
-      const page = await openBoard(browser, boardId);
+      const { page, boardId } = await openNewBoard(browser);
       await page.evaluate(() => window.__vidi6?.board?.seedBoard(25));
       await waitForNoteCount(page, 25, E2E_EVENTUAL_TIMEOUT_MS);
       const before = await getFullNotes(page);
@@ -112,9 +121,7 @@ test.describe('Persistence across process restarts', () => {
     const server = new WranglerProcess({ port: PORT, inspectorPort: INSPECTOR_PORT });
     try {
       await server.start();
-      const boardId = newBoardId();
-
-      const alex = await openBoard(browser, boardId);
+      const { page: alex, boardId } = await openNewBoard(browser);
       await alex.mouse.dblclick(400, 300);
       await alex.keyboard.type('survivor');
 
@@ -148,9 +155,7 @@ test.describe('Persistence across process restarts', () => {
     const server = new WranglerProcess({ port: PORT, inspectorPort: INSPECTOR_PORT });
     try {
       await server.start();
-      const boardId = newBoardId();
-
-      const seeder = await openBoard(browser, boardId);
+      const { page: seeder, boardId } = await openNewBoard(browser);
       await seeder.evaluate((count) => window.__vidi6?.board?.seedBoard(count), PERSIST_TESTED_NOTES);
       await waitForNoteCount(seeder, PERSIST_TESTED_NOTES, 5 * 60_000);
 
@@ -201,11 +206,9 @@ test.describe('Broken board', () => {
     });
     try {
       await server.start();
-      const boardId = newBoardId();
-
       // 1. Create a 25-note board, let the room hold it, then corrupt the
       //    snapshot (the hook compacts first, so damage hits chunk 0).
-      const creator = await openBoard(browser, boardId);
+      const { page: creator, boardId } = await openNewBoard(browser);
       await creator.evaluate(() => window.__vidi6?.board?.seedBoard(25));
       await waitForNoteCount(creator, 25, E2E_EVENTUAL_TIMEOUT_MS);
       const witness = await openBoard(browser, boardId);

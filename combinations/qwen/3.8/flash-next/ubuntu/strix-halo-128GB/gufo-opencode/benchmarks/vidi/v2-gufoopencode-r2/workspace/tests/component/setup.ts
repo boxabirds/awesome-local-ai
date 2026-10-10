@@ -1,4 +1,22 @@
 import '@testing-library/jest-dom/vitest';
+import { vi } from 'vitest';
+
+// Story 5: component tests render <App/>; the board-level ones assert on the
+// board synchronously after render, so route them to a fixed valid board id
+// and resolve the existence check synchronously (a thenable whose callback
+// fires inline — BoardPage consumes checkBoard with .then, so `ready` lands
+// inside the initial act() and BoardScreen mounts during render()).
+export const COMPONENT_BOARD_ID = 'componenttestboard0000'; // 22 chars, [a-z0-9]
+window.history.replaceState(null, '', `/b/${COMPONENT_BOARD_ID}`);
+
+vi.mock('../../src/client/api', () => ({
+  createBoardRequest: () => Promise.resolve({ kind: 'failed' }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  checkBoard: (_id: string): any => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    then: (resolve: (value: any) => void) => resolve({ kind: 'exists' }),
+  }),
+}));
 
 // jsdom lacks ResizeObserver; simulate a fixed laptop viewport (1280x800),
 // delivering the initial observation synchronously on observe().

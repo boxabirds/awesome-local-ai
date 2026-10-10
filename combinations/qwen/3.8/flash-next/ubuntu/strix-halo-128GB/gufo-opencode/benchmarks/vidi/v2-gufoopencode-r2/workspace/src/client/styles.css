@@ -370,3 +370,92 @@ body {
 .connection-status--load_failed {
   background: #c62828;
 }
+
+/* Story 5: pages and share panel. */
+
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font: 16px/1.5 system-ui, sans-serif;
+  color: #212121;
+  background: #fafafa;
+}
+
+.page .tagline {
+  color: #616161;
+}
+
+.page button {
+  padding: 10px 22px;
+  font-size: 16px;
+  border: 1px solid #1565c0;
+  border-radius: 8px;
+  background: #1976d2;
+  color: #fff;
+  cursor: pointer;
+}
+
+.page button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.page [role="alert"] {
+  color: #c62828;
+}
+
+.share {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+}
+
+.share-button {
+  padding: 8px 16px;
+  border: 1px solid #1565c0;
+  border-radius: 8px;
+  background: #1976d2;
+  color: #fff;
+  cursor: pointer;
+}
+
+.share-panel {
+  margin-top: 8px;
+  width: 340px;
+  padding: 12px;
+  border: 1px solid #bdbdbd;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.share-link {
+  padding: 8px;
+  border: 1px solid #bdbdbd;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.share-copy {
+  padding: 8px 12px;
+  border: 1px solid #1565c0;
+  border-radius: 6px;
+  background: #1976d2;
+  color: #fff;
+  cursor: pointer;
+}
+
+.share-note,
+.share-manual {
+  margin: 0;
+  font-size: 13px;
+  color: #616161;
+}

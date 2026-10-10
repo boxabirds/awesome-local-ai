@@ -62,7 +62,9 @@ export class BoardRoom extends DurableObject<Env> {
     });
     this.docInstance = doc;
     try {
-      this.store.migrate();
+      // Story 5: migrate() moved out of the load path (a wake must not
+      // create tables for a board that may not exist); load() treats
+      // missing tables as an empty board.
       const result = this.store.load(doc);
       if (result.ok) {
         this.transition('load-ok');
@@ -88,6 +90,19 @@ export class BoardRoom extends DurableObject<Env> {
     }
   }
 
+  // ---- Board creation / existence RPC (callable on the stub) ----
+
+  // share.board_api: migrate and stamp created_at once. Never resets or
+  // rewrites an existing board (TC-15).
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.ensureCreatedAt();
+  }
+
+  // Read-only existence check; unknown ids leave no storage behind (TC-06).
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   // WebSocket upgrade only; the Worker has already validated the board id.
   async fetch(req: Request): Promise<Response> {
     const path = new URL(req.url).pathname;
@@ -97,6 +112,16 @@ export class BoardRoom extends DurableObject<Env> {
     const upgrade = req.headers.get('Upgrade');
     if (!upgrade || upgrade.toLowerCase() !== 'websocket') {
       return new Response('Expected WebSocket upgrade', { status: 426 });
+    }
+
+    // share.not_found: rooms can no longer be created implicitly by
+    // connecting. Unknown boards are refused before any socket is accepted,
+    // and the read-only check writes nothing.
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
     }
 
     if (this.state === 'load-failed') {
@@ -282,7 +307,32 @@ export class BoardRoom extends DurableObject<Env> {
     if (path === '/__test/repair-snapshot') {
       return this.repairSnapshot();
     }
+    if (path === '/__test/seed-legacy') {
+      return this.seedLegacy(req);
+    }
     return new Response('Not found', { status: 404 });
+  }
+
+  // Story 5 (TC-31): write real update rows WITHOUT created_at, producing
+  // exactly the storage shape of a board that predates the creation API,
+  // then reload so the live doc shows the seeded content.
+  private async seedLegacy(req: Request): Promise<Response> {
+    const body = (await req.json()) as { updates?: string[] };
+    const updates = Array.isArray(body.updates) ? body.updates : [];
+    this.store.migrate();
+    for (const encoded of updates) {
+      const binary = atob(encoded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      this.store.append(bytes);
+    }
+    this.docInstance = null;
+    this.state = 'ready';
+    this.loadBoard();
+    return new Response(
+      JSON.stringify({ ok: true, rows: updates.length, state: this.state }),
+      { headers: { 'content-type': 'application/json' } },
+    );
   }
 
   // Snapshots the current doc (if the log has grown enough) and destroys

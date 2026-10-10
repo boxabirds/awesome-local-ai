@@ -4,12 +4,11 @@
 // assertion wrapper.
 
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS,
 } from '../../../src/shared/config';
-import { getNotes, type NoteInfo } from './board';
+import { createBoardApi, getNotes, type NoteInfo } from './board';
 
 export interface Participant {
   name: string;
@@ -20,13 +19,17 @@ export interface Participant {
 export async function openParticipants(
   browser: Browser,
   names: string[],
-  boardId: string = newBoardId(),
+  boardId?: string,
 ): Promise<Participant[]> {
   const participants: Participant[] = [];
+  let resolvedBoardId = boardId ?? null;
   for (const name of names) {
     const context = await browser.newContext();
     const page = await context.newPage();
-    await page.goto(`/b/${boardId}`);
+    // Story 5: connecting no longer creates a board; the first participant's
+    // context creates one through the API unless the caller supplied an id.
+    if (resolvedBoardId === null) resolvedBoardId = await createBoardApi(page.request);
+    await page.goto(`/b/${resolvedBoardId}`);
     await expect(page.getByTestId('board-viewport')).toBeVisible();
     await waitForConnected(name, page);
     participants.push({ name, context, page });

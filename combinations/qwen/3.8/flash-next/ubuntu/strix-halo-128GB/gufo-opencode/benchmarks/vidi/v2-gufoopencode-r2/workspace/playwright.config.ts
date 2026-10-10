@@ -47,7 +47,7 @@ export default defineConfig({
   webServer: {
     // Serve the client through the real serving path from day one (design: Mock vs real).
     // Test-mode build so the window.__vidi6 test hook is included (excluded from production build).
-    command: `npm run build:test && CI=1 npx wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --config wrangler.jsonc`,
+    command: `npm run build:test && CI=1 npx wrangler dev --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --var TEST_HOOKS:1 --config wrangler.jsonc`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     stdout: 'pipe',

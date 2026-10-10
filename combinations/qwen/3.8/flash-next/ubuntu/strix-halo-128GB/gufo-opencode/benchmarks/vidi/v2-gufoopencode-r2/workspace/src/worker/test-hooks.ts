@@ -4,6 +4,12 @@
 //        chunk 0 in DO KV storage, then overwrite it with garbage.
 //   POST /__test/boards/:id/repair            → restore the backup.
 //
+// Story 5 adds:
+//
+//   POST /__test/boards/:id/seed-legacy       → write the supplied updates
+//        (JSON {updates: base64[]}) as storage WITHOUT created_at, creating
+//        a board in the legacy shape (share.legacy_boards, TC-31).
+//
 // Routes are registered only when env.TEST_HOOKS === '1' (set by the e2e
 // `wrangler dev --var TEST_HOOKS:1` only). Without it the paths fall through
 // to the static-asset SPA handler, so a production build has no hooks.
@@ -12,7 +18,7 @@ import { isValidBoardId } from '../shared/board-id';
 import type { Env } from './index';
 
 const TEST_HOOK_ROUTE =
-  /^\/__test\/boards\/([^/?]+)\/(corrupt-snapshot|repair-snapshot|repair)$/;
+  /^\/__test\/boards\/([^/?]+)\/(corrupt-snapshot|repair-snapshot|repair|seed-legacy)$/;
 
 export async function maybeHandleTestHook(req: Request, env: Env): Promise<Response | null> {
   const { pathname } = new URL(req.url);
@@ -24,7 +30,13 @@ export async function maybeHandleTestHook(req: Request, env: Env): Promise<Respo
   }
   const inner = hook[2] === 'repair' ? 'repair-snapshot' : hook[2];
   const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  // Buffer the body (seed-legacy carries the updates JSON).
+  const body = req.method === 'POST' ? await req.arrayBuffer() : undefined;
   return stub.fetch(
-    new Request(`https://board/__test/${inner}`, { method: req.method, headers: req.headers }),
+    new Request(`https://board/__test/${inner}`, {
+      method: req.method,
+      headers: req.headers,
+      body: body && body.byteLength > 0 ? body : undefined,
+    }),
   );
 }

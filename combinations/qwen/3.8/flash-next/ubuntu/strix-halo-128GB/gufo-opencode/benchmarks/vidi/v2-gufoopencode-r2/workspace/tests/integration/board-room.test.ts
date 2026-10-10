@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { newBoardId } from '../../src/shared/board-id';
+import { TestClient, createBoard, createNote, snapshotString } from './helpers/ws-client';
 import { MAX_CONCURRENT_EDITORS, STICKY_COLORS, type StickyColor } from '../../src/shared/config';
 import { CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import {
@@ -12,10 +12,9 @@ import {
   moveObject,
   setStickyColor,
 } from '../../src/shared/board-model';
-import { TestClient, createNote, snapshotString } from './helpers/ws-client';
 
 async function pair(): Promise<[TestClient, TestClient, string]> {
-  const boardId = newBoardId();
+  const boardId = await createBoard();
   const a = await TestClient.connect(boardId);
   const b = await TestClient.connect(boardId);
   return [a, b, boardId];
@@ -140,7 +139,7 @@ describe('BoardRoom capacity and late join', () => {
       t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clients = await Promise.all(
       Array.from({ length: MAX_CONCURRENT_EDITORS }, () => TestClient.connect(boardId)),
     );
@@ -240,7 +239,7 @@ describe('BoardRoom robustness', () => {
   });
 
   it('TC-18: after total disconnect, reconnecting to a fresh room repopulates it; late B converges', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a1 = await TestClient.connect(boardId);
     const b1 = await TestClient.connect(boardId);
     createNote(a1, 3, 4);
@@ -251,7 +250,7 @@ describe('BoardRoom robustness', () => {
     await a1.waitForClosed();
     await b1.waitForClosed();
 
-    const freshBoard = newBoardId();
+    const freshBoard = await createBoard();
     const a2 = await TestClient.connect(freshBoard, a1.doc);
     // The fresh room answered A's SyncStep2 with A's content; a probe sees it.
     const probe = await TestClient.connect(freshBoard);

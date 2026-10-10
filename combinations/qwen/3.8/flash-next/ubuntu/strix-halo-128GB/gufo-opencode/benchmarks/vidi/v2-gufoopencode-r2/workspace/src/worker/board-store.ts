@@ -69,6 +69,10 @@ export class BoardStore {
   // compaction check never runs COUNT(*) per write.
   private logCount = 0;
   private logBytes = 0;
+  // Story 5: probing an unknown link must write nothing, so migrate() no
+  // longer runs at construction. It runs from initialize() and lazily
+  // before the first append(); load() observes the tables instead.
+  private tablesReady = false;
 
   constructor(storage: StorageLike) {
     this.storage = storage;
@@ -92,10 +96,66 @@ export class BoardStore {
       "INSERT OR IGNORE INTO storage_meta (key, value) VALUES ('storage_schema_version', ?)",
       String(STORAGE_SCHEMA_VERSION),
     );
+    this.tablesReady = true;
+  }
+
+  // share.board_api existence rule: a board exists when storage_meta has
+  // created_at (initialized) or, for boards that predate this feature,
+  // when either updates or snapshot_chunks holds at least one row
+  // (share.legacy_boards). sqlite_master is consulted first, so probing an
+  // unknown id runs zero queries against missing tables and writes nothing.
+  existsReadOnly(): boolean {
+    if (!this.tablesExist()) return false;
+    const created = this.sql
+      .exec("SELECT 1 FROM storage_meta WHERE key = 'created_at' LIMIT 1")
+      .toArray();
+    if (created.length > 0) return true;
+    if (
+      this.sql
+        .exec('SELECT 1 FROM updates LIMIT 1')
+        .toArray().length > 0
+    ) {
+      return true;
+    }
+    return (
+      this.sql
+        .exec('SELECT 1 FROM snapshot_chunks LIMIT 1')
+        .toArray().length > 0
+    );
+  }
+
+  // initialize() support: migrate, then stamp created_at once. Returns
+  // 'exists' when the board was already initialized (TC-15: never
+  // re-initialised, created_at untouched).
+  ensureCreatedAt(): 'created' | 'exists' {
+    this.migrate();
+    const rows = this.sql
+      .exec("SELECT value FROM storage_meta WHERE key = 'created_at'")
+      .toArray();
+    if (rows.length > 0) return 'exists';
+    this.sql.exec(
+      "INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)",
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
+  private tablesExist(): boolean {
+    const rows = this.sql
+      .exec(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('updates', 'snapshot_chunks')",
+      )
+      .toArray();
+    if (rows.length === 0) return false;
+    this.tablesReady = true;
+    return true;
   }
 
   // Throws on SQL failure; the room turns that into a storage-failed reset.
+  // Lazily migrates so a board whose tables were only observed at load can
+  // still be written to.
   append(update: Uint8Array): void {
+    if (!this.tablesReady) this.migrate();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.byteLength);
     this.logCount += 1;
     this.logBytes += update.byteLength;
@@ -106,6 +166,14 @@ export class BoardStore {
   // exactly as it was (the client must never see a half-loaded board).
   load(doc: Y.Doc): LoadResult {
     try {
+      // Story 5: a never-created board has no tables at all (migrate does
+      // not run at construction any more). That is an empty board, not an
+      // error — and it must stay that way: no table is created here.
+      if (!this.tablesExist()) {
+        this.logCount = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
       const scratch = new Y.Doc();
       const chunkRows = this.sql
         .exec('SELECT data FROM snapshot_chunks ORDER BY idx')

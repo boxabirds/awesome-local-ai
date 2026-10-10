@@ -6,9 +6,25 @@ import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import * as syncProtocol from 'y-protocols/sync';
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { createSticky, snapshot, type StickySnapshot } from '../../../src/shared/board-model';
 import { decodeMessage, MESSAGE_SYNC } from '../../../src/shared/protocol';
+
+/** Create a board through the real HTTP API (story 5): POST /api/boards. */
+export async function createBoard(): Promise<string> {
+  const response = await SELF.fetch('http://mocked-worker/api/boards', { method: 'POST' });
+  if (response.status !== 201) {
+    throw new Error(`POST /api/boards failed with ${response.status}`);
+  }
+  const body = (await response.json()) as { id: string };
+  return body.id;
+}
+
+/** Create a board directly via DO RPC (bypasses the HTTP layer). */
+export async function createBoardRpc(boardId: string): Promise<'created' | 'exists'> {
+  const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  return (stub as unknown as { initialize(): Promise<'created' | 'exists'> }).initialize();
+}
 
 export interface ReceivedFrame {
   kind: 'sync' | 'awareness' | 'query-awareness';

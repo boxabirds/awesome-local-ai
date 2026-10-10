@@ -7,11 +7,10 @@ import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
 import { env, SELF, runInDurableObject } from 'cloudflare:test';
-import { newBoardId } from '../../src/shared/board-id';
 import { createSticky, snapshot } from '../../src/shared/board-model';
 import { MESSAGE_SYNC } from '../../src/shared/protocol';
 import { BoardStore } from '../../src/worker/board-store';
-import { createNote, snapshotString, TestClient } from './helpers/ws-client';
+import { createBoard, createNote, snapshotString, TestClient } from './helpers/ws-client';
 
 const stubFor = (boardId: string): DurableObjectStub =>
   env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
@@ -57,7 +56,7 @@ async function rawConnect(
 
 describe('Persistent BoardRoom', () => {
   it('TC-12: an update is in storage by the time another client observes it', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     const id = createNote(a, 300, 200);
@@ -71,7 +70,7 @@ describe('Persistent BoardRoom', () => {
   });
 
   it('TC-13: a board reloaded from storage after everyone left is byte-equal', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await TestClient.connect(boardId);
     createNote(a, 100, 100);
     createNote(a, 400, 250);
@@ -91,7 +90,7 @@ describe('Persistent BoardRoom', () => {
   });
 
   it('TC-14: a failed append closes everyone with 1011; the change survives and re-syncs after reconnect', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
 
@@ -138,7 +137,7 @@ describe('Persistent BoardRoom', () => {
   });
 
   it('TC-15: a corrupted snapshot closes connections with 4500 and stores nothing they send', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await TestClient.connect(boardId);
     createNote(a, 150, 150);
     await a.waitFor(() => a.snapshot().length === 1);
@@ -164,7 +163,7 @@ describe('Persistent BoardRoom', () => {
   });
 
   it('TC-16: before the retry interval a load-failed room refuses without touching storage; after repair it loads', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await TestClient.connect(boardId);
     createNote(a, 220, 220);
     await a.waitFor(() => a.snapshot().length === 1);
@@ -219,7 +218,7 @@ describe('Persistent BoardRoom', () => {
   });
 
   it('TC-17: a garbage frame closes with 1003 and stores nothing', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await TestClient.connect(boardId);
     const before = await storageView(boardId);
     a.sendRaw(new Uint8Array([9, 255, 254, 253]));
@@ -229,7 +228,7 @@ describe('Persistent BoardRoom', () => {
   });
 
   it('TC-18: handler-driven updates reach sockets accepted before reconstruction', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await TestClient.connect(boardId);
     // Simulate a wake: mutate the room doc through a handler-style closure
     // (no client socket origin). Delivery must go through getWebSockets().
@@ -244,7 +243,7 @@ describe('Persistent BoardRoom', () => {
   });
 
   it('TC-26: a SQL error on load puts the room in load-failed and refuses clients with 4500', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const originalLoad = BoardStore.prototype.load;
     BoardStore.prototype.load = () => ({
       ok: false,
@@ -252,6 +251,11 @@ describe('Persistent BoardRoom', () => {
       error: 'injected sql failure',
     });
     try {
+      // The room exists (created via RPC), so the refusal comes from the
+      // failed load, not from the story 5 existence check.
+      await runInDurableObject(stubFor(boardId), (obj) => {
+        (obj as unknown as { loadBoard(): void }).loadBoard();
+      });
       const { closed } = await rawConnect(boardId, new Y.Doc());
       expect(await closed).toBe(4500);
     } finally {

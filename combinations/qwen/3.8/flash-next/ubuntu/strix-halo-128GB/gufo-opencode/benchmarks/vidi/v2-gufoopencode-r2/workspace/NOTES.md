@@ -215,3 +215,62 @@
   3000ms BOARD_LOAD_BUDGET_MS on this machine; reported only per spec.
 - npm run test:e2e:nightly (E2E_SOAK_MS=10000): 2/2, including the full 45s
   idle-stability test — idle hibernation does not drop established clients.
+
+## Story 5 notes
+
+### Deviations from design / spec
+
+- `nextBoardPageState` takes a 4th parameter (`boardId`) beyond the design's
+  three. `CheckResponse` for a `ready` board carries no id (the id is already
+  in the URL), but the `board` state must remember which board to render, so
+  BoardPage passes the id it checked into the transition function.
+- SharePanel lives in `src/client/share/SharePanel.tsx`, not
+  `src/client/pages/share/`. It is a cross-cutting panel (the page files stay
+  the route-level screens), and the design's directory listing only pinned
+  component behavior, not its path.
+- `BoardRoom` no longer migrates at construction. `migrate()` runs on the
+  `initialize()` RPC and lazily before the first `append()`; `load()` and the
+  existence probe consult `sqlite_master` and treat missing tables as an
+  empty, non-existent board. Without this a `GET /api/boards/:id` probe would
+  create tables for unknown ids (and thus "create" boards by looking at
+  them). `ensureCreatedAt()` stamps `created_at` exactly once; legacy boards
+  (rows but no `created_at`) still exist via `existsReadOnly()`.
+- Test-hook plumbing: `maybeHandleTestHook` forwarded header-less,
+  body-less requests (fine for the story-4 hooks). The new `seed-legacy`
+  hook carries JSON, so the forwarder now buffers and pipes the POST body.
+- The default e2e webServer command adds `--var TEST_HOOKS:1` so
+  `tests/e2e/share.spec.ts` TC-31 can seed a legacy board through the hook
+  (same pattern the persistence suite already uses through
+  `WranglerProcess`). Persistence TC-24 keeps asserting hooks are absent
+  without the flag.
+- E2E clipboard assertion uses an in-page wrapper around the real
+  `navigator.clipboard.writeText` that records the copied text and still
+  calls through. Chromium gates `readText()` behind document-activation
+  rules that do not survive the automated click reliably; the recorder keeps
+  the real write path exercised while the assertion reads what was handed
+  to the clipboard. TC-29 overrides `writeText` to reject to drive the
+  manual-copy fallback.
+- `gotoBoard()` now waits for the `connected` connection state after the
+  viewport appears. BoardScreen mounts as soon as the existence check says
+  ready, so the viewport can appear mid-sync, and the finishing board load
+  re-centers the camera - that raced `setCamera` in sticky TC-30..TC-32 once
+  navigation went through `/b/:id`.
+- E2E helpers/persistence specs open boards by first calling
+  `POST /api/boards` via `page.request` (`createBoardApi`), because
+  connecting no longer creates a board.
+
+### Verified on this machine (story 5)
+
+- `npm run typecheck` clean; `npm run build` (production) succeeds.
+- Unit: 84 tests / 8 files pass (incl. TC-04 board-id format + uniqueness).
+- Component: 49 tests / 10 files pass (existing 28 story 1-4 tests unchanged,
+  plus TC-16, TC-17, TC-19..TC-25).
+- Integration (workerd): 51 tests / 5 files pass, incl. board-api suites for
+  TC-05..TC-10, TC-12, TC-14, TC-15, TC-32.
+- E2E: 24 tests pass, incl. share.spec TC-26..TC-29, TC-31. TC-26 measured
+  click-to-board 201ms (CREATE_BUDGET_MS 2000ms - within; reported, not
+  asserted, per the design's timing policy).
+- Persistence E2E: 4 tests pass with boards created through the API. TC-21
+  2000-note load measured 3783ms (over the 3000ms budget; reported, not
+  asserted - unchanged behavior from story 4).
+- Nightly: 2 tests pass (capacity soak; idle-stability 45s, no Reconnecting).

@@ -1,3 +1,104 @@
+commit e6d8de88b40174206cca966b48f8dd11ae8a22d9
+agent  Sat Oct 10 00:41:34 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+commit d911368e891281409ef06992ade2d564c0cc6e2e
+agent  Sat Oct 10 00:37:02 2026 +0000
+
+    story 5 task 7: mark progress done, record deviations in NOTES.md
+
+
+ NOTES.md    | 43 +++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md | 14 +++++++-------
+ 2 files changed, 50 insertions(+), 7 deletions(-)
+commit 425dd738e3a4235d766b024f80a067c3f699e994
+agent  Sat Oct 10 00:35:57 2026 +0000
+
+    story 5 task 7: e2e share flows; board/participant helpers create boards via API; seed-legacy hook forwards its body
+
+
+ playwright.config.ts                            |   2 +-
+ src/worker/test-hooks.ts                        |   8 +-
+ tests/e2e/helpers/board.ts                      |  31 +++-
+ tests/e2e/helpers/participants.ts               |  11 +-
+ tests/e2e/persistence/board-persistence.spec.ts |  29 ++--
+ tests/e2e/share.spec.ts                         | 188 ++++++++++++++++++++++++
+ 6 files changed, 247 insertions(+), 22 deletions(-)
+commit 1a357aca8c67405510d2dc0cd68a42dbbfe2ee83
+agent  Sat Oct 10 00:24:47 2026 +0000
+
+    story 5 task 6: component tests for pages (TC-16,17,19-21) and SharePanel (TC-22..25)
+
+
+ src/client/pages/HomePage.tsx       |  16 +++--
+ tests/component/SharePanel.test.tsx | 109 ++++++++++++++++++++++++++++
+ tests/component/pages.test.tsx      | 137 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 255 insertions(+), 7 deletions(-)
+commit eaa6a3a4fcf1defda7389854d9bd52cf7b99b008
+agent  Sat Oct 10 00:22:00 2026 +0000
+
+    story 5 tasks 4-5: client router, api, Home/Board/NotFound pages, SharePanel; component harness
+
+
+ src/client/App.tsx                | 138 +++-----------------------------------
+ src/client/api.ts                 |  31 +++++++++
+ src/client/pages/BoardPage.tsx    |  65 ++++++++++++++++++
+ src/client/pages/BoardScreen.tsx  | 124 ++++++++++++++++++++++++++++++++++
+ src/client/pages/HomePage.tsx     |  41 +++++++++++
+ src/client/pages/NotFoundPage.tsx |  24 +++++++
+ src/client/pages/state.ts         |  48 +++++++++++++
+ src/client/router.ts              |  30 +++++++++
+ src/client/share/SharePanel.tsx   | 120 +++++++++++++++++++++++++++++++++
+ src/client/styles.css             |  89 ++++++++++++++++++++++++
+ tests/component/setup.ts          |  18 +++++
+ 11 files changed, 601 insertions(+), 127 deletions(-)
+commit 6b3c3006830b5a231a3c09d5da50a0a2b22c84db
+agent  Sat Oct 10 00:15:11 2026 +0000
+
+    story 5 task 3: board-api integration tests (TC-05..10,12,14,15,32)
+
+
+ tests/integration/board-api.test.ts | 164 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 164 insertions(+)
+commit 66003f863258d5e6106d45c53ba04f790e7c7e8a
+agent  Sat Oct 10 00:13:03 2026 +0000
+
+    story 5 task 2: worker board API, DO RPC, existence checks, lazy migrate, seed-legacy hook; adapt integration tests
+
+
+ index.html                               |  1 +
+ src/worker/board-room.ts                 | 52 ++++++++++++++++++++++-
+ src/worker/board-store.ts                | 68 +++++++++++++++++++++++++++++
+ src/worker/create-board.ts               | 22 ++++++++++
+ src/worker/index.ts                      | 73 ++++++++++++++++++++++++++++----
+ src/worker/test-hooks.ts                 |  8 +++-
+ tests/integration/board-room.test.ts     | 11 +++--
+ tests/integration/helpers/ws-client.ts   | 18 +++++++-
+ tests/integration/persist-room.test.ts   | 24 ++++++-----
+ tests/integration/worker-routing.test.ts | 17 ++++----
+ 10 files changed, 259 insertions(+), 35 deletions(-)
+commit fd5abbed33474fe69b35736326091513c0a9ecf0
+agent  Sat Oct 10 00:06:14 2026 +0000
+
+    story 5 task 1: link-code unit tests (TC-04) + story 5 settings
+
+
+ PROGRESS.md                     |  2 +-
+ src/shared/config.ts            |  5 ++++
+ tests/unit/create-board.test.ts | 62 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 1 deletion(-)
+commit 42560df7614c3f9a51a64c794f805778db8c0bac
+vidi-agent  Fri Oct 9 23:54:56 2026 +0000
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 97a178c757cdf4990614d94825217dabf50d9d2f
 agent  Fri Oct 9 23:52:07 2026 +0000
 
