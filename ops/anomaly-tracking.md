@@ -332,6 +332,22 @@ test that would reproduce it. Details under the entries.
   and stop whatever holds its dev server's port. Not hung (calls keep coming); over 3× the median.
 - **Suggested action:** none for the harness. Worth knowing when reading this stack's story-level scores:
   stories 2–4 will show 0 own held-out tests although unit-level work exists.
+- **Note 2026-10-10 01:00 (v2-r5, read individually, high confidence): the model's own bug, not our setup.** r5 finished at 1/75
+  (r1 61, r3 62, r4 56). Story 3 (live collaboration) broke the app and nothing later repaired it: 0/27 in story 3 (its
+  7 new tests plus the 17 that passed in stories 1 and 2), then 1 passing test in every story to 12. Two independent
+  bugs in the agent's story 3 commit each keep the board on "Connecting…": (1) the client builds `ws://host//api/rooms/<id>`
+  with y-websocket 3.1.0 (`WebsocketProvider(origin, '/api/rooms/'+id)` joins with a second slash) and the worker answers
+  that path with a 307, which a browser WebSocket cannot follow; (2) with the URL fixed, the server's own message framing
+  (a length prefix) is not y-websocket's, so the client connects and then throws "Unknown message type". Reproduced by
+  rebuilding that commit and running `wrangler dev`. The agent never ran the real server in story 3: its workerd test
+  pool failed, it swapped in a mock with the same framing, wrote that the e2e tests "might not work in this
+  environment", and finished with "All green"; the gate's e2e step then failed after 28 s. Every held-out test waits for
+  the connection badge to clear, which is why stories 1 and 2's tests regress. Story 4's agent ran Playwright and the real
+  server 33 times and missed it. Ruled out: leftover server processes (the `workerd@…` strings in the gate output are
+  frame addresses in an error line; one app server ran, no port fault, `harness_fault` null, stories 1 and 2 passed on the
+  same runner). r1 and r3 built a valid URL; r3 recovered when its story 5 added the missing `webSocket:` field to its 101
+  response; why r1 recovered at story 9 was not traced. Not verified: a browser's own view of the 307 (inferred from the
+  held-out screenshot). The score of record stands.
 
 ### A-013 — A finished story recorded PARTIAL: the agent never commits, and the nudge doesn't say why it is being nudged
 - **First seen:** 2026-09-30 04:22 (gufo v2-r1 story 10) · **Last seen:** 2026-10-01 03:13 (gufo v2-r4 story 4)
