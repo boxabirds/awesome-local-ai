@@ -1,3 +1,83 @@
+commit 97ad711f39f1662d461c680be1116e0b66533a99
+agent  Sat Oct 10 11:43:53 2026 +0100
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md             | 23 +++++++++++++++++------
+ playwright.config.ts | 10 ++++++++--
+ 2 files changed, 25 insertions(+), 8 deletions(-)
+commit 474bbf7d10bf0b7c295a0dae1f0966d3608b4bfc
+agent  Sat Oct 10 10:45:35 2026 +0100
+
+    story 8 (tasks 5, 9, 11): e2e recovery while colleagues work (TC-22 to TC-24), component boundaries and controls aligned to the design TC table, and a press that changed nothing now refreshes the buttons
+
+
+ NOTES.md                                |  95 ++++++++
+ PROGRESS.md                             |  12 +-
+ src/client/board/UndoButtons.tsx        |   4 +-
+ src/client/board/undo.ts                |  38 +++-
+ src/client/styles.css                   |  17 +-
+ tests/component/UndoBoundaries.test.tsx |  66 +++++-
+ tests/component/UndoControls.test.tsx   | 115 +++++++++-
+ tests/e2e/undo.spec.ts                  | 381 ++++++++++++++++++++++++++++++++
+ 8 files changed, 700 insertions(+), 28 deletions(-)
+commit 4252dcc5577d2c85e152b3288317933f718f8ec1
+agent  Sat Oct 10 09:42:47 2026 +0100
+
+    story 8 (tasks 8, 10, 11): undo wired into gestures, actions, buttons and shortcuts; controls tests (TC-18 to TC-21)
+
+
+ src/client/board/BoardView.tsx          |  66 +++++-
+ src/client/board/Toolbar.tsx            |  20 +-
+ src/client/board/UndoButtons.tsx        |  85 ++++++++
+ src/client/board/undo.ts                |  28 ++-
+ src/client/board/useBoardKeys.ts        |  49 ++++-
+ src/client/board/useUndo.ts             |  92 ++++++++
+ src/client/objects/StickyNote.tsx       |  12 +-
+ src/client/objects/StickyTextEditor.tsx |  39 ++++
+ tests/component/UndoBoundaries.test.tsx |   4 +-
+ tests/component/UndoControls.test.tsx   | 375 ++++++++++++++++++++++++++++++++
+ 10 files changed, 753 insertions(+), 17 deletions(-)
+commit 37f4b7cb38a6a9ae285981f186255f60c28f5456
+agent  Sat Oct 10 09:39:10 2026 +0100
+
+    story 8 (task 9): undo boundary and capture-timeout component tests (TC-14 to TC-17), red against the unwired board
+
+
+ tests/component/UndoBoundaries.test.tsx | 480 ++++++++++++++++++++++++++++++++
+ tests/component/harness.tsx             |   8 +
+ 2 files changed, 488 insertions(+)
+commit 2e01b54bc7334987dd4ad33bf796d63e9758dfe8
+agent  Sat Oct 10 09:08:39 2026 +0100
+
+    story 8 (task 2): per-user undo history controller over Y.UndoManager
+
+
+ src/client/board/undo.ts           | 185 +++++++++++++++++++++++++++++++++++--
+ tests/unit/undo-boundaries.test.ts | 146 +++++++++++++++++++----------
+ 2 files changed, 274 insertions(+), 57 deletions(-)
+commit 51fb296004c2a4ac163f4271c1674d2249a66baf
+agent  Sat Oct 10 08:58:55 2026 +0100
+
+    story 8 (tasks 6-7): undo history and capture-timeout unit tests, failing against a stub
+
+
+ PROGRESS.md                        |  11 +-
+ src/client/board/undo.ts           |  33 ++++
+ src/shared/config.ts               |  18 ++
+ tests/unit/helpers/peer.ts         |  69 +++++++
+ tests/unit/undo-boundaries.test.ts | 141 ++++++++++++++
+ tests/unit/undo-history.test.ts    | 389 +++++++++++++++++++++++++++++++++++++
+ 6 files changed, 658 insertions(+), 3 deletions(-)
+commit e74d66ff371a8df0854b7b481f3084656da410bd
+vidi-agent  Sat Oct 10 08:42:48 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 35 +++++++++--------------------------
+ 1 file changed, 9 insertions(+), 26 deletions(-)
 commit 7780dc4b3cf589632e1f30847e462f68c6beb1e2
 agent  Sat Oct 10 08:37:02 2026 +0100
 
