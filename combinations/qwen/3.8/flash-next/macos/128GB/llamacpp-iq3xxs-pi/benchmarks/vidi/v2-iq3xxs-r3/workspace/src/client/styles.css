@@ -1,0 +1,177 @@
+:root {
+  --grid-dot: #c8cdd6;
+  --marker: #ff4d6d;
+  --chrome-bg: #ffffff;
+  --chrome-border: #d5d9e0;
+  --chrome-text: #1f2430;
+  --chrome-muted: #5b6373;
+  --focus-ring: #2b6cff;
+  color: var(--chrome-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.board-app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* The board area: measured by CameraProvider, so the camera knows the viewport size. */
+.board-area {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  /* Touch navigation is out of scope for story 1; never let the browser
+     scroll or pinch-zoom the page in response to board touches. */
+  touch-action: none;
+}
+
+.board-viewport[data-panning="true"] {
+  cursor: grabbing;
+}
+
+/* Dot grid: one dot per tile, drawn from the camera offset so it looks
+   attached to the board. */
+.board-grid {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+  background-image: radial-gradient(
+    circle at 0 0,
+    var(--grid-dot) 0,
+    var(--grid-dot) 1.5px,
+    transparent 1.5px
+  );
+}
+
+/* World layer: children are positioned in world coordinates. */
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.origin-marker,
+.test-marker-far {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+}
+
+.origin-marker::before,
+.origin-marker::after,
+.test-marker-far::before,
+.test-marker-far::after {
+  content: "";
+  position: absolute;
+  background: var(--marker);
+}
+
+.origin-marker::before,
+.test-marker-far::before {
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 100%;
+  margin-left: -1px;
+}
+
+.origin-marker::after,
+.test-marker-far::after {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  margin-top: -1px;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+}
+
+.zoom-controls button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  font: inherit;
+  color: inherit;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoom-controls button:disabled {
+  color: var(--chrome-muted);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.zoom-controls button[data-testid="reset-view"] {
+  margin-left: 4px;
+}
+
+.zoom-controls .zoom-percent {
+  min-width: 48px;
+  padding: 0 4px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--chrome-muted);
+}
+
+.zoom-controls button:focus-visible,
+.navigation-hint:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  color: var(--chrome-muted);
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 999px;
+  pointer-events: none;
+}
