@@ -6,12 +6,14 @@
 import {
   objectBounds,
   type ObjectSnapshot,
+  type ShapeSnap,
   type StickySnapshot,
   type TextSnapshot,
 } from '../../shared/board-model';
 import { unionRects } from '../../shared/geometry';
-import type { TextSize } from '../../shared/config';
+import type { FillColor, StrokeColor, TextSize } from '../../shared/config';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 
 export interface SelectionBarProps {
@@ -25,6 +27,8 @@ export interface SelectionBarProps {
   onColor?(id: string, color: StickySnapshot['color']): void;
   // Provided by the board so the single-text TextToolbar can resize.
   onTextSize?(id: string, size: TextSize): void;
+  // Provided by the board so a single shape's ShapeToolbar can restyle.
+  onShapeStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
 }
 
 export function SelectionBar({
@@ -34,6 +38,7 @@ export function SelectionBar({
   suppress = false,
   onColor,
   onTextSize,
+  onShapeStyle,
 }: SelectionBarProps): React.JSX.Element | null {
   if (ids.size === 0 || suppress) return null;
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -45,6 +50,8 @@ export function SelectionBar({
     ids.size === 1 && selected[0].type === 'sticky' ? (selected[0] as StickySnapshot) : null;
   const singleText =
     ids.size === 1 && selected[0].type === 'text' ? (selected[0] as TextSnapshot) : null;
+  const singleShape =
+    ids.size === 1 && selected[0].type === 'shape' ? (selected[0] as ShapeSnap) : null;
   return (
     <div
       className="selection-bar"
@@ -65,6 +72,13 @@ export function SelectionBar({
         <TextToolbar size={singleText.size} onSize={(s) => onTextSize(singleText.id, s)} onDelete={onDelete} />
       ) : singleSticky && onColor ? (
         <NoteToolbar color={singleSticky.color} onColor={(c) => onColor(singleSticky.id, c)} onDelete={onDelete} />
+      ) : singleShape && onShapeStyle ? (
+        <ShapeToolbar
+          fill={singleShape.fill}
+          stroke={singleShape.stroke}
+          onFill={(c) => onShapeStyle(singleShape.id, { fill: c })}
+          onStroke={(c) => onShapeStyle(singleShape.id, { stroke: c })}
+        />
       ) : (
         <>
           <span className="selection-count" aria-live="polite">

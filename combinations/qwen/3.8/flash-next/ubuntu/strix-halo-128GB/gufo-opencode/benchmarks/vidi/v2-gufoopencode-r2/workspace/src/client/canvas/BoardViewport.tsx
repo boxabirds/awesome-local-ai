@@ -32,6 +32,10 @@ export interface ViewportHandle {
   screenToWorld(p: Point): Point;
   worldToScreen(p: Point): Point;
   centerWorld(): Point;
+  // Converts a client (viewport) coordinate pair to world space, subtracting
+  // the viewport's current on-screen offset. Used by objects/tools that render
+  // inside the world layer and only have client event coordinates.
+  clientToWorld(clientX: number, clientY: number): Point;
 }
 
 export interface BoardViewportProps {
@@ -263,6 +267,11 @@ export function BoardViewport({
       worldToScreen: (p: Point) => worldToScreen(camera, p),
       centerWorld: () =>
         screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }),
+      clientToWorld: (clientX: number, clientY: number) => {
+        const el = viewportRef.current;
+        const rect = el ? el.getBoundingClientRect() : { left: 0, top: 0 };
+        return screenToWorld(camera, { x: clientX - rect.left, y: clientY - rect.top });
+      },
     });
   }, [camera, viewport, onViewportHandle]);
 

@@ -11,7 +11,9 @@ import { seedBoard } from '../board/seedBoard';
 import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
-import { useTool } from '../board/useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeTool } from '../tools/ShapeTool';
 import { createUndo } from '../board/undo';
 import { useUndo } from '../board/useUndo';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -24,7 +26,8 @@ import { createText, setTextSize } from '../../shared/objects/text';
 import { getIdentity } from '../identity/identity';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
-import { TEXT_FONT_FAMILY, type TextSize } from '../../shared/config';
+import { TEXT_FONT_FAMILY, type FillColor, type StrokeColor, type TextSize } from '../../shared/config';
+import { setShapeStyle } from '../../shared/objects/shape';
 import {
   createSticky,
   deleteObjects,
@@ -75,7 +78,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
 
   const editable = canEdit(connection);
   const camera = viewport?.camera ?? DEFAULT_CAMERA;
-  const tool = useTool(editable);
+  const active = useActiveTool(editable);
   const measurer = useMemo(() => createLazyMeasurer(TEXT_FONT_FAMILY), []);
 
   const gesture = useTransformGesture({
@@ -119,9 +122,19 @@ export function BoardScreen({ boardId }: { boardId: string }) {
     canEdit: editable,
     undoBoundary: undo.boundary,
     undoShortcuts: { undo: undoState.undo, redo: undoState.redo },
-    tool,
+    tool: active,
     onCreateSticky: createStickyAtCentre,
   });
+
+  // A Shape/Connector tool creation: the new item becomes the only selection
+  // and the tool returns to Select (tools.return_to_select).
+  const onToolCreated = useCallback(
+    (id: string) => {
+      selection.setMany([id], false);
+      active.toolCreated(id);
+    },
+    [selection, active],
+  );
 
   // Text tool click: place text with its top-left at the clicked world point,
   // return to Select and start editing immediately (text.tool_ui).
@@ -132,10 +145,10 @@ export function BoardScreen({ boardId }: { boardId: string }) {
       undo.boundary(); // creation is one undo step
       const id = createText(doc, world, getIdentity().id);
       undo.boundary();
-      tool.setTool('select');
+      active.setTool('select');
       if (id !== null) selection.startEdit(id);
     },
-    [doc, selection, editable, undo, viewport, tool],
+    [doc, selection, editable, undo, viewport, active],
   );
 
   const changeTextSize = useCallback(
@@ -166,6 +179,16 @@ export function BoardScreen({ boardId }: { boardId: string }) {
     [doc, editable, undo],
   );
 
+  const changeShapeStyle = useCallback(
+    (id: string, style: { fill?: FillColor; stroke?: StrokeColor }) => {
+      if (!editable) return;
+      undo.boundary(); // the style change is one undo step
+      setShapeStyle(doc, id, style);
+      undo.boundary();
+    },
+    [doc, editable, undo],
+  );
+
   // Render in stable creation order (never re-sorted by z) so bringToFront
   // mid-drag cannot detach the dragged node and break pointer capture; the
   // object's z-index carries the stacking order instead.
@@ -183,8 +206,10 @@ export function BoardScreen({ boardId }: { boardId: string }) {
         onCreateSticky={createStickyAtCentre}
         disabled={!editable}
         undo={undoState}
-        tool={tool.tool}
-        onToolChange={tool.setTool}
+        tool={active.tool}
+        onToolChange={active.setTool}
+        shapeKind={active.shapeKind}
+        onShapeKind={active.setShapeKind}
       />
       <BoardViewport
         onCreateStickyAtWorld={createStickyAtWorld}
@@ -192,15 +217,36 @@ export function BoardScreen({ boardId }: { boardId: string }) {
         onViewportHandle={setViewport}
         snapshot={objects}
         onMarqueeSelect={(ids) => selection.setMany(ids, true)}
-        textToolActive={tool.tool === 'text'}
+        textToolActive={active.tool === 'text'}
         onCreateTextAtScreen={createTextAtScreen}
         overlay={
-          <SelectionOverlay
-            ids={selection.ids}
-            snapshot={objects}
-            camera={camera}
-            onHandlePointerDown={gesture.onHandlePointerDown}
-          />
+          <>
+            <SelectionOverlay
+              ids={selection.ids}
+              snapshot={objects}
+              camera={camera}
+              onHandlePointerDown={gesture.onHandlePointerDown}
+            />
+            {active.tool === 'shape' && editable ? (
+              <ShapeTool
+                kind={active.shapeKind}
+                camera={camera}
+                doc={doc}
+                by={getIdentity().id}
+                undo={undo}
+                onCreated={onToolCreated}
+              />
+            ) : active.tool === 'connector' && editable ? (
+              <ConnectorTool
+                camera={camera}
+                snapshot={objects}
+                doc={doc}
+                by={getIdentity().id}
+                undo={undo}
+                onCreated={onToolCreated}
+              />
+            ) : null}
+          </>
         }
       >
         {orderedObjects.map((obj) => {
@@ -217,6 +263,8 @@ export function BoardScreen({ boardId }: { boardId: string }) {
               editing={selection.editingId === obj.id}
               editable={editable}
               undo={undo}
+              snapshot={objects}
+              clientToWorld={viewport ? viewport.clientToWorld : undefined}
               onObjectPointerDown={gesture.onObjectPointerDown}
               onStartEdit={selection.startEdit}
               onEndEdit={(next) => {
@@ -233,6 +281,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
           suppress={gestureActive || selection.editingId !== null}
           onColor={changeColor}
           onTextSize={changeTextSize}
+          onShapeStyle={changeShapeStyle}
         />
       </BoardViewport>
     </>

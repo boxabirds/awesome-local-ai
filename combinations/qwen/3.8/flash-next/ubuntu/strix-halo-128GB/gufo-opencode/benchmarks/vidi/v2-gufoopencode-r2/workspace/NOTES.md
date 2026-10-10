@@ -387,3 +387,63 @@
 - Persistence e2e 4/4; nightly 2/2 (E2E_SOAK_MS=10000).
 - Firefox/WebKit remain environment-blocked (missing GTK/WPE system libs,
   see story 1 notes).
+
+## Story 10 notes (draw shapes and connect them with arrows)
+
+- `Endpoint` lives in `shared/geometry/connector-geometry.ts` and is
+  re-exported by `shared/objects/connector.ts`, so geometry helpers stay the
+  single source of truth for the endpoint union.
+- Connector rows store `x/y/width/height` as 0; the real bbox is derived in
+  `objectSnapshots()` (pass 2) via `resolveEndpoints` + `connectorBBox`. A
+  connector whose attached target is missing keeps its stored fallback point
+  ("missing target at render", TC-11/TC-27).
+- `nearestSide` uses screen-style orientation: negative dy is "top"; the
+  plane is split by the rect's diagonals, so corners resolve predictably.
+- `board-model.ts` imports `detachConnectorsTo` from `objects/connector.ts`
+  while that module imports types from `board-model.ts`; Vite/ESBuild resolve
+  this ESM cycle fine (type-only in one direction at runtime load time).
+- Deviations (client):
+  - The design sketches `useActiveTool` installing its own keydown listener;
+    implementation routes S/L through the existing `useBoardKeys` handler via
+    a `TOOL_SHORTCUTS` lookup (restricted to switchable tools) so one global
+    listener owns all shortcuts.
+  - The shape label editor is an absolutely-positioned `<div>` overlay using
+    the shared `TextEditor` instead of the design's `foreignObject` inside the
+    shape SVG; functionally identical, avoids HTML-in-SVG quirks in jsdom.
+  - `hitTest` for connectors is bbox-based (object-level), and `ConnectorObject`
+    does the precise decision itself: a transparent wide-stroke `<line>` plus a
+    `nearLine()` distance check in screen px, so far clicks inside the bbox
+    fall through to the board (TC-20 at 50%/100%/200%).
+  - ConnectorTool/ShapeTool compute world coords from their own
+    `getBoundingClientRect()` rather than the viewport handle, so they are
+    testable standalone; `ViewportHandle` still gained `clientToWorld` for
+    `ConnectorObject`'s handle drags.
+  - TC-27's "route delay": `page.route` cannot delay Hocuspocus WebSocket
+    frames, so the e2e forces the race by firing Sam's delete and Dana's
+    drag-create back-to-back and asserting the safety invariants that hold for
+    either merge order (endpoints resolve to finite points; attached ids exist
+    or render at fallback; zero console/page errors).
+- CSS: `.shape-object` needs `pointer-events: auto` because `.world-layer` is
+  `pointer-events: none` (same opt-in pattern as `.text-object`); connector
+  svg children set explicit `pointerEvents` per element.
+- E2E adjustment to story 7's `selection.spec.ts` TC-36: the left toolbar is
+  vertically centred, so the two new tool buttons grew it from ~216px to
+  276px and its top edge moved from y=292 to y=262, now covering the old
+  marquee start point (133, 270). The marquee start/end were moved to y=560
+  / y=240 (below/above the toolbar) and still fully enclose the note rows.
+  No product behaviour changed.
+
+### Verified on this machine (story 10)
+
+- `npm run typecheck` clean; `npm run build` clean, `__vidi6` absent from
+  the production bundle (grep count 0).
+- Unit: 169 tests pass (new: shape-model TC-01..TC-07 cases and
+  connector-model TC-08..TC-14 cases incl. detach-on-delete).
+- Component: 98 tests pass (new: ShapeTool TC-15..TC-17 + TC-28,
+  Connector TC-18..TC-21, useActiveTool TC-22).
+- Integration (workerd): 51/51 unchanged.
+- E2E chromium default suite: 43/43, incl. shapes.spec TC-23 (draw a flow,
+  toolbar styles) and TC-24 (move a shape, attached arrow re-anchors), and
+  connectors.spec TC-25 (drag-create attach + endpoint detach), TC-26
+  (collaborative rearrange converges), TC-27 (delete race invariants).
+- Persistence e2e 4/4; nightly 2/2 (E2E_SOAK_MS=10000).

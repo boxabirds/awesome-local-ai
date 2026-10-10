@@ -128,6 +128,64 @@ export function getTexts(page: Page): Promise<TextInfo[]> {
   );
 }
 
+export interface ShapeInfo {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  kind: string;
+  fill: string;
+  stroke: string;
+}
+
+export interface EndpointInfo {
+  kind: string;
+  objectId?: string;
+  x?: number;
+  y?: number;
+  side?: string;
+  fallback?: { x: number; y: number };
+}
+
+export interface ConnectorInfo {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  from: EndpointInfo;
+  to: EndpointInfo;
+}
+
+/** Story 10: shape objects as the shared snapshot reader sees them. */
+export function getShapes(page: Page): Promise<ShapeInfo[]> {
+  return page.evaluate(() =>
+    (
+      window as never as {
+        __vidi6: { board: { getObjectSnapshots?(): ShapeInfo[] } };
+      }
+    )
+      .__vidi6.board.getObjectSnapshots!()
+      .filter((o) => o.type === 'shape'),
+  );
+}
+
+/** Story 10: connector objects as the shared snapshot reader sees them. */
+export function getConnectors(page: Page): Promise<ConnectorInfo[]> {
+  return page.evaluate(() =>
+    (
+      window as never as {
+        __vidi6: { board: { getObjectSnapshots?(): ConnectorInfo[] } };
+      }
+    )
+      .__vidi6.board.getObjectSnapshots!()
+      .filter((o) => o.type === 'connector'),
+  );
+}
+
 export async function gridSpacingPx(page: Page): Promise<string> {
   return page
     .getByTestId('board-grid')

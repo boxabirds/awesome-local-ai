@@ -13,8 +13,12 @@ import {
 } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
+import { TOOL_SHORTCUTS, type ToolId } from '../tools/useActiveTool';
 import type { Selection } from './useSelection';
-import type { ToolState } from './useTool';
+
+// Only tools that exist as modes (sticky is an instant create, and the
+// story 11/12 tool ids have no implementation yet) can be switched to.
+const SWITCHABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -24,7 +28,8 @@ export interface BoardKeysOptions {
   undoBoundary?(): void;
   undoShortcuts?: { undo(): void; redo(): void };
   // Story 9: V/T switch the board tool; N creates a sticky at the view centre.
-  tool?: ToolState;
+  // Story 10 adds S (shape) and L (connector) through TOOL_SHORTCUTS.
+  tool?: { setTool(tool: ToolId): void };
   onCreateSticky?(): void;
 }
 
@@ -70,18 +75,18 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         if (selection.ids.size > 0) selection.clear();
         return;
       }
-      if (!mod && !e.altKey && (e.key === 'v' || e.key === 'V')) {
-        o.tool?.setTool('select');
-        return;
-      }
-      if (!mod && !e.altKey && (e.key === 't' || e.key === 'T')) {
-        o.tool?.setTool('text');
-        return;
-      }
-      if (!mod && !e.altKey && (e.key === 'n' || e.key === 'N')) {
-        // N creates a sticky at the view centre, like the toolbar button.
-        o.onCreateSticky?.();
-        return;
+      if (!mod && !e.altKey && e.key.length === 1) {
+        // Single-letter tool shortcuts from one table (v, t, s, l); N stays an
+        // instant sticky create rather than a mode switch.
+        const shortcut = TOOL_SHORTCUTS[e.key.toLowerCase()];
+        if (shortcut === 'sticky') {
+          o.onCreateSticky?.();
+          return;
+        }
+        if (shortcut !== undefined && SWITCHABLE_TOOLS.includes(shortcut)) {
+          o.tool?.setTool(shortcut);
+          return;
+        }
       }
       if (selection.ids.size === 0) return;
       const arrow =

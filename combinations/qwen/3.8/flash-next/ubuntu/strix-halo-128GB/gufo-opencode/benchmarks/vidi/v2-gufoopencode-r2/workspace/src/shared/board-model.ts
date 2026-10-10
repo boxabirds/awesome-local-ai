@@ -7,18 +7,36 @@
 //     objects: Y.Map<string, Y.Map> with { type:'sticky', x, y, color, text: Y.Text, z, createdAt }
 //     objects: Y.Map<string, Y.Map> with { type:'text', x, y, width, height, text: Y.Text,
 //       size, widthMode, z, createdAt, createdBy } (story 9)
+//     objects: Y.Map<string, Y.Map> with { type:'shape', x, y, width, height, kind,
+//       fill, stroke, label: Y.Text, z, createdAt, createdBy } (story 10)
+//     objects: Y.Map<string, Y.Map> with { type:'connector', from, to, z, createdAt,
+//       createdBy } where x/y/width/height are stored 0 and derived in snapshot() (story 10)
 
 import * as Y from 'yjs';
 import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
+  type FillColor,
+  type ShapeKind,
+  type StrokeColor,
   type StickyColor,
   type TextSize,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import {
+  connectorBBox,
+  resolveEndpoints,
+  type Endpoint,
+} from './geometry/connector-geometry';
+import { detachConnectorsTo } from './objects/connector';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
 
@@ -53,6 +71,46 @@ export interface TextSnapshot extends ObjectSnapshot {
 
 export function isTextSize(value: unknown): value is TextSize {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, value);
+}
+
+// Story 10 shape. `label` is the label Y.Text flattened to a string.
+export interface ShapeSnap extends ObjectSnapshot {
+  type: 'shape';
+  kind: ShapeKind;
+  fill: FillColor;
+  stroke: StrokeColor;
+  label: string;
+}
+
+// Story 10 connector. x/y/width/height are derived from the resolved ends in
+// objectSnapshots(); the stored x/y/width/height are always 0.
+export interface ConnectorSnap extends ObjectSnapshot {
+  type: 'connector';
+  from: Endpoint;
+  to: Endpoint;
+}
+
+export function isShapeKind(value: unknown): value is ShapeKind {
+  return typeof value === 'string' && (SHAPE_KINDS as readonly string[]).includes(value);
+}
+
+export function isFillColor(value: unknown): value is FillColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_FILL_COLORS, value);
+}
+
+export function isStrokeColor(value: unknown): value is StrokeColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, value);
+}
+
+function isEndpoint(value: unknown): value is Endpoint {
+  if (typeof value !== 'object' || value === null) return false;
+  const e = value as Record<string, unknown>;
+  if (e.kind === 'free') return Number.isFinite(e.x) && Number.isFinite(e.y);
+  if (e.kind === 'attached') {
+    const fb = e.fallback as { x?: unknown; y?: unknown } | undefined;
+    return typeof e.objectId === 'string' && !!fb && Number.isFinite(fb.x) && Number.isFinite(fb.y);
+  }
+  return false;
 }
 
 function isStickyColor(value: unknown): value is StickyColor {
@@ -298,6 +356,9 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objects.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Detach connector ends pointing at the doomed ids while they still have
+    // a rect to anchor to, so the arrow survives with a free end (story 10).
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -308,26 +369,48 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
 // the generic fields. Replaces `snapshot` for rendering, selection and the
 // marquee; `snapshot` remains the sticky-only view used by test hooks.
 export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
-  const out: ObjectSnapshot[] = [];
-  for (const [id, obj] of objectsMap(doc)) {
+  const objects = objectsMap(doc);
+
+  // Pass 1: rects of every geometric object, so connector ends can resolve
+  // against their targets in the same frame (one pass, no per-connector scan).
+  const rects = new Map<string, Rect>();
+  for (const [id, obj] of objects) {
     const type = obj.get('type');
-    if (typeof type !== 'string' || !knownTypes.has(type)) continue;
+    if (typeof type !== 'string' || !knownTypes.has(type) || type === 'connector') continue;
     const x = obj.get('x');
     const y = obj.get('y');
-    const z = obj.get('z');
-    const createdAt = obj.get('createdAt');
     const width = obj.get('width');
     const height = obj.get('height');
+    rects.set(id, {
+      x: typeof x === 'number' ? x : 0,
+      y: typeof y === 'number' ? y : 0,
+      width: typeof width === 'number' ? width : STICKY_SIZE_WORLD,
+      height: typeof height === 'number' ? height : STICKY_SIZE_WORLD,
+    });
+  }
+
+  const out: ObjectSnapshot[] = [];
+  for (const [id, obj] of objects) {
+    const type = obj.get('type');
+    if (typeof type !== 'string' || !knownTypes.has(type)) continue;
+    const z = obj.get('z');
+    const createdAt = obj.get('createdAt');
     const base: ObjectSnapshot = {
       id,
       type,
-      x: typeof x === 'number' ? x : 0,
-      y: typeof y === 'number' ? y : 0,
+      x: 0,
+      y: 0,
       z: typeof z === 'number' ? z : 0,
       createdAt: typeof createdAt === 'number' ? createdAt : 0,
     };
+    const width = obj.get('width');
+    const height = obj.get('height');
     if (typeof width === 'number') base.width = width;
     if (typeof height === 'number') base.height = height;
+    const x = obj.get('x');
+    const y = obj.get('y');
+    base.x = typeof x === 'number' ? x : 0;
+    base.y = typeof y === 'number' ? y : 0;
     if (type === 'sticky') {
       const color = obj.get('color');
       const text = obj.get('text');
@@ -350,6 +433,38 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
         widthMode: widthMode === 'fixed' ? 'fixed' : 'auto',
       };
       out.push(textSnap);
+    } else if (type === 'shape') {
+      const kind = obj.get('kind');
+      const fill = obj.get('fill');
+      const stroke = obj.get('stroke');
+      const label = obj.get('label');
+      const shape: ShapeSnap = {
+        ...base,
+        type: 'shape',
+        kind: isShapeKind(kind) ? kind : 'rect',
+        fill: isFillColor(fill) ? fill : DEFAULT_SHAPE_FILL,
+        stroke: isStrokeColor(stroke) ? stroke : DEFAULT_SHAPE_STROKE,
+        label: label instanceof Y.Text ? label.toString() : '',
+      };
+      out.push(shape);
+    } else if (type === 'connector') {
+      const fromRaw = obj.get('from');
+      const toRaw = obj.get('to');
+      const from: Endpoint = isEndpoint(fromRaw) ? fromRaw : { kind: 'free', x: 0, y: 0 };
+      const to: Endpoint = isEndpoint(toRaw) ? toRaw : { kind: 'free', x: 0, y: 0 };
+      const ends = resolveEndpoints({ from, to }, rects);
+      const bbox = connectorBBox(ends.from, ends.to);
+      const connector: ConnectorSnap = {
+        ...base,
+        type: 'connector',
+        x: bbox.x,
+        y: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
+        from,
+        to,
+      };
+      out.push(connector);
     } else {
       out.push(base);
     }

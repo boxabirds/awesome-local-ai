@@ -222,7 +222,9 @@ test('TC-36: every editor moves a different group at once and all screens conver
       const c1 = centres[pair[1]];
       const left = c0 - 110;
       const right = c1 + 110;
-      await dragFromTo(p.page, [worldToScreenX(left), 270], [worldToScreenX(right), 430], true);
+      // Story 10 grew the left toolbar (Shape/Connector buttons) so it now
+      // spans y 262..538; the marquee starts below it and drags up.
+      await dragFromTo(p.page, [worldToScreenX(left), 560], [worldToScreenX(right), 240], true);
       await expect
         .poll(() => selectedIds(p.page), { message: `marquee for pair ${pair}` })
         .toHaveLength(2);
