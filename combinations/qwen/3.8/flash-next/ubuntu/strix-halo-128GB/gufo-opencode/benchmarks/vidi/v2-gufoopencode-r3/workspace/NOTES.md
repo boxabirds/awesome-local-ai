@@ -110,3 +110,68 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
   pixels; long-text paste goes through the native textarea value setter so
   React's `onInput` commits it.
 - E2E runs Chromium-only here (same environment constraint as story 1).
+
+---
+
+# Story 3: See other people's edits appear live on the same board
+
+## Architecture
+- `BoardRoom` Durable Object (`src/worker/board-room.ts`): non-hibernating
+  `accept()` (the Y.Doc lives in memory); sends SyncStep1 on open, relays
+  every applied doc update to the other sockets with
+  `syncProtocol.writeUpdate` framing (raw `frame(MESSAGE_SYNC, update)`
+  breaks clients: update bytes get parsed as sync messages). Awareness
+  messages are relayed verbatim; anything the decoder/sync layer rejects
+  closes with 1003.
+- The Worker entry (`src/worker/index.ts`) routes `/api/rooms/:boardId` to
+  the DO stub (`getBoardRoom(getRoomId(env, boardId))`) and falls through to
+  static assets. Board id validation (`src/shared/board-id.ts`) rejects
+  ids that would break URL/DO-name encoding.
+- Client: `connectBoard(doc, boardId)` (`src/client/sync/connectBoard.ts`)
+  wires a y-websocket `WebsocketProvider` to a pure state machine
+  (`createSyncStatusMachine`) exposed through `useBoardDoc`. States:
+  connecting → connected; after a first sync an outage shows reconnecting,
+  and reconnect needs `CONNECTED_CONFIRMATION_MS` (2 s) of confirmed sync
+  before the badge flips to Connected, then hides.
+- Provider sync event is `'sync'` (not `'synced'`) in y-websocket 3.x.
+- `/b/:boardId` is handled client-side (`resolveBoardId` in `App.tsx`);
+  wrangler dev rewrites unknown paths to index.html via SPA fallback.
+
+## Gotchas (cost hours)
+- **workerd delivers WS frames as `Blob`, not `ArrayBuffer`.** `event.data`
+  in `fetch`-based DO websockets under current workerd is a Blob; the
+  protocol decoder must `await blob.arrayBuffer()` (and also accept
+  ArrayBufferView for the Node/vitest path). Without this every message
+  decoded as invalid → 1003 close loops.
+- `Y.Doc.toJSON()` only serialises shared types **already instantiated** via
+  `doc.getMap(...)` etc. A doc that received updates but never called
+  `getMap('objects')` returns `{}` even though the data is applied. Always
+  instantiate the root map before snapshotting (`snapshot()` in the board
+  model does this).
+- `setOffline(true)` does **not** close established WebSockets in Chromium;
+  outage detection relies on y-websocket's 30 s "no message received"
+  watchdog, so e2e outage tests budget ~35 s for the Reconnecting badge.
+- Room badge locator must be `.connection-status`, not
+  `getByRole('status')`: the zoom label `<output>` has implicit
+  role=status and makes strict-mode locators ambiguous.
+
+## Testing notes
+- Integration project (`vitest-pool-workers` 0.12.0) uses
+  `isolatedStorage: false`: live DO websockets keep storage busy so the
+  per-test storage snapshot restore cannot work; tests use random board
+  ids instead. `testTimeout: 30_000` for DO startup.
+- `tests/integration/ws-client.ts` is a tiny y-protocol client (Node `ws`)
+  used by the workerd tests; `random-ops.ts` drives merge scenarios.
+- E2E helpers (`tests/e2e/helpers/participants.ts`): `openParticipants`
+  opens N isolated contexts on one board id, `waitForSynced` gates on the
+  `connectionState()` test hook, `LatencyRecorder` measures peer-visibility
+  latency per change and logs p50/p95/max against
+  `LIVE_UPDATE_LATENCY_BUDGET_MS` (reported, asserted only for the
+  functional TC-22..28 single-change waits).
+- Nightly (`npm run test:e2e:nightly`, @nightly grep): TC-29 five idle
+  clients for 45 s (badge must never appear; awareness relay keeps the
+  watchdog fed), TC-30 five seeded random editors for 60 s asserting
+  convergence of every change (exact deltas are not asserted because a
+  drag may grab an overlapping note; convergence is the contract).
+- Observed latency on this machine: p50 ≈ 6–18 ms, p95 ≈ 9–53 ms,
+  worst single sample 114 ms — far under the 1 s budget.

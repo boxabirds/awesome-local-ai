@@ -1,11 +1,27 @@
 {
-  // Worker `main` and Durable Objects arrive in story 3; this story serves
-  // the client build as static assets via `wrangler dev`.
+  // Worker `main`, Durable Objects (story 3) and static assets.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
+  "main": "src/worker/index.ts",
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "./dist/client",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  // SQLite-backed now so story 4 (persistence) needs no class migration.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }

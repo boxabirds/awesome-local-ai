@@ -1,10 +1,12 @@
 {
+  // Workerd type-check pass: Worker entry, Durable Object and integration
+  // tests run in workerd, so they use @cloudflare/workers-types instead of
+  // the DOM lib used by the browser app.
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
     "noUnusedLocals": true,
@@ -14,8 +16,7 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["vite/client", "node"]
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"]
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
-  "exclude": ["src/worker", "tests/integration"]
+  "include": ["src/worker", "tests/integration"]
 }

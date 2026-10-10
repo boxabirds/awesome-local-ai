@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { STICKY_SIZE_WORLD } from '../shared/config';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -22,12 +23,23 @@ import { installTestHooks } from './canvas/testHooks';
 import { BoardCameraContext, useCamera } from './canvas/useCamera';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote, STICKY_PADDING_WORLD } from './objects/StickyNote';
+import { ConnectionStatus, useConnectionStatus } from './sync/ConnectionStatus';
 
 const NOTE_TOOLBAR_GAP_PX = 12;
 
 export interface AppProps {
   // Tests inject their own Y.Doc; production supplies none.
   doc?: Y.Doc;
+}
+
+// Board id from /b/<id>. '/' (and any malformed path) opens a fresh board;
+// story 5 replaces this client-side generation with server-side creation.
+function resolveBoardId(): string {
+  const match = /^\/b\/([^/]+)\/?$/.exec(window.location.pathname);
+  if (match !== null && isValidBoardId(match[1])) return match[1];
+  const fresh = newBoardId();
+  window.history.replaceState(null, '', `/b/${fresh}`);
+  return fresh;
 }
 
 function measure(el: HTMLElement | null): Size {
@@ -58,14 +70,29 @@ export function App({ doc: providedDoc }: AppProps = {}) {
   }, []);
 
   const board = useCamera(viewport);
-  const { doc, notes } = useBoardDoc(providedDoc);
+  // Injected docs (component tests) stay offline; real pages sync live.
+  const [boardId] = useState(resolveBoardId);
+  const { doc, notes, connection } = useBoardDoc(
+    providedDoc,
+    providedDoc === undefined ? boardId : undefined
+  );
+  const connectionStatus = useConnectionStatus(connection);
   const selection = useSelection();
   const { selectedId, editingId, draggingId, select, startEdit, endEdit, setDragging } =
     selection;
 
+  // A remote peer deleting the note we point at clears the stale references
+  // (delete during edit: no dangling toolbar, editor or drag).
   useEffect(() => {
-    installTestHooks(board.setCamera, doc);
-  }, [board.setCamera, doc]);
+    if (selectedId === null) return;
+    if (notes.some((note) => note.id === selectedId)) return;
+    select(null);
+    setDragging(null);
+  }, [notes, selectedId, select, setDragging]);
+
+  useEffect(() => {
+    installTestHooks(board.setCamera, doc, connection);
+  }, [board.setCamera, doc, connection]);
 
   useStickyNoteKeys(doc, selection);
 
@@ -101,6 +128,7 @@ export function App({ doc: providedDoc }: AppProps = {}) {
         className="board-root"
         style={{ '--sticky-padding': `${STICKY_PADDING_WORLD}px` } as React.CSSProperties}
       >
+        <ConnectionStatus status={connectionStatus} />
         <BoardViewport
           onDoubleClickEmpty={onDoubleClickEmpty}
           onEmptyClick={() => {
