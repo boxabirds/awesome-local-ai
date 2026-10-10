@@ -513,3 +513,79 @@ quarantined: 1}`, which reaches the room as a load failure (close 4500) and
   board locks, so keystrokes continue into the document. The effect that closes
   it (`endEdit` when `!editable`) is what makes "the handlers are no-ops" true
   for typing rather than only for the shortcuts.
+
+## Story 5: shares, links and the pages they land on
+- **A board's log has to begin with the transaction that sets the board up.**
+  Measured with a legacy fixture that registered its `update` listener after
+  `initDoc`: the rows are in storage, `GET /api/boards/:id` answers 200, the room
+  accepts the socket — and `snapshot()` answers nothing, so the screen is an
+  empty board. `legacyUpdates` in `src/worker/test-hooks.ts` listens first and
+  initialises second. Neither the existence check nor a row count can see this;
+  only "read the log back into a document" can, which is why TC-08 now does that
+  at storage level and TC-31 does it in a browser.
+- **A room reads its own storage when it wakes, not when somebody writes to it.**
+  Seeding a legacy board by reaching into `state.storage` from a test (a real
+  capability, and what story 4's storage tests do) leaves the awake room's
+  document as it was, and a client that connects then gets what the room was
+  already holding — measured: 0 notes. Test hooks that change a board therefore
+  go through the room (`testSeedLegacy` re-reads after writing).
+- **Test hooks are compiled in everywhere and armed in exactly one place.** The
+  integration pool loads production `wrangler.jsonc`, where `TEST_HOOKS` is
+  absent, so `testSeedLegacy` and `/__test/…` refuse there by design; only the two
+  `wrangler dev` invocations the browser suites spawn pass `--var TEST_HOOKS:1`.
+  That is why the integration-level legacy case cannot use the hook route and
+  writes its legacy board through `BoardStore` instead.
+- **The seed hook reports what it wrote** (`{ notes, rows, created_at: false,
+  texts }`). A browser test then compares the screen against the server's own
+  words about its storage rather than against a second copy of the fixture kept
+  in the test, which is the thing that was wrong when the fixture was broken.
+- **Note order on screen is creation order with an id tie-break**
+  (`BoardContents` sorts by `createdAt`, then id, and never by z — restacking
+  mid-drag would drop pointer capture). Three notes written inside one millisecond
+  therefore share a `createdAt` and come back in arbitrary order; measured, one
+  run produced 2, 3, 1. Assertions about *which* notes are on a board compare
+  sets. `tests/e2e/helpers/notes.ts:noteTexts` returns render order, so it is not
+  an ordering oracle.
+- **The manual-copy path needs focus as well as selection.** `HTMLSelectElement`
+  style `.select()` on the share input marks the range but leaves the field
+  unfocused in jsdom and in a real browser, so the follow-up Ctrl+C would copy
+  nothing; `focus()` then `select()` makes `document.activeElement` the field and
+  the assertion in TC-29 (focused, `selectionStart === 0`, `selectionEnd ===
+  value.length`) means what it says.
+- **`dist/client` is one directory shared by two builds, and the difference is
+  invisible until a browser suite fails.** `npm run build` (what ships) leaves no
+  test hooks in the client; `npm run build:test` (what `npm run test:e2e*` does
+  first) adds them, including the thing `connectionState()` reads. Run a plain
+  `npm run build` and then a browser suite directly with `npx playwright test -c
+  playwright.persistence.config.ts` and every participant dies with "never
+  finished connecting to the room / nothing published" — while the server log
+  shows the websocket upgrading happily (101). The tell is the asset hash in the
+  wrangler log (`index-BPkJLJRU.js` instead of `index-CN2cIz0Y.js`). Use the npm
+  scripts, or run `npm run build:test` by hand before `npx playwright`.
+- **One intermittent failure remains in story 3's suite** and was *not* fixed
+  here: `tests/e2e/live-collaboration.spec.ts` failed once in about ten full
+  chromium runs on a `toHaveAttribute` assertion (`data-color` after a recolour,
+  or `data-selected`), at ~5% under full-suite load. Five isolated runs of that
+  file passed every time. Nothing in story 5 touches selection or colour; the
+  board page now makes one extra HTTP request before it connects, so it is not
+  impossible that a slower start nudges a tight window — recorded rather than
+  papered over, because the fix belongs to the assertion that was written.
+- **A note's stored coordinates are not screen pixels, and the gap is the view.**
+  `tests/e2e/nightly-stability.spec.ts` (story 3's TC-30 soak) asserted that a
+  note ends at the *screen* point its drag was aimed at. That is only true while
+  the camera is at `{x:0,y:0}`, and the camera is not there for long: the app's
+  own initial camera lands a beat after the board mounts (the same late landing
+  `zoomOutTo` waits for), putting the world origin at the centre of the viewport.
+  Measured, the soak's notes then render 640 px right and 400 px down from where
+  their stored coordinates say they are, every screen agrees with every other
+  screen, and the test reports every note misplaced by exactly that offset — a
+  bug in the assertion, not on the board. **This failure is older than story 5**:
+  it reproduces at story 4's commit `e020371` with the same numbers. The soak now
+  builds its expectation from measured values — the note's own coordinates before
+  the drag plus the pointer's travel divided by the zoom it travelled at — which
+  is the sentence the test meant: *the note stands where the drag put it*, in the
+  board's coordinates, whatever the view is doing.
+- **Two things called TC-30.** Story 3's `@nightly` soak (above, passes) and
+  story 5's "the Durable Object resets while a board is idle", which is not
+  automatable here (see PROGRESS.md). `grep -n "TC-30" tests/e2e/` says which is
+  which before anybody spends an afternoon on it.

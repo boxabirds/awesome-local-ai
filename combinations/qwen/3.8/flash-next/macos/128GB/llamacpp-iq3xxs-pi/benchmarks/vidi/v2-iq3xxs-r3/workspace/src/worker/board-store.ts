@@ -46,6 +46,26 @@ export type LoadResult =
 /** `storage_meta` keys. `snapshot_through_seq` is how far the snapshot got. */
 const META_STORAGE_VERSION = 'storageSchemaVersion';
 const META_SNAPSHOT_THROUGH_SEQ = 'snapshotThroughSeq';
+/**
+ * When this board was made (share.board_api). `initialize()` writes it once and
+ * it is the primary answer to "does this link lead to a board?";
+ * share.legacy_boards covers the boards that predate it and are recognised by
+ * their data instead.
+ */
+const META_CREATED_AT = 'created_at';
+
+/**
+ * The comment every statement of the existence question carries. Asking *whether*
+ * a board is at an address is not reading the board, and the two must stay
+ * tellable apart — by the store, and by the test that counts reads against the
+ * reconnect interval (story 4's TC-16).
+ */
+const EXISTS_PROBE = '/* board: exists? */';
+
+/** The tables, as `sqlite_master` names them. */
+const TABLE_STORAGE_META = 'storage_meta';
+const TABLE_UPDATES = 'updates';
+const TABLE_SNAPSHOT_CHUNKS = 'snapshot_chunks';
 
 /**
  * The tables, each with an explicit row size in mind: one logged update, one
@@ -160,11 +180,65 @@ export class BoardStore {
    */
   migrate(): void {
     this.storage.transactionSync(() => {
-      for (const statement of SCHEMA_STATEMENTS) this.#sql.exec(statement);
-      if (this.#metaValue(META_STORAGE_VERSION) === undefined) {
-        this.#setMeta(META_STORAGE_VERSION, String(STORAGE_SCHEMA_VERSION));
+      this.#ensureSchema();
+    });
+  }
+
+  /**
+   * Claim this address as a board (share.board_api): the tables, and one
+   * `created_at` row saying when this board started — written once, and never
+   * again by somebody asking a second time (TC-15).
+   *
+   * A board that already has data but predates `created_at` (share.legacy_boards)
+   * is reported as what it is — `exists` — and merely gains the metadata row it
+   * never had, because "this address holds a board" is allowed one answer.
+   */
+  initialize(): 'created' | 'exists' {
+    // Asked before anything is written, so the answer is about the board that
+    // was here before this call, not about the tables this call makes.
+    const alreadyABoard = this.existsReadOnly();
+    let created = false;
+    this.storage.transactionSync(() => {
+      this.#ensureSchema();
+      if (this.#metaValue(META_CREATED_AT) === undefined) {
+        this.#setMeta(META_CREATED_AT, String(Date.now()));
+        // A legacy board keeps its history: it already existed, whatever this
+        // call adds to its metadata.
+        created = !alreadyABoard;
       }
     });
+    return created ? 'created' : 'exists';
+  }
+
+  /**
+   * Does this address hold a board? (share.not_found, share.legacy_boards)
+   *
+   * Read-only, and emphatically so: this answers the question a stranger asks by
+   * pasting a made-up link, and a probe that left a table behind would turn
+   * every typo ever made into a board (TC-06, TC-09). `sqlite_master` is asked
+   * first for exactly that reason — a stranger's link costs one query and no
+   * writes at all.
+   */
+  existsReadOnly(): boolean {
+    // Every statement below carries `board: exists?`. Not for a human reading a
+    // query log (though they may): story 4's test that counts *board reads* on
+    // behalf of a reconnecting client has to tell "is there a board here?" apart
+    // from "what is on the board", because only the second one is a read.
+    const probe = (sql: string): boolean =>
+      this.#sql.exec(`${sql} ${EXISTS_PROBE}`).toArray().length > 0;
+    const tables = this.#tableNames(EXISTS_PROBE);
+    // Never written: the ordinary answer for a made-up link, and one statement
+    // to give it.
+    if (tables.size === 0) return false;
+    const created = `SELECT 1 FROM storage_meta WHERE key = '${META_CREATED_AT}' LIMIT 1`;
+    if (tables.has(TABLE_STORAGE_META) && probe(created)) return true;
+    // Legacy: content but no `created_at`, i.e. a board from before this feature
+    // existed, which keeps working at its old address.
+    for (const table of [TABLE_UPDATES, TABLE_SNAPSHOT_CHUNKS]) {
+      if (!tables.has(table)) continue;
+      if (probe(`SELECT 1 FROM ${table} LIMIT 1`)) return true;
+    }
+    return false;
   }
 
   /**
@@ -175,6 +249,10 @@ export class BoardStore {
   append(update: Uint8Array): void {
     const bytes = update.byteLength;
     this.storage.transactionSync(() => {
+      // Story 5: the tables are no longer created when a board is *read*, so the
+      // first change a board makes creates them instead. A legacy board already
+      // has them, and the check is one lookup in `sqlite_master`.
+      this.#ensureSchema();
       this.#sql.exec('INSERT INTO updates (bytes, data) VALUES (?, ?)', bytes, toBlob(update));
     });
     // Only counted once it is really there.
@@ -205,6 +283,15 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // Nothing has ever been written to this address: an empty board, reached
+      // without creating a single table. Board creation (`initialize`) and the
+      // first change (`append`) are what make tables now (share.not_found).
+      if (!this.#hasSchema()) {
+        this.#rows = 0;
+        this.#bytes = 0;
+        this.#throughSeq = 0;
+        return { ok: true, quarantined: 0 };
+      }
       const snapshot = this.#readSnapshot();
       if (snapshot.byteLength > 0) {
         try {
@@ -343,6 +430,39 @@ export class BoardStore {
     // Log lines from this room all start the same way, so the board can be
     // found from the message.
     console.error(`board update quarantined: seq=${seq} ${error}`);
+  }
+
+  /**
+   * Which tables this board's storage has right now. `via` labels the statement
+   * for the caller's benefit (see `existsReadOnly`).
+   */
+  #tableNames(via?: string): Set<string> {
+    const sql = "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name";
+    const rows = this.#sql.exec(via === undefined ? sql : `${sql} ${via}`).toArray();
+    return new Set(rows.map((row) => String(row.name)));
+  }
+
+  /**
+   * The minimum a board's storage has to hold to be a board at all: its meta and
+   * its log. A snapshot without those two cannot exist, and a stranger's probe
+   * never gets here.
+   */
+  #hasSchema(): boolean {
+    const tables = this.#tableNames();
+    return tables.has(TABLE_STORAGE_META) && tables.has(TABLE_UPDATES);
+  }
+
+  /**
+   * Create the schema if it is missing. Called from `migrate` (which is
+   * `initialize`), from `append` and from the test hook — never from a read.
+   * It runs inside the caller's transaction, which is what makes "the tables and
+   * the first row of the board" one atomic fact.
+   */
+  #ensureSchema(): void {
+    for (const statement of SCHEMA_STATEMENTS) this.#sql.exec(statement);
+    if (this.#metaValue(META_STORAGE_VERSION) === undefined) {
+      this.#setMeta(META_STORAGE_VERSION, String(STORAGE_SCHEMA_VERSION));
+    }
   }
 
   #snapshotThroughSeq(): number {

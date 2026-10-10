@@ -14,6 +14,7 @@ import {
   expectZoomLabel,
   type Point,
 } from './helpers/board';
+import { openFreshBoard } from './helpers/share';
 import {
   dblClick,
   deleteNoteBehind,
@@ -41,7 +42,9 @@ let consoleProblems: string[] = [];
 
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
-  await page.goto('/');
+  // Story 5: these specs need a board, so they make one — through the app's own
+  // **New board** button, the way a person does.
+  await openFreshBoard(page);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await expectCamera(page, INITIAL);
 });

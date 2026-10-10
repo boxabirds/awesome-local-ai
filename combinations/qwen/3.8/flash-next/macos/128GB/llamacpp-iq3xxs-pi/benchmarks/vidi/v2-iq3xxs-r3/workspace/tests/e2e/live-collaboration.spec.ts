@@ -13,7 +13,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoard } from './helpers/share';
 import {
   CATCH_UP_TEST_OUTAGE_MS,
   CONNECTED_CONFIRMATION_MS,
@@ -50,8 +50,8 @@ import {
 const FIRST_NOTE = { x: 500, y: 300 };
 const NOTES_PER_PERSON = 5;
 
-test('TC-22 every kind of change reaches the other person (latency logged, not asserted)', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-22 every kind of change reaches the other person (latency logged, not asserted)', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const alex = await openBoard(browser, boardId, 'Alex');
   const sam = await openBoard(browser, boardId, 'Sam');
   const pages = [alex.page, sam.page];
@@ -134,8 +134,8 @@ async function expectNoteOn(
     .toBe('ok');
 }
 
-test('TC-23 both people type in the same note at once and every character survives', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-23 both people type in the same note at once and every character survives', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const alex = await openBoard(browser, boardId, 'Alex');
   const sam = await openBoard(browser, boardId, 'Sam');
   const pages = [alex.page, sam.page];
@@ -195,8 +195,8 @@ function subsequence(needle: string, haystack: string): boolean {
   return at === needle.length;
 }
 
-test('TC-24 both people drag the same note elsewhere and end up in the same place', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-24 both people drag the same note elsewhere and end up in the same place', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const alex = await openBoard(browser, boardId, 'Alex');
   const sam = await openBoard(browser, boardId, 'Sam');
   const pages = [alex.page, sam.page];
@@ -225,8 +225,8 @@ test('TC-24 both people drag the same note elsewhere and end up in the same plac
   await Promise.all([alex.context.close(), sam.context.close()]);
 });
 
-test('TC-25 a note deleted while its editor is open simply goes away', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-25 a note deleted while its editor is open simply goes away', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const alex = await openBoard(browser, boardId, 'Alex');
   const sam = await openBoard(browser, boardId, 'Sam');
 
@@ -260,11 +260,11 @@ test('TC-25 a note deleted while its editor is open simply goes away', async ({ 
 
 test(
   `TC-26 ${MAX_CONCURRENT_EDITORS} people on one board, each creating and moving ${NOTES_PER_PERSON} notes, end with one identical board`,
-  async ({ browser }) => {
+  async ({ browser, request }) => {
     // 5 contexts, 50 changes, each awaited: the default per-test budget is for
     // a single page.
     test.setTimeout(300_000);
-    const boardId = newBoardId();
+    const boardId = await createBoard(request);
     const people: Participant[] = [];
     for (let index = 0; index < MAX_CONCURRENT_EDITORS; index += 1) {
       people.push(await openBoard(browser, boardId, `person ${index + 1}`));
@@ -319,10 +319,10 @@ test(
 
 test(
   'TC-27 through a long outage both keep writing, and both end up with all six notes',
-  async ({ browser }) => {
+  async ({ browser, request }) => {
     // The outage the PRD names is 30 seconds of waiting on purpose.
     test.setTimeout(300_000);
-    const boardId = newBoardId();
+    const boardId = await createBoard(request);
     const alex = await openBoard(browser, boardId, 'Alex');
     const sam = await openBoard(browser, boardId, 'Sam');
     const pages = [alex.page, sam.page];
@@ -390,8 +390,8 @@ test(
   },
 );
 
-test('TC-28 what I select and what I am editing stays on my own screen', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-28 what I select and what I am editing stays on my own screen', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const alex = await openBoard(browser, boardId, 'Alex');
   const sam = await openBoard(browser, boardId, 'Sam');
 

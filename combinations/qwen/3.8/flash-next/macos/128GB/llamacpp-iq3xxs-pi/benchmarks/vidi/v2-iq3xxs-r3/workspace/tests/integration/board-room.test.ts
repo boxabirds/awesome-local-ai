@@ -26,6 +26,7 @@ import {
   closed,
   createNote,
   deleteNote,
+  initializeBoard,
   moveNote,
   recolourNote,
   roomHolds,
@@ -44,7 +45,10 @@ async function pair(): Promise<{
   a: BoardClient;
   b: BoardClient;
 }> {
+  // Story 5: a room is no longer created by connecting to it, so a test of a
+  // board asks for one first — the same call `POST /api/boards` makes.
   const boardId = newBoardId();
+  await initializeBoard(boardId);
   const a = await BoardClient.join(boardId);
   await synced(a);
   const b = await BoardClient.join(boardId);
@@ -250,6 +254,7 @@ describe(`everyone converges (${MAX_CONCURRENT_EDITORS} clients, 200 edits each)
   it("ends with identical snapshots after the seeded mix", async () => {
     const seed = 20_260_410;
     const boardId = newBoardId();
+    await initializeBoard(boardId);
     const clients: BoardClient[] = [];
     try {
       for (let i = 0; i < MAX_CONCURRENT_EDITORS; i += 1)

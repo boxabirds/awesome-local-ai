@@ -12,6 +12,12 @@ declare global {
       BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
       /** The built client, served for every other path. */
       ASSETS: Fetcher;
+      /**
+       * Test routes (`src/worker/test-hooks.ts`) are registered only when this is
+       * exactly `1`. Set by the e2e dev server alone — absent in production
+       * config, so the routes do not exist in a deployment (story 4's design).
+       */
+      TEST_HOOKS?: string;
     }
   }
 }

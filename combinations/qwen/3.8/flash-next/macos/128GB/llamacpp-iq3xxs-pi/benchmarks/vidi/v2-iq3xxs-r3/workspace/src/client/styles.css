@@ -407,3 +407,184 @@ body {
   background: #fdecea;
   border-color: #e5a59d;
 }
+
+/* --- Pages (story 5): home, board not found, and the two states of asking ---- */
+
+/* The pages that are not a board: one column, readable measure, centred in the
+   viewport. They share every one of these, which is what "two page styles, not two
+   apps" means in CSS terms (share.locations). */
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: 100%;
+  padding: 32px;
+  overflow: auto;
+  text-align: center;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.page-lead {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--chrome-muted);
+  line-height: 1.5;
+}
+
+.page-note {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--chrome-muted);
+  font-size: 12px;
+}
+
+.page-link {
+  color: var(--focus-ring);
+}
+
+.new-board,
+.retry-check {
+  padding: 10px 18px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.new-board:hover,
+.retry-check:hover {
+  border-color: var(--focus-ring);
+}
+
+.new-board:disabled {
+  cursor: default;
+  color: var(--chrome-muted);
+}
+
+/* share.create_failure: the message that creation did not work, in the same place
+   the button is, so the eye does not have to hunt for the reason it did nothing. */
+.new-board-error {
+  margin: 0;
+  color: #b3261e;
+}
+
+/* A board's own address, printed on the page that says there is nothing at it. */
+.not-found-path {
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f1f3f7;
+  color: var(--chrome-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+/* The board header floats: the board is the whole viewport, and a bar in the flow
+   would move the origin under people's hands. */
+.board-header {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/*
+ * Share lives at the top right of the board, on its own rather than inside the
+ * header bar on the left: a bar across the whole top of the viewport would sit
+ * over the board and swallow drags that start near the edge.
+ */
+.share {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+}
+
+.share-trigger,
+.share-copy {
+  padding: 6px 10px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  background: var(--chrome-bg);
+  color: var(--chrome-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.share-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  width: 280px;
+  padding: 12px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 10px;
+  background: var(--chrome-bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.share-label {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.share-link {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--chrome-ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.share-note,
+.share-manual {
+  margin: 0;
+  font-size: 12px;
+}
+
+.share-note {
+  opacity: 0.7;
+}
+
+.share-manual {
+  font-weight: 600;
+}
+
+.brand {
+  padding: 6px 10px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* While the address is being asked about: a page, and nothing that could be
+   mistaken for a board (share.open_link). */
+.board-status {
+  margin: 0;
+  color: var(--chrome-muted);
+}
+
+.board-status--error {
+  color: #b3261e;
+}

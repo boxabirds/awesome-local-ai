@@ -150,3 +150,22 @@ export const BOARD_LOAD_BUDGET_MS = 3_000;
 /** Version of the *storage* tables (not of the document schema, which is
  * `meta.schemaVersion` in the Y.Doc). Bumped by a future migration. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+/* --- Story 5: share a board with others using a link --------------------- */
+
+/**
+ * share.create: the click on **New board** should have produced a board you can
+ * work in within this long. Reported against in the e2e suite, never asserted —
+ * the wall clock on a shared machine is not the product's doing.
+ */
+export const CREATE_BUDGET_MS = 2_000;
+
+/** share.copy: how long the Share panel says "Link copied". */
+export const LINK_COPIED_MS = 2_000;
+
+/**
+ * share.unreachable: the first wait before asking again whether a board link
+ * leads to a board. Doubles per attempt up to `RECONNECT_MAX_BACKOFF_MS`
+ * (story 3), the same ceiling the websocket reconnect uses.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1_000;

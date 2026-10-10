@@ -12,25 +12,31 @@ import { describe, expect, it } from 'vitest';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 
-import { BoardClient, createNote, settle, synced } from './ws-client';
+import { BoardClient, createBoard, createNote, settle, synced } from './ws-client';
 
-/** `GET /api/rooms/bad!id` with a real upgrade request (TC-04, negative). */
+/**
+ * `GET /api/rooms/bad!id` with a real upgrade request (TC-04, negative).
+ *
+ * Story 5 changed the answer from 400 to 404 (`share.board_api`'s HTTP table):
+ * a malformed id and an unknown one get the same answer, so nothing here says
+ * whether a link was nearly right.
+ */
 describe('board id in the room path (TC-04)', () => {
-  it('answers 400 and never creates a room object for it', async () => {
+  it('answers 404 and never creates a room object for it', async () => {
     const response = await SELF.fetch('http://permitted.invalid/api/rooms/bad!id', {
       headers: { Upgrade: 'websocket' },
     });
 
-    expect(response.status).toBe(400);
-    await expect(response.text()).resolves.toContain('invalid board id');
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: 'not_found' });
     // The namespace is never asked for an id, so nothing was instantiated:
     // an invalid id cannot make a room, not even an empty one.
     await expect(listDurableObjectIds(env.BOARD_ROOM)).resolves.toHaveLength(0);
   });
 
-  it('answers 400 for the same id without an upgrade header, too', async () => {
+  it('answers 404 for the same id without an upgrade header, too', async () => {
     const response = await SELF.fetch('http://permitted.invalid/api/rooms/bad!id');
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
   });
 });
 
@@ -81,7 +87,9 @@ describe('static client and the SPA fallback (TC-06)', () => {
 /** Soft capacity: nobody is ever turned away (live.over_capacity, TC-13). */
 describe(`more participants than MAX_CONCURRENT_EDITORS (${MAX_CONCURRENT_EDITORS}) (TC-13)`, () => {
   it('accepts the next person like anybody else, and shows their edits to all the others', async () => {
-    const boardId = newBoardId();
+    // A board of this story's making, because a link to a board that was never
+    // made is now a 404 rather than an invitation (share.not_found).
+    const boardId = await createBoard();
     const joiners: BoardClient[] = [];
     try {
       // One more participant than the design's capacity target.
@@ -114,8 +122,8 @@ describe(`more participants than MAX_CONCURRENT_EDITORS (${MAX_CONCURRENT_EDITOR
 /** Boards are separate: different ids, different objects, nothing shared (live.isolation, TC-17). */
 describe('two boards at once (TC-17, negative)', () => {
   it('keeps a change on one board off the other, whose document stays empty', async () => {
-    const boardA = newBoardId();
-    const boardB = newBoardId();
+    const boardA = await createBoard();
+    const boardB = await createBoard();
     const onA = await BoardClient.join(boardA);
     const onB = await BoardClient.join(boardB);
     try {
@@ -147,7 +155,7 @@ describe('two boards at once (TC-17, negative)', () => {
   });
 
   it('keeps two connections of the same board in one room', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const first = await BoardClient.join(boardId);
     const second = await BoardClient.join(boardId);
     try {

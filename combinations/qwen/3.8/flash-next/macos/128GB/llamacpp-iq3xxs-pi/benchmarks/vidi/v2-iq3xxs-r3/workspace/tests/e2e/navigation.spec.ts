@@ -35,6 +35,7 @@ import {
   wrap,
   type Point,
 } from './helpers/board';
+import { openFreshBoard } from './helpers/share';
 
 const ORIGIN = 'origin-marker';
 const FAR_MARKER = 'test-marker-far';
@@ -48,7 +49,9 @@ let consoleProblems: string[] = [];
 
 test.beforeEach(async ({ page }) => {
   consoleProblems = collectConsoleProblems(page);
-  await page.goto('/');
+  // Story 5: a board is made, not assumed. The app's own **New board** button is
+  // the shortest path to a board that exists, and it is the one a person takes.
+  await openFreshBoard(page);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   // The first view is the standard view: 100% with the board start centred.
   await expectCamera(page, { x: -CENTRE.x, y: -CENTRE.y, zoom: 1 });

@@ -57,6 +57,44 @@ export function roomUrl(boardId: string): string {
   return `http://permitted.invalid/api/rooms/${boardId}`;
 }
 
+/** This board's room stub. `get` does not start the object; a call does. */
+export function roomStub(boardId: string) {
+  return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+}
+
+/**
+ * Make a board exist, through the same route a browser's **New board** button
+ * uses (story 5, share.board_api), and hand back its id. A test that only needs
+ * *a* board uses this one.
+ */
+export async function createBoard(): Promise<string> {
+  const response = await SELF.fetch("http://permitted.invalid/api/boards", {
+    method: "POST",
+  });
+  if (response.status !== 201) {
+    throw new Error(`POST /api/boards answered ${response.status}`);
+  }
+  const body = (await response.json()) as { id: string };
+  return body.id;
+}
+
+/**
+ * Make a board with a *particular* id exist, by asking its own room over the RPC
+ * (share.board_api). Tests that have to name the board they are talking about —
+ * to seed it, to inspect it, to hold two of them apart — use this instead of
+ * `createBoard()`. It is not a test seam in the product: it is the very call
+ * `POST /api/boards` makes, and a room no longer creates its board by being
+ * connected to (share.not_found).
+ */
+export function initializeBoard(boardId: string): Promise<"created" | "exists"> {
+  return roomStub(boardId).initialize();
+}
+
+/** What the service says about a link: `GET /api/boards/<id>` (share.not_found). */
+export async function getBoard(boardId: string): Promise<Response> {
+  return SELF.fetch(`http://permitted.invalid/api/boards/${boardId}`);
+}
+
 /** Everything the room has ever sent this client. */
 export interface ReceivedLog {
   /** Total binary frames received. */

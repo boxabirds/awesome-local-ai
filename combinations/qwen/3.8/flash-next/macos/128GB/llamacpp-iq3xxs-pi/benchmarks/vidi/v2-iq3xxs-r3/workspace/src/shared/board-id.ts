@@ -31,9 +31,14 @@ function base64UrlEncode(bytes: Uint8Array): string {
   return out;
 }
 
-/** True when `id` is a well-formed board id (never fetches anything). */
-export function isValidBoardId(id: string): boolean {
-  return BOARD_ID_PATTERN.test(id);
+/**
+ * True when `id` is a well-formed board id (never fetches anything). Both sides
+ * of the wire ask this before they do anything with an id: the Worker so a
+ * malformed link never reaches the namespace (share.not_found), the client so a
+ * malformed address is answered locally instead of by a request.
+ */
+export function isValidBoardId(id: unknown): boolean {
+  return typeof id === 'string' && BOARD_ID_PATTERN.test(id);
 }
 
 /** A fresh board id: 16 random bytes, base64url encoded without padding. */

@@ -20,7 +20,7 @@ import {
   PERSIST_TESTED_NOTES,
 } from "../../src/shared/config";
 import type { SeedNote } from "../../src/client/testSeed";
-import { newBoardId } from "../../src/shared/board-id";
+import { createBoard } from "./helpers/share";
 import { largeBoard, retroBoard, type PlacedNote } from "../fixtures/boards";
 import { notes as noteElements, noteTexts, readNotes } from "./helpers/notes";
 import {
@@ -120,9 +120,10 @@ async function drawBoard(
 
 test("TC-19 @persistence: the board that was closed, restarted, and opened again is the same board", async ({
   browser,
+  request,
 }) => {
   test.setTimeout(300_000);
-  const boardId = newBoardId();
+  const boardId = await createBoard(request);
   // The same 25-note fixture the storage tests use: mixed colours, multi-line
   // texts, realistic sentences.
   const fixture = retroBoard().notes;
@@ -172,8 +173,9 @@ test("TC-19 @persistence: the board that was closed, restarted, and opened again
 
 test("TC-20 @persistence: a change that was on the other screen was already in the file", async ({
   browser,
+  request,
 }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoard(request);
   const alex = await openBoard(browser, boardId, "Alex");
   const sam = await openBoard(browser, boardId, "Sam");
 
@@ -223,9 +225,10 @@ test("TC-20 @persistence: a change that was on the other screen was already in t
 
 test("TC-21 @persistence: the big board opens in a client that has never seen it, and the time it took is written down", async ({
   browser,
+  request,
 }) => {
   test.setTimeout(600_000);
-  const boardId = newBoardId();
+  const boardId = await createBoard(request);
   // The 2,000-note fixture, in the same shape the storage tests use it (one
   // transaction, one update and one row per note), drawn through the client.
   const fixture = largeBoard(PERSIST_TESTED_NOTES, 7, 240);

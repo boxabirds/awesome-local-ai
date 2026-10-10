@@ -10,7 +10,7 @@
  */
 import { expect, test } from '@playwright/test';
 
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoard } from './helpers/share';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   MAX_CONCURRENT_EDITORS,
@@ -19,6 +19,7 @@ import {
   NIGHTLY_SOAK_MINUTES,
 } from '../../src/shared/config';
 import {
+  centreOf,
   connectionStates,
   createNote,
   dragNoteTo,
@@ -31,6 +32,7 @@ import {
   watchConnection,
   type Participant,
 } from './helpers/live';
+import { camera } from './helpers/board';
 
 /** The states that mean "this board is losing, or has lost, the room". */
 const OUT_OF_THE_ROOM = ['connecting', 'reconnecting'];
@@ -38,11 +40,12 @@ const OUT_OF_THE_ROOM = ['connecting', 'reconnecting'];
 /** A board nobody touches: does it stay exactly as it was? */
 test('TC-29 @nightly a board nobody touches stays put through 90 idle minutes', async ({
   browser,
+  request,
 }) => {
   // The watch itself, plus opening two boards and settling them twice.
   test.setTimeout(NIGHTLY_IDLE_WATCH_MS + 180_000);
 
-  const boardId = newBoardId();
+  const boardId = await createBoard(request);
   const alex = await openBoard(browser, boardId, 'Alex');
   const sam = await openBoard(browser, boardId, 'Sam');
   const pages = [alex.page, sam.page];
@@ -91,11 +94,12 @@ test('TC-29 @nightly a board nobody touches stays put through 90 idle minutes', 
  */
 test(`TC-30 @nightly ${MAX_CONCURRENT_EDITORS} people edit the same board for ${NIGHTLY_SOAK_MINUTES} minutes and end up with the same board`, async ({
   browser,
+  request,
 }) => {
   const soakMs = NIGHTLY_SOAK_MINUTES * 60 * 1000;
   test.setTimeout(soakMs + 240_000);
 
-  const boardId = newBoardId();
+  const boardId = await createBoard(request);
   const people: Participant[] = [];
   for (let index = 0; index < MAX_CONCURRENT_EDITORS; index += 1) {
     people.push(await openBoard(browser, boardId, `person ${index + 1}`));
@@ -115,7 +119,21 @@ test(`TC-30 @nightly ${MAX_CONCURRENT_EDITORS} people edit the same board for ${
   let lastCatchUpMs = 0;
   let slowestRoundMs = 0;
   const startedAt = Date.now();
-  // Where each person's note is supposed to stand after the round just run.
+  /*
+   * Where each person's note is supposed to stand after the round just run.
+   *
+   * Built from measured numbers rather than from the slot the drag was aimed at,
+   * because the two frames are not the same frame: the screen point a drag ends
+   * at, and the board coordinate the note is stored at, differ by whatever the
+   * view happens to be doing. Measured — the app's own initial camera lands a
+   * beat after the board mounts and puts the world origin at the centre of the
+   * viewport (a pan of 640,400 in this viewport; `zoomOutTo` in
+   * `helpers/live.ts` waits for exactly this), so a test that reads a note's
+   * stored coordinates as screen pixels is really asserting "the view never
+   * moved". That is not what this soak is for. So: where the note was, plus how
+   * far the pointer travelled, divided by the zoom it travelled at — the drag
+   * itself, stated in the board's own coordinates, whatever the view does.
+   */
   const standing = new Map<string, { x: number; y: number }>();
 
   for (let round = 0; round < rounds; round += 1) {
@@ -124,8 +142,16 @@ test(`TC-30 @nightly ${MAX_CONCURRENT_EDITORS} people edit the same board for ${
     await Promise.all(
       people.map(async (person, index) => {
         const to = slot(index, (round + index) % rows);
-        standing.set(ids[index] as string, to);
-        await dragNoteTo(person.page, ids[index] as string, to);
+        const noteId = ids[index] as string;
+        const [where] = (await notesOf(person.page)).filter((note) => note.id === noteId);
+        const from = await centreOf(person.page, noteId);
+        const { zoom } = await camera(person.page);
+        if (!where) throw new Error(`person ${index + 1} has no note ${noteId} to move`);
+        standing.set(noteId, {
+          x: where.x + (to.x - from.x) / zoom,
+          y: where.y + (to.y - from.y) / zoom,
+        });
+        await dragNoteTo(person.page, noteId, to);
         // Deselect again: the toolbar of a selected note floats beside it, and
         // the next round's drag must not start on somebody else's toolbar.
         await person.page.mouse.click(EMPTY_CORNER.x, EMPTY_CORNER.y);

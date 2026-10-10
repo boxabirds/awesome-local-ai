@@ -121,9 +121,13 @@ export function suite(options: ServeOptions): Pick<Config, 'use' | 'projects' | 
       use: { ...devices[DEVICE[name]], viewport: VIEWPORT },
     })),
     webServer: {
+      // TEST_HOOKS=1 turns on the routes in `src/worker/test-hooks.ts` — the only
+      // way these tests can produce a board the product no longer makes on its own
+      // (a legacy board, TC-31). They are compiled into the worker everywhere and
+      // switched on here only: nothing that ships sets this variable.
       command:
         `npm exec -- wrangler dev --port ${options.port} --ip 127.0.0.1` +
-        ` --inspector-port ${options.inspectorPort}`,
+        ` --inspector-port ${options.inspectorPort} --var TEST_HOOKS:1`,
       url: baseUrl,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,

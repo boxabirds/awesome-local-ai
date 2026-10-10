@@ -49,6 +49,7 @@ import {
 } from '../shared/protocol';
 import { BoardStore } from './board-store';
 import { INITIAL_ROOM_PHASE, nextRoomState, roomGate } from './room-state';
+import { seedLegacyBoard, testHooksEnabled, type SeedResult } from './test-hooks';
 
 import type { RoomPhase, RoomState } from './room-state';
 import type { Env } from './index';
@@ -130,10 +131,64 @@ export class BoardRoom extends DurableObject<Env> {
     });
   }
 
-  /** Websocket upgrade only; every other request to the object is refused. */
+  /**
+   * Claim this address as a board (share.board_api): the tables, and one
+   * `created_at` row saying when it started. Called by `POST /api/boards` through
+   * the typed RPC, before anybody is told the id — so a board answers `GET` and
+   * accepts a websocket *before* a browser is holding a link to it.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.#store.initialize();
+  }
+
+  /**
+   * Is there a board here? (share.not_found) Read-only by construction: the store
+   * answers without creating a single table, which is what lets a made-up link be
+   * asked about without it turning into something.
+   */
+  async exists(): Promise<boolean> {
+    return this.#store.existsReadOnly();
+  }
+
+  /**
+   * Test hook, TC-31 (see `test-hooks.ts`): put this board into the shape a board
+   * from before this story is in — logged changes, no `created_at`. Refuses unless
+   * `TEST_HOOKS=1`, and reads the board back afterwards so the room serves what it
+   * just wrote.
+   */
+  async testSeedLegacy(notes: number): Promise<SeedResult> {
+    if (!testHooksEnabled(this.env)) throw new Error('test hooks are not enabled');
+    const seeded = seedLegacyBoard(this.#store, notes);
+    await this.#load();
+    return seeded;
+  }
+
+  /**
+   * A websocket upgrade for a board that exists; every other request to the
+   * object is refused.
+   */
   override async fetch(request: Request): Promise<Response> {
     if ((request.headers.get('Upgrade') ?? '').toLowerCase() !== 'websocket') {
       return new Response('expected a websocket upgrade', { status: 426 });
+    }
+    // Story 5 (share.not_found): a room no longer makes the board it is asked
+    // for. The Worker could only check the *shape* of the id; whether this
+    // address holds a board is answerable only by the object that owns the
+    // storage, and asking writes nothing — a refused link must not leave a
+    // table behind (TC-09).
+    //
+    // Only a definite *no* is a 404. Storage that will not answer the question
+    // at all is story 4's failure, not a stranger's link: fall through, let the
+    // read end the room in `load-failed`, and the socket gets
+    // `CLOSE_BOARD_LOAD_FAILED` and a log line rather than a bare 404 (TC-26).
+    let boardIsHere = true;
+    try {
+      boardIsHere = this.#store.existsReadOnly();
+    } catch {
+      // Asked again by `#load`, and said out loud there.
+    }
+    if (!boardIsHere) {
+      return new Response('board not found', { status: 404 });
     }
     await this.#allowConnection();
 
@@ -201,7 +256,11 @@ export class BoardRoom extends DurableObject<Env> {
       console.error(`board could not be opened (${this.ctx.id.toString()}): ${message}`);
     };
     try {
-      this.#store.migrate();
+      // Story 5: reading no longer creates the tables — `initialize` (creation)
+      // and the first logged change do. A board that has never been written loads
+      // as empty, which is what lets an empty board answer `state: synced,
+      // updates: 0` right away (story 1) without a stranger's probe of a
+      // made-up link turning into a board.
       const loaded = this.#store.load(doc);
       if (loaded.ok) {
         this.#doc = doc;

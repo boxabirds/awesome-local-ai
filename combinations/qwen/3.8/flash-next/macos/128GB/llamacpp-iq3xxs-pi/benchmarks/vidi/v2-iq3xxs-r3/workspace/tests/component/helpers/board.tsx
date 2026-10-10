@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type * as Y from 'yjs';
 
-import { App, BoardContents } from '../../../src/client/App';
+import { BoardContents } from '../../../src/client/board/BoardContents';
+import { BoardSession } from '../../../src/client/pages/BoardPage';
 import { CameraProvider } from '../../../src/client/canvas/CameraProvider';
 import { createSticky, getStickyText, setStickyColor, snapshot } from '../../../src/shared/board-model';
 import type { StickySnapshot } from '../../../src/shared/board-model';
@@ -13,8 +14,19 @@ import type { Point } from '../../../src/client/canvas/camera';
 /** The size `ResizeObserverStub` reports, so it is also the board area size. */
 export const VIEWPORT_SIZE = { width: 1200, height: 800 };
 
+/** A well-formed board address, for the tests that mount a board session. */
+export const COMPONENT_BOARD_ID = 'componentboard00000000';
+
+/**
+ * The board as the app renders it — the board session, and not the whole app.
+ *
+ * Which page an address is, and whether the board behind it exists, are the
+ * router's and the board page's own tests (TC-19 to TC-21): a viewport test that
+ * mounted the app would spend its assertions on the existence check and still
+ * know nothing about the viewport.
+ */
 export function renderBoard(): void {
-  render(<App />);
+  render(<BoardSession boardId={COMPONENT_BOARD_ID} />);
 }
 
 /**

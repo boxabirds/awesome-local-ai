@@ -11,26 +11,25 @@
  * test about the board rather than about a spy: the assertion is that the
  * document did not change.
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Doc } from 'yjs';
 import type { Doc as YDoc } from 'yjs';
 
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../src/shared/protocol';
-import { canEdit } from '../../src/client/App';
+import { canEdit } from '../../src/client/board/editable';
 import {
   CLOSE_WITHOUT_CODE,
   createConnectionTracker,
 } from '../../src/client/sync/connectBoard';
 import type { ConnectionTracker, ConnectionState } from '../../src/client/sync/connectBoard';
-import { App } from '../../src/client/App';
-
 import {
   dispatchKey,
   flushFrame,
   noteById,
   pointerEvent,
+  renderBoard,
   readNote,
   readNotes,
   viewportElement,
@@ -124,9 +123,9 @@ function lastProvider(): FakeProvider {
 const BADGE = 'connection-status';
 const LOAD_FAILED_TEXT = "This board couldn't be loaded. Retrying…";
 
-/** Mount the real app, in a room whose socket opened and synced. */
+/** Mount the real board session, in a room whose socket opened and synced. */
 function renderLiveBoard(): { doc: YDoc; live: FakeProvider } {
-  render(<App />);
+  renderBoard();
   const live = lastProvider();
   act(() => live.opensAndSyncs());
   // `connected` renders no badge at all, so a badge in what follows is news.

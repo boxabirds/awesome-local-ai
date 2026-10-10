@@ -46,6 +46,7 @@ import {
   closed,
   createNote,
   delay,
+  initializeBoard,
   moveNote,
   recolourNote,
   roomHolds,
@@ -111,7 +112,10 @@ async function pair(): Promise<{
   a: BoardClient;
   b: BoardClient;
 }> {
+  // Story 5: connecting no longer makes a board, so these cases ask for one
+  // first — the same RPC `POST /api/boards` makes.
   const boardId = newBoardId();
+  await initializeBoard(boardId);
   const a = await BoardClient.join(boardId);
   await synced(a);
   const b = await BoardClient.join(boardId);
@@ -467,6 +471,14 @@ describe("the board could not be read (TC-15, TC-16)", () => {
 
     // Count the statements from here, so "it did not read the board again" is a
     // measurement and not a reading of the source.
+    //
+    // "A read" means a read of *the board*. Story 5 added a question every
+    // connection asks first — is there a board at this address at all? — which
+    // reads `sqlite_master` and three `LIMIT 1` probes and nothing else; the
+    // store labels those statements, so they can be told apart from a read of the
+    // log and the snapshot, which is what this interval is about (TC-16).
+    const boardReads = (sql: string): boolean =>
+      /^\s*SELECT/.test(sql) && !sql.includes("board: exists?");
     let watched: WatchedSql | undefined;
     await peek(boardId, (storage) => {
       watched = watchSql(storage);
@@ -479,7 +491,7 @@ describe("the board could not be read (TC-15, TC-16)", () => {
     const impatient = await BoardClient.join(boardId);
     expect((await closed(impatient, 3_000)).code).toBe(CLOSE_BOARD_LOAD_FAILED);
     impatient.leave();
-    expect(watched.seen.filter((sql) => /^\s*SELECT/.test(sql))).toEqual([]);
+    expect(watched.seen.filter(boardReads)).toEqual([]);
     expect(Date.now() - failedAt).toBeLessThan(LOAD_RETRY_MIN_INTERVAL_MS);
 
     // Storage is fixed and the board is readable again — but the room still has
@@ -499,7 +511,7 @@ describe("the board could not be read (TC-15, TC-16)", () => {
     await synced(patient);
     expect(patient.notes()).toHaveLength(25);
     expect(patient.close).toBeUndefined();
-    const reads = watched.seen.filter((sql) => /^\s*SELECT/.test(sql));
+    const reads = watched.seen.filter(boardReads);
     expect(reads.length).toBeGreaterThan(0);
     expect(reads.join(" ")).toContain("FROM updates");
 

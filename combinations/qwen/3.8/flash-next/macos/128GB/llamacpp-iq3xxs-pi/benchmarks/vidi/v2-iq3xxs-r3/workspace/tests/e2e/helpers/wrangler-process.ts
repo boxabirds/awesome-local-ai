@@ -88,6 +88,10 @@ export class WranglerProcess {
         "127.0.0.1",
         "--inspector-port",
         String(this.inspectorPort),
+        // The test-only routes of `src/worker/test-hooks.ts`: on for every server
+        // a test starts, off for everything that ships.
+        "--var",
+        "TEST_HOOKS:1",
         "--persist-to",
         this.persistTo,
       ],

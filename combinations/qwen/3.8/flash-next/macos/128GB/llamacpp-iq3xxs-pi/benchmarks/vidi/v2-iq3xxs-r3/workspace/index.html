@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- A board's link is its only access control (PRD security model), so it must
+         not be handed to third parties: no page this app loads gets a Referer that
+         contains /b/<boardId>. -->
+    <meta name="referrer" content="no-referrer" />
     <!-- Inline so the browser never asks for /favicon.ico (keeps the console clean). -->
     <link rel="icon" href="data:," />
     <title>vidi6</title>
