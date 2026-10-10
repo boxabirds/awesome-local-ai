@@ -1,3 +1,64 @@
+commit 41a9b41ef4836d710021d42179030fc3326f534a
+agent  Sat Oct 10 05:26:44 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ tsconfig.tsbuildinfo | 1 +
+ 1 file changed, 1 insertion(+)
+commit 26b2946ce2137429c83417497ab6ab13379c9e76
+agent  Sat Oct 10 05:26:12 2026 +0000
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
+commit 83d0ccdd420869024e064ccff68af2d7a866a1a2
+agent  Sat Oct 10 05:26:12 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  60 +++++++
+ src/client/board/SelectionBar.tsx         |  16 +-
+ src/client/board/Toolbar.tsx              |  91 +++++++++-
+ src/client/board/useBoardKeys.ts          |  33 ++--
+ src/client/canvas/BoardViewport.tsx       |   9 +
+ src/client/objects/ConnectorObject.tsx    | 221 ++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 129 ++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  75 +++++++++
+ src/client/objects/registry.tsx           |  33 +++-
+ src/client/pages/BoardScreen.tsx          |  79 +++++++--
+ src/client/styles.css                     | 139 ++++++++++++++++
+ src/client/tools/ConnectorTool.tsx        | 268 ++++++++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 167 +++++++++++++++++++
+ src/client/tools/useActiveTool.ts         |  67 ++++++++
+ src/shared/board-model.ts                 | 129 +++++++++++++-
+ src/shared/config.ts                      |  25 +++
+ src/shared/geometry/connector-geometry.ts |  84 ++++++++++
+ src/shared/geometry/polyline.ts           |  27 +++
+ src/shared/objects/connector.ts           | 180 ++++++++++++++++++++
+ src/shared/objects/shape.ts               | 131 +++++++++++++++
+ tests/component/Connector.test.tsx        | 202 ++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 148 +++++++++++++++++
+ tests/component/shapeHelpers.tsx          |  75 +++++++++
+ tests/component/useActiveTool.test.tsx    | 104 ++++++++++++
+ tests/e2e/connectors.spec.ts              | 192 +++++++++++++++++++++
+ tests/e2e/helpers/board.ts                |  58 +++++++
+ tests/e2e/selection.spec.ts               |   4 +-
+ tests/e2e/shapes.spec.ts                  | 102 ++++++++++++
+ tests/unit/connector-model.test.ts        | 224 +++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 160 ++++++++++++++++++
+ 30 files changed, 3187 insertions(+), 45 deletions(-)
+commit 0516a57b3946e8a733446e98695d7a34c2007722
+vidi-agent  Sat Oct 10 03:52:14 2026 +0000
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 2c338879a0b0badc0f65e45f5711c1c9f2f1dfb8
 agent  Sat Oct 10 03:48:38 2026 +0000
 
