@@ -1,6 +1,6 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig } from "@playwright/test";
 
-import { suite } from './playwright.browsers';
+import { suite } from "./playwright.browsers";
 
 /**
  * E2E runs against `wrangler dev` serving the static client build, so the same
@@ -8,12 +8,16 @@ import { suite } from './playwright.browsers';
  * allocated to this agent ($AGENT_PORT_FIRST..$AGENT_PORT_LAST).
  *
  * This is the suite that runs on every change: everything except the @nightly
- * tests, which take minutes and live in `playwright.nightly.config.ts`.
+ * tests, which take minutes (`playwright.nightly.config.ts`), and except the
+ * @persistence ones, which kill their own server (`playwright.persistence.config.ts`).
  */
 export default defineConfig({
-  ...suite({ port: Number(process.env.E2E_PORT ?? 28400), inspectorPort: Number(process.env.E2E_INSPECTOR_PORT ?? 28401) }),
-  testDir: './tests/e2e',
+  ...suite({
+    port: Number(process.env.E2E_PORT ?? 28400),
+    inspectorPort: Number(process.env.E2E_INSPECTOR_PORT ?? 28401),
+  }),
+  testDir: "./tests/e2e",
   fullyParallel: true,
-  grepInvert: /@nightly/,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  grepInvert: /@nightly|@persistence/,
+  reporter: [["list"], ["html", { open: "never" }]],
 });

@@ -1,3 +1,118 @@
+commit e02037160a48e00ce39acc22066020971f449907
+agent  Sat Oct 10 14:42:30 2026 +0000
+
+    story 4 task 8: the load-failure badge, the edit lock and the close codes are tested (TC-22, TC-23, TC-28)
+
+
+ NOTES.md                                  |  38 +++
+ PROGRESS.md                               |   4 +-
+ tests/component/ConnectionStatus.test.tsx |  97 +++++++-
+ tests/component/LoadFailure.test.tsx      | 392 ++++++++++++++++++++++++++++++
+ tsconfig.json                             |   1 +
+ 5 files changed, 529 insertions(+), 3 deletions(-)
+commit fbaba60471975faf9482fca5f68cff1f26088f6e
+agent  Sat Oct 10 14:29:19 2026 +0000
+
+    story 4 task 7: a board the room could not read says so, and cannot be written to
+
+
+ src/client/App.tsx                   | 52 +++++++++++++++++++---
+ src/client/board/Toolbar.tsx         | 19 +++++++-
+ src/client/objects/NoteToolbar.tsx   | 11 ++++-
+ src/client/objects/StickyNote.tsx    | 15 ++++++-
+ src/client/styles.css                |  9 ++++
+ src/client/sync/ConnectionStatus.tsx | 10 ++++-
+ src/client/sync/connectBoard.ts      | 86 +++++++++++++++++++++++++++++++++---
+ 7 files changed, 183 insertions(+), 19 deletions(-)
+commit 7a2664ce4d76ec6243ef6491a4fe8f0cda549cdf
+agent  Sat Oct 10 14:10:58 2026 +0000
+
+    story 4 task 6: the browser finds the board again after the server has been killed
+
+
+ NOTES.md                              |  59 +++++++
+ PROGRESS.md                           |   2 +-
+ package.json                          |   1 +
+ playwright.config.ts                  |  18 +-
+ playwright.persistence.config.ts      |  33 ++++
+ src/client/App.tsx                    | 121 ++++++++------
+ src/client/testSeed.ts                |  73 ++++++++
+ tests/e2e/helpers/globals.d.ts        |  11 ++
+ tests/e2e/helpers/live.ts             |  28 ++++
+ tests/e2e/helpers/wrangler-process.ts | 262 +++++++++++++++++++++++++++++
+ tests/e2e/persistence.spec.ts         | 305 ++++++++++++++++++++++++++++++++++
+ tests/fixtures/boards.ts              |  84 ++++++----
+ 12 files changed, 908 insertions(+), 89 deletions(-)
+commit 72f436760a8a536e6f9eb8f20196b3d097f54e50
+agent  Sat Oct 10 13:06:32 2026 +0000
+
+    story 4 task 5: the persistent room is tested against storage, not against a restart
+
+
+ NOTES.md                                  |  41 ++
+ PROGRESS.md                               |   4 +-
+ tests/integration/board-store.test.ts     |  56 +--
+ tests/integration/broken-storage.ts       |  61 ++-
+ tests/integration/persistent-room.test.ts | 689 ++++++++++++++++++++++++++++++
+ tests/integration/seed.ts                 |  95 ++++
+ 6 files changed, 883 insertions(+), 63 deletions(-)
+commit b0d2d66e6ab00f61db1a507376e75b6588c3442a
+agent  Sat Oct 10 12:30:01 2026 +0000
+
+    story 4 task 4: the room writes before it speaks, and hibernates when nobody is drawing
+
+
+ NOTES.md                             |  41 ++++
+ PROGRESS.md                          |   2 +-
+ src/worker/board-room.ts             | 446 ++++++++++++++++++++++++++---------
+ src/worker/board-store.ts            |   9 +
+ tests/integration/board-room.test.ts | 244 ++++++++++++-------
+ tests/integration/ws-client.ts       | 167 +++++++++----
+ 6 files changed, 668 insertions(+), 241 deletions(-)
+commit 9b3d9724b014380c2b033d1d316f0cdeca383c23
+agent  Sat Oct 10 12:11:55 2026 +0000
+
+    story 4 task 3: BoardStore against real Durable Object SQLite (TC-03 to TC-11, TC-25)
+
+
+ NOTES.md                              |  92 +++++-
+ PROGRESS.md                           |   6 +-
+ tests/fixtures/boards.ts              | 207 ++++++++++++
+ tests/integration/board-store.test.ts | 602 ++++++++++++++++++++++++++++++++++
+ tests/integration/broken-storage.ts   |  71 ++++
+ 5 files changed, 963 insertions(+), 15 deletions(-)
+commit 08d933f035af450648dc710b8bcfd0188c311e8c
+agent  Sat Oct 10 12:11:22 2026 +0000
+
+    story 4 task 2: BoardStore writes a board down, and the room lifecycle says what it is doing
+
+
+ src/worker/board-store.ts | 332 ++++++++++++++++++++++++++++++++++++++++++----
+ src/worker/room-state.ts  |  57 +++++++-
+ 2 files changed, 357 insertions(+), 32 deletions(-)
+commit 13edadc58bfdf16ec37bfc2ba8f8c01cf1daa768
+agent  Sat Oct 10 11:19:38 2026 +0000
+
+    story 4: storage layout and room lifecycle, tested before written
+
+
+ PROGRESS.md                           |   4 +-
+ src/client-workers-storage.d.ts       |  40 +++++++
+ src/shared/config.ts                  |  36 +++++++
+ src/shared/protocol.ts                |  15 +++
+ src/worker/board-store.ts             |  87 +++++++++++++++
+ src/worker/room-state.ts              |  68 ++++++++++++
+ tests/unit/board-store-chunks.test.ts |  92 ++++++++++++++++
+ tests/unit/room-state.test.ts         | 193 ++++++++++++++++++++++++++++++++++
+ 8 files changed, 533 insertions(+), 2 deletions(-)
+commit c63a9dc750f9472132701d93edfd490a49fc2e65
+vidi-agent  Sat Oct 10 11:46:49 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 59 ++++++++++-------------------------------------------------
+ 1 file changed, 10 insertions(+), 49 deletions(-)
 commit 87eab84f52e4a41084ea14031496f88656beaea1
 vidi-agent  Sat Oct 10 11:46:33 2026 +0100
 

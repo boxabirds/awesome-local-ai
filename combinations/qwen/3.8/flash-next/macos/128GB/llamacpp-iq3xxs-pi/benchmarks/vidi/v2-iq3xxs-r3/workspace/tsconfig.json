@@ -27,6 +27,7 @@
     "vitest.config.ts",
     "playwright.config.ts",
     "playwright.nightly.config.ts",
+    "playwright.persistence.config.ts",
     "playwright.browsers.ts"
   ]
 }

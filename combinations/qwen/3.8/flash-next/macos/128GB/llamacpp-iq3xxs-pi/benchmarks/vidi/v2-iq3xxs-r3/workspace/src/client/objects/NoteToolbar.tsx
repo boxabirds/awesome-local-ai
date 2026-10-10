@@ -27,6 +27,8 @@ export interface NoteToolbarProps {
   color: StickyColor;
   onColor(color: StickyColor): void;
   onDelete(): void;
+  /** The whole toolbar is inert while the board cannot be written to. */
+  disabled?: boolean;
 }
 
 /**
@@ -34,7 +36,12 @@ export interface NoteToolbarProps {
  * (bin) button. Hidden while Dragging or Editing (the parent decides). Clicks
  * never reach the viewport, which would clear the selection.
  */
-export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX.Element {
+export function NoteToolbar({
+  color,
+  onColor,
+  onDelete,
+  disabled = false,
+}: NoteToolbarProps): JSX.Element {
   return (
     <div
       className="note-toolbar"
@@ -53,6 +60,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
             aria-label={label}
             title={label}
             aria-pressed={color === name}
+            disabled={disabled}
             style={{ background: STICKY_COLORS[name] }}
             onClick={() => {
               onColor(name);
@@ -66,6 +74,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps): JSX
         data-testid="delete-note"
         aria-label="Delete note"
         title="Delete note"
+        disabled={disabled}
         onClick={onDelete}
       >
         <svg

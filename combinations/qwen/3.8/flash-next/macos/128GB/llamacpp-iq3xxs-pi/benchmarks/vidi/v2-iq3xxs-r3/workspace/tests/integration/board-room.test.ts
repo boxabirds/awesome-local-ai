@@ -7,14 +7,20 @@
  * frames each client receives, after waiting for the wire to go quiet — a count
  * taken too early means "so far", not "all of it".
  */
-import { abortAllDurableObjects } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { abortAllDurableObjects } from "cloudflare:test";
+import { describe, expect, it } from "vitest";
 
-import { newBoardId } from '../../src/shared/board-id';
-import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
-import { CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
+import { newBoardId } from "../../src/shared/board-id";
+import { MAX_CONCURRENT_EDITORS } from "../../src/shared/config";
+import { CLOSE_UNSUPPORTED_DATA } from "../../src/shared/protocol";
 
-import { formatReport, makeRng, newReport, randomEdit, STICKY_COLOR_NAMES } from './random-ops';
+import {
+  formatReport,
+  makeRng,
+  newReport,
+  randomEdit,
+  STICKY_COLOR_NAMES,
+} from "./random-ops";
 import {
   BoardClient,
   closed,
@@ -22,17 +28,22 @@ import {
   deleteNote,
   moveNote,
   recolourNote,
+  roomHolds,
   settle,
   synced,
   typeInNote,
   waitFor,
-} from './ws-client';
+} from "./ws-client";
 
-import type { StickySnapshot } from '../../src/shared/board-model';
-import type { StickyColor } from '../../src/shared/config';
+import type { StickySnapshot } from "../../src/shared/board-model";
+import type { StickyColor } from "../../src/shared/config";
 
 /** Two participants of one board, both synced with the room and each other. */
-async function pair(): Promise<{ boardId: string; a: BoardClient; b: BoardClient }> {
+async function pair(): Promise<{
+  boardId: string;
+  a: BoardClient;
+  b: BoardClient;
+}> {
   const boardId = newBoardId();
   const a = await BoardClient.join(boardId);
   await synced(a);
@@ -49,7 +60,10 @@ async function join(boardId: string): Promise<BoardClient> {
 }
 
 /** Wait for one note to appear on `client`, and hand back its notes. */
-async function notesOf(client: BoardClient, count: number): Promise<readonly StickySnapshot[]> {
+async function notesOf(
+  client: BoardClient,
+  count: number,
+): Promise<readonly StickySnapshot[]> {
   await waitFor(
     `${count} note(s) on a client`,
     () => client.notes().length === count,
@@ -72,14 +86,17 @@ async function sharedNote(): Promise<{
   return { boardId, a, b, id, note: notes[0] as StickySnapshot };
 }
 
-describe('a change reaches the other client (TC-07)', () => {
-  it('gives B the same note A created, as exactly one update', async () => {
+describe("a change reaches the other client (TC-07)", () => {
+  it("gives B the same note A created, as exactly one update", async () => {
     const { a, b } = await pair();
     const updatesBefore = b.received.updates;
 
     createNote(a, { x: 120, y: 80 });
 
-    await waitFor('B to receive an update', () => b.received.updates > updatesBefore);
+    await waitFor(
+      "B to receive an update",
+      () => b.received.updates > updatesBefore,
+    );
     await settle(b);
     expect(b.received.updates - updatesBefore).toBe(1);
     expect(b.notes()).toEqual(a.notes());
@@ -89,15 +106,15 @@ describe('a change reaches the other client (TC-07)', () => {
   });
 });
 
-describe('the four kinds of change (TC-08)', () => {
-  it('moves a note', async () => {
+describe("the four kinds of change (TC-08)", () => {
+  it("moves a note", async () => {
     const { a, b, id } = await sharedNote();
     const updatesBefore = b.received.updates;
     const echoesBefore = a.received.updates;
 
     moveNote(a, id, 512, -64);
 
-    await waitFor('the move on B', () => (b.notes()[0]?.x ?? 0) === 512);
+    await waitFor("the move on B", () => (b.notes()[0]?.x ?? 0) === 512);
     await settle(b);
     expect(b.notes()).toEqual(a.notes());
     expect(b.received.updates - updatesBefore).toBe(1);
@@ -107,16 +124,18 @@ describe('the four kinds of change (TC-08)', () => {
     b.leave();
   });
 
-  it('recolours a note', async () => {
+  it("recolours a note", async () => {
     const { a, b, id, note } = await sharedNote();
     const echoesBefore = a.received.updates;
     // Another one of the four colours the product offers, whatever the note
     // happens to have now.
-    const next = STICKY_COLOR_NAMES.find((color) => color !== note.color) as StickyColor;
+    const next = STICKY_COLOR_NAMES.find(
+      (color) => color !== note.color,
+    ) as StickyColor;
 
     recolourNote(a, id, next);
 
-    await waitFor('the colour on B', () => b.notes()[0]?.color === next);
+    await waitFor("the colour on B", () => b.notes()[0]?.color === next);
     await settle(b);
     expect(b.notes()).toEqual(a.notes());
     expect(a.received.updates).toBe(echoesBefore);
@@ -124,28 +143,28 @@ describe('the four kinds of change (TC-08)', () => {
     b.leave();
   });
 
-  it('types into a note', async () => {
+  it("types into a note", async () => {
     const { a, b, id } = await sharedNote();
     const echoesBefore = a.received.updates;
 
-    typeInNote(a, id, 'harbour');
+    typeInNote(a, id, "harbour");
 
-    await waitFor('the text on B', () => b.notes()[0]?.text === 'harbour');
+    await waitFor("the text on B", () => b.notes()[0]?.text === "harbour");
     await settle(b);
-    expect(b.notes()[0]?.text).toBe('harbour');
+    expect(b.notes()[0]?.text).toBe("harbour");
     expect(b.notes()).toEqual(a.notes());
     expect(a.received.updates).toBe(echoesBefore);
     a.leave();
     b.leave();
   });
 
-  it('deletes a note', async () => {
+  it("deletes a note", async () => {
     const { a, b, id } = await sharedNote();
     const echoesBefore = a.received.updates;
 
     expect(deleteNote(a, id)).toBe(true);
 
-    await waitFor('the note to disappear on B', () => b.notes().length === 0);
+    await waitFor("the note to disappear on B", () => b.notes().length === 0);
     await settle(b);
     expect(b.notes()).toEqual([]);
     expect(a.notes()).toEqual([]);
@@ -155,28 +174,28 @@ describe('the four kinds of change (TC-08)', () => {
   });
 });
 
-describe('two people at the same time (TC-09, TC-10)', () => {
-  it('keeps every character of simultaneous typing, in one order on both screens', async () => {
+describe("two people at the same time (TC-09, TC-10)", () => {
+  it("keeps every character of simultaneous typing, in one order on both screens", async () => {
     const { a, b, id } = await sharedNote();
-    typeInNote(a, id, 'green'); // 'green' on both
-    await waitFor('green on B', () => b.notes()[0]?.text === 'green');
+    typeInNote(a, id, "green"); // 'green' on both
+    await waitFor("green on B", () => b.notes()[0]?.text === "green");
     await settle(b);
 
     // Neither edit has been exchanged yet: both are made before the wire moves.
-    typeInNote(a, id, 'red ', 0);
-    typeInNote(b, id, ' blue', (b.notes()[0]?.text ?? '').length);
+    typeInNote(a, id, "red ", 0);
+    typeInNote(b, id, " blue", (b.notes()[0]?.text ?? "").length);
 
     await settle(a);
     await settle(b);
     const textA = a.notes()[0]?.text;
-    expect(textA).toBe('red green blue');
+    expect(textA).toBe("red green blue");
     expect(b.notes()[0]?.text).toBe(textA);
     expect(b.notes()).toEqual(a.notes());
     a.leave();
     b.leave();
   });
 
-  it('settles concurrent position changes on one value, the same on both', async () => {
+  it("settles concurrent position changes on one value, the same on both", async () => {
     const { a, b, id } = await sharedNote();
 
     moveNote(a, id, 100, 20);
@@ -193,8 +212,8 @@ describe('two people at the same time (TC-09, TC-10)', () => {
   });
 });
 
-describe('a note deleted while somebody edits it (TC-11, negative)', () => {
-  it('stays deleted, and the text typed into it lands nowhere', async () => {
+describe("a note deleted while somebody edits it (TC-11, negative)", () => {
+  it("stays deleted, and the text typed into it lands nowhere", async () => {
     const { a, b, id } = await sharedNote();
 
     // Concurrent on purpose: A deletes, B types in the same note.
@@ -206,8 +225,10 @@ describe('a note deleted while somebody edits it (TC-11, negative)', () => {
     expect(a.notes()).toEqual([]);
     expect(b.notes()).toEqual([]);
     // Nothing was resurrected, and the typing did not create a note either.
-    const allText = [...a.notes(), ...b.notes()].map((note) => note.text).join(' | ');
-    expect(allText).not.toContain('un resurrected');
+    const allText = [...a.notes(), ...b.notes()]
+      .map((note) => note.text)
+      .join(" | ");
+    expect(allText).not.toContain("un resurrected");
     expect(a.objects().size).toBe(0);
     expect(b.objects().size).toBe(0);
     a.leave();
@@ -218,7 +239,7 @@ describe('a note deleted while somebody edits it (TC-11, negative)', () => {
 /** B types into the note it still has, and reports that the local edit worked. */
 function typeInNoteSucceeded(client: BoardClient, id: string): boolean {
   try {
-    typeInNote(client, id, 'un resurrected');
+    typeInNote(client, id, "un resurrected");
     return true;
   } catch {
     return false;
@@ -226,38 +247,50 @@ function typeInNoteSucceeded(client: BoardClient, id: string): boolean {
 }
 
 describe(`everyone converges (${MAX_CONCURRENT_EDITORS} clients, 200 edits each) (TC-12)`, () => {
-  it('ends with identical snapshots after the seeded mix', async () => {
+  it("ends with identical snapshots after the seeded mix", async () => {
     const seed = 20_260_410;
     const boardId = newBoardId();
     const clients: BoardClient[] = [];
     try {
-      for (let i = 0; i < MAX_CONCURRENT_EDITORS; i += 1) clients.push(await join(boardId));
+      for (let i = 0; i < MAX_CONCURRENT_EDITORS; i += 1)
+        clients.push(await join(boardId));
       const rngs = clients.map((_, i) => makeRng(seed + i));
       const reports = clients.map((_, i) => newReport(seed + i));
 
       // Interleaved: every client edits before any of the frames are exchanged,
       // so the merges are real concurrency and not one long history.
       for (let round = 0; round < 200; round += 1) {
-        clients.forEach((client, index) => randomEdit(client, rngs[index] as () => number, reports[index] as never));
-        if (round % 40 === 39) for (const client of clients) await settle(client, 20, 1);
+        clients.forEach((client, index) =>
+          randomEdit(
+            client,
+            rngs[index] as () => number,
+            reports[index] as never,
+          ),
+        );
+        if (round % 40 === 39)
+          for (const client of clients) await settle(client, 20, 1);
       }
       for (const client of clients) await settle(client);
 
       // Everything a later reader needs to reproduce the run is in this message:
       // the seed, and what each client's generator did with it.
-      const summary = `seed=${seed} ${reports.map((report) => formatReport(report)).join(' | ')}`;
-      console.log(`[TC-12] ${MAX_CONCURRENT_EDITORS} clients converged`, summary);
+      const summary = `seed=${seed} ${reports.map((report) => formatReport(report)).join(" | ")}`;
+      console.log(
+        `[TC-12] ${MAX_CONCURRENT_EDITORS} clients converged`,
+        summary,
+      );
       const first = clients[0]?.notes();
       expect(first?.length ?? 0).toBeGreaterThan(0);
-      for (const client of clients.slice(1)) expect(client.notes(), summary).toEqual(first);
+      for (const client of clients.slice(1))
+        expect(client.notes(), summary).toEqual(first);
     } finally {
       for (const client of clients) client.leave();
     }
   });
 });
 
-describe('a late joiner (TC-14)', () => {
-  it('is told about every note the others made before it arrived', async () => {
+describe("a late joiner (TC-14)", () => {
+  it("is told about every note the others made before it arrived", async () => {
     const { boardId, a, b } = await pair();
     for (let i = 0; i < 20; i += 1) {
       createNote(a, { x: i * 40, y: 0 });
@@ -280,15 +313,31 @@ describe('a late joiner (TC-14)', () => {
   });
 });
 
-describe('traffic the room cannot use (TC-15, error path)', () => {
-  const badTraffic: { readonly name: string; readonly send: (client: BoardClient) => void }[] = [
-    { name: 'a text frame', send: (client) => client.sendRaw('hello from a browser console') },
-    { name: 'a truncated sync frame', send: (client) => client.sendRaw(Uint8Array.from([0])) },
-    { name: 'an unknown message type', send: (client) => client.sendRaw(Uint8Array.from([9, 1, 2, 3, 4])) },
-    { name: 'an unknown sync type', send: (client) => client.sendRaw(Uint8Array.from([0, 7])) },
+describe("traffic the room cannot use (TC-15, error path)", () => {
+  const badTraffic: {
+    readonly name: string;
+    readonly send: (client: BoardClient) => void;
+  }[] = [
     {
-      name: 'bytes that are not a Yjs update',
-      send: (client) => client.sendRaw(Uint8Array.from([0, 2, 7, 1, 2, 3, 4, 5, 6, 7, 8, 9])),
+      name: "a text frame",
+      send: (client) => client.sendRaw("hello from a browser console"),
+    },
+    {
+      name: "a truncated sync frame",
+      send: (client) => client.sendRaw(Uint8Array.from([0])),
+    },
+    {
+      name: "an unknown message type",
+      send: (client) => client.sendRaw(Uint8Array.from([9, 1, 2, 3, 4])),
+    },
+    {
+      name: "an unknown sync type",
+      send: (client) => client.sendRaw(Uint8Array.from([0, 7])),
+    },
+    {
+      name: "bytes that are not a Yjs update",
+      send: (client) =>
+        client.sendRaw(Uint8Array.from([0, 2, 7, 1, 2, 3, 4, 5, 6, 7, 8, 9])),
     },
   ];
 
@@ -314,7 +363,10 @@ describe('traffic the room cannot use (TC-15, error path)', () => {
       try {
         expect(joiner.notes()).toEqual(before);
         const latecomer = createNote(joiner, { x: 7, y: 7 });
-        await waitFor('the room to relay again', () => b.notes().length === before.length + 1);
+        await waitFor(
+          "the room to relay again",
+          () => b.notes().length === before.length + 1,
+        );
         expect(b.notes().map((n) => n.id)).toContain(latecomer);
       } finally {
         joiner.leave();
@@ -324,15 +376,18 @@ describe('traffic the room cannot use (TC-15, error path)', () => {
   }
 });
 
-describe('awareness (TC-16)', () => {
-  it('relays the bytes verbatim to everybody, the sender included', async () => {
+describe("awareness (TC-16)", () => {
+  it("relays the bytes verbatim to everybody, the sender included", async () => {
     const { a, b } = await pair();
     // Story 6 puts presence in here; this story only carries the bytes, and
     // that relay is also what keeps an idle client from timing out (TC-29).
-    a.awareness.setLocalStateField('cursor', { x: 3, y: 4 });
+    a.awareness.setLocalStateField("cursor", { x: 3, y: 4 });
     a.sendAwareness();
 
-    await waitFor('awareness on both', () => a.received.awareness >= 1 && b.received.awareness >= 1);
+    await waitFor(
+      "awareness on both",
+      () => a.received.awareness >= 1 && b.received.awareness >= 1,
+    );
     await settle(a);
     await settle(b);
     expect(a.received.awareness).toBe(1);
@@ -342,16 +397,16 @@ describe('awareness (TC-16)', () => {
     expect(fromA).toBeDefined();
     expect(fromB).toEqual(fromA);
     // What came back is what A sent: not a re-encoding of it.
-    a.awareness.setLocalStateField('cursor', { x: 5, y: 6 });
+    a.awareness.setLocalStateField("cursor", { x: 5, y: 6 });
     a.sendAwareness();
-    await waitFor('a second awareness frame', () => a.received.awareness >= 2);
+    await waitFor("a second awareness frame", () => a.received.awareness >= 2);
     await settle(a);
     expect(a.received.awarenessBytes[1]).not.toEqual(fromA);
     a.leave();
     b.leave();
   });
 
-  it('ignores a query for awareness instead of answering it', async () => {
+  it("ignores a query for awareness instead of answering it", async () => {
     const { a, b } = await pair();
     const framesBefore = a.frames;
     a.sendQueryAwareness();
@@ -365,8 +420,19 @@ describe('awareness (TC-16)', () => {
   });
 });
 
-describe('a room that lost everything (TC-18)', () => {
-  it('is refilled by the first client back, and stays identical for everybody', async () => {
+/*
+ * Story 3 wrote this case as "the room lost everything": the first client
+ * back had to refill a room that had forgotten the board. Story 4 replaces
+ * that contract — the room is thrown away and reads the board back — so the
+ * case is now that nobody has to rescue a room, and a client whose document
+ * is ahead of the room is merged with it rather than emptied by it.
+ *
+ * It also cannot wait for the clients' own close events any more: under the
+ * hibernation API a socket that hung up is reported by the room's socket list
+ * (`ctx.getWebSockets()`), not by the client that hung up.
+ */
+describe("a room that was thrown away and came back (TC-18)", () => {
+  it("is holding the board when the first client gets back, and stays identical for everybody", async () => {
     const { boardId, a, b } = await pair();
     createNote(a, { x: 10, y: 10 });
     createNote(b, { x: 20, y: 20 });
@@ -374,43 +440,43 @@ describe('a room that lost everything (TC-18)', () => {
     await settle(b);
     const before = a.notes();
     expect(before).toHaveLength(2);
-    const docA = a.doc;
     const docB = b.doc;
-    const gone = Promise.all([closed(a), closed(b)]);
+
     a.leave();
     b.leave();
-    await gone;
+    // The room noticed: hibernation keeps its own list of who is on the board.
+    await roomHolds(boardId, 0);
 
-    // The room instance is thrown away: this is a deploy, an eviction, or a
-    // restart — the document is gone with it (nothing is persisted until 4).
+    // The room instance is thrown away — a deploy, an eviction, a restart. It
+    // used to take the document with it; now it takes only the copy.
     await abortAllDurableObjects();
 
-    // The first client back has nowhere to catch up from, so it *gives* the
-    // room its own state instead of being emptied by the room.
-    const back = await BoardClient.join(boardId, docA);
-    await synced(back);
+    // The first client back is a newcomer like any other: the board is
+    // already there when it arrives, and it is not asked to remember it.
+    const back = await join(boardId);
     expect(back.notes()).toEqual(before);
 
-    // A newcomer is told everything the room now knows.
-    const joiner = await join(boardId);
-    expect(joiner.notes()).toEqual(before);
-
-    // And the other client of the old room reconnects to a room that holds both
-    // of its own notes and the ones it had seen.
+    // A client reconnecting with a document that is ahead of nothing merges
+    // with the board instead of overwriting or emptying it.
     const other = await BoardClient.join(boardId, docB);
     await synced(other);
     await settle(other);
     expect(other.notes()).toEqual(before);
-    expect(joiner.notes()).toEqual(before);
+    expect(back.notes()).toEqual(before);
 
-    joiner.leave();
+    // And the room is a room again: the next change reaches everybody.
+    const id = createNote(back, { x: 30, y: 30 });
+    await waitFor("the third note on both", () => other.notes().length === 3);
+    await settle(other);
+    expect(other.notes().map((note) => note.id)).toContain(id);
+
     other.leave();
     back.leave();
   });
 });
 
-describe('a socket that died mid-broadcast (TC-31, error path)', () => {
-  it('neither stops the room nor loses the change for anybody else', async () => {
+describe("a socket that died mid-broadcast (TC-31, error path)", () => {
+  it("neither stops the room nor loses the change for anybody else", async () => {
     const { boardId, a, b } = await pair();
     const c = await join(boardId);
     const seenByC = c.received.frames;
@@ -418,10 +484,12 @@ describe('a socket that died mid-broadcast (TC-31, error path)', () => {
     // B goes away without saying goodbye, and the next change is sent while the
     // room may still believe B is there: a send that throws must cost that
     // socket only.
-    b.leave(1011, 'tab closed');
+    b.leave(1011, "tab closed");
     const id = createNote(a, { x: 1, y: 1 });
 
-    await waitFor('C to get the note', () => c.notes().some((note) => note.id === id));
+    await waitFor("C to get the note", () =>
+      c.notes().some((note) => note.id === id),
+    );
     expect(c.received.frames).toBeGreaterThan(seenByC);
     expect(a.open).toBe(true);
 
@@ -429,7 +497,7 @@ describe('a socket that died mid-broadcast (TC-31, error path)', () => {
     const late = await join(boardId);
     expect(late.notes().map((note) => note.id)).toContain(id);
     createNote(a, { x: 2, y: 2 });
-    await waitFor('two notes on C', () => c.notes().length === 2);
+    await waitFor("two notes on C", () => c.notes().length === 2);
     await settle(c);
     await settle(late);
     expect(late.notes()).toEqual(c.notes());

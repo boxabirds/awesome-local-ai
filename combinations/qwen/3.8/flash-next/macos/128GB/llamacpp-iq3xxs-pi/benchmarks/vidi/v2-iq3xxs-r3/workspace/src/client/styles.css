@@ -398,3 +398,12 @@ body {
   background: #ecfdf3;
   border-color: #a6e7c6;
 }
+
+/* The board could not be read (persist.client_status): the only red badge, and
+   the only state that also stops the board from being written to. Red is chosen
+   so the text is readable on the badge's pale background (contrast, PRD). */
+.connection-status--load_failed {
+  color: #b3261e;
+  background: #fdecea;
+  border-color: #e5a59d;
+}

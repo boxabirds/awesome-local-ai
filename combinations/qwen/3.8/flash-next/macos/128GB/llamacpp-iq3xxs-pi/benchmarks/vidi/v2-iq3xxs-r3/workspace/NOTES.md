@@ -1,6 +1,7 @@
 # Notes: decisions and deviations
 
 ## Tooling / versions
+
 - `@playwright/test` is pinned to `~1.63.0` because the browsers available on this
   machine (chromium-1243, firefox-1543, webkit-2359 under `$PLAYWRIGHT_BROWSERS_PATH`)
   are exactly the revisions Playwright 1.63.0 expects. Newer Playwright releases
@@ -32,6 +33,7 @@
   pipes), so it cannot collide with the range.
 
 ## Design interpretation
+
 - `useCamera(viewport)` is owned by a `CameraProvider` (context) rather than by
   `BoardViewport`, because the design wires `ZoomControls` and `NavigationHint`
   "in `App.tsx` to `useCamera`" while `BoardViewport`'s contract takes only
@@ -67,10 +69,11 @@
   `preventDefault` (design `viewport.input`, TC-30: "browser default not
   suppressed there"). I briefly added `preventDefault` so a Ctrl-wheel over the
   chrome can never zoom the page, then reverted it: the PRD promise
-  (`zoom.no_page_zoom`) is scoped to gestures *over the board*, and TC-30 asks
+  (`zoom.no_page_zoom`) is scoped to gestures _over the board_, and TC-30 asks
   for the opposite assertion.
 
 ## Component tests (jsdom)
+
 - jsdom 30 ships real `PointerEvent`/`WheelEvent` constructors, so the tests
   dispatch ordinary events (`fireEvent.pointerDown`, `createEvent.wheel`) and can
   read `defaultPrevented`. Only `ResizeObserver` and the pointer-capture methods
@@ -87,6 +90,7 @@
   makes two of them fail, so they are real checks.
 
 ## E2E
+
 - `tests/e2e/helpers/board.ts` wraps the polling the browser needs: the DOM
   trails the camera state by one animation frame, so marker assertions
   (`expectMarkerAt`) poll; `expectCamera` polls the camera through
@@ -116,6 +120,7 @@
   `E2E_BROWSERS=chromium,firefox,webkit npm run test:e2e` (no probe).
 
 ## Story 3: Worker + Durable Object setup
+
 - `npm run typecheck` checks **two** TypeScript projects: `tsconfig.json` (the
   client/tests, DOM lib) and `tsconfig.worker.json`
   (`src/worker`, `src/shared`, `tests/integration`;
@@ -136,6 +141,7 @@
   `/api/rooms/<id>` without `Upgrade` 426.
 
 ## Story 3: workerd websocket findings (measured, not assumed)
+
 - `new WebSocketPair()` is a **global**; `cloudflare:sockets` exports only
   `connect` in `@cloudflare/workers-types` v5.
 - The pair must be used as: put `pair[0]` (client half) on the
@@ -154,7 +160,7 @@
 - Awareness is relayed as **the original bytes of the frame** (type byte
   included). Its body is already varuint-length-prefixed inside the frame, so
   re-wrapping the decoded payload would add a second length prefix and corrupt
-  it. `decodeMessage` therefore hands back a view *including* the body's own
+  it. `decodeMessage` therefore hands back a view _including_ the body's own
   prefix, and `BoardRoom#relay` copies the frame verbatim.
 - `initDoc()` on the room's document runs before the first socket joins the set,
   so the schema-version transaction never becomes a stray broadcast frame.
@@ -169,6 +175,7 @@
   needs no timer of its own in this story.
 
 ## Story 3: running `wrangler dev` here (two traps, both cost time)
+
 - **Inspector port**: wrangler dev connects to its own runtime inspector on
   `127.0.0.1:9229`, which this machine refuses (`connect EPERM 127.0.0.1:9229`).
   The dev server still prints `Ready on http://127.0.0.1:<port>` and accepts TCP
@@ -177,7 +184,7 @@
   `npx wrangler dev --ip 127.0.0.1 --port 28412 --inspector-port 28413`.
 - **Assets are snapshotted at startup**, and the assets directory watcher is
   disabled here ("Assets directory watcher hit a platform limit"). After
-  `npm run build`/`build:test` the running server still serves the *old*
+  `npm run build`/`build:test` the running server still serves the _old_
   `index.html`, whose hashed asset no longer exists, and the SPA fallback answers
   `/assets/index-<old>.js` with HTML → "Failed to load module script: Expected a
   JavaScript-or-Wasm module script but the server responded with a MIME type of
@@ -186,7 +193,8 @@
   itself instead of reusing a hand-started one).
 
 ## Story 3: client connection notes (task 4)
-- `y-websocket@3`'s provider sets `synced = false` on every close *before* it
+
+- `y-websocket@3`'s provider sets `synced = false` on every close _before_ it
   emits `status: disconnected`, so the client-side state machine sees both
   events and does not have to infer a lost connection from `sync(false)` alone.
   `closeWebsocketConnection` only emits `disconnected` when the socket had been
@@ -197,7 +205,7 @@
   `Awareness` owns a `setInterval` of its own — `connectBoard`'s `destroy()` does
   it, or every board tab leaks a timer past unmount.
 - `disableBc: true` is not cosmetic: with the BroadcastChannel channel on, two
-  tabs of one browser sync *around* the server, and TC-22 would pass on a
+  tabs of one browser sync _around_ the server, and TC-22 would pass on a
   machine where the Worker is broken.
 - The badge state machine (`createConnectionTracker`) is exported separately
   from `connectBoard` on purpose: the component tests drive the transitions
@@ -208,7 +216,7 @@
   for the camera tests) starts a connection, and jsdom would otherwise dial a
   server that is not there; staying in `CONNECTING` is also exactly the state a
   board in front of an unreachable server is in.
-- `role="status"` is *not* unique to the badge: story 1's zoom percent is an
+- `role="status"` is _not_ unique to the badge: story 1's zoom percent is an
   `<output>`, whose implicit ARIA role is `status`. `getByRole('status')` matches
   both, so the e2e tests select `data-testid="connection-status"` and use the
   accessible role only for what it proves (the badge announces itself).
@@ -223,7 +231,8 @@
   Story 5 replaces this redirect with server-side board creation.
 
 ## Story 3: integration tests in workerd (tasks 5 and 6)
-`tests/integration/ws-client.ts` is a *test* client that speaks the wire
+
+`tests/integration/ws-client.ts` is a _test_ client that speaks the wire
 protocol (y-websocket framing) against the real room, with `Y.Doc`s of its own;
 `tests/integration/random-ops.ts` generates the design's edit mix from a seed.
 Four findings that only showed up by running them:
@@ -238,9 +247,9 @@ Four findings that only showed up by running them:
   `Y.applyUpdate` in `try/catch`, call an optional `errorHandler`, then
   `console.error('Caught error while handling a Yjs update', …)` and carry on.
   So "an invalid Yjs update payload costs its sender the connection" (TC-15)
-  needs the room to pass an error handler that *rethrows*
+  needs the room to pass an error handler that _rethrows_
   (`src/worker/board-room.ts`); without it the room logs and relays as if nothing
-  happened. Unknown *frame* types and unknown *sync* types already throw out of
+  happened. Unknown _frame_ types and unknown _sync_ types already throw out of
   `readSyncMessage` on their own.
 - **`evictAllDurableObjects()` waits for the object to become idle**, and a room
   with a socket still open never does — one leaked socket anywhere in the file
@@ -248,14 +257,14 @@ Four findings that only showed up by running them:
   into a 30 s timeout. `abortAllDurableObjects()` is the honest tool for TC-18
   anyway: it is a restart, not a graceful eviction, and both take no namespace
   argument ("all" means all).
-- `setStickyColor` rejects colour names outside the palette *silently* (no
+- `setStickyColor` rejects colour names outside the palette _silently_ (no
   transaction), so a test that asks for `'purple'` waits forever instead of
   failing loudly. `recolourNote` in the helper is typed
   `StickyColor`/`STICKY_COLOR_NAMES` for that reason. The palette is yellow,
   orange, green, blue, pink, violet — six, not four (the "four colours" wording
   in some spec prose predates story 1's palette; the model is the source).
 - `synced()`/`closed()`/`waitFor()` in the helper time out after 3 s and the
-  integration project's `testTimeout` is 60 s, so a stall reports *its own*
+  integration project's `testTimeout` is 60 s, so a stall reports _its own_
   message (including the frame counters) instead of vitest's generic "Test
   timed out". `console.log` does reach the reporter under
   `--reporter=verbose`, which is where the TC-12 seed and per-client op counts
@@ -264,5 +273,243 @@ Four findings that only showed up by running them:
   not merely fail to answer, no room object was ever instantiated. It has to be
   the first test in `worker.test.ts`: objects live for the whole file.
 - TC-13 is written as `MAX_CONCURRENT_EDITORS + 1` clients around one board and
-  asserts the last one's note reaches all the others *and* that they all hold the
+  asserts the last one's note reaches all the others _and_ that they all hold the
   same position — nobody is turned away, and nobody is second-class.
+
+## Story 4: storage (BoardStore) — measured behaviour that changed the design
+
+- **`src/client-workers-storage.d.ts` exists because two tsconfigs disagree about
+  the platform.** The client project (`tsconfig.json`) has DOM libs and no
+  `@cloudflare/workers-types`; the worker project has the opposite, and
+  `tests/fixtures/boards.ts` is compiled by both. The shim declares only the
+  four storage types `board-store.ts` touches (`DurableObjectStorage`,
+  `SqlStorage`, `SqlStorageCursor`, `SqlStorageValue`) so the store can be
+  imported from a test in either project. It is a `.d.ts` with no runtime
+  content, and the worker project never loads it (it has the real types).
+- **SQL failure is injected by replacing `storage.sql`, not `storage`.**
+  `state.storage` is the same object across `runInDurableObject` calls for one
+  instance, so `broken-storage.ts` puts a `Proxy` in front of the real
+  `SqlStorage` that throws for statements matching a pattern and forwards
+  everything else. An object literal is not enough: `SqlStorage` also carries
+  `databaseSize`, `Cursor` and `Statement`, and a partial fake loses
+  `transactionSync`'s real rollback — which is the whole thing TC-07 tests. The
+  proxy is removed again in the same DO hop, and each test names its own board
+  so no two tests share an instance.
+- **TC-05's negative case cannot fail, and the reason is worth keeping.** The
+  design asks for "read the rows in the other order and the final position
+  differs". It does not: `Y.applyUpdate` is a CRDT merge — idempotent and
+  commutative — so a set of updates has one result whatever order they arrive
+  in. Measured, logged and asserted as `sameEitherWay: true` rather than
+  deleted: the order that matters is the _query's_ (`ORDER BY seq ASC`), because
+  it is what makes a hole in the log visible instead of invisible.
+- **A hole in the update log loses the whole tail, not one change** (this is the
+  one that changed the code). Every update a board writes comes from one
+  client's clock, so an update whose clock range is missing is kept by Yjs as
+  not-yet-applicable — and so is every update after it. Measured on the
+  25-note fixture: apply all rows but row 3 and the board comes back with 1
+  note; apply row 3 afterwards and all 25 are there. Nothing throws, nothing is
+  logged. So TC-09/TC-10 as written ("skip the bad row, the rest loads, 24
+  notes present") describes a board silently missing 24 notes, which is the
+  failure this story exists to prevent. `BoardStore.load` therefore:
+  - stops at the first row it cannot apply,
+  - copies that row (bytes, `seq`, error text, timestamp) into
+    `quarantined_updates` with `INSERT OR REPLACE`, and **leaves it in the log**
+    — deleting it would leave a hole whose loads then _succeed_ with the tail
+    gone, once, which is worse than failing every time,
+  - returns `{ok: false, reason: 'log-unreadable', error: 'seq=7: …',
+quarantined: 1}`, which reaches the room as a load failure (close 4500) and
+    the client's "this board could not be read" screen.
+    Every retry ends the same way. A snapshot that cannot be read still quarantines
+    nothing (TC-10's negative is unchanged: TC-11's `sql-error` and TC-10's
+    "nothing deleted" both hold).
+- **Compaction only runs on a log the store read whole.** `compactIfNeeded`
+  deletes rows it has folded into the snapshot, so it is only ever called after a
+  `load` that read every row it listed; the store keeps its own row/byte counters
+  from that read rather than trusting a `COUNT(*)` that could disagree with what
+  is in memory. A refused load leaves the counters alone and the room never
+  compacts a board it failed to open.
+- **Snapshot chunks are content-defined by byte offset** (`idx = 0,1,2…`,
+  `SNAPSHOT_CHUNK_BYTES` each) so a 2000-note board stays under the Durable
+  Object per-row limit (TC-08 measures ~1.0 MB over several chunks). The
+  `snapshotThroughSeq` meta row is written in the same transaction as the last
+  chunk: a compaction that dies part-way rolls back to the old snapshot plus the
+  old log (TC-07), which is why the room can simply try again on the next change.
+
+## Story 4: hibernating room — what workerd does differently (measured)
+
+- **A client that hangs up no longer hears itself hang up.** With story 3's
+  plain `server.accept()`, the room's socket closed when a client left and the
+  close reached the client end, so `closed(client)` could wait for it. With
+  `ctx.acceptWebSocket()` the runtime owns that end and keeps the close on the
+  room's side: the leaving client's own `close` event never fires (measured, 4 s
+  of waiting). A browser does not care — it fires `close` locally — but a test
+  that treated "my close event arrived" as "the room knows I left" is now wrong,
+  so `ws-client.ts` gained `roomSockets(boardId)` / `roomHolds(boardId, n)`,
+  which ask the object how many sockets it has. That is also the only question
+  that can be asked about a _hibernated_ socket, so it is the better instrument
+  anyway. Story 3's TC-18 case ("a room that lost everything, refilled by the
+  first client back") is rewritten as its story 4 meaning: the room comes back
+  holding the board, and a client whose document is ahead of it merges instead of
+  rescuing.
+- **The room's socket list is the runtime's, and it is right**: after two joins
+  `ctx.getWebSockets()` is 2, after one client left it is 1 (measured through
+  `state.getWebSockets()`), and after the room closes them it is 0. Nothing to
+  remove, nothing to leak — which is why `webSocketClose` in the room is a
+  no-op and `#send` closes a socket whose `send()` throws instead of dropping it
+  from a private set.
+- **A hibernating object's handlers may be run against a reconstructed object**,
+  so nothing about a socket may live in a closure. Story 3 kept a per-socket
+  `pending` promise chain (because frame payloads arrive as `Blob`s and reading
+  one is async); a hibernating object gets the payload as an `ArrayBuffer`, so
+  the chain is gone and there is no per-socket state at all. Nothing needs
+  `serializeAttachment`/`deserializeAttachment` either: everything the room needs
+  about a socket is the socket.
+- **`blockConcurrencyWhile(load)` in the constructor holds every event**, so the
+  `fetch`/`webSocketMessage` handlers never see phase `loading` — the room's
+  `#closeCode` still answers "we do not know this board yet" with 4500 rather
+  than pretending, but no test can reach that branch.
+- **`ctx.acceptWebSocket(server)` then an immediate `close(4500)` does reach the
+  client** with that code (measured: `{code: 1000, reason: 'probe'}` for a
+  room-side close), which is what the load-failure path depends on: accept, then
+  refuse, so the browser's websocket exists long enough to see the code.
+- **`BoardStore.compactionDue()`** (added for the room) exists so the room does
+  not claim to be `compacting` on every keystroke: the threshold is the store's
+  counters, and the phase is only entered when there is something to fold.
+
+## Story 4: the persistent room, measured (TC-12 to TC-18, TC-26)
+- **Every client's own schema is a row.** `initDoc` is not a room-only thing: a
+  client's board is created by the same code, with the client's own `clientID`,
+  so its `meta.schemaVersion` transaction is a real update by a real peer and the
+  room stores it like any other socket change. A board nobody has drawn on
+  therefore holds one ~39-byte row *per client that has synced*, and one row per
+  change after that. Two clients, no drawing: 2 rows — and that count is the
+  proof that the room does not log its own copy (`LOCAL_ORIGIN`), because a room
+  that did would sit at 3. TC-25's "an undrawn board has nothing in it" is a
+  statement about the store; at the room level the honest version is this one, so
+  the room tests measure a baseline row count and assert *differences* (a change
+  is +1, a failure is +0) rather than magic numbers.
+- **A hibernating room survives being thrown away, and its clients do not notice.**
+  `evictDurableObject(stub)` with two idle sockets: both ends stay `open`, the
+  object is gone, and the next frame reconstructs it — constructor reads the
+  board, then broadcasts to two sockets it never accepted. That is the only way
+  to test the hibernation path for real, and the only thing it can test with: the
+  room's socket list is `ctx.getWebSockets()`, so there is no per-room state left
+  behind to get wrong. `abortAllDurableObjects()` is the other half (abrupt kill,
+  sockets dropped, storage kept), which is what TC-13's restart is.
+- **What an object logs is observable.** A Durable Object in the vitest workerd
+  pool runs in the same isolate as the test, so replacing `console.error` around
+  an await catches the room's own line — including the store's message inside it
+  (`board could not be opened (<id>): simulated: the disk is gone`). That, not a
+  mocked logger, is how TC-26 says "the room said what kind of failure this is".
+- **"It did not read the board again" is countable.** `watchSql` wraps the
+  object's `sql` and records statements without refusing anything: inside the
+  retry interval a connection produced *zero* `SELECT`s; after the interval the
+  same list contains the reads (`FROM updates`, snapshot chunks). `breakSql` grew
+  a `limit` argument, which is what makes TC-14's write failure a one-off — the
+  room reacts to it, and the client's retry after it is a normal write.
+- **`storedBoard()` is the test's idea of "what the board is"**: a fresh
+  `BoardStore` and a fresh `Y.Doc` over the room's own storage, read while the
+  room is still serving. Every durability assertion in this file is against that,
+  not against a restart — a restart is a *second* assertion, so a room that only
+  looks persistent because nobody looked at storage gets caught.
+- **The room's answer to a newcomer's SyncStep1 is counted as `step2`, not as an
+  update.** A test that expects a joined client to have "received an update"
+  describes a room that pushes; this room answers a question, and the client's own
+  counters say so.
+
+## Story 4: the browser, the killed server, and what drawing 2,000 notes costs (TC-19 to TC-21)
+- **Only the e2e suite can kill the server, so it owns it.** `tests/e2e/helpers/wrangler-process.ts`
+  starts `wrangler dev --persist-to <own temp dir>` per test and stops it — politely
+  (`SIGTERM`, "a deploy that lets the request finish", TC-19/TC-21) or as `SIGKILL`
+  ("the machine stopped", TC-20) — and waits until the port is really free.
+  `wrangler dev` runs the worker in a *child*, so it is signalled as a process
+  group (`process.kill(-pid)`); killing the parent alone leaves workerd holding
+  28404 and the next test talking to a server it did not start. One worker,
+  `grep: /@persistence/`, ports 28404/28405; the ordinary config's `grepInvert` is
+  `/@nightly|@persistence/`. A failure prints the server's last 60 log lines —
+  which is how the first of these tests got explained.
+- **`openBoard` answers before the app has finished moving the camera.** The board
+  reports `{x: 0, y: 0, zoom: 1}` from `getCamera()` while it works out its first
+  view, and applies its own initial camera (`{-640, -400, 1}` on a 1280×800
+  viewport) a beat *later* — overwriting any zoom a test set in between. Measured:
+  a test that zooms to 35% and then draws ends up drawing at 100%, notes 200px
+  apart exactly touching, and the second double-click landing on a note.
+  `zoomOutTo` therefore re-applies the zoom until it survives 500ms of nothing
+  happening.
+- **A note's toolbar is 40 screen pixels above the note at every zoom**
+  (`.note-toolbar-anchor` inverse-scales), so a note within ~50px of the top of
+  the viewport has colour swatches Playwright refuses to click ("element is
+  outside of the viewport"). At zoom 0.35 the drawing grid starts at y=140 for
+  that reason, and every cell is 200px apart so a double-click never lands on a
+  note that is already there.
+- **You cannot stack notes by double-clicking the same point** — a double-click
+  on a note edits it; only empty board accepts a new one. Notes are stacked by
+  dragging one onto another (`dragNoteTo(id, centreOf(other))`), which is also
+  how a person stacks them, and which is the only way to get a stacking order
+  that the board has to survive.
+- **`createSticky(doc, at)` is given the *centre*, and stores the top-left**
+  (`at - STICKY_SIZE_WORLD / 2`). A seeder that passes top-left coordinates is
+  exactly 100 board units off in both axes — which is what TC-21 caught as
+  "every note came back, none of them where they were put", and why
+  `SeedNote.x/y` are top-left (what the board stores and `data-x` reports) with
+  the conversion inside `seedBoard`.
+- **Seeding happens in the client, through the client's own board model**
+  (`window.__vidi6Board.seed`, `src/client/testSeed.ts`): one transaction per
+  note, so 2,000 notes are 2,000 real Yjs updates over a real socket into a real
+  room, and the room compacts along the way. Pasting fixtures into storage would
+  have skipped the part of the product the test is about. Because one client's
+  own screen cannot prove the *room* has everything, TC-21 waits for a second
+  client to see all 2,000 notes before it stops the server.
+- **Local state size** (logged, per board, `wrangler dev --persist-to`): a 25-note
+  board ≈ 4.0 MB, a 2,000-note board ≈ 11.5 MB — Durable Object SQLite plus WAL
+  per board, so size is closer to a floor per board than a sum of notes.
+- **Measured times.** TC-20: the note reached the other screen 81–101ms after
+  typing, the process was SIGKILLed 602–604ms after that (the design allows 1s),
+  and a client that arrived later had it. TC-21: 2,000 notes seeded in ~2.7s;
+  after a restart, a client that had never seen the board had all 2,000 rendered
+  ~4.9s after opening (~2.5ms per note, Chromium included), against
+  `BOARD_LOAD_BUDGET_MS` = 3,000ms, which is the number this is *reported*
+  against and not asserted — the measurement ends with 2,000 note elements in a
+  DOM, which is a browser fact rather than the board's load. Board load itself is
+  timed in the integration suite, where it can be.
+- On this machine firefox and webkit cannot launch (the story 3 probe says so), so
+  these three ran in Chromium; the config runs every browser the machine can
+  start, so the same three files cover Firefox wherever it starts.
+
+## Story 4: the client that is told (TC-22, TC-23, TC-28)
+- **`connection-close` is the client's only source of the close code, and it comes first.**
+  Read out of y-websocket's own `closeWebsocketConnection`: it emits
+  `connection-close` `[event, provider]` — the CloseEvent, not the code — then
+  `status: disconnected`, then `sync: false`. So the tracker sees 4500 before it
+  sees the disconnection, and must keep `load_failed` when the disconnection
+  arrives (measured: without that guard, a red badge lived for one event and was
+  then replaced by amber "Reconnecting…" — which reads as "the wire is the
+  problem", the opposite of the truth). The same guard covers every later flap.
+- **4500 is outside y-websocket's no-retry window, so retrying is already free.**
+  `defaultShouldReconnect = !(code >= 4400 && code < 4500)`: a room that closes
+  with `CLOSE_BOARD_LOAD_FAILED` is retried with the usual backoff, and TC-24's
+  "recovers without a reload" needs nothing new in the client beyond mapping the
+  code and unlocking on the first `sync(true)`.
+- **A close with no code is never a load failure.** `provider.ws.close()` (the
+  test hook `drop()`, story 3) and a connection whose end the browser could not
+  see arrive as `event === null` / 1006; they mean "this connection is over".
+- **"Red" cannot be checked in jsdom** — no stylesheet is loaded there — so the
+  test reads `src/client/styles.css` and judges red as *red-dominant by a factor
+  of two*. A naive "the red channel is the biggest one" test would have called
+  the existing amber badge (`#8a4b00`) red too, and TC-28's whole point is that
+  those two badges are not the same message.
+- **The `y-websocket` fake in `tests/component/LoadFailure.test.tsx` implements
+  the part `connectBoard` touches** (`on`, `emit`, `destroy`, `ws.close`,
+  `awareness.destroy`) plus three methods that say what the socket did. Because
+  the fake is handed the *app's own* `Y.Doc`, TC-23's negative assertion is not a
+  spy count but the document itself: after the failure, `doc` received zero
+  updates while the double-click, the disabled button, Delete, a drag and Enter
+  were all attempted. Two things the code needs to know: `vi.mock` factories run
+  before the test file's imports (so shared state goes through `vi.hoisted`), and
+  in the jsdom project `import.meta.url` is a served URL, not a file path — files
+  are read from `process.cwd()`.
+- **`canEdit` is one boolean in App**, and it needs one more effect than the
+  obvious gates: a note that was already open for typing stays open when the
+  board locks, so keystrokes continue into the document. The effect that closes
+  it (`endEdit` when `!editable`) is what makes "the handlers are no-ops" true
+  for typing rather than only for the shortcuts.

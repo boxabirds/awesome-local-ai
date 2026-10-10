@@ -14,6 +14,7 @@ import {
 
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
 import { dblClick, dragFrom, noteTexts, readNotes } from './notes';
+import { camera } from './board';
 import type { Point } from './board';
 
 /** One note as one screen renders it — what "the same board" means here. */
@@ -257,6 +258,33 @@ export function zoomOut(page: Page, zoom: number): Promise<void> {
     if (!api) throw new Error('window.__vidi6 is missing; build the client with `npm run build:test`');
     api.setCamera({ ...api.getCamera(), zoom: level });
   }, zoom);
+}
+
+/**
+ * Zoom out, and keep on meaning it until the board does.
+ *
+ * `openBoard` answers as soon as the board is connected, which can be before the
+ * app has worked out its own first view: measured, `getCamera()` first reports
+ * `{x: 0, y: 0, zoom: 1}` and the app's own initial camera lands a beat later,
+ * overwriting anything a test set in between — including its zoom. So the zoom is
+ * re-applied until it survives half a second of doing nothing, which is what a
+ * person waiting for the board to stop moving would do.
+ */
+export async function zoomOutTo(page: Page, zoom: number): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const base = await camera(page);
+        await page.evaluate(
+          ({ x, y, zoom }) => window.__vidi6?.setCamera({ x, y, zoom }),
+          { ...base, zoom },
+        );
+        await page.waitForTimeout(500);
+        return (await camera(page)).zoom;
+      },
+      { message: `the board never stayed at zoom ${zoom}`, timeout: 30_000 },
+    )
+    .toBe(zoom);
 }
 
 /**

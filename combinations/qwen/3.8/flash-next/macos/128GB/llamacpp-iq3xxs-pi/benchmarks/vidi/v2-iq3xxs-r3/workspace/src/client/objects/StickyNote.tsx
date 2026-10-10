@@ -34,6 +34,12 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * False while this client may not write to the board (`canEdit`):
+   * dragging, recolouring, deleting and editing this note do nothing, while
+   * selecting it and reading it still work (persist.client_status).
+   */
+  editable: boolean;
   onSelect(id: string | null): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -67,6 +73,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  editable,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -144,6 +151,9 @@ export function StickyNote({
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
     const press = pressRef.current;
     if (!press || press.pointerId !== event.pointerId) return;
+    // A note on a board that could not be loaded stays where it is: the press
+    // never becomes a drag, so nothing is written (`canEdit`, TC-23).
+    if (!editable) return;
     const dx = event.clientX - press.startX;
     const dy = event.clientY - press.startY;
     if (!press.dragging) {
@@ -200,7 +210,7 @@ export function StickyNote({
     // Never create a note on top of this one (TC-35): a double-click on a
     // note starts editing instead (sticky.edit_start).
     event.stopPropagation();
-    if (!editing) onStartEdit(note.id);
+    if (editable && !editing) onStartEdit(note.id);
   };
 
   // Text fit: measure the (possibly hidden) text layer whenever the text
@@ -284,10 +294,13 @@ export function StickyNote({
         >
           <NoteToolbar
             color={note.color}
+            disabled={!editable}
             onColor={(color) => {
+              if (!editable) return;
               setStickyColor(doc, note.id, color);
             }}
             onDelete={() => {
+              if (!editable) return;
               deleteObject(doc, note.id);
               onSelect(null);
             }}

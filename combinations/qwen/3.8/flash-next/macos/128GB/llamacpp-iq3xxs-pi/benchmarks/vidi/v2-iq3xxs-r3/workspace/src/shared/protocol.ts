@@ -17,6 +17,21 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code used for one misbehaving socket (RFC 6455 "unsupported data"). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * persist.load_failure: the board behind this address could not be loaded, so
+ * it is *not* empty. A code in the 4000-4999 range the client can act on; it is
+ * outside y-websocket's 4400-4499 "reconnecting cannot help" sub-range on
+ * purpose, because the provider must go on trying (the PRD's "keeps retrying").
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * persist.save_failure: the room could not write a change down, so it drops
+ * every connection rather than let anyone see an unsaved change. Clients keep
+ * what they had and re-send it when the room comes back.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** One interpreted WebSocket message, or why it could not be interpreted. */
 export type Decoded =
   | { readonly kind: 'sync'; readonly payload: Uint8Array }

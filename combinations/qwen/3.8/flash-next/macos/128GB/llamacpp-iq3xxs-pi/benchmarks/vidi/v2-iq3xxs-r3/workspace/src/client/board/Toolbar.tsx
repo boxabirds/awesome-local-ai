@@ -10,7 +10,17 @@ export const CREATE_STICKY_LABEL = 'Sticky note';
  * Left creation toolbar (sticky.create_button). Only the sticky note tool
  * exists today; buttons are added here when later object stories land.
  */
-export function Toolbar({ onCreateSticky }: { onCreateSticky(): void }): JSX.Element {
+export interface ToolbarProps {
+  onCreateSticky(): void;
+  /**
+   * Disabled while the board cannot be written to (`canEdit`,
+   * persist.client_status): a board the room could not read takes no new notes,
+   * and the button says so instead of quietly doing nothing.
+   */
+  disabled?: boolean;
+}
+
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -23,7 +33,12 @@ export function Toolbar({ onCreateSticky }: { onCreateSticky(): void }): JSX.Ele
         className="board-toolbar-button"
         data-testid="create-sticky"
         aria-label={CREATE_STICKY_LABEL}
-        title={`${CREATE_STICKY_LABEL} — or double-click the board`}
+        title={
+          disabled
+            ? `${CREATE_STICKY_LABEL} — this board could not be loaded`
+            : `${CREATE_STICKY_LABEL} — or double-click the board`
+        }
+        disabled={disabled}
         onClick={onCreateSticky}
       >
         {/* A note with a folded corner. */}

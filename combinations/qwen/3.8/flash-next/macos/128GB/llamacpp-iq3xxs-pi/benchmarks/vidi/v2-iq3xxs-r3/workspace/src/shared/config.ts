@@ -114,3 +114,39 @@ export const NIGHTLY_EDIT_SPACING_MS = 5_000;
  * minute — waiting to see nothing happen is scaled, unlike a real outage.
  */
 export const NIGHTLY_IDLE_WATCH_MS = 5_000;
+
+/* --- Story 4: boards are kept (persist) ---------------------------------- */
+
+/**
+ * Compaction trigger (persist.board_store): a board whose update log holds
+ * this many rows is folded into a snapshot, so the work of opening a board
+ * stays bounded — at most one snapshot plus fewer than this many log rows.
+ */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** The other compaction trigger: total bytes of logged updates. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Size of one snapshot row. Deliberately far below the per-row limit of
+ * SQLite-backed Durable Objects (see NOTES.md): a big board's snapshot is
+ * stored as several chunks instead of one oversized row.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/**
+ * persist.load_failure: a board that failed to load retries the load at most
+ * this often, so nobody hammering the address turns one broken board into a
+ * stream of storage reads.
+ */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5_000;
+
+/** persist.large_board: the board size the product is tested at. */
+export const PERSIST_TESTED_NOTES = 2_000;
+
+/** persist.large_board: the open-time target the tests report against. */
+export const BOARD_LOAD_BUDGET_MS = 3_000;
+
+/** Version of the *storage* tables (not of the document schema, which is
+ * `meta.schemaVersion` in the Y.Doc). Bumped by a future migration. */
+export const STORAGE_SCHEMA_VERSION = 1;

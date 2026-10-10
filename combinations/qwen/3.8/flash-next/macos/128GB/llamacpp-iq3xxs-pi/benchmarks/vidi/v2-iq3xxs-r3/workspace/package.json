@@ -17,6 +17,7 @@
     "test:integration": "npm run build && vitest run --project integration",
     "test:e2e": "npm run build:test && playwright test",
     "test:e2e:nightly": "npm run build:test && playwright test -c playwright.nightly.config.ts",
+    "test:e2e:persistence": "npm run build:test && playwright test -c playwright.persistence.config.ts",
     "e2e:install": "playwright install --with-deps"
   },
   "dependencies": {

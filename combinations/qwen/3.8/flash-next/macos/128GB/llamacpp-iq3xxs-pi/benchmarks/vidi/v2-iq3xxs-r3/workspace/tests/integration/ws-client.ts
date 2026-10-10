@@ -8,24 +8,24 @@
  * room. The framing is `y-protocols` plus the same `decodeMessage` the room
  * uses, so a byte the room would refuse is a byte this client refuses too.
  */
-import * as Y from 'yjs';
-import * as awarenessProtocol from 'y-protocols/awareness';
-import { createDecoder, readVarUint, readVarUint8Array } from 'lib0/decoding';
+import * as Y from "yjs";
+import * as awarenessProtocol from "y-protocols/awareness";
+import { createDecoder, readVarUint, readVarUint8Array } from "lib0/decoding";
 import {
   createEncoder,
   length as encodedLength,
   toUint8Array,
   writeVarUint,
   writeVarUint8Array,
-} from 'lib0/encoding';
+} from "lib0/encoding";
 import {
   messageYjsSyncStep1,
   messageYjsSyncStep2,
   messageYjsUpdate,
   readSyncMessage,
   writeSyncStep1,
-} from 'y-protocols/sync';
-import { SELF } from 'cloudflare:test';
+} from "y-protocols/sync";
+import { env, runInDurableObject, SELF } from "cloudflare:test";
 
 import {
   createSticky,
@@ -36,21 +36,21 @@ import {
   OBJECTS_KEY,
   setStickyColor,
   snapshot,
-} from '../../src/shared/board-model';
+} from "../../src/shared/board-model";
 import {
   MESSAGE_AWARENESS,
   MESSAGE_QUERY_AWARENESS,
   MESSAGE_SYNC,
   decodeMessage,
-} from '../../src/shared/protocol';
+} from "../../src/shared/protocol";
 
-import type { StickySnapshot } from '../../src/shared/board-model';
-import type { StickyColor } from '../../src/shared/config';
+import type { StickySnapshot } from "../../src/shared/board-model";
+import type { StickyColor } from "../../src/shared/config";
 
 /** The Yjs origin of everything that arrives over the wire (never re-sent). */
-const REMOTE: unique symbol = Symbol('remote');
+const REMOTE: unique symbol = Symbol("remote");
 /** The origin of a test's own edits, so they are never confused with remote ones. */
-const LOCAL_EDIT: unique symbol = Symbol('local edit');
+const LOCAL_EDIT: unique symbol = Symbol("local edit");
 
 /** `/api/rooms/<boardId>` on the worker under test. */
 export function roomUrl(boardId: string): string {
@@ -103,26 +103,29 @@ export class BoardClient {
   #pending: Promise<void> = Promise.resolve();
   readonly #awareness: awarenessProtocol.Awareness;
 
-  private constructor(readonly socket: WebSocket, readonly doc: Y.Doc) {
+  private constructor(
+    readonly socket: WebSocket,
+    readonly doc: Y.Doc,
+  ) {
     this.#awareness = new awarenessProtocol.Awareness(doc);
-    doc.on('update', (update: Uint8Array, origin: unknown) => {
+    doc.on("update", (update: Uint8Array, origin: unknown) => {
       if (origin === REMOTE) return; // came from the room, never goes back to it
       if (!this.#open) return; // offline: the document keeps the change (TC-18)
       this.sendUpdate(update);
     });
-    socket.addEventListener('open', () => this.#hello());
-    socket.addEventListener('message', (event) => {
+    socket.addEventListener("open", () => this.#hello());
+    socket.addEventListener("message", (event) => {
       // Frames of one socket are handled one after another: reading a Blob is
       // async, and two frames must not race through the document.
       this.#pending = this.#pending.then(() => this.#receive(event.data));
     });
-    socket.addEventListener('close', (event) => {
+    socket.addEventListener("close", (event) => {
       const close = event as unknown as { code: number; reason: string };
       this.#open = false;
       this.#close ??= { code: close.code, reason: close.reason };
     });
-    socket.addEventListener('error', () => {
-      this.#close ??= { code: 1006, reason: 'socket error' };
+    socket.addEventListener("error", () => {
+      this.#close ??= { code: 1006, reason: "socket error" };
     });
   }
 
@@ -131,10 +134,13 @@ export class BoardClient {
    * handshake: the caller decides whether it wants the sync exchange
    * (`waitForSync`) or a close code (`expectClosed`).
    */
-  static async join(boardId: string, doc: Y.Doc = new Y.Doc()): Promise<BoardClient> {
+  static async join(
+    boardId: string,
+    doc: Y.Doc = new Y.Doc(),
+  ): Promise<BoardClient> {
     initDoc(doc);
     const response = await SELF.fetch(roomUrl(boardId), {
-      headers: { Upgrade: 'websocket' },
+      headers: { Upgrade: "websocket" },
     });
     const socket = response.webSocket;
     if (!socket) {
@@ -221,7 +227,9 @@ export class BoardClient {
 
   /** Awareness as `y-websocket` writes it: type byte, then a length-prefixed body. */
   sendAwareness(): void {
-    const payload = awarenessProtocol.encodeAwarenessUpdate(this.#awareness, [this.doc.clientID]);
+    const payload = awarenessProtocol.encodeAwarenessUpdate(this.#awareness, [
+      this.doc.clientID,
+    ]);
     const encoder = createEncoder();
     writeVarUint(encoder, MESSAGE_AWARENESS);
     writeVarUint8Array(encoder, payload);
@@ -241,7 +249,7 @@ export class BoardClient {
 
   /** Leave; the default is an ordinary goodbye, not an error. */
   /** Hang up, and stop the timers this client started inside the test process. */
-  leave(code = 1000, reason = 'bye'): void {
+  leave(code = 1000, reason = "bye"): void {
     try {
       this.socket.close(code, reason);
     } catch {
@@ -261,11 +269,11 @@ export class BoardClient {
     const buffer = await frameBuffer(data);
     const decoded = decodeMessage(buffer);
     this.received.frames += 1;
-    if (decoded.kind === 'invalid') {
+    if (decoded.kind === "invalid") {
       this.received.invalid += 1;
       return;
     }
-    if (decoded.kind === 'awareness') {
+    if (decoded.kind === "awareness") {
       this.received.awareness += 1;
       // The body carries its own length prefix (`writeVarUint8Array` in
       // y-websocket), which is what the room relays verbatim; the awareness
@@ -275,7 +283,7 @@ export class BoardClient {
       );
       return;
     }
-    if (decoded.kind === 'query-awareness') return;
+    if (decoded.kind === "query-awareness") return;
     // Peek at the sync step before handing the frame to y-protocols: the
     // exchange is then counted without a second copy of the decoding logic.
     const step = readVarUint(createDecoder(copy(decoded.payload)));
@@ -302,16 +310,23 @@ export async function waitFor(
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     if (when()) return;
-    if (Date.now() > deadline) throw new Error(`timed out after ${timeoutMs}ms waiting for ${what}`);
+    if (Date.now() > deadline)
+      throw new Error(`timed out after ${timeoutMs}ms waiting for ${what}`);
     await delay(5);
   }
 }
 
 /** The full sync exchange of a new connection, then quiet. */
-export async function synced(client: BoardClient, timeoutMs = 3_000): Promise<void> {
+export async function synced(
+  client: BoardClient,
+  timeoutMs = 3_000,
+): Promise<void> {
   await waitFor(
     `the sync exchange (received=${JSON.stringify(client.received)})`,
-    () => client.received.step1 >= 1 && client.received.step2 >= 1 && client.sent.step2 >= 1,
+    () =>
+      client.received.step1 >= 1 &&
+      client.received.step2 >= 1 &&
+      client.sent.step2 >= 1,
     timeoutMs,
   );
   await settle(client);
@@ -321,7 +336,11 @@ export async function synced(client: BoardClient, timeoutMs = 3_000): Promise<vo
  * Wait until nothing arrives any more, so a count of what came in means "what
  * the room sent" rather than "what the room has sent so far".
  */
-export async function settle(client: BoardClient, quietMs = 40, rounds = 2): Promise<void> {
+export async function settle(
+  client: BoardClient,
+  quietMs = 40,
+  rounds = 2,
+): Promise<void> {
   await client.flushed();
   let last = -1;
   let quiet = 0;
@@ -336,29 +355,85 @@ export async function settle(client: BoardClient, quietMs = 40, rounds = 2): Pro
 }
 
 /**
- * Wait for this client's connection to end, and report the close it got. A
- * socket the room refuses ends with `CLOSE_UNSUPPORTED_DATA`; nobody else on
- * the board notices (TC-15).
+ * Wait for this client's connection to end, and report the close it got. Only a
+ * close the *room* started shows up here: a socket the room refuses ends with
+ * `CLOSE_UNSUPPORTED_DATA` and nobody else on the board notices (TC-15). A
+ * client that hung up (`leave()`) is not reported to itself — under the
+ * hibernation API workerd keeps the close on the room's side, which is where
+ * `roomSockets` looks.
  */
-export async function closed(client: BoardClient, timeoutMs = 3_000): Promise<SocketClose> {
-  await waitFor('the socket to close', () => client.close !== undefined, timeoutMs);
+export async function closed(
+  client: BoardClient,
+  timeoutMs = 3_000,
+): Promise<SocketClose> {
+  await waitFor(
+    "the socket to close",
+    () => client.close !== undefined,
+    timeoutMs,
+  );
   return client.close as SocketClose;
 }
 
+/**
+ * How many sockets the room itself believes are open on `boardId`. Since story
+ * 4 the room does not keep a `Set` of sockets — `ctx.getWebSockets()` is the
+ * list, and hibernated sockets are in it — so "who is on this board" is only
+ * answerable by asking the object. Asking it also wakes it, which is exactly
+ * what a test about a room coming back wants to know.
+ */
+export function roomSockets(boardId: string): Promise<number> {
+  const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  return runInDurableObject(
+    stub,
+    (_room, state) => state.getWebSockets().length,
+  );
+}
+
+/** Wait until the room's own list of sockets is `count` long. */
+export async function roomHolds(
+  boardId: string,
+  count: number,
+  timeoutMs = 3_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if ((await roomSockets(boardId)) === count) return;
+    if (Date.now() > deadline) {
+      throw new Error(
+        `timed out after ${timeoutMs}ms waiting for the room to hold ${count} socket(s)`,
+      );
+    }
+    await delay(10);
+  }
+}
+
 /** A note through the real model, centred on a world point; returns its id. */
-export function createNote(client: BoardClient, at: { x: number; y: number }): string {
+export function createNote(
+  client: BoardClient,
+  at: { x: number; y: number },
+): string {
   const id = client.edit(() => createSticky(client.doc, at));
-  if (typeof id !== 'string') throw new Error(`createSticky refused ${JSON.stringify(at)}`);
+  if (typeof id !== "string")
+    throw new Error(`createSticky refused ${JSON.stringify(at)}`);
   return id;
 }
 
 /** Move a note to a world point (top-left, as the model stores it). */
-export function moveNote(client: BoardClient, id: string, x: number, y: number): void {
+export function moveNote(
+  client: BoardClient,
+  id: string,
+  x: number,
+  y: number,
+): void {
   client.edit(() => moveObject(client.doc, id, x, y));
 }
 
 /** Give a note another of the colours the product offers. */
-export function recolourNote(client: BoardClient, id: string, color: StickyColor): void {
+export function recolourNote(
+  client: BoardClient,
+  id: string,
+  color: StickyColor,
+): void {
   client.edit(() => setStickyColor(client.doc, id, color));
 }
 
@@ -368,7 +443,12 @@ export function deleteNote(client: BoardClient, id: string): boolean {
 }
 
 /** Type at a position of a note's text (default: the end). */
-export function typeInNote(client: BoardClient, id: string, text: string, at?: number): void {
+export function typeInNote(
+  client: BoardClient,
+  id: string,
+  text: string,
+  at?: number,
+): void {
   client.edit(() => {
     const yText = getStickyText(client.doc, id);
     if (!yText) throw new Error(`no text on note ${id}`);
@@ -385,9 +465,11 @@ export function typeInNote(client: BoardClient, id: string, text: string, at?: n
 async function frameBuffer(data: unknown): Promise<ArrayBuffer> {
   if (data instanceof Blob) return data.arrayBuffer();
   if (data instanceof ArrayBuffer) return data;
-  if (typeof data === 'string' || ArrayBuffer.isView(data)) {
+  if (typeof data === "string" || ArrayBuffer.isView(data)) {
     const bytes =
-      typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data.buffer as ArrayBuffer);
+      typeof data === "string"
+        ? new TextEncoder().encode(data)
+        : new Uint8Array(data.buffer as ArrayBuffer);
     const out = new ArrayBuffer(bytes.byteLength);
     new Uint8Array(out).set(bytes);
     return out;
@@ -406,4 +488,3 @@ export function delay(ms: number): Promise<void> {
     setTimeout(resolve, ms);
   });
 }
-

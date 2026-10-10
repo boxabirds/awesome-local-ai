@@ -1,5 +1,6 @@
 /**
- * TC-19 to TC-21 (story 3, live.status) — the connection badge.
+ * TC-19 to TC-21 (story 3, live.status) and TC-22 (story 4, persist.client_status)
+ * — the connection badge.
  *
  * The badge is a pure function of one state, and the state comes from
  * `createConnectionTracker`, so these tests feed the provider events the real
@@ -7,9 +8,13 @@
  * real component with whatever it says. Only the confirmation timer is faked —
  * the design's boundary is `CONNECTED_CONFIRMATION_MS - 1` and exactly that.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CLOSE_BOARD_LOAD_FAILED } from '../../src/shared/protocol';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 import { createConnectionTracker } from '../../src/client/sync/connectBoard';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
@@ -153,6 +158,96 @@ describe('the badge of a board that is coming and going (TC-19 to TC-21)', () =>
     expect(screen.getByRole('status').textContent).toBe('Reconnecting…');
   });
 });
+
+/**
+ * TC-22: the badge of a board the room could not read.
+ *
+ * "Red" is a stylesheet fact, and in jsdom no stylesheet is loaded, so this
+ * checks the colour where it is actually written (`src/client/styles.css`)
+ * instead of pretending the DOM says it. What the DOM does say — the text, the
+ * `role="status"`, the state class — is checked in the DOM.
+ */
+describe('the badge of a board that could not be loaded (TC-22)', () => {
+  const LOAD_FAILED_TEXT = "This board couldn't be loaded. Retrying…";
+
+  it('TC-22 says it in red, as a status region, in the design\'s words', () => {
+    render(<ConnectionStatus state="load_failed" />);
+    const badge = screen.getByTestId('connection-status');
+    expect(badge.textContent).toBe(LOAD_FAILED_TEXT);
+    expect(badge.getAttribute('data-state')).toBe('load_failed');
+    expect(badge.className).toContain('connection-status--load_failed');
+    // Announced: it is the only thing on the screen that explains the board.
+    expect(screen.getByRole('status')).toBe(badge);
+  });
+
+  it('TC-22 paints that badge red in the stylesheet, and only that badge', () => {
+    // jsdom gives `import.meta.url` a served URL, not a file path, so the
+    // stylesheet is read from where the test is run.
+    const css = readFileSync(join(process.cwd(), 'src/client/styles.css'), 'utf8');
+    const red = declaredColour(css, '.connection-status--load_failed');
+    // "Red" here means red-dominant by a factor of two, which is the difference
+    // between red and amber: measured on the stylesheet as it stands, the amber
+    // "Reconnecting…" colour (#8a4b00) has a red channel too — it just does not
+    // lead its green half as much.
+    expect(red).not.toBeNull();
+    expect(isRed(red!)).toBe(true);
+    // And it is the only badge that is red: a storage failure is said in amber,
+    // which is what keeps TC-28's two failures apart for the person looking.
+    const reconnecting = declaredColour(css, '.connection-status--reconnecting');
+    expect(reconnecting).not.toBeNull();
+    expect(isRed(reconnecting!)).toBe(false);
+    expect(`${red!.r},${red!.g},${red!.b}`).not.toBe(`${reconnecting!.r},${reconnecting!.g},${reconnecting!.b}`);
+  });
+
+  it('TC-22 arrives through the real state machine when the room closes with 4500', () => {
+    const view = syncedOnce();
+    expect(view.badge()).toBeNull();
+    act(() => view.tracker.close(CLOSE_BOARD_LOAD_FAILED));
+    expect(view.badge()).toBe(LOAD_FAILED_TEXT);
+    expect(view.state()).toBe('load_failed');
+    expect(screen.getByRole('status').getAttribute('class')).toContain(
+      'connection-status--load_failed',
+    );
+  });
+});
+
+/** Reads as red: the red channel leads both others by at least a factor of two. */
+function isRed({ r, g, b }: { r: number; g: number; b: number }): boolean {
+  return r >= 100 && r > g * 2 && r > b * 2;
+}
+
+/** The `color` a selector in the stylesheet sets, as channels; `null` if absent. */
+function declaredColour(css: string, selector: string): { r: number; g: number; b: number } | null {
+  const rule = css.match(new RegExp(`${escapeRegExp(selector)}\\s*{[^}]*}`, 's'));
+  if (!rule) return null;
+  const declared = /(?:^|[;\s])color:\s*([^;]+)/.exec(rule[0])?.[1]?.trim();
+  if (!declared) return null;
+  const hex = /^#([0-9a-f]{3})$/i.exec(declared)?.[1];
+  if (hex) {
+    const [r, g, b] = [...hex].map((digit) => Number.parseInt(digit, 16) * 17);
+    return { r, g, b };
+  }
+  const rgb = /^#([0-9a-f]{6})$/i.exec(declared)?.[1];
+  if (rgb) {
+    return {
+      r: Number.parseInt(rgb.slice(0, 2), 16),
+      g: Number.parseInt(rgb.slice(2, 4), 16),
+      b: Number.parseInt(rgb.slice(4, 6), 16),
+    };
+  }
+  const named = NAMED_COLOURS[declared.toLowerCase()];
+  return named ?? null;
+}
+
+const NAMED_COLOURS: Record<string, { r: number; g: number; b: number }> = {
+  black: { r: 0, g: 0, b: 0 },
+  red: { r: 255, g: 0, b: 0 },
+  white: { r: 255, g: 255, b: 255 },
+};
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 /** A state the tracker never reports by itself, to pin the badge's own table. */
 describe('one badge per state', () => {
