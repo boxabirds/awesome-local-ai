@@ -1,10 +1,16 @@
 /**
- * Worker entry (anchor `sync.worker_entry`).
+ * Worker entry (anchors `sync.worker_entry`, `share.board_api`).
  *
- * Two jobs and nothing else:
+ * Three jobs:
  *
- *   GET /api/rooms/:boardId  (Upgrade: websocket)  -> that board's BoardRoom
- *   everything else                                 -> the static client
+ *   POST /api/boards                create a board: 201 {"id": "..."}
+ *   GET  /api/boards/:boardId       does this board exist? 200 or 404
+ *   GET  /api/rooms/:boardId  (Upgrade: websocket)  -> that board's BoardRoom
+ *   everything else                 -> the static client
+ *
+ * Board existence is explicit from story 5 on (`share.not_found`): a bad or
+ * unknown address is answered with 404 without touching a room, and connecting
+ * to a board that has never been created no longer makes one.
  *
  * Boards stay separate (`live.isolation`) because `idFromName(boardId)` sends
  * every connection for a board to that board's own object, which holds only
@@ -15,8 +21,9 @@
  */
 
 import { isValidBoardId } from '../shared/board-id';
-import { ROOM_ROUTE_PREFIX } from '../shared/config';
+import { BOARD_API_PREFIX, ROOM_ROUTE_PREFIX } from '../shared/config';
 import { BoardRoom } from './board-room';
+import { createBoard } from './create-board';
 import { handleTestHook, TEST_HOOK_PREFIX } from './test-hooks';
 
 export interface Env {
@@ -40,15 +47,67 @@ export interface Env {
 const isWebSocketUpgrade = (req: Request): boolean =>
   (req.headers.get('upgrade') ?? '').toLowerCase() === 'websocket';
 
+const json = (value: unknown, status: number): Response =>
+  new Response(JSON.stringify(value), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+
+/**
+ * The board API: `POST /api/boards` and `GET /api/boards/:id`.
+ *
+ * Returns `null` when this request is not a board API request at all, so the
+ * caller falls through to the room route and then to the client build.
+ */
+async function handleBoardApi(req: Request, path: string, env: Env): Promise<Response | null> {
+  if (path !== BOARD_API_PREFIX && !path.startsWith(`${BOARD_API_PREFIX}/`)) {
+    return null;
+  }
+
+  // No id: only creation lives here, and every other method is refused.
+  if (path === BOARD_API_PREFIX) {
+    if (req.method !== 'POST') {
+      return json({ error: 'method_not_allowed' }, 405);
+    }
+    const result = await createBoard(env);
+    return result.ok
+      ? json({ id: result.id }, 201)
+      : json({ error: 'create_failed' }, 500);
+  }
+
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return json({ error: 'method_not_allowed' }, 405);
+  }
+
+  const boardId = path.slice(BOARD_API_PREFIX.length + 1);
+  // A malformed id is answered exactly like an unknown one: nothing is leaked
+  // about what the id space looks like, and no room object is ever touched
+  // (TC-07).
+  if (!isValidBoardId(boardId)) {
+    return json({ error: 'not_found' }, 404);
+  }
+
+  const namespace = env.BOARD_ROOM;
+  const exists = await namespace.get(namespace.idFromName(boardId)).exists();
+  return exists ? json({ id: boardId }, 200) : json({ error: 'not_found' }, 404);
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const path = new URL(req.url).pathname;
 
+    const boardApi = await handleBoardApi(req, path, env);
+    if (boardApi !== null) {
+      return boardApi;
+    }
+
     if (path === '/api/rooms' || path.startsWith(ROOM_ROUTE_PREFIX)) {
       const boardId = path.slice(ROOM_ROUTE_PREFIX.length);
       // A bad address never reaches a room, so no object is ever created for it.
+      // Story 5 made this a 404 rather than story 3's 400: a malformed address
+      // and an unknown one are the same answer to a person following a link.
       if (!isValidBoardId(boardId)) {
-        return new Response('Invalid board id', { status: 400 });
+        return new Response('Board not found', { status: 404 });
       }
       if (!isWebSocketUpgrade(req)) {
         return new Response('Upgrade Required', { status: 426 });

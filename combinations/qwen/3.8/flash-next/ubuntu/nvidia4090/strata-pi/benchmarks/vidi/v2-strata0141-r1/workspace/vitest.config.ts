@@ -19,6 +19,9 @@ export default defineConfig({
         test: {
           name: 'component',
           environment: 'jsdom',
+          // A board link is shown as a full https address, so the page under test
+          // has an https address too (`share.copy_link`).
+          environmentOptions: { jsdom: { url: 'https://vidi6.example/' } },
           setupFiles: ['tests/component/setup.ts'],
           include: ['tests/component/**/*.test.tsx'],
         },

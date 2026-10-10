@@ -1,3 +1,52 @@
+commit b06b4febbe805ac52b0d6d25bec9de2b3e196951
+agent  Sat Oct 10 05:04:18 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                               |  59 +++++++
+ PROGRESS.md                            |  14 +-
+ index.html                             |   5 +
+ src/client/App.tsx                     | 227 +++-----------------------
+ src/client/api.ts                      |  63 +++++++
+ src/client/board/BoardView.tsx         | 218 +++++++++++++++++++++++++
+ src/client/board/boardRoute.ts         |  37 -----
+ src/client/main.tsx                    |   9 +-
+ src/client/pages/BoardPage.tsx         | 107 ++++++++++++
+ src/client/pages/HomePage.tsx          |  64 ++++++++
+ src/client/pages/NotFoundPage.tsx      |  32 ++++
+ src/client/pages/state.ts              |  89 ++++++++++
+ src/client/router.ts                   |  86 ++++++++++
+ src/client/share/SharePanel.tsx        | 168 +++++++++++++++++++
+ src/client/styles.css                  | 119 ++++++++++++++
+ src/shared/config.ts                   |  21 +++
+ src/worker/board-room.ts               |  90 +++++++++-
+ src/worker/board-store.ts              | 154 ++++++++++++++++-
+ src/worker/create-board.ts             |  44 +++++
+ src/worker/index.ts                    |  71 +++++++-
+ src/worker/test-hooks.ts               |  21 +++
+ tests/component/BoardPage.test.tsx     | 223 +++++++++++++++++++++++++
+ tests/component/HomePage.test.tsx      | 118 ++++++++++++++
+ tests/component/SharePanel.test.tsx    | 150 +++++++++++++++++
+ tests/component/harness.tsx            |   4 +-
+ tests/e2e/helpers/board.ts             |  53 +++++-
+ tests/e2e/helpers/live.ts              |   5 +-
+ tests/e2e/helpers/wrangler-process.ts  |   8 +-
+ tests/e2e/share.spec.ts                | 265 ++++++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts    | 290 +++++++++++++++++++++++++++++++++
+ tests/integration/helpers/room.ts      |  50 ++++++
+ tests/integration/worker-entry.test.ts |  17 +-
+ tests/unit/create-board.test.ts        |  88 ++++++++++
+ vitest.config.ts                       |   3 +
+ 34 files changed, 2690 insertions(+), 282 deletions(-)
+commit 3aaf3198f000f0bc71af4188c5c2d8a514e9e6f6
+vidi-agent  Sat Oct 10 03:51:45 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 43 ++++++++-----------------------------------
+ 1 file changed, 8 insertions(+), 35 deletions(-)
 commit 509661657326a2cc967dc9734d345dc3a739e588
 agent  Sat Oct 10 03:48:49 2026 +0100
 

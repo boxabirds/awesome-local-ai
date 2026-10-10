@@ -1,7 +1,7 @@
 import { expect, type BrowserContext, type Page } from '@playwright/test';
 import { newBoardId } from '../../../src/shared/board-id';
 import { E2E_EVENTUAL_TIMEOUT_MS } from '../../../src/shared/config';
-import { boardIdOfPage } from './board';
+import { boardIdOfPage, ensureBoard } from './board';
 import type { StickySnapshot } from '../../../src/shared/board-model';
 import { getNotes } from './sticky';
 
@@ -26,6 +26,9 @@ export async function joinBoard(
   boardId: string,
 ): Promise<Page> {
   const page = await context.newPage();
+  // A board only serves a board that exists (`share.not_found`), so a test that
+  // invented an address has to make it real before anyone can join it.
+  await ensureBoard(page, boardId);
   await page.goto(`/b/${boardId}`);
   await page.waitForSelector('[data-testid="board"]');
   await page.waitForSelector('[data-testid="world-layer"]');

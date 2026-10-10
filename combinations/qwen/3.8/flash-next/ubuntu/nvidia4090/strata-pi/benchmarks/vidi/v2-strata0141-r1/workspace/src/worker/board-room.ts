@@ -46,7 +46,7 @@ import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
 import { DurableObject } from 'cloudflare:workers';
-import { BoardStore, LOAD_ORIGIN, type LoadResult, type SqlValue, type StoreStats } from './board-store';
+import { BoardStore, LOAD_ORIGIN, fromBase64, type LoadResult, type SqlValue, type StoreStats } from './board-store';
 import {
   CLOSE_BOARD_LOAD_FAILED,
   CLOSE_STORAGE_FAILURE,
@@ -103,6 +103,31 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   // -------------------------------------------------------------------------
+  // Board existence (story 5: `share.board_api`)
+  //
+  // These two are called over Durable Object RPC from the Worker entry, which
+  // is what makes board existence a fact the product can ask about instead of a
+  // side effect of someone opening a page.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Make this board real: create its tables and record `created_at`.
+   *
+   * `created` on the first call, `exists` on every later one - an existing
+   * board is never re-initialised (TC-15), so a second creation attempt changes
+   * nothing about the board that is already there.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    return this.store.markCreated() ? 'created' : 'exists';
+  }
+
+  /** Does this board exist? Reads only, and never creates anything (TC-06). */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  // -------------------------------------------------------------------------
   // Loading
   // -------------------------------------------------------------------------
 
@@ -131,7 +156,9 @@ export class BoardRoom extends DurableObject<Env> {
 
     let result: LoadResult;
     try {
-      this.store.migrate();
+      // `migrate` is deliberately absent from this path (story 5): reading a
+      // board that does not exist must not write to it, so a probe of a made-up
+      // link leaves no tables and no rows behind (`share.not_found`).
       result = this.store.load(doc);
     } catch (error) {
       this.loadFailed('sql-error', describe(error));
@@ -239,6 +266,13 @@ export class BoardRoom extends DurableObject<Env> {
     if (upgrade !== 'websocket') {
       return new Response('Expected a WebSocket upgrade', { status: 426 });
     }
+    // Story 5 (`share.not_found`): a board is only live once it has been
+    // created. Connecting is no longer a way to make one, so an unknown address
+    // is refused with 404 before any socket is accepted - and refusing it writes
+    // nothing (TC-09).
+    if (!this.boardExists()) {
+      return new Response('Board not found', { status: 404 });
+    }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
 
@@ -259,6 +293,29 @@ export class BoardRoom extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server);
     this.send(server, this.syncStep1(this.doc));
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /**
+   * Does the board behind this room exist?
+   *
+   * A storage read that fails outright is not answered as "not found": a board
+   * that cannot be read is still somebody's board, and story 4's rule applies -
+   * accept the socket and close it with `CLOSE_BOARD_LOAD_FAILED` so the client
+   * keeps retrying (`persist.load_failure`, TC-26).
+   */
+  private boardExists(): boolean {
+    try {
+      return this.store.existsReadOnly();
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: 'board-existence-unknown',
+          board: this.ctx.id.toString(),
+          error: describe(error),
+        }),
+      );
+      return true;
+    }
   }
 
   /**
@@ -483,6 +540,35 @@ export class BoardRoom extends DurableObject<Env> {
   /** How many sockets this room is holding (hibernation keeps these). */
   testSocketCount(): number {
     return this.ctx.getWebSockets().length;
+  }
+
+  /**
+   * Write `updates` as this board's log without claiming the board was created:
+   * a board that already had content before story 5 shipped
+   * (`share.legacy_boards`, TC-08, TC-31).
+   *
+   * They arrive as base64 text - the shape every other test hook in this Worker
+   * uses - and are decoded here: a Durable Object method call carries what it is
+   * given, and text stored as though it were a Yjs update writes a row of the
+   * right length and none of its content.
+   */
+  async testSeedLegacy(updates: readonly string[]): Promise<number> {
+    const rows = this.store.seedLegacyRows(updates.map(fromBase64));
+    this.load();
+    return rows;
+  }
+
+  /** `created_at` as stored for this board, or null (`share.board_api`). */
+  async testCreatedAt(): Promise<number | null> {
+    return this.store.createdAt();
+  }
+
+  /** Table names in this board's own SQLite, for the no-write guarantee. */
+  testTables(): string[] {
+    return this.ctx.storage.sql
+      .exec("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .toArray()
+      .map((row) => String(row.name));
   }
 
   /** Fold the log now, whatever its size (a test wants the Snapshotted state). */

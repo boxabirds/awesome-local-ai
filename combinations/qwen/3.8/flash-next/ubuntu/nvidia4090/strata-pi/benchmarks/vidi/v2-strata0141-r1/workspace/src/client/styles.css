@@ -369,3 +369,122 @@ main[data-board-editable='false'] .board-viewport,
 main[data-board-editable='false'] .sticky-note {
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+ * Story 5: the pages a link can lead to, and the Share panel.
+ * ======================================================================== */
+
+/* The home page, the "Opening board…" page and Board not found all share this
+   centred layout; the board page keeps the full-bleed layout story 1 built. */
+.page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+}
+
+.page__title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  color: #1f2933;
+}
+
+.page__lead {
+  margin: 0;
+  max-width: 42ch;
+  font-size: 15px;
+  color: #52606d;
+}
+
+.page__primary {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.page__primary:disabled {
+  background: #94a3b8;
+  cursor: default;
+}
+
+.page__error {
+  margin: 0;
+  color: #b91c1c;
+}
+
+.page__link {
+  color: #2563eb;
+}
+
+/* The Share panel sits in the top right, away from the board toolbar on the left
+   and the connection badge below it. */
+.share {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.share__button {
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.share__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 300px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 12%);
+}
+
+.share__label {
+  font-size: 12px;
+  color: #52606d;
+}
+
+.share__link {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.share__copy {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.share__manual {
+  margin: 0;
+  color: #7c2d12;
+}

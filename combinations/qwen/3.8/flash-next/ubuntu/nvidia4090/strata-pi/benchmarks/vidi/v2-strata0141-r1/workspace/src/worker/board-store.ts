@@ -130,6 +130,13 @@ export interface BoardStorage {
 
 const META_SCHEMA_VERSION = 'storage_schema_version';
 const META_SNAPSHOT_THROUGH = 'snapshot_through_seq';
+/**
+ * Story 5 (`share.not_found`): the row that says this board was deliberately
+ * created. A board whose storage has it is a board that exists; a board whose
+ * storage has rows but not it is a board that predates this feature
+ * (`share.legacy_boards`) and still counts as existing.
+ */
+const META_CREATED_AT = 'created_at';
 /** Where `corruptSnapshot` keeps the bytes it replaced (test hook only). */
 const META_CORRUPT_BACKUP = 'test_snapshot_chunk_backup';
 
@@ -170,7 +177,8 @@ const toBase64 = (bytes: Uint8Array): string => {
   return btoa(out);
 };
 
-const fromBase64 = (text: string): Uint8Array => {
+/** Text back to bytes. Exported for the room's own test seeding (story 5, TC-31). */
+export const fromBase64 = (text: string): Uint8Array => {
   const raw = atob(text);
   const bytes = new Uint8Array(raw.length);
   for (let index = 0; index < raw.length; index += 1) {
@@ -215,9 +223,116 @@ export class BoardStore {
   }
 
   /**
+   * Are this board's tables there at all?
+   *
+   * Story 5 makes this the difference between "a board nobody has ever made"
+   * and "a board that is simply empty": probing an unknown link must leave no
+   * storage behind (`share.not_found`), so nothing creates tables except an
+   * explicit creation (`initialize()` on the room) or a first write.
+   */
+  hasTables(): boolean {
+    const names = this.sql
+      .exec("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .toArray()
+      .map((row) => row.name);
+    return (
+      names.includes('storage_meta') && names.includes('updates') && names.includes('snapshot_chunks')
+    );
+  }
+
+  /**
+   * Does this board exist? Read-only (`share.open_link`, `share.not_found`).
+   *
+   * True when the board was created (`created_at`), or when it has anything
+   * stored at all - which is how a board that predates this feature still opens
+   * at the address people already have (`share.legacy_boards`). Nothing here
+   * creates a table or a row, so probing a made-up link leaves the board exactly
+   * as non-existent as it was (TC-06, TC-09).
+   */
+  existsReadOnly(): boolean {
+    if (!this.hasTables()) {
+      return false;
+    }
+    if (this.createdAt() !== null) {
+      return true;
+    }
+    if (this.sql.exec('SELECT 1 FROM updates LIMIT 1').toArray().length > 0) {
+      return true;
+    }
+    return this.sql.exec('SELECT 1 FROM snapshot_chunks LIMIT 1').toArray().length > 0;
+  }
+
+  /** `created_at` as stored, or null when this board was never created. */
+  createdAt(): number | null {
+    if (!this.hasTables()) {
+      return null;
+    }
+    const row = this.sql
+      .exec('SELECT value FROM storage_meta WHERE key = ?', META_CREATED_AT)
+      .toArray()[0];
+    if (row === undefined) {
+      return null;
+    }
+    const value = Number(row.value ?? NaN);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  /**
+   * Record that this board has been created, once.
+   *
+   * Returns `true` when this call is the one that made the board (the tables are
+   * created too) and `false` when the board was already created, which is what
+   * keeps an existing board from ever being re-initialised (TC-15).
+   */
+  markCreated(): boolean {
+    if (this.createdAt() !== null) {
+      return false;
+    }
+    const at = Date.now();
+    this.storage.transactionSync(() => {
+      this.sql.exec(
+        'INSERT OR REPLACE INTO storage_meta (key, value) VALUES (?, ?)',
+        META_CREATED_AT,
+        String(at),
+      );
+    });
+    return true;
+  }
+
+  /**
+   * Write log rows without claiming the board was created: the shape a board
+   * that predates this feature has - content, no `created_at`
+   * (`share.legacy_boards`). Test hooks only.
+   */
+  seedLegacyRows(updates: readonly Uint8Array[]): number {
+    // Bytes, never their text. Durable Object RPC hands over what it is given,
+    // and storing text as if it were a Yjs update writes a row of the right
+    // length and none of its content, so it is refused here instead.
+    for (const update of updates) {
+      if (!(update instanceof Uint8Array)) {
+        throw new TypeError('seedLegacyRows takes Uint8Array updates');
+      }
+    }
+    // Seeding is a write, so the tables it writes into are made first - this is
+    // a test setting up a board that predates story 5, not a probe of a link.
+    this.migrate();
+    this.storage.transactionSync(() => {
+      for (const update of updates) {
+        this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', asBlob(update), update.byteLength);
+      }
+    });
+    this.logRows += updates.length;
+    return updates.length;
+  }
+
+  /**
    * Create the tables if they are not there yet and record the storage schema
-   * version. Opening a board that was never edited creates tables and no rows
-   * (TC-25): an empty board must stay empty.
+   * version.
+   *
+   * Only `initialize()` (through `markCreated`) and a board's first write call
+   * it. Opening a board nobody has ever created now creates nothing at all
+   * (`share.not_found`); a board that was created and never edited has tables
+   * and no rows (TC-25).
    */
   migrate(): void {
     this.storage.transactionSync(() => {
@@ -239,6 +354,13 @@ export class BoardStore {
    * room rather than keep serving a board it cannot save (`persist.save_failure`).
    */
   append(update: Uint8Array): void {
+    // A board can only be written to after it was created, but a store used
+    // directly (tests, a room that woke before story 5 shipped) must still work:
+    // migrating here keeps story 4's write path intact while `load` stays a
+    // pure read.
+    if (!this.hasTables()) {
+      this.migrate();
+    }
     this.storage.transactionSync(() => {
       this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', asBlob(update), update.byteLength);
     });
@@ -254,6 +376,15 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // A board whose tables were never made is an empty board, not a broken
+      // one - and reading it must not make those tables (`share.not_found`).
+      if (!this.hasTables()) {
+        this.logRows = 0;
+        this.logBytes = 0;
+        this.throughSeq = 0;
+        return { ok: true, applied: 0, quarantined: 0, snapshotBytes: 0, logBytes: 0 };
+      }
+
       const meta = this.readMeta();
 
       const chunkRows = this.sql.exec('SELECT data FROM snapshot_chunks ORDER BY idx ASC').toArray();
@@ -355,6 +486,17 @@ export class BoardStore {
 
   /** Row counts and byte totals, for tests and test hooks only. */
   stats(): StoreStats {
+    if (!this.hasTables()) {
+      return {
+        schemaVersion: null,
+        snapshotThroughSeq: 0,
+        updateRows: 0,
+        updateBytes: 0,
+        snapshotChunks: 0,
+        snapshotBytes: 0,
+        quarantinedRows: 0,
+      };
+    }
     const meta = this.readMeta();
     const counts = (query: string): SqlRow => this.sql.exec(query).toArray()[0] ?? {};
     const updates = counts('SELECT COUNT(*) AS n, COALESCE(SUM(bytes), 0) AS b FROM updates');
@@ -390,6 +532,9 @@ export class BoardStore {
    * board whose snapshot can be, without touching a real disk.
    */
   corruptSnapshot(damage?: Uint8Array): { ok: boolean; reason?: string; bytes?: number } {
+    if (!this.hasTables()) {
+      return { ok: false, reason: 'no-snapshot' };
+    }
     const row = this.sql.exec('SELECT data FROM snapshot_chunks WHERE idx = ?', 0).toArray()[0];
     const original = row === undefined ? undefined : asBytes(row.data);
     if (original === undefined || original === null) {
@@ -410,6 +555,9 @@ export class BoardStore {
 
   /** Put the saved chunk 0 back, and forget the backup. */
   repairSnapshot(): { ok: boolean; reason?: string } {
+    if (!this.hasTables()) {
+      return { ok: false, reason: 'no-backup' };
+    }
     const row = this.sql
       .exec('SELECT value FROM storage_meta WHERE key = ?', META_CORRUPT_BACKUP)
       .toArray()[0];

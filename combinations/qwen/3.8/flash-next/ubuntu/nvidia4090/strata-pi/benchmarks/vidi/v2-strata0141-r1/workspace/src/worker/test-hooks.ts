@@ -11,7 +11,14 @@
  * POST /__test/boards/:id/corrupt-snapshot   damage snapshot chunk 0
  * POST /__test/boards/:id/repair             put the original bytes back
  * GET  /__test/boards/:id/stats              row counts and byte totals
+ * POST /__test/boards/:id/initialize         create this board, by id
+ * POST /__test/boards/:id/seed-legacy        story 4 rows, and no `created_at`
  * ```
+ *
+ * `initialize` and `seed-legacy` exist because a browser test cannot reach a
+ * board by its own public API and still choose its address: `POST /api/boards`
+ * names the address itself. `seed-legacy` writes story 4's rows and deliberately
+ * leaves `created_at` out, which is the whole legacy-board case (`share.legacy_boards`).
  *
  * **They exist only when `env.TEST_HOOKS === '1'`.** That value is set on the
  * `wrangler dev` command line the e2e run starts, and nowhere else: it is not in
@@ -80,6 +87,20 @@ export async function handleTestHook(req: Request, env: Env): Promise<Response |
   if (action === 'repair') {
     const result = await room.testRepairSnapshot();
     return json(result, result.ok ? 200 : 409);
+  }
+  if (action === 'initialize') {
+    return json({ ok: true, result: await room.initialize() });
+  }
+  if (action === 'seed-legacy') {
+    // Story 4 rows with no creation marker: a board that was never created
+    // through the API but is somebody's board all the same.
+    const body = (await req.json().catch(() => ({}))) as { updates?: string[] };
+    // Base64 text across the RPC boundary: a Durable Object method call that is
+    // handed bytes hands the object over in a form this isolate cannot copy, so
+    // every hook here carries text and the room decodes it.
+    const updates = body.updates ?? [];
+    const rows = await room.testSeedLegacy(updates);
+    return json({ ok: true, rows });
   }
   if (action === 'compact') {
     // Force the log into a snapshot, so a test can be in the Snapshotted state

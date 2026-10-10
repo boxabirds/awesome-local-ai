@@ -141,3 +141,24 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Versions the storage tables, independent of the board document schema. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+/* ---------------------------------------------------------------------------
+ * Story 5: sharing a board by link. Every share setting lives here.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Clicking **New board** must land the person on the new board within this
+ * many milliseconds (`share.create`). Wall-clock time is measured and reported
+ * against it, never asserted on a shared machine.
+ */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the "Link copied" confirmation stays on the Copy link button. */
+export const LINK_COPIED_MS = 2000;
+/**
+ * First wait before re-checking whether a board link exists when the service
+ * cannot be reached (`share.unreachable`); each later wait doubles, capped at
+ * `RECONNECT_MAX_BACKOFF_MS` (story 3).
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+/** Every board API call goes under this path prefix. */
+export const BOARD_API_PREFIX = '/api/boards';

@@ -32,6 +32,52 @@ export function newBoardIdFor(label: string): string {
 /** A board address no one has connected to (a room that must not exist yet). */
 export const newUnusedBoardId = (): string => newBoardId();
 
+/**
+ * Create a board by calling `initialize()` on its own room over Durable Object
+ * RPC - exactly what `POST /api/boards` does (`share.board_api`).
+ */
+export async function initializeBoard(boardId: string): Promise<'created' | 'exists'> {
+  const ns = bindings().BOARD_ROOM;
+  const stub = ns.get(ns.idFromName(boardId));
+  return runInDurableObject(stub, (instance) => instance.initialize());
+}
+
+/**
+ * Make sure a board exists before a test connects to it.
+ *
+ * Story 5 (`share.not_found`) removed the old shortcut where connecting to an
+ * address made a board, so a test that wants a live room creates one the way the
+ * product does. A board whose room has already been instantiated is left alone:
+ * the test that instantiated it has prepared it (and may have swapped its
+ * storage to inject a failure), and re-initialising it is not what that test is
+ * asking about.
+ */
+export async function ensureBoard(boardId: string): Promise<'created' | 'exists'> {
+  if (await hasRoom(boardId)) {
+    return 'exists';
+  }
+  return initializeBoard(boardId);
+}
+
+/** Create a brand new board through the real HTTP API and return its address. */
+export async function createBoardViaApi(): Promise<string> {
+  const response = await SELF.fetch(`${SELF_ORIGIN}/api/boards`, { method: 'POST' });
+  if (response.status !== 201) {
+    throw new Error(`expected a 201 from POST /api/boards, got ${response.status}`);
+  }
+  const body = (await response.json()) as { id?: string };
+  if (typeof body.id !== 'string') {
+    throw new Error('POST /api/boards did not return an id');
+  }
+  return body.id;
+}
+
+/** Does the board API say this board exists? */
+export async function boardExistsViaApi(boardId: string): Promise<boolean> {
+  const response = await SELF.fetch(`${SELF_ORIGIN}/api/boards/${boardId}`);
+  return response.status === 200;
+}
+
 /** How many room objects exist in total (a room is created on first visit). */
 export async function roomCount(): Promise<number> {
   return (await listDurableObjectIds(bindings().BOARD_ROOM)).length;
@@ -137,6 +183,10 @@ export interface RoomSocket {
 
 /** Open a live connection to `boardId`'s room through the real Worker entry. */
 export async function connectRoom(boardId: string): Promise<RoomSocket> {
+  // Story 5: a room only serves a board that exists, so a test that wants a
+  // room creates its board first (`ensureBoard`, i.e. what `POST /api/boards`
+  // does). Tests that assert the refusal itself call the Worker directly.
+  await ensureBoard(boardId);
   const response = await SELF.fetch(`${SELF_ORIGIN}${ROOM_ROUTE_PREFIX}${boardId}`, {
     headers: { upgrade: 'websocket', 'sec-websocket-version': '13' },
   });

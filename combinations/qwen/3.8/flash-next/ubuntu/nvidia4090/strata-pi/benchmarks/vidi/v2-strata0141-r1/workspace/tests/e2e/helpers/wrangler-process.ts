@@ -213,8 +213,14 @@ export async function callHook(
   boardId: string,
   action: string,
   method: 'POST' | 'GET' = 'POST',
+  body?: unknown,
 ): Promise<{ ok: boolean; [key: string]: unknown }> {
-  const response = await fetch(`${server.url}/__test/boards/${boardId}/${action}`, { method });
+  const response = await fetch(`${server.url}/__test/boards/${boardId}/${action}`, {
+    method,
+    ...(body === undefined
+      ? {}
+      : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+  });
   const text = await response.text();
   if (!response.ok) {
     throw new Error(`hook ${action} answered ${response.status}: ${text}`);

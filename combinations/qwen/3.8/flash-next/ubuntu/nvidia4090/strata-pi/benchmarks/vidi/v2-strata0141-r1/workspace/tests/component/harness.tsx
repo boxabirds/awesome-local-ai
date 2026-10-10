@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import * as Y from 'yjs';
-import { App } from '../../src/client/App';
+import { BoardView } from '../../src/client/board/BoardView';
 import {
   createSticky,
   deleteObject,
@@ -30,7 +30,7 @@ export function renderBoard(
   } = {},
 ) {
   return render(
-    <App
+    <BoardView
       doc={options.doc}
       boardId={options.boardId ?? COMPONENT_BOARD_ID}
       connect={options.connect ?? false}

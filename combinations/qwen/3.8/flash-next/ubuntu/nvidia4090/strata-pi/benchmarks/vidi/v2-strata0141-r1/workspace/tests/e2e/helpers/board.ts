@@ -1,5 +1,10 @@
 import type { Page } from '@playwright/test';
-import { BOARD_PATH_PREFIX, GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../../src/shared/config';
+import {
+  BOARD_API_PREFIX,
+  BOARD_PATH_PREFIX,
+  GRID_SPACING_WORLD,
+  UNBOUNDED_PAN_TESTED_EXTENT,
+} from '../../../src/shared/config';
 
 export { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT };
 
@@ -30,8 +35,45 @@ export function boardIdOfPage(page: Page): string {
 }
 
 /**
- * Open a board. With no `boardId` the page starts its own board (the app turns
- * `/` into `/b/<new address>`); with one it joins that board.
+ * Ask the running Worker for a board, exactly as the home page does, and return
+ * the address it named (`share.create`).
+ *
+ * From story 5 on a board has to exist before a page can open it, so a test that
+ * wants a board of its own creates one through the same API the product uses.
+ */
+export async function createBoardViaApi(page: Page, origin = ''): Promise<string> {
+  const response = await page.request.fetch(`${origin}${BOARD_API_PREFIX}`, { method: 'POST' });
+  if (!response.ok()) {
+    throw new Error(`creating a board answered ${response.status()}: ${await response.text()}`);
+  }
+  const body = (await response.json()) as { id?: string };
+  if (typeof body.id !== 'string') {
+    throw new Error('creating a board did not return an id');
+  }
+  return body.id;
+}
+
+/**
+ * Make a board exist under an address the test chose.
+ *
+ * The public API will not take an address - `POST /api/boards` names the board
+ * itself - so a test that needs a known address uses the test-only hook, which is
+ * the room's own `initialize()`. It answers on the Playwright server and on the
+ * servers the restart tests start (both run with `TEST_HOOKS=1`).
+ */
+export async function ensureBoard(page: Page, boardId: string, origin = ''): Promise<void> {
+  const response = await page.request.fetch(`${origin}/__test/boards/${boardId}/initialize`, {
+    method: 'POST',
+  });
+  if (!response.ok()) {
+    throw new Error(`ensuring a board answered ${response.status()}: ${await response.text()}`);
+  }
+}
+
+/**
+ * Open a board. With no `boardId` the test gets a board of its own, created the
+ * way the home page creates one; with one it joins that board, which must already
+ * exist (`share.not_found`).
  * Returns the board address the page ended up on.
  *
  * `origin` sends the page to a server other than Playwright's `baseURL`, which
@@ -42,9 +84,8 @@ export async function openBoard(
   options: { boardId?: string; origin?: string } = {},
 ): Promise<string> {
   const origin = options.origin ?? '';
-  await page.goto(
-    options.boardId ? `${origin}${BOARD_PATH_PREFIX}${options.boardId}` : `${origin}/`,
-  );
+  const boardId = options.boardId ?? (await createBoardViaApi(page, origin));
+  await page.goto(`${origin}${BOARD_PATH_PREFIX}${boardId}`);
   await page.waitForSelector('[data-testid="board"]');
   await page.waitForSelector('[data-testid="world-layer"]');
   // Wait for the first camera render so measurements are stable.

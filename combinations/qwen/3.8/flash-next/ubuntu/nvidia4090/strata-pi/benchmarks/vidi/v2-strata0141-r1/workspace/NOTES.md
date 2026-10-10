@@ -262,3 +262,62 @@ is server-side durability, and a restart cycle costs more than a browser round-t
 Environment note for these tests: `--var 'TEST_HOOKS:1'` is **not** re-added by a plain
 `restart()` — the flag is stored on the process object so a restarted server keeps the same
 shape as the one that died.
+## Story 5 — a board is a place with an address
+
+### What the contract changed for stories 1-4
+
+- A board now has to be **created**. `POST /api/boards` is the only way one comes into
+  existence; connecting to `/api/rooms/:id` no longer makes one (`BoardRoom.fetch` answers 404
+  before it accepts a socket). Test helpers gained `ensureBoard` / `createBoardViaApi`, and every
+  e2e `openBoard()` without a `boardId` creates through the API first.
+- A malformed id answers **404, not 400**, on both `/api/boards/:id` and `/api/rooms/:id`, and it
+  reaches no Durable Object at all (story 1's worker-entry test was updated to match).
+- `BoardRoom.boardExists()` treats a storage read that *throws* as "still somebody's board": it
+  returns `true`, so story 4's load-failure path (`CLOSE_BOARD_LOAD_FAILED`, TC-26) is intact and
+  a board that cannot be read is never reported as missing.
+- `BoardStore.migrate()` is no longer on the read path. Nothing creates tables except an explicit
+  `initialize()` or a first write, which is what makes "404 and no storage behind it" testable.
+
+### Durable Object RPC carries text, not bytes (the bug that cost the most time)
+
+`BoardRoom.testSeedLegacy` and the `/__test/boards/:id/seed-legacy` hook used to hand
+`Uint8Array`s across the RPC boundary. What arrived was an object `BoardStore.asBlob` could not
+copy, so each row was written as **the right number of zero bytes**: `load()` reported
+`applied: 3`, `quarantined: 0`, and the board opened empty. Every hook in this project therefore
+carries **base64 text** (`corrupt-snapshot`, `corrupt-update`, `seed-legacy`), and the Worker
+decodes it with `board-store.ts`'s `fromBase64`. `seedLegacyRows` now throws on anything that is
+not a `Uint8Array` so this failure mode cannot be silent again. The integration test for TC-08
+asserts the seeded note **count**, not "more than zero", which is what let the empty board through.
+
+### Reading a board that predates the API (TC-31)
+
+`seed-legacy` writes story 4's rows and deliberately leaves `created_at` out. The existence check
+answers 200 because rows exist (`BoardStore.createdAt()` returning null is not the test that
+matters), the link opens with its notes, and `WranglerProcess.restart()` — SIGTERM, same
+`--persist-to`, same port — brings the same board back. Note that `WranglerProcess.stop()`
+**deletes** the storage directory unless `deleteState: false`; a restart that must keep state uses
+`restart()`, which is what the persistence specs already do.
+
+### Clipboard in Chromium
+
+`TC-26` grants `clipboard-read`/`clipboard-write` on the test origin and reads the link back out
+of the real clipboard before handing it to the second browser context. `TC-29` refuses it instead,
+with an `addInitScript` that redefines `navigator.clipboard` so `writeText` rejects; the panel
+falls back to a selected field, and the test asserts `selectionStart`/`selectionEnd` cover the
+whole value.
+
+### Component tests
+
+`vitest.config.ts` gives the `component` project the jsdom URL `https://vidi6.example/`, so
+`window.location.origin` (and therefore the link the Share panel shows and hands to `writeText`)
+has the https shape production has. Pages and the panel are tested with `src/client/api` and
+`src/client/sync/connectBoard` mocked at the module boundary: `BoardView` is story 3's board,
+copied rather than re-derived, so a page test that mounts a board is not a hidden sync test.
+
+### Integration noise that is not a failure
+
+Refusing a WebSocket upgrade leaves the local Durable Object sim holding a request it will never
+finish, and workerd prints `Application called abortAllDurableObjects()` (or
+`deleteAllDurableObjects()`) at suite teardown. `tests/integration/board-api.test.ts` calls
+`abortAllDurableObjects()` before `reset()` in `afterEach` to keep the output readable. The message
+is sim bookkeeping, not an assertion: the suite exits 0 either way.

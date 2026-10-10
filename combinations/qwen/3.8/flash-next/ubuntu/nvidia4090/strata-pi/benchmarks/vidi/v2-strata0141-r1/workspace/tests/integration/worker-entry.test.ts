@@ -7,6 +7,7 @@ import {
   addSticky,
   bindings,
   connectRoom,
+  ensureBoard,
   hasRoom,
   newBoardIdFor,
   roomCount,
@@ -73,7 +74,7 @@ const waitForStoredRows = async (boardId: string, rows: number, timeoutMs = 5_00
 };
 
 describe('room routing', () => {
-  it('TC-04: rejects invalid board ids with 400 and no Durable Object call', async () => {
+  it('TC-04: rejects invalid board ids with 404 and no Durable Object call', async () => {
     const roomsBefore = await roomCount();
     const invalid = [
       'not-valid', // too short
@@ -88,7 +89,9 @@ describe('room routing', () => {
       const response = await SELF.fetch(`${SELF_ORIGIN}${ROOM_ROUTE_PREFIX}${id}`, {
         headers: { upgrade: 'websocket' },
       });
-      expect(response.status).toBe(400);
+      // Story 5 (`share.not_found`): a malformed address is refused the same way
+      // an unknown one is, so nothing is leaked about the id space.
+      expect(response.status).toBe(404);
     }
     // Rejecting a bad address never visits a room.
     expect(await roomCount()).toBe(roomsBefore);
@@ -127,17 +130,25 @@ describe('room routing', () => {
 
   it('TC-06: other paths are answered by the client build, not by a new route', async () => {
     const roomsBefore = await roomCount();
-    for (const path of ['/', '/api/boards', '/api/sync', '/notes/1']) {
+    for (const path of ['/', '/api/sync', '/notes/1']) {
       const response = await SELF.fetch(`${SELF_ORIGIN}${path}`);
       expect(response.status).toBe(200);
       expect(response.headers.get('content-type')).toContain('text/html');
     }
+    // Story 5 (`share.board_api`): `/api/boards` without an id is the create
+    // route, and only POST is allowed there - GET is refused, not served.
+    const list = await SELF.fetch(`${SELF_ORIGIN}/api/boards`);
+    expect(list.status).toBe(405);
     expect(await roomCount()).toBe(roomsBefore);
   });
 
   it('TC-13: a valid board address upgrades to a WebSocket', async () => {
     const board = newBoardIdFor('tc13');
     const roomsBefore = await roomCount();
+    // Story 5 (`share.not_found`): the board has to exist before it can be live.
+    expect(await ensureBoard(board)).toBe('created');
+    expect(await hasRoom(board)).toBe(true);
+    expect(await roomCount()).toBe(roomsBefore + 1);
     const response = await SELF.fetch(`${SELF_ORIGIN}${ROOM_ROUTE_PREFIX}${board}`, {
       headers: { upgrade: 'websocket', 'sec-websocket-version': '13' },
     });
