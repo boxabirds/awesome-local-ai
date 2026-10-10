@@ -270,7 +270,21 @@ export function useTransformGesture({
       if (aspectLocked) {
         // One scale for both axes, so a locked selection never distorts (key decision 2).
         const uniform = Math.min(scale.x, scale.y);
-        scale = { x: uniform, y: uniform };
+        // ... and the minimum is honoured on the *box*, not on the axis a handle was pulled
+        // along: on a 4:3 picture the short side is the one that runs out first, and the floor
+        // the per-axis clamp worked out for the tall axis is lost the moment both axes are
+        // forced to the smaller scale. So the floor is taken again, from the shortest side.
+        // Capped at 1: an object that is already narrower than its own minimum — which happens,
+        // because a minimum is a rule about resizing and not about documents — is not enlarged
+        // by being dragged smaller.
+        const floor = rects.reduce((least, rect, index) => {
+          const smallest = minSizes[index] ?? 0;
+          const shortest = Math.min(rect.width, rect.height);
+          if (!(smallest > 0) || !(shortest > 0)) return least;
+          return Math.max(least, Math.min(1, smallest / shortest));
+        }, 0);
+        const chosen = Math.max(uniform, floor);
+        scale = { x: chosen, y: chosen };
       }
       const to = anchoredRect(box, current.handle, box.width * scale.x, box.height * scale.y);
       const next = new Map<string, Rect>();

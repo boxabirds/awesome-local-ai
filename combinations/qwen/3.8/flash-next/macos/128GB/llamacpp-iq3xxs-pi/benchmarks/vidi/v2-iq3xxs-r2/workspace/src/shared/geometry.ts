@@ -23,6 +23,12 @@ export interface Point {
   y: number;
 }
 
+/** A width and a height, in board units or in a file's own pixels. */
+export interface Size {
+  width: number;
+  height: number;
+}
+
 /** The eight resize handles of a bounding box, named for the edge(s) they sit on. */
 export type Handle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 

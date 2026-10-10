@@ -33,8 +33,10 @@ export type ToolShortcut = Tool | 'sticky';
  * can disagree about what `v` means. This turns the tool *id* into something a pointer can
  * sit on: `sticky` stays an action rather than a mode (pressing `n` switches back to Select
  * first, TC-17, or the next click would plant a text where that note's heading is being
- * typed), and the letters belonging to tools this build does not have — `i`, `c` — are not
- * spent, so they keep belonging to whatever they were pressed in.
+ * typed). Two letters are not pointer modes at all and so are not returned here: `i`, which
+ * story 12 spends on opening the file picker (see `imageTool` in `../tools/useActiveTool`),
+ * and `c`, which belongs to a story this build has not reached and keeps belonging to
+ * whatever it was pressed in.
  */
 export function toolForShortcut(key: string): ToolShortcut | null {
   const id = toolIdForShortcut(key);

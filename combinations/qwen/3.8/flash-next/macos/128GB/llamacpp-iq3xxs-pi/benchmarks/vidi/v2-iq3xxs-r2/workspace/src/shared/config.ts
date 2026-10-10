@@ -238,3 +238,76 @@ export const STROKE_MAX_POINTS = 5_000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** The smallest side a stroke's box may be resized down to, in board units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/*
+ * Story 12: images.
+ *
+ * A board keeps its state in the Durable Object's SQLite, which is the wrong shape for a
+ * photograph, so image *bytes* go to R2 and the board holds the key of the object that holds
+ * them. Three numbers define that boundary — the accepted types, the size limit and the
+ * cache lifetime — and all three are checked server-side: a client can be bypassed, and a
+ * board whose images its own origin cannot serve is a board with holes in it.
+ */
+
+/**
+ * The kinds of image the board accepts. It is one list because the file picker's `accept`,
+ * the browser's own rejection and the server's magic-byte sniffing must never disagree
+ * about what "a PNG" means, and every one of them has the type in hand: `File.type` in the
+ * drop, `Content-Type` on the request, `Content-Type` on the stored object.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/**
+ * The hard ceiling on one image, 10 MB (`images.max_size`). R2 holds a single object of this
+ * size without multipart handling, and a 10 MB upload still finishes on a slow connection
+ * inside the time a person will watch a progress bar for.
+ */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * How many images one add action may place (`images.max_files_per_add`). A drag of a whole
+ * folder arrives as one drop, and the row layout keeps this many readable at once; a person
+ * with more to add drops them twice.
+ */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/**
+ * The longest side an image is placed at when its natural pixel size, taken as board units,
+ * would be longer (`images.placement_size`): 1600x1200 becomes 800x600. 800 is about a third
+ * of the default viewport at 100%, so a dropped row of them still lands on screen.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/**
+ * The shortest side an image may be resized down to, in board units. Above the 12-unit text
+ * floor, because an image with a 12-unit side is a smudge rather than a picture — and it is
+ * the floor the aspect-locked resize stops at, so the smallest image is still recognisable.
+ */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** The gap between images laid out in a row, in board units (`images.layout`). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * How long an image may sit in `uploading` before everybody treats it as never finishing
+ * (`images.upload.stale` is 5 minutes). Only the tab that queued an upload can move an image
+ * out of `uploading`, and there is no way to ask that tab whether it still exists, so this is
+ * how long a board waits in silence before concluding that it does not — the same judgement
+ * presence makes about a person, but made about an upload.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/**
+ * How long a served image may be cached (`assets.cache_control`, one year). Asset keys are
+ * random and never reused and the bytes at a key never change, so a cached image only goes
+ * stale when the whole board is deleted.
+ */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/**
+ * How many bytes to read from the front of an upload to identify it (`images.sniff_bytes`).
+ * Twelve is enough for every signature in `IMAGE_ACCEPTED_TYPES`: the PNG and JPEG
+ * signatures from byte 0, GIF's from byte 0 too, and WebP's `WEBP` at the far end of a RIFF
+ * header, bytes 8 to 12 — so an accepted WebP is recognised without reading any more.
+ */
+export const IMAGE_SNIFF_BYTES = 12;

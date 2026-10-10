@@ -11,6 +11,10 @@
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
+  // Story 12 puts image bytes here instead of in a board's SQLite: the document keeps the
+  // key of each object, so a board with a thousand images still loads at the speed of its
+  // document. Local development gets a bucket in `.wrangler/state`; production provisions it.
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }],
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },

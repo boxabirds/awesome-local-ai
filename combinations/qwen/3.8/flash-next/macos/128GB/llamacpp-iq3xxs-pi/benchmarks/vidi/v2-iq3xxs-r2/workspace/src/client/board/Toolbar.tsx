@@ -20,6 +20,13 @@ export const CONNECTOR_TOOL_TOOLTIP = 'Connector – drag from one object to ano
 /** Story 11: the Pen tool (PRD: "Left toolbar: Pen button"). */
 export const PEN_TOOL_LABEL = 'Pen (P)';
 export const PEN_TOOL_TOOLTIP = 'Pen – sketch freehand – or press P';
+/**
+ * Story 12: the Image button. It is an action rather than a mode — it opens the file picker
+ * and leaves the pointer where it was — so its button has no pressed state, like the Sticky
+ * note button under it (PRD: "Image button or I key").
+ */
+export const IMAGE_TOOL_LABEL = 'Image (I)';
+export const IMAGE_TOOL_TOOLTIP = 'Image – add pictures from this computer – or press I';
 export const SHAPE_KIND_MENU_LABEL = 'Shape kind';
 /** What the Shape menu calls the three kinds (PRD: "Rectangle (selected), Ellipse, Diamond"). */
 export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
@@ -41,6 +48,8 @@ export interface ToolbarProps {
   onConnectorTool?(): void;
   /** Story 11: the Pen tool, which stays up after every stroke it makes. */
   onPenTool?(): void;
+  /** Story 12: the Image button, which opens the file picker (`image.pick`). */
+  onImageTool?(): void;
   onShapeKind?(kind: ShapeKind): void;
   /** Story 4: while the board could not be loaded, the Sticky note button is disabled. */
   disabled?: boolean;
@@ -77,6 +86,7 @@ export function Toolbar({
   onShapeTool,
   onConnectorTool,
   onPenTool,
+  onImageTool,
   onShapeKind,
   disabled = false,
   undo,
@@ -183,6 +193,21 @@ export function Toolbar({
       >
         <span className="vidi6-tool-glyph vidi6-tool-pen" aria-hidden="true" />
         <span className="vidi6-toolbar-text">{PEN_TOOL_LABEL}</span>
+      </button>
+      {/* Story 12: the Image button. Not a mode — the picker opens, the files land in the
+          middle of what this person can see, and the pointer stays on whatever tool it was
+          on — so this button is never pressed, like the note button below it. */}
+      <button
+        type="button"
+        className="vidi6-toolbar-button"
+        data-testid="tool-image"
+        aria-label={IMAGE_TOOL_LABEL}
+        title={IMAGE_TOOL_TOOLTIP}
+        onClick={onImageTool}
+        disabled={disabled}
+      >
+        <span className="vidi6-tool-glyph vidi6-tool-image" aria-hidden="true" />
+        <span className="vidi6-toolbar-text">{IMAGE_TOOL_LABEL}</span>
       </button>
       <button
         type="button"

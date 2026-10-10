@@ -4,6 +4,7 @@ import {
   type CSSProperties,
   type JSX,
   type MouseEvent as ReactMouseEvent,
+  type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -113,6 +114,12 @@ export interface BoardViewportProps {
   tool?: Tool;
   /** The Text tool's click, in screen pixels inside the viewport (`text.create_click`). */
   onTextToolClick?(point: Point): void;
+  /**
+   * Story 12: files being dragged over the board. `onDragOver` must be called for the browser
+   * to allow a drop at all, and `onDrop` receives the drop point inside this viewport.
+   */
+  onDragOver?(event: ReactDragEvent<HTMLDivElement>): void;
+  onDrop?(event: ReactDragEvent<HTMLDivElement>): void;
   /** Drawn above the board, in screen pixels: the selection box, its handles, the marquee. */
   overlay?: ReactNode;
 }
@@ -130,6 +137,8 @@ export function BoardViewport({
   marquee,
   tool = DEFAULT_TOOL,
   onTextToolClick,
+  onDragOver,
+  onDrop,
   overlay,
 }: BoardViewportProps): JSX.Element {
   const api = useCameraApi();
@@ -345,6 +354,8 @@ export function BoardViewport({
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
       onDoubleClick={onDoubleClick}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       data-camera-x={camera.x}
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}

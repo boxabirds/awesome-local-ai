@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { ZoomControls } from '../canvas/ZoomControls';
@@ -43,6 +43,12 @@ import {
 } from '../../shared/objects/text';
 import { unionRects } from '../../shared/geometry';
 import { useLocalIdentity } from '../useLocalIdentity';
+import { useImageInsert, type ImageInsertControls } from '../images/useImageInsert';
+import { DropHighlight, useFileDragOver } from '../images/DropHighlight';
+import { IMAGE_CLOCK_TICK_MS, ImageBoardContextProvider } from '../objects/ImageObject';
+import { ToastRegion } from '../ui/Toast';
+import { canUploadImages } from '../images/useImageInsert';
+import { IMAGE_TYPE } from '../../shared/objects/image';
 import { defaultMeasurer } from '../objects/textLayout';
 import { remeasureTextBox, remeasureTextBoxes } from '../objects/useTextBoxSync';
 
@@ -129,10 +135,22 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   const selectOnly = useCallback((id: string): void => {
     selectionRef.current.select(id);
   }, []);
+  /*
+   * Story 12: the Image tool's action, which is "open the file picker" and nothing else — the
+   * pointer never sits on it, and no click means anything differently while it is "up"
+   * (`image.pick`). It is read through a ref because the hook that owns the picker needs the
+   * identity below, and a tool that changes the picker should not have to care what order the
+   * hooks are in.
+   */
+  const insertRef = useRef<ImageInsertControls | null>(null);
+  const openImagePicker = useCallback((): void => {
+    insertRef.current?.openPicker();
+  }, []);
   const tool = useActiveTool({
     canEdit,
     onCreateSticky: createAtViewportCentre,
     onSelectOnly: selectOnly,
+    onImageTool: openImagePicker,
   });
   const setTool = tool.setTool;
 
@@ -163,6 +181,72 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     },
     [doc, canEdit, undo, identity, setTool],
   );
+
+  /*
+   * Story 12: adding images. Drop, paste and the picker differ only in where the images land,
+   * so the hook is handed the camera and the viewport as well as the document, and the board
+   * stays out of everything else — the placeholders, the uploads, the progress and the
+   * messages are its business (`image.insert`).
+   */
+  const insert = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    viewport,
+    connection,
+    identityId: identity,
+  });
+  insertRef.current = insert;
+
+  // A paste is heard at the window rather than on the board, because the board has no focus
+  // ring and no caret: the person who presses Cmd+V after clicking a note expects the note to
+  // be typed into and the board to get nothing, and `onPaste` is the one that decides (PRD:
+  // "IF text is being edited THEN THE SYSTEM SHALL NOT add an image").
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent): void => {
+      insertRef.current?.onPaste(event);
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, []);
+
+  /**
+   * The clock the image boxes are drawn with, which moves only while there is an image to
+   * draw. It exists for one reason: `image.unfinished` is a judgement about time, and a viewer
+   * who watched a spinner for five minutes has to see it change without having to reload.
+   */
+  const hasImages = objects.some((object) => object.type === IMAGE_TYPE);
+  const [imageClock, setImageClock] = useState(() => Date.now());
+  useEffect(() => {
+    if (!hasImages) return;
+    // Re-based when an image appears, so a board opened onto a stale upload says so on the
+    // first draw rather than after a tick.
+    setImageClock(Date.now());
+    const timer = setInterval(() => setImageClock(Date.now()), IMAGE_CLOCK_TICK_MS);
+    return () => clearInterval(timer);
+  }, [hasImages]);
+
+  /**
+   * What an image object needs and the document does not hold: this tab's progress, this tab's
+   * identity, this tab's clock, and the way to retry. Everything else an image draws from is in
+   * the document, which is why another person's placeholder appears on this board with no code
+   * here knowing anything about it.
+   */
+  const imageContext = useMemo(
+    () => ({
+      progress: insert.progress,
+      identityId: identity,
+      now: imageClock,
+      retry: insert.retry,
+      canRetry: insert.canRetry,
+    }),
+    [identity, imageClock, insert.canRetry, insert.progress, insert.retry],
+  );
+
+  // The dashed frame that says letting go here will add the pictures being carried. It is
+  // shown when they could be added: over a board that cannot be written to, or while the
+  // upload has nowhere to go, the honest frame is no frame (`image.offline`).
+  const draggingFiles = useFileDragOver(canEdit && canUploadImages(connection));
 
   // One canvas measurer for this board, shared with every text object on it.
   const measurer = useMemo(() => defaultMeasurer(), []);
@@ -285,6 +369,8 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           marquee={marquee}
           tool={tool.tool}
           onTextToolClick={createTextAtScreenPoint}
+          onDragOver={insert.onDragOver}
+          onDrop={insert.onDrop}
           overlay={
             <>
               {/* While somebody's text is being edited the handles are put away: a press on
@@ -299,6 +385,9 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
                 />
               ) : null}
               <MarqueeRect rect={marquee.rect} camera={camera} />
+              {/* Story 12: the drop highlight, drawn over the board rather than over the page,
+                  because the board is what accepts the drop. */}
+              {draggingFiles ? <DropHighlight /> : null}
               {/* Story 10: the Shape and Connector tools are surfaces over the viewport, so a
                   drag that starts on top of an object draws a shape or an arrow instead of
                   moving that object (TC-28). They are mounted only while they are the tool in
@@ -338,7 +427,8 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
             </>
           }
         >
-          {objects.map((object) => {
+          <ImageBoardContextProvider value={imageContext}>
+            {objects.map((object) => {
             const Component = getObjectComponent(object);
             // An object of a type this build does not know is not drawn, not selectable
             // and not resized (TC-08): a document written by a later story still opens.
@@ -362,6 +452,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
               />
             );
           })}
+          </ImageBoardContextProvider>
         </BoardViewport>
         {barAt ? (
           <div
@@ -382,6 +473,9 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           </div>
         ) : null}
         <ConnectionStatus state={connection} />
+        {/* Story 12: the only words the board says to one person rather than to everybody —
+            a refusal to add a file is not a thing that happens to the document. */}
+        <ToastRegion />
         <Toolbar
           onCreateSticky={createAtViewportCentre}
           tool={tool.tool}
@@ -390,6 +484,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           onShapeTool={() => tool.setTool('shape')}
           onConnectorTool={() => tool.setTool('connector')}
           onPenTool={() => tool.setTool('pen')}
+          onImageTool={tool.imageTool}
           shapeKind={tool.shapeKind}
           onShapeKind={tool.setShapeKind}
           disabled={!canEdit}

@@ -81,6 +81,12 @@ export interface ActiveToolOptions {
   onCreateSticky(): void;
   /** Makes this just-created object the whole selection (`toolCreated`). */
   onSelectOnly(id: string): void;
+  /**
+   * What `i` and the Image button do (`image.pick`): open the system's file picker. Story 12's
+   * Image tool is not a pointer mode — no later click puts anything down — so it has no place
+   * in `Tool`, and its letter only ever means this one action.
+   */
+  onImageTool?(): void;
 }
 
 export interface ActiveToolControls extends ToolControls {
@@ -92,6 +98,11 @@ export interface ActiveToolControls extends ToolControls {
    * the pointer goes back to Select (`tools.return_to_select`, TC-22).
    */
   toolCreated(id: string): void;
+  /**
+   * The Image button, or `i` — the same thing either way, which is what a one-letter shortcut
+   * table is for (`tools.active_tool`).
+   */
+  imageTool(): void;
 }
 
 /**
@@ -103,8 +114,9 @@ export function useActiveTool({
   canEdit,
   onCreateSticky,
   onSelectOnly,
+  onImageTool,
 }: ActiveToolOptions): ActiveToolControls {
-  const { tool, setTool, press } = useTool({ canEdit, onCreateSticky });
+  const { tool, setTool, press: pressToolShortcut } = useTool({ canEdit, onCreateSticky });
   // Not persisted: which kind of shape this tab is about to draw is as local, and as
   // short-lived, as the tool itself.
   const [shapeKind, setShapeKind] = useState<ShapeKind>(DEFAULT_SHAPE_KIND);
@@ -119,8 +131,31 @@ export function useActiveTool({
     [onSelectOnly, setTool],
   );
 
+  /**
+   * `i` is spent on the Image tool even though no pointer ever sits on it. The letter is in
+   * the shortcut table so that `v`, `n` and `i` are all translated by one map, and a letter
+   * that opened a picker in one build and did nothing in another would be a letter nobody
+   * could rely on. The tool goes back to Select on the way there, because `image.pick` asks
+   * for that: a Pen still up when the picker closed would draw a stroke across the new image.
+   */
+  const imageTool = useCallback((): void => {
+    setTool('select');
+    onImageTool?.();
+  }, [onImageTool, setTool]);
+
+  const press = useCallback(
+    (key: string): boolean => {
+      if (toolIdForShortcut(key) === 'image') {
+        imageTool();
+        return true;
+      }
+      return pressToolShortcut(key);
+    },
+    [imageTool, pressToolShortcut],
+  );
+
   return useMemo(
-    () => ({ tool, setTool, press, shapeKind, setShapeKind, toolCreated }),
-    [tool, setTool, press, shapeKind, toolCreated],
+    () => ({ tool, setTool, press, shapeKind, setShapeKind, toolCreated, imageTool }),
+    [tool, setTool, press, shapeKind, setShapeKind, toolCreated, imageTool],
   );
 }

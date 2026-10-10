@@ -845,3 +845,166 @@ their own configs.
 Unit 299 (19 files), component 243 (27 files), integration 62 (5 files), e2e 56 (Chromium only, as
 ever on this machine, 4 of them story 11's), plus the persistence suite's 4 and the nightly runs on
 their own configs.
+
+## Followed from the design exactly (story 12)
+
+- The named settings are exactly as written in `src/shared/config.ts`: `IMAGE_ACCEPTED_TYPES`,
+  `IMAGE_MAX_BYTES` (10 MB), `IMAGE_MAX_FILES_PER_ADD` (20), `IMAGE_MAX_PLACE_SIZE_WORLD` (800),
+  `IMAGE_MIN_SIZE_WORLD` (16), `IMAGE_LAYOUT_GAP_WORLD` (24), `IMAGE_UPLOAD_STALE_MS` (5 minutes),
+  `IMAGE_SNIFF_BYTES` (12) and `ASSET_CACHE_MAX_AGE_SECONDS` (a year, `immutable`).
+- `placementSize` is the model's and only the model's: 400×300 → 400×300, 1600×1200 → 800×600,
+  300×3200 → 75×800. Each side is rounded separately, which is the only way 1600×1200 comes out
+  at exactly 800×600 and a row's gap comes out at exactly one.
+- A row is laid out `layoutRow(sizes, start, anchor)` — left to right, tops aligned, gap of 24,
+  anchored top-left for a drop (the first image's own corner is where the pointer let go) and
+  centred for a paste or a picker (there is no point on the board the person was aiming at).
+- Statuses are `uploading | ready | failed`, and `displayStatus(image, now)` — not the component —
+  decides that a five-minute-old `uploading` is shown as `unfinished`. The clock that turns it
+  ticks only while the board holds an image (`IMAGE_CLOCK_TICK_MS`, 30 s: a tenth of the timeout).
+- Uploads go through `POST /api/boards/:id/assets` and pictures come back through
+  `GET /api/assets/:boardId/:assetId`, which is a *different* prefix on purpose: an asset is
+  addressed by board and id, and one route cannot serve both without guessing which half of a
+  path is which.
+- `markImageFailed`/`markImageReady`/`markImageRetrying` write with their own origin
+  (`UPLOAD_ORIGIN`, not `LOCAL_ORIGIN`), so story 7's undo manager — which tracks
+  `LOCAL_ORIGIN` alone — never has to explain "undo my upload", a thing that would be a lie: the
+  bytes are in the bucket whatever the document says.
+- `image.uploaderId` is `useLocalIdentity()`'s string, which is what story 9's text objects use
+  for `createdBy`. When story 6 hands out names, this becomes a person; today it is a random id
+  per tab, and it is the only thing that decides whose failed box says "Upload failed" and whose
+  says "Image unavailable".
+
+## Decisions and deviations (story 12)
+
+- **`sniffImageType` reads 12 bytes** (`IMAGE_SNIFF_BYTES`), which is one short of the four
+  characters `IHDR` at offset 12. So the PNG test is the one before it: bytes 8–11 are the IHDR
+  chunk's declared length, and it is always 13. That is a real check on a real field, not a
+  weaker one standing in.
+- **`useImageInsert` takes `viewport` as well as `camera`.** The design's signature has only the
+  camera, but `Camera` is `{ x, y, zoom }` and nothing else — centring a paste needs the size of
+  the window, which is not in it. Passing the viewport was cheaper than widening `Camera`, which
+  story 2's zoom-to-fit code would have to keep in step.
+- **The drop and paste handlers take structural event types** (`FileDropEventLike`,
+  `PasteEventLike`), not `DragEvent`/`ClipboardEvent`: React's synthetic events do not satisfy
+  the DOM interfaces (they lack `initMouseEvent` and friends), so the board could otherwise not
+  hand its own handlers over without a cast at every call.
+- **`canUploadImages(connection)` is stricter than `canEdit`.** Editing is allowed while
+  reconnecting, because the document takes the change and catches up. An upload is not: the
+  PRD's "WHILE the board is not connected THE SYSTEM SHALL NOT start image uploads" is about a
+  server that is not there, and reconnecting means exactly that. So a drop while offline places
+  nothing and uploads nothing, and says so once (TC-19).
+- **The toast's 5 s timeout lives in `Toast.tsx`, not in config.** The PRD says "short toast" and
+  gives no number; this is the first thing in the app to need one. Five seconds is how long the
+  longest of the four rejection sentences takes to read once.
+- **`markImageReady` refuses an unservable key.** It stores `boardId/assetId` only if
+  `isAssetKey` accepts both halves, so a client that was told a path (`../`) cannot leave a box
+  on the board that every viewer would load forever and never see.
+- **Progress is per viewer and never in the document.** `progress` is a `Map` in the hook, and
+  `ImageBoardContext` hands it to the component. Four image-only values going through the
+  generic `ObjectProps` would have put story 12 back inside story 7's object layer, and a
+  document-wide progress number is a lie the moment two people watch the same upload.
+- **The picker's input is created for the one click and removed after it.** A hidden `<input
+  type=file>` in the tree would sit in the tab order of every board forever; the `I` shortcut and
+  the toolbar button make it when they are asked, and the `cancel`/`change` listeners take it
+  away again.
+- **`i` is intercepted in `useActiveTool`, not added to `useTool`.** `useTool.press` returns
+  nothing for a tool that is not a pointer mode, and the image "tool" is not a mode at all: it
+  opens a dialog and leaves the pointer where it was (`image.pick`), so the shortcut sets
+  `select` and opens the picker in the same step.
+- **The upload is an `XMLHttpRequest`, not `fetch`.** Progress events on the way up are the story,
+  and `fetch` has no upload progress without streams. `uploadImage` returns a handle with
+  `abort()`, and `useImageInsert` aborts what it started when the board unmounts.
+- **`ImageObject` is registered in `registry.tsx` with the other types.** The type's resizing,
+  minimum and hit test are one place to look for every type; `ImageObject.tsx` carries a comment
+  pointing there rather than a second registration.
+
+## Bugs the story's own tests found (story 12)
+
+- **A picture was placed at its own size, ignoring the 800-unit placement limit.** The insert
+  measured `placementSize` for the row and then laid out the *natural* sizes it had kept in
+  `decoded`, so a 1440×900 screenshot arrived 1440 wide. TC-26 caught it in the browser;
+  `useImageInsert.test.tsx` now has a component test that drops a 1440×900 file and expects
+  800×500 with `naturalWidth` 1440, so the two sizes cannot be mixed up again quietly.
+- **A picture could not be selected.** `ImageObject` stopped the pointer on its boxes (right, for
+  the buttons inside them) and never handed the press to the gesture. Every other type calls
+  `props.onObjectPointerDown(event, id)`; an image is now one of them, and carries
+  `data-selected="true|false"` like them too, which is how both the component and the e2e
+  selection helpers read a selection back. TC-27 could not get past clicking its own picture.
+- **An aspect-locked resize did not stop at its minimum.** Story 7's gesture clamps the two axes
+  separately and then, for a locked type, takes `min(scale.x, scale.y)` — which throws away the
+  floor that clamp just worked out for the other axis. A 4:3 picture with a 16-unit minimum
+  therefore stopped at 12. The fix re-takes the floor from the shortest side of the box, capped at
+  1 so a box that is already too small is not enlarged by being dragged smaller. The new case in
+  `TransformGesture.test.tsx` fails with `expected 12 to be 16` without it. Sticky notes are
+  square so they never showed this; strokes could have, and now cannot.
+- **Two things the failed box got wrong, both found by TC-21/TC-24 before they reached the
+  browser:** `uploadingLabel` treated its fraction (0–1) as a percentage, so a half-finished
+  upload read "0%"; and a failed box whose file this tab had forgotten (after a reload) rendered
+  no buttons at all, where the PRD's `image.upload_failure` offers Retry *and* Remove — Remove is
+  now always offered to the uploader, because getting rid of a box around nothing is the one
+  thing they can always do.
+
+## The e2e side of story 12 (task 9)
+
+- `tests/e2e/helpers/images.ts` builds the drop the only way a browser allows: a `DataTransfer`
+  carrying `File`s made from the fixture bytes, `dragenter` on the window (which is what the
+  highlight counts) and `dragover`/`drop` on the viewport. `carryImages` does the first two with
+  no drop, so TC-25 can assert the outline is up while the files are still over the board
+  (`image.drop`), and then let go.
+- `slowUploads` holds `POST /api/boards/*/assets` open with `route.fulfill` behind a timeout, and
+  `failUploads` answers it with `route.abort('failed')` and hands back the function that takes
+  the interceptor away — so TC-28's Retry runs against a server that is, again, on purpose.
+- The helpers `waitForUploadable` first: pressing `I` (or dropping) before the connection is up is
+  refused with a toast, and a test that pressed the key first would sit waiting for a dialog the
+  app correctly decided not to open. TC-26 was flaky for exactly this reason on a loaded machine.
+- `expectNoErrors` takes an `ignoring` list. A browser logs a request it was not allowed to
+  finish, and the test that refused it has no interest in reading about it again; TC-28 ignores
+  `Failed to load resource` and nothing else.
+- TC-27 drops its picture high and left. A 640-wide picture dropped in the middle puts its
+  south-east handle under the zoom controls, and Playwright's `boundingBox` is geometry only —
+  there is no actionability check to fail, the press simply lands on the control.
+- The picker is opened through Playwright's `filechooser` event, and TC-26 reads the `accept`
+  attribute off the input before choosing, so `image.types` is asserted on the real dialog:
+  `image/gif, image/jpeg, image/png, image/webp`.
+- Reading the document back goes through `window.__vidi6.boardDoc()`. `uploaderId` is included in
+  what the helpers return, because "whose box has the buttons" is a document fact and TC-28 wants
+  to say it.
+
+## A module cycle the story's suites stepped on (shared code, story 12)
+
+- `npm run test:e2e:persist` could not collect a single test before this story changed anything:
+  loading `tests/e2e/broken-board.spec.ts` requires `Toolbar`, which requires
+  `src/shared/objects/shape`, which requires `src/shared/board-model` — and `board-model` is one
+  of the modules that `objects/shape` is *in the middle of* being required by (a type reads its
+  helpers from `board-model`, and `board-model` needs the type names, so the two import each
+  other, in a cycle that also runs through `connector` and `stroke`). `board-model`'s
+  `READABLE_TYPES` was built at module-eval time out of `SHAPE_TYPE`, and a module-evaluated
+  `new Set` can run while the type module that owns that name has not assigned it yet:
+  `ReferenceError: Cannot access 'SHAPE_TYPE' before initialization`. Verified on a clean worktree at HEAD,
+  so it came in with story 11's shape type, not with this story's image type; it shows up only
+  under Playwright's loader, because bundlers and vitest enter `board-model` first.
+- The fix is to build the set the first time it is asked for (`readable()`), which changes
+  nothing about what `isObjectTypeKnown` and `markObjectTypeKnown` answer — the same single set,
+  just one tick later. The persistence suite's 4 tests run again.
+- Nothing about the cycle itself was touched: untangling `board-model` from the type modules is a
+  story of its own, and this one has no business rewriting three other stories' import graphs.
+
+## Blocked on this machine (story 12)
+
+- TC-25 to TC-28 are specified for Chromium, Firefox and WebKit. Neither Firefox nor WebKit can
+  be launched here — `browserType.launch` aborts at process start (`Abort trap: 6`) — and the
+  probe in `tests/e2e/helpers/browsers.ts` still caches `chromium` only, so the suite's 60 e2e
+  tests, 4 of them this story's, ran in Chromium once. Nothing in the new tests is
+  Chromium-specific except that `DataTransfer`+`DragEvent` construction is the standard way to do
+  it and only Chromium was available to check it in.
+- Worker files are still outside the typecheck gates: `tsconfig.json` and `tsconfig.worker.json`
+  both exclude `src/worker/**`, and this story did not change that. `src/worker/assets.ts` was
+  therefore checked with a throwaway config (deleted, uncommitted) that inherits the real
+  compiler options: it is clean. The four errors that config reports — three missing `override`
+  modifiers in `board-room.ts` and one unused variable in `board-store.ts` — predate this story.
+
+## Current test totals for story 12
+
+Unit 334 (22 files), component 256 (29 files), integration 77 (6 files), e2e 60 (Chromium only,
+as ever on this machine, 4 of them story 12's), plus the persistence suite's 4 and the nightly
+runs on their own configs.

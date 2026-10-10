@@ -2,6 +2,7 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STROKE_HIT_TOLERANCE_PX,
@@ -15,6 +16,7 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { setTextWidthFixed, TEXT_TYPE } from '../../shared/objects/text';
+import { IMAGE_TYPE } from '../../shared/objects/image';
 import { SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
 import { SHAPE_TYPE } from '../../shared/objects/shape';
 import { isConnectorSnapshot, CONNECTOR_TYPE } from '../../shared/objects/connector';
@@ -23,6 +25,7 @@ import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { rectContains, type Point, type Rect } from '../../shared/geometry';
 import type { EndEditNext } from '../board/useSelection';
 import { ConnectorObject } from './ConnectorObject';
+import { BoardImageObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StrokeObject } from './StrokeObject';
 import { StickyNote } from './StickyNote';
@@ -243,6 +246,26 @@ registerObjectType(STROKE_TYPE, {
   minSize: STROKE_MIN_SIZE_WORLD,
   editableText: false,
   hitTest: nearStroke,
+});
+
+/**
+ * An image is resized, and always proportionally: stretching a photograph is not what dragging
+ * a corner means (`image.aspect_resize`, PRD: "keep its width-to-height ratio"). The floor is
+ * the shortest side a person can still aim a handle at — below it the picture is a smudge and
+ * its detail, which is the only reason to have it, is worth nothing.
+ *
+ * A picture is a rectangle, and a click anywhere on it means the picture, transparent part
+ * included: a board cannot tell what the person meant to click inside a photograph, and
+ * guessing would let an image under another object steal the press.
+ */
+registerObjectType(IMAGE_TYPE, {
+  Component: BoardImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  // An image has no text of its own to edit; naming one is a story this one does not tell.
+  editableText: false,
+  hitTest: boundsContain,
 });
 
 registerObjectType(TEXT_TYPE, {

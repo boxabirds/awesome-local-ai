@@ -1011,3 +1011,173 @@ button:focus-visible,
 .vidi6-pen-cursor {
   pointer-events: none;
 }
+
+/* ------------------------------------------------------------------ story 12: images */
+
+/* The Image button's glyph: a frame, a sun and a hill, which is what a picture of a place
+   looks like when it is drawn in nine pixels. */
+.vidi6-tool-image {
+  position: relative;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+}
+
+.vidi6-tool-image::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.vidi6-tool-image::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 5px solid currentColor;
+}
+
+/* A picture is drawn at exactly the box the document holds, so the placeholder that was the
+   image's size before the bytes arrived is still its size afterwards: nothing moves. */
+.vidi6-image {
+  object-fit: fill;
+  border-radius: 4px;
+  background: #e8eaef;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Every state that is not a picture is a grey box the size and place of the picture it is
+   waiting to be (`image.object`): an absent image keeps its shape, or the board rearranges
+   itself around somebody else's upload and looks like something was deleted. */
+.vidi6-image-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #c7ccd6;
+  border-radius: 8px;
+  background: #e8eaef;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* A failed upload is red, and only to the person who can retry it. */
+.vidi6-image-box--failed {
+  border: 1.5px solid #dc2626;
+  background: #fdf1f1;
+  color: #b42318;
+}
+
+.vidi6-image-box--unavailable {
+  border-style: dashed;
+  color: #6b7280;
+}
+
+/* The uploader's percentage, as a bar along the bottom of the box: the number is the label,
+   the bar is for the person watching it out of the corner of their eye. */
+.vidi6-image-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: #d7dbe2;
+  overflow: hidden;
+}
+
+.vidi6-image-progress-bar {
+  display: block;
+  height: 100%;
+  background: #2563eb;
+}
+
+.vidi6-image-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.vidi6-image-button {
+  padding: 2px 10px;
+  border: 1px solid #c7ccd6;
+  border-radius: 999px;
+  background: #fff;
+  color: #1f2430;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vidi6-image-button:hover {
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+/* The drop highlight: the whole board outlined, because the question it answers is whether
+   letting go here does anything, and here is the board. `pointer-events: none` or the frame
+   would swallow the drop it is drawn for. */
+.vidi6-drop-highlight {
+  position: absolute;
+  inset: 12px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 24px;
+  border: 3px dashed #2563eb;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.06);
+  pointer-events: none;
+}
+
+.vidi6-drop-highlight-label {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The toast region: bottom centre, out of the way of the toolbar, the zoom controls and the
+   board's own origin. `pointer-events: none` on the region so a message cannot be clicked,
+   which also means a message cannot eat a click meant for an object under it. */
+.vidi6-toast-region {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.vidi6-toast {
+  max-width: min(560px, calc(100vw - 48px));
+  padding: 8px 14px;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  background: #1f2430;
+  color: #f7f8fa;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.24);
+}

@@ -463,9 +463,16 @@ export const RECOVERY_TIMEOUT_MS = E2E_EVENTUAL_TIMEOUT_MS + RECONNECT_MAX_BACKO
  */
 export const OUTAGE_DETECTION_TIMEOUT_MS = CATCH_UP_TEST_OUTAGE_MS + E2E_EVENTUAL_TIMEOUT_MS;
 
-/** Nobody is complaining about the connection. */
-export function expectNoErrors(people: Participant[]): void {
+/**
+ * Nobody is complaining about the connection — except, perhaps, about the thing this test broke
+ * on purpose. `ignoring` names those: a browser logs a request it was not allowed to complete,
+ * and a test that refused the request has no interest in reading about it again.
+ */
+export function expectNoErrors(people: Participant[], ignoring: readonly RegExp[] = []): void {
   for (const person of people) {
-    expect(person.errors, `${person.name}'s console`).toEqual([]);
+    const complained = person.errors.filter(
+      (message) => !ignoring.some((pattern) => pattern.test(message)),
+    );
+    expect(complained, `${person.name}'s console`).toEqual([]);
   }
 }

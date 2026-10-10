@@ -18,8 +18,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | 5/6 | 0 | 1 | 56/57 |
 | 10 | 8/8 | 1 | 0 | 63/65 |
 | 11 | 5/5 | 0 | 0 | 68/70 |
+| 12 | 5/5 | 0 | 0 | 73/75 |
 
-**New work** 64/66, **regressions** 2, **repairs** 2, **cumulative** 68/70.
+**New work** 69/71, **regressions** 2, **repairs** 2, **cumulative** 73/75.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -33,8 +34,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | Write free text anywhere on the board | DONE | 148.5 | None | None | None | — | — | green | 56/57 |  | 0 / 1 | 4 | — | throttled 92%, server peak 79 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 140.5 | None | None | None | — | — | green | 63/65 |  | 0 / 0 | 4 | — | throttled 92%, server peak 79 GB |
 | 11 | Sketch freehand with a pen | DONE | 97.3 | None | None | None | — | — | green | 68/70 |  | 0 / 0 | 3 | — | throttled 93%, server peak 79 GB |
+| 12 | Drop images onto the board | DONE | 222.0 | None | None | None | — | — | green | 73/75 |  | 0 / 0 | 6 | — | throttled 87%, server peak 79 GB |
 
-**Totals:** 10 stories, 1509 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 10/10, final acceptance 68/70, stalled 0, partial 0, 35646 lines in src+tests.
+**Totals:** 11 stories, 1731 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 11/11, final acceptance 73/75, stalled 0, partial 0, 82986 lines in src+tests.
 
 ## How it happened
 
@@ -52,6 +54,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 9 by the agent | 4429 / 482 | `text.ts` (371), `textLayout.ts` (231), `TextEditor.tsx` (230), `TextObject.tsx` (215), `StickyTextEditor.tsx` (209), `text-edit.ts` (207), +18 more |
 | 10 | 6 by the agent | 5913 / 121 | `connector.ts` (443), `ConnectorObject.tsx` (377), `shape.ts` (311), `ShapeObject.tsx` (310), `ConnectorTool.tsx` (233), `ShapeTool.tsx` (186), +17 more |
 | 11 | 1 by the agent | 3509 / 19 | `PenTool.tsx` (308), `stroke.ts` (263), `StrokeObject.tsx` (138), `simplify.ts` (131), `PenToolbar.tsx` (123), `styles.css` (117), +11 more |
+| 12 | 1 by the agent | 5228 / 26 | `useImageInsert.ts` (440), `ImageObject.tsx` (408), `image.ts` (350), `styles.css` (170), `NOTES.md` (163), `assets.ts` (140), +18 more |
 
 ### Earlier stories broken or fixed
 

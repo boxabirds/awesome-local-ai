@@ -266,16 +266,28 @@ function readSize(item: YObject): { width: number; height: number } {
  * in it from the start; `registerObjectType` adds a type when a renderer registers for
  * it, and an object of any other type is reported as not `known` — skipped by select-all
  * and by the marquee, because there is nothing to select it with (TC-08).
+ *
+ * Built when it is first asked for, not when this module is evaluated. `board-model` and the
+ * object-type modules import one another — a type reads its helpers from here, and this file
+ * needs the type names — so a `new Set` at module level can run while a type module is still
+ * part-evaluated and its own name has not been assigned yet (`Cannot access 'SHAPE_TYPE' before
+ * initialization`). Playwright's loader walks that path when it collects the persistence specs,
+ * which reach `Toolbar`, and so `objects/shape`, before anything reaches this file.
  */
-const READABLE_TYPES = new Set<string>([STICKY_TYPE, SHAPE_TYPE, CONNECTOR_TYPE]);
+let readableTypes: Set<string> | null = null;
+
+function readable(): Set<string> {
+  readableTypes ??= new Set<string>([STICKY_TYPE, SHAPE_TYPE, CONNECTOR_TYPE]);
+  return readableTypes;
+}
 
 export function isObjectTypeKnown(type: string): boolean {
-  return READABLE_TYPES.has(type);
+  return readable().has(type);
 }
 
 /** Declares that this build understands `type`; called by the object registry. */
 export function markObjectTypeKnown(type: string): void {
-  if (typeof type === 'string' && type.length > 0) READABLE_TYPES.add(type);
+  if (typeof type === 'string' && type.length > 0) readable().add(type);
 }
 
 /**

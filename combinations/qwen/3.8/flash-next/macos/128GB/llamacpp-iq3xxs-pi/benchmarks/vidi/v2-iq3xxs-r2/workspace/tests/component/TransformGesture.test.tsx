@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DRAG_THRESHOLD_PX, STICKY_MIN_SIZE_WORLD } from '../../src/shared/config';
+import { DRAG_THRESHOLD_PX, IMAGE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD } from '../../src/shared/config';
 import { CLOSE_BOARD_LOAD_FAILED } from '../../src/shared/protocol';
 import { LOAD_FAILED_LABEL } from '../../src/client/sync/ConnectionStatus';
 import {
@@ -12,6 +12,7 @@ import {
   renderBoard,
   waitForNotes,
 } from './fixtures/board';
+import { seedImage } from './fixtures/images';
 import { socketsCloseWith, socketsLive } from './fixtures/socket';
 import {
   BOX_SEED,
@@ -335,6 +336,29 @@ describe('the gesture’s beginning and end (TC-26)', () => {
 
     expect(objectRect(a)).toEqual({ ...BOX_SEED[0], y: BOX_SEED[0].y + 50 });
     expect(document.querySelector(`[data-note-id="${b}"]`)).toBeNull();
+  });
+});
+
+describe('resizing something that keeps its shape', () => {
+  it('stops an aspect-locked object at its minimum, on the side that runs out first', async () => {
+    // A 4:3 picture. Pull its corner in as far as the board will allow and the short side is
+    // the one that runs out of room first: the minimum is a promise about the box, not about
+    // the axis a handle happened to be dragged along, so the one scale both axes are forced to
+    // has to be the one that keeps the *short* side at 16.
+    const id = seedImage({
+      status: 'ready',
+      size: { width: 640, height: 480 },
+      at: { x: -320, y: -240 },
+    });
+    await flushFrames();
+    await clickObject(id);
+    await waitForSelected([id]);
+
+    await dragHandle('se', { x: -3_000, y: -3_000 }, { steps: 6 });
+
+    const box = objectRect(id);
+    expect(Math.min(box.width, box.height)).toBe(IMAGE_MIN_SIZE_WORLD);
+    expect(box.width / box.height).toBeCloseTo(640 / 480, 4);
   });
 });
 
