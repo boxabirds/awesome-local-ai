@@ -1,3 +1,44 @@
+commit a6246bd3fc02fab026ec319b381817c92377711a
+agent  Sat Oct 10 15:48:11 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                |  42 ++++
+ PROGRESS.md                             |  24 +-
+ src/client/board/Marquee.tsx            |  98 ++++++++
+ src/client/board/SelectionBar.tsx       |  41 ++++
+ src/client/board/SelectionOverlay.tsx   |  98 ++++++++
+ src/client/board/useBoardDoc.ts         |  43 +++-
+ src/client/board/useBoardKeys.ts        |  86 +++++++
+ src/client/board/useSelection.ts        | 183 ++++++++++-----
+ src/client/board/useStickyNoteKeys.ts   |  42 ----
+ src/client/board/useTransformGesture.ts | 266 ++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  50 ++++-
+ src/client/index.css                    |  79 +++++++
+ src/client/objects/StickyNote.tsx       | 189 ++++------------
+ src/client/objects/registry.tsx         |  61 +++++
+ src/client/pages/BoardPage.tsx          | 148 ++++++++-----
+ src/shared/board-model.ts               | 287 +++++++++++++++++++++---
+ src/shared/config.ts                    |   7 +
+ src/shared/geometry.ts                  | 145 ++++++++++++
+ tests/component/Selection.test.tsx      | 382 ++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/board.ts              |   6 +-
+ tests/e2e/selection.spec.ts             | 323 +++++++++++++++++++++++++++
+ tests/fixtures/testbox.tsx              |  69 ++++++
+ tests/unit/board-model-group.test.ts    | 215 ++++++++++++++++++
+ tests/unit/geometry.test.ts             | 149 +++++++++++++
+ tests/unit/registry.test.ts             |  57 +++++
+ tests/unit/selection.test.ts            | 100 +++++++++
+ 26 files changed, 2833 insertions(+), 357 deletions(-)
+commit b1bd23eae9ef1ca40c32e71df421f5cdbc7e58df
+vidi-agent  Sat Oct 10 14:25:17 2026 +0000
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 312f291b58d4e31cb62a90722af334cc64517c53
 agent  Sat Oct 10 14:21:51 2026 +0000
 
