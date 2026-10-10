@@ -34,7 +34,7 @@ export function SeriesRows({ series, pack }: { series: Series[]; pack: string })
       <ul className="series-list">
         <li className="series-head small" role="row" aria-label="Series columns">
           <span className="series-head-name">Series</span><span />
-          <SortHead id="score" label={GLOSSARY.scoreOfRecord.name} tip="Sort by the median score of record" sort={sort} onSort={onSort} />
+          <SortHead id="score" label={GLOSSARY.scoreOfRecord.name} tip="Sort by the median score" sort={sort} onSort={onSort} />
           <SortHead id="agentTime" label={GLOSSARY.agentTime.name} tip="Sort by the median agent time of the finished runs" sort={sort} onSort={onSort} />
           <span />
         </li>
