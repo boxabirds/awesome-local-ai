@@ -62,8 +62,24 @@ because data lives in a working tree.
    input directory by dbench from the lake. A node knows only its own runs.
 6. **The refactor follows delete-first**, with MECE test coverage proved before any code is removed (the method is
    in "Refactoring method" below). It is the owner's method and the repository's standing rule.
-7. **The public repository's history is a separate decision** (open point 2). Removing the data from the tree does
-   not remove it from the clone.
+7. **The public repository's history is rewritten** (owner, 10 Oct 2026) to remove the run data, since removing it
+   from the tree alone leaves it in every clone. One force-push, by the owner, after no machine depends on the old
+   checkout; every clone is re-cloned.
+8. **The data root is `ops/data` under a per-machine home** (owner, 10 Oct 2026): `~/awesome-local-ai/ops/data`.
+   On the Mac that is outside the checkout (`~/expts/awesome-local-ai`). On a bench node `~/awesome-local-ai` is the
+   checkout itself today (`tools/dbench/README.md:38`), so the node's checkout moves or goes first (B, "the node
+   needs no checkout"); the harness refuses a data root that is inside a git checkout, so the two can never fuse
+   again by accident. Open point 1 asks the owner to confirm the node arrangement.
+9. **The benchmarker splits into `benchmarker-engine` and `benchmarker-web`** (owner, 10 Oct 2026). The engine is
+   the backend that does the data processing and owns every API; the web service is presentation only. Judges talk
+   to the engine. Section G.
+10. **Judge packages go out and results come back through the engine's API** (owner, 10 Oct 2026), not through a
+    repository and not through a node.
+11. **Reference-model runs (Opus, Sonnet) live in the data root under `reference/`** (owner, 10 Oct 2026). Their
+    records are collected there; the standing exclusion of their conversations from the warehouse and analytics is
+    kept (it was a decision about analysis, 3 Oct 2026, not about storage).
+12. **Nothing is published by default.** An export is a gated artifact in `exports/`; putting one somewhere public is
+    a separate act each time, by the owner.
 
 ## Architecture
 
@@ -73,26 +89,30 @@ SYSTEMS (repositories; pinned, read-only on a machine)
                      pack public parts (bench.json, scope), docs, tests          -> release dir (no .git) on nodes
   private repo       packs/<name>/acceptance, GRADING.md, scope, JUDGING.md     -> checkout at the pack tag on nodes
 
-OPERATIONAL DATA (one data root per machine; never a repository)
-  node   $BENCH_DATA/runs/<run id>/                 the run directory the harness writes
-         $BENCH_DATA/jobs/<job>/inputs/            what dbench delivers for this job (reference run, baselines)
-  host   $BENCH_DATA/lake/<node>/<run id>/         byte-exact copies + collection.json
-         $BENCH_DATA/warehouse/conversations.db
-         $BENCH_DATA/analytics/analytics.db
-         $BENCH_DATA/recordings/ judging/ annotate/ keys/ recording-secret/   (today: private state/)
-         $BENCH_DATA/gradings/<package>/{package, results/<judge>/}           (today: private gradings/)
-         $BENCH_DATA/exports/<date>/               publication staging, written only by the export step
+OPERATIONAL DATA (the data root: ~/awesome-local-ai/ops/data on every machine; never inside a repository)
+  node   runs/<run id>/                     the run directory the harness writes
+         jobs/<job>/inputs/                 what dbench delivers for this job (reference run, baselines)
+  host   lake/<node>/<run id>/              byte-exact copies + collection.json
+         reference/<pack>/<stack>/<run>/    reference-model runs (Opus, Sonnet): records, compact logs, bundles
+         warehouse/conversations.db
+         analytics/analytics.db
+         recordings/ judging/ annotate/ keys/ recording-secret/     (today: the private repo's state/)
+         gradings/<package>/{package/, results/<judge>/}           (today: the private repo's gradings/)
+         exports/<date>/                    publication staging, written only by the export step
 
 FLOW
-  harness ──writes──> $BENCH_DATA/runs/<id>  ──dbench node API──> collector ──> lake ──> ingest ──> warehouse ──> analytics
-                                                                                   │
-                                                              benchmarker, gallery, monitor read the lake (and dbench status)
-                                                                                   │
-                                                              export (gated: leak check, redaction, summaries) ──> exports/
+  harness ──writes──> runs/<id> ──dbench node API──> benchmarker-engine: collect ──> lake ──> ingest ──> warehouse ──> analytics
+                                                            │ owns every API: state, conversations, files, gradings, export
+                                                            ├──> benchmarker-web (presentation only)
+                                                            ├──> gallery (reads the data root on the same host)
+                                                            ├──> monitor
+                                                            ├──> judges (package download, result upload; per-judge token)
+                                                            └──> export (gated: leak check, redaction, summaries) ──> exports/
 ```
 
 What stays in git: code, definitions, specs, the suite. What leaves git: every file under a run directory, the private
-`runs/` and `gradings/`, and the git-ignored `state/`.
+`runs/` and `gradings/`, and the git-ignored `state/`. Below, `$BENCH_DATA` stands for the data root,
+`~/awesome-local-ai/ops/data` (decision 8).
 
 ## A. Identity: one grammar, four languages
 
@@ -168,12 +188,11 @@ marker in the lake (the benchmarker already recognises one, `domain.ts:230`), wr
 `dbench archive <run id>`. The digest keyed by git blob ids (`inputs.rs:358-406`) is keyed by the lake file's length
 and mtime, which `collection.json` already records.
 
-**Benchmarker.** `sources.ts` loses every `git` call: `loadRuns` lists the lake (`<lake>/*/<run id>/run.json`) and
-reads the same files from it; `bench.json` `pack_ref` comes from the release's copy on the host (the benchmarker runs
-beside the collector, which has the release); `loadFlowCounts` reads test counts from the private pack checkout at
-the tag, or from a `flow-counts.json` the harness writes into each run (preferred: then the private repo is not
-needed by the host at all). `src.web` and the GitHub links (`LinksCell.tsx:10`) go: the data is not on GitHub.
-`main.ts --repo` becomes `--data-root`.
+**Benchmarker.** Replaced by the engine and web split in section G. What `sources.ts` does with git goes entirely;
+the engine lists the lake (`lake/*/<run id>/run.json` and `reference/**/run.json`) and reads the same files from it.
+`bench.json` `pack_ref` comes from the release's copy on the host; the per-story test counts (`loadFlowCounts`) come
+from a `flow-counts.json` the harness writes into each run, so the host needs no private checkout. The GitHub links
+(`LinksCell.tsx:10`) go: the data is not on GitHub.
 
 **Gallery.** `runs::discover`, `load`, `run_or_private`, `scope_size`, `judges`, `private_repo`, `private_version` read
 the lake and `$BENCH_DATA/gradings`; `sync.rs` (added 10 Oct 2026) is deleted with its tests. Recordings, judging,
@@ -194,11 +213,14 @@ run dir, else the lake; `copy_private`, `private_copy`, `repo_of`, `record_priva
 (`publicise.fingerprints`, which reads held-out titles from the private pack's git tags) remain, used by the export
 gate.
 
-Judges: `grading_package.py` writes the package into `$BENCH_DATA/gradings/<package>/`; `judge-setup.sh` fetches it
-from the host over the dbench API (a new read-only endpoint under `/v1/gradings`, allow-listed by package name) or
-from a path the owner gives; `judge-submit.sh` writes results to `$BENCH_DATA/gradings/<package>/results/<judge>/`
-on the host (locally, or over ssh with `rsync`; open point 4). `judge_collect.py` reads that directory. No git worktree,
-no push.
+Judges go through the engine (decision 10, section G): `grading_package.py` writes the package into
+`gradings/<package>/package/` in the data root; a judge downloads it from `GET /v1/gradings/<package>/package` and
+uploads results to `PUT /v1/gradings/<package>/results/<judge>/<file>`, each with a per-judge bearer token that is
+valid for named packages only. The engine writes uploads under `gradings/<package>/results/<judge>/`, never
+overwrites (a second upload of the same name is versioned beside the first), and accepts only the file names a
+result consists of (`build-A.jsonl`, `build-B.jsonl`, the transcript). `judge-setup.sh` and `judge-submit.sh`
+become thin clients of those two calls; `judge_collect.py` reads the directory. No git worktree, no push, no write
+access to any node.
 
 ## E. The two repositories after the change
 
@@ -221,6 +243,41 @@ held-out titles refused, home paths rewritten, size limits), and writes `$BENCH_
 Where an export goes afterwards (a separate public dataset repository, a static site, nothing) is the owner's choice
 each time; the design gives it no default target. `benchmarks/docs/insights` and the guide, which cite figures, are
 documents and stay in the public repository; they quote numbers, not records.
+
+## G. benchmarker-engine and benchmarker-web
+
+Today one Node process (`tools/benchmarker/server`, 3,490 lines of TypeScript) reads git, polls dbench, computes the
+rows and faults (`domain.ts` 937 lines, `faults.ts` 203), proxies the conversation API, controls nodes
+(`ops.ts`: add and remove machines over ssh, submit, cancel and restart jobs through the dbench CLI) and serves the
+page. The collector (`dbench collect --api`) is a second backend beside it. The split (decision 9):
+
+**`benchmarker-engine`** (Rust, `tools/benchmarker-engine`, using dbench's library). One process on the host that
+owns the data root and every API:
+
+- **collect, ingest, analyse:** what `dbench collect` does today, moved in whole;
+- **state:** the rows, machines and faults that `domain.ts` and `faults.ts` compute, ported to Rust with the
+  existing vitest suites (`domain.test.ts`, `faults.test.ts`, `sources.test.ts`) as goldens, as the ingest's parsers
+  were ported from Python; served as `GET /v1/state` and `GET /v1/faults`;
+- **conversations:** the existing `/v1/conversations/...` API, unchanged;
+- **files:** `GET /v1/runs`, `GET /v1/runs/<id>/files`, `GET /v1/runs/<id>/file?path=` over the lake and
+  `reference/`, allow-listed as the node API is, so the gallery and the monitor can run on another machine if ever
+  needed (on the same host they may read the data root directly);
+- **control:** the node actions `ops.ts` performs, as `POST /v1/machines`, `POST /v1/jobs`, `POST /v1/jobs/<id>/cancel`,
+  `POST /v1/jobs/<id>/restart`;
+- **gradings:** section D;
+- **export:** `POST /v1/exports` runs the gated export (F) and `GET /v1/exports` lists them.
+
+Authentication: the engine binds to the tailnet address; every call carries a bearer token; the owner's token has every
+right, a judge's token has `gradings` on named packages only, and the web service has read rights only. Deny by
+default; nothing is served that is not allow-listed.
+
+**`benchmarker-web`** (`tools/benchmarker-web`, the present React page): a static bundle and a thin server that
+holds the engine's address and token and forwards `/api/*` to it. No git, no dbench, no ssh, no data processing.
+`shared/` (views, glossary, stats, 11,871 lines) stays with the web: it shapes the presentation of state the engine
+sends. The engine's `GET /v1/state` has the exact shape of today's `/api/state`, so the page changes only its
+address.
+
+The gallery stays a separate service that reads the data root directly on the host; it is not merged into the engine.
 
 ## Refactoring method
 
@@ -269,14 +326,19 @@ C and E (`docs/dataflow.md` and the sweep behind this design list them by file a
    yet).
 3. **Collector allow-list extended** (B) and the MECE file-name test; let it run until every run in the lake is
    complete under the new list. From here the lake holds everything git holds.
-4. **Readers on the lake**, each on a private port beside the git-based one: `LakeSource` ingest into a copy of the
-   warehouse; benchmarker; gallery; monitor. Compare (Verification). Swap each over once equal; delete its git path.
-5. **Nodes**, one at a time between runs: release with the record path deleted and `data_root` config; move the
-   node's run directories from the checkout to `$BENCH_DATA/runs/` (a move, not a copy; the lake already has them);
-   watch the first story of the next run to its record in the lake.
-6. **Repositories.** Remove the run directories from the public tree in one commit; move `runs/`, `gradings/`,
-   `archive/` out of the private repository; then the history decision (open point 2).
-7. **Export step** (F), last, since nothing depends on it.
+4. **The engine**, on a private port beside the present benchmarker and collector: `LakeSource` ingest into a copy
+   of the warehouse; state and faults ported; files, control and conversations served. Compare (Verification). Then
+   `benchmarker-web` pointed at it, the old server and `dbench collect` retired. The gallery and the monitor move to
+   the data root the same way, each compared before its git path is deleted.
+5. **Nodes**, one at a time between runs: release that carries the definitions and has the record path deleted; the
+   node's checkout moved aside (or removed; installs that need a checkout use one at another path); the node's run
+   directories moved from the old checkout into `~/awesome-local-ai/ops/data/runs/` (a move, not a copy; the lake
+   already has them); dbench restarted with the data root; the first story of the next run watched to its record in
+   the lake.
+6. **Repositories.** Move the reference-model records to `reference/` in the data root; remove every run directory
+   from the public tree in one commit; move `runs/`, `gradings/`, `archive/` and `state/` out of the private
+   repository; then rewrite the public history (decision 7) and re-clone everywhere.
+7. **Gradings API and the judge clients** (D), then the **export step** (F), since nothing else depends on them.
 8. **Guide and docs.** `benchmarks/docs/guide` (entities: data root, lake as record; flows 1 and 2 change; the
    publication flow is new), `docs/dataflow.md`, `ops/RUNBOOK-lake-warehouse.md`, `ops/backup/RESTORE.md`,
    `tools/*/README.md`, `CLAUDE.md` ("Never reset a bench checkout" and "Harness auto-pushes main" become history).
@@ -286,9 +348,10 @@ C and E (`docs/dataflow.md` and the sweep behind this design list them by file a
 - **Lake completeness:** for every run in the public repository at step 3, every tracked file under the run directory
   has a byte-identical copy in the lake (`git ls-files` against the store, hash by hash). Zero differences before any
   reader switches.
-- **Readers:** old and new benchmarker `/api/state` equal for every run (ignoring `web` links); old and new warehouse
-  equal in row counts per table per story and in `stories.rel`; old and new gallery build lists equal; the monitor's
-  faults feed equal.
+- **Readers:** the engine's `GET /v1/state` equal to the old `/api/state` for every run (ignoring `web` links) and
+  its `/v1/faults` equal to the old feed; old and new warehouse equal in row counts per table per story and in
+  `stories.rel`; old and new gallery build lists equal; the web page rendered from the engine equal to the page
+  rendered from the old server (the existing Playwright suite, run against both).
 - **Identity:** the four `RunId` implementations agree on the golden set, which includes every run id present today
   and the OpenCode rename cases.
 - **Node:** after step 5 a run's directory sits under `$BENCH_DATA/runs/`, `run.json` records the same id string as
@@ -299,24 +362,22 @@ C and E (`docs/dataflow.md` and the sweep behind this design list them by file a
 
 ## Open points for the owner
 
-1. **The data root path.** Proposed `~/bench-data` on every machine (node and host), configured once in dbench's
-   `nodes.toml` and the backup config. Needs a decision.
-2. **Public history.** The records are in every clone's history back to 24 September. Options: (a) rewrite history
-   with `git filter-repo` to drop the run directories and force-push, after step 5 when no node depends on the
-   checkout (this is the one force-push the design asks for, and every clone re-clones); (b) start a fresh public
-   repository holding only systems and make the current one private; (c) leave history as it is, in which case the
-   data remains published. The design assumes (a) or (b); (c) does not meet the goal. Needs a decision.
-3. **The private repository's contents.** Proposed: suite, grading and scope only. The owner's written analyses
-   (`analysis/`, `audits/`, `forensics/`) are documents and could stay; `runs/`, `gradings/`, `archive/`, `state/`
-   move. Needs a decision.
-4. **How judge results come back.** Proposed `rsync` over ssh into `$BENCH_DATA/gradings/` on the host, by a
-   script that replaces `judge-submit.sh`. The alternative is a write endpoint on the host's dbench, which the
-   least-privilege rule argues against. Needs a decision.
-5. **Reference-model runs in the lake.** Today the collector refuses to pull them (owner, 3 Oct 2026). Under this
-   design the lake is the only copy once the public tree is cleaned, so either the rule is lifted for the record files
-   (keeping the exclusion of raw transcripts) or the Opus and Sonnet records are archived elsewhere before step 6.
-   Needs a decision.
-6. **Export target.** None proposed; each export is a separate opt-in. Confirm that is the intent.
+Decided on 10 Oct 2026: the data root name, the history rewrite, the engine and web split, judges through the
+engine's API, reference-model runs under `reference/`, and nothing published by default (decisions 7 to 12). Two
+points remain.
+
+1. **The data root on bench nodes.** `~/awesome-local-ai` is the checkout on a node today, so `~/awesome-local-ai/
+   ops/data` would sit inside it. Proposed: after this design a node needs no checkout of the public repository (the
+   release carries the definitions), so on each node the checkout is moved aside (a path such as
+   `~/src/awesome-local-ai`, kept for installing engines and models) and `~/awesome-local-ai` becomes a plain
+   directory whose only content is `ops/data`. The harness and dbench refuse a data root inside a git checkout, so the
+   arrangement cannot regress silently. Confirm, or name another path for nodes.
+2. **The private repository's contents.** "Scope" means `packs/vidi/scope/<name>.json`: the file that names a scope
+   (for example `canvas`) and lists the stories it covers, which decides what a run must finish and what the gallery
+   reviews. Proposed: the private repository keeps only the private system inputs, `packs/<name>/{acceptance,
+   GRADING.md, prompts, scope, spec}` and `JUDGING.md`, plus the owner's written analyses (`analysis/`, `audits/`,
+   `forensics/`, `issues/`, `plans/`) if the owner wants documents there; `runs/`, `gradings/`, `archive/` and
+   `state/` move to the data root. Confirm, or say which documents move too.
 
 ## What this design does not change
 
