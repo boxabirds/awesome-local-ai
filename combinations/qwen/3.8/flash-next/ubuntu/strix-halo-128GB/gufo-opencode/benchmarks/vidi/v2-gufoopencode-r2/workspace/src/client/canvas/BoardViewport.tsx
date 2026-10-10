@@ -5,6 +5,8 @@ import { type Camera, type Size, type Point, worldToScreen, screenToWorld, canZo
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
+import { useMarquee, MarqueeRect } from '../board/Marquee';
+import type { ObjectSnapshot } from '../../shared/board-model';
 
 const DOT_COLOR = '#c8cdd4';
 const DOT_RADIUS_PX = 1.5;
@@ -39,6 +41,12 @@ export interface BoardViewportProps {
   // A click without dragging landed on empty board space.
   onClearSelection?(): void;
   onViewportHandle?(handle: ViewportHandle): void;
+  // Story 7: Shift+drag on empty space draws a marquee and selects the fully
+  // enclosed objects instead of panning.
+  snapshot?: readonly ObjectSnapshot[];
+  onMarqueeSelect?(ids: string[]): void;
+  // Screen-space layer (selection overlay) rendered above the world layer.
+  overlay?: ReactNode;
 }
 
 export function BoardViewport({
@@ -46,6 +54,9 @@ export function BoardViewport({
   onCreateStickyAtWorld,
   onClearSelection,
   onViewportHandle,
+  snapshot,
+  onMarqueeSelect,
+  overlay,
 }: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -142,12 +153,39 @@ export function BoardViewport({
   // threshold counts as a click on empty space (clears selection in App).
   const emptyPressRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Story 7: Shift+drag on empty space selects instead of panning.
+  const marquee = useMarquee(camera, snapshot ?? [], (ids) => onMarqueeSelect?.(ids));
+  const marqueeActiveRef = useRef(false);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        marquee.cancel();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [marquee.cancel]);
+
   // Drag pans only when it starts on bare board surface (viewport or grid),
   // so future board objects can stop propagation.
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const el = viewportRef.current;
     if (!el) return;
     if (e.target !== el && e.target !== gridRef.current) return;
+    if (e.shiftKey && onMarqueeSelect) {
+      if (typeof el.setPointerCapture === 'function') {
+        try {
+          el.setPointerCapture(e.pointerId);
+        } catch {
+          // Pointer capture unsupported (e.g. jsdom): moves on the element still work.
+        }
+      }
+      const rect = el.getBoundingClientRect();
+      marqueeActiveRef.current = true;
+      marquee.begin({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      return;
+    }
     if (typeof el.setPointerCapture === 'function') {
       try {
         el.setPointerCapture(e.pointerId);
@@ -162,6 +200,13 @@ export function BoardViewport({
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (marqueeActiveRef.current) {
+      const el = viewportRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      marquee.move({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      return;
+    }
     if (!panning) return;
     const el = viewportRef.current;
     if (!el) return;
@@ -175,7 +220,18 @@ export function BoardViewport({
     setPanning(false);
   };
 
+  const endMarquee = (finish: boolean) => {
+    if (!marqueeActiveRef.current) return;
+    marqueeActiveRef.current = false;
+    if (finish) marquee.end();
+    else marquee.cancel();
+  };
+
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (marqueeActiveRef.current) {
+      endMarquee(true);
+      return;
+    }
     const press = emptyPressRef.current;
     if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < DRAG_THRESHOLD_PX) {
       onClearSelection?.();
@@ -219,8 +275,14 @@ export function BoardViewport({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={endPanning}
-      onLostPointerCapture={endPanning}
+      onPointerCancel={() => {
+        endMarquee(false);
+        endPanning();
+      }}
+      onLostPointerCapture={() => {
+        if (marqueeActiveRef.current) endMarquee(true);
+        else endPanning();
+      }}
       onDoubleClick={onDoubleClick}
     >
       <div
@@ -237,14 +299,19 @@ export function BoardViewport({
         data-testid="world-layer"
         className="world-layer"
         data-camera={`${x},${y},${zoom}`}
-        style={{
-          transform: `scale(${zoom}) translate(${-x}px, ${-y}px)`,
-          transformOrigin: '0 0',
-        }}
+        style={
+          {
+            transform: `scale(${zoom}) translate(${-x}px, ${-y}px)`,
+            transformOrigin: '0 0',
+            '--board-zoom': zoom,
+          } as React.CSSProperties
+        }
       >
         <div data-testid="origin-marker" className="origin-marker" aria-hidden="true" />
         {children}
+        <MarqueeRect rect={marquee.rect} camera={camera} />
       </div>
+      {overlay}
       <div className="board-ui" data-board-ui="true">
         <ZoomControls
           zoomPercent={zoomPercent(camera)}

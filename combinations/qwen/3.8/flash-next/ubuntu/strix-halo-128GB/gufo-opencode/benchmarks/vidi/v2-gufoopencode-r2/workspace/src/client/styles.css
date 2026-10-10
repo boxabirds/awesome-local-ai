@@ -459,3 +459,105 @@ body {
   font-size: 13px;
   color: #616161;
 }
+
+/* Story 7: selection overlay, bar and marquee. */
+.selection-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.selection-box {
+  position: absolute;
+  border: 1.5px solid #3572e6;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.selection-handle {
+  position: absolute;
+  padding: 0;
+  border: 1px solid #3572e6;
+  border-radius: 2px;
+  background: #ffffff;
+  pointer-events: auto;
+}
+
+.selection-handle[data-testid='handle-n'],
+.selection-handle[data-testid='handle-s'] {
+  cursor: ns-resize;
+}
+
+.selection-handle[data-testid='handle-e'],
+.selection-handle[data-testid='handle-w'] {
+  cursor: ew-resize;
+}
+
+.selection-handle[data-testid='handle-ne'],
+.selection-handle[data-testid='handle-sw'] {
+  cursor: nesw-resize;
+}
+
+.selection-handle[data-testid='handle-nw'],
+.selection-handle[data-testid='handle-se'] {
+  cursor: nwse-resize;
+}
+
+.selection-bar {
+  z-index: 40;
+  pointer-events: auto;
+}
+
+.selection-bar .note-toolbar {
+  position: static;
+  transform: none;
+}
+
+.selection-bar .note-toolbar-wrap {
+  position: static;
+  width: auto;
+  height: auto;
+  pointer-events: auto;
+}
+
+.selection-count {
+  padding: 4px 8px;
+  background: #ffffff;
+  border: 1px solid #d6dae1;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  color: #24292f;
+  white-space: nowrap;
+}
+
+.selection-delete {
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d6dae1;
+  background: #ffffff;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #b3261e;
+}
+
+.selection-delete::before {
+  content: '\2715';
+  font-size: 12px;
+}
+
+.selection-delete:hover {
+  background: #f6dcd9;
+}
+
+.marquee-rect {
+  border: 1px solid #3572e6;
+  background: rgba(53, 114, 230, 0.12);
+  pointer-events: none;
+  z-index: 25;
+}

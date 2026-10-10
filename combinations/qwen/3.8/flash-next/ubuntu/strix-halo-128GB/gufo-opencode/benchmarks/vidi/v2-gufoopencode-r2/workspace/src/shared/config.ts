@@ -41,3 +41,10 @@ export const STORAGE_SCHEMA_VERSION = 1; // versions the board's SQLite tables
 export const CREATE_BUDGET_MS = 2_000; // PRD share.create (reported, not asserted, in e2e)
 export const LINK_COPIED_MS = 2_000; // "Link copied" confirmation duration
 export const BOARD_CHECK_RETRY_BASE_MS = 1_000; // link-check retry; doubles up to RECONNECT_MAX_BACKOFF_MS
+
+// Story 7: multi-select, move, resize, delete.
+export const HANDLE_SIZE_PX = 8; // bounding-box handle size in screen pixels
+export const STICKY_MIN_SIZE_WORLD = 50; // registry minSize for sticky notes
+export const MAX_OBJECT_SIZE_WORLD = 20_000; // one global maximum for every type
+export const NUDGE_STEP_WORLD = 1; // arrow-key nudge distance
+export const NUDGE_LARGE_STEP_WORLD = 10; // Shift+arrow nudge distance

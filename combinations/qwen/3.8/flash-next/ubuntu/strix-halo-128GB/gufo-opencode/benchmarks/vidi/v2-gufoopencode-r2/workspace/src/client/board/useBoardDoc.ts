@@ -4,12 +4,19 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import {
+  initDoc,
+  objectSnapshots,
+  snapshot,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  objects: readonly ObjectSnapshot[];
   connection: ConnectionState;
 }
 
@@ -29,23 +36,30 @@ export function useBoardDoc(boardId: string): BoardDoc {
     return () => handle.destroy();
   }, [doc, boardId]);
 
-  const snapRef = useRef<readonly StickySnapshot[]>(snapshot(doc));
+  const snapRef = useRef<{ notes: readonly StickySnapshot[]; objects: readonly ObjectSnapshot[] }>({
+    notes: snapshot(doc),
+    objects: objectSnapshots(doc),
+  });
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       const observer = () => {
-        snapRef.current = snapshot(doc);
+        const objects = objectSnapshots(doc);
+        snapRef.current = {
+          notes: objects.filter((o): o is StickySnapshot => o.type === 'sticky'),
+          objects,
+        };
         onStoreChange();
       };
-      const objects = doc.getMap<Y.Map<unknown>>('objects');
-      objects.observeDeep(observer);
+      const objectsMap = doc.getMap<Y.Map<unknown>>('objects');
+      objectsMap.observeDeep(observer);
       // Recompute in case a mutation landed between render and subscribe.
-      snapRef.current = snapshot(doc);
-      return () => objects.unobserveDeep(observer);
+      observer();
+      return () => objectsMap.unobserveDeep(observer);
     },
     [doc],
   );
   const getSnapshot = useCallback(() => snapRef.current, []);
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const board = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  return { doc, notes, connection };
+  return { doc, notes: board.notes, objects: board.objects, connection };
 }
