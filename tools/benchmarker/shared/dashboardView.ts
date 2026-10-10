@@ -8,6 +8,7 @@ import type { JobRef, Row } from "./types.ts";
 import { closeCalls, INDISTINGUISHABLE_TESTS, isComplete, median, rankCombinations, scoreOfRecord, seriesPrefix, SMALL_N } from "./stats.ts";
 import { SILENT_MINUTES, type NowLine } from "./overviewView.ts";
 import { runOrder } from "./runGroups.ts";
+import { agentTime } from "./runView.ts";
 
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
@@ -32,13 +33,18 @@ export interface SeriesRun {
   /** The score of record when finished and scored. */
   score: number | null;
   total: number | null;
+  /** The agent's seconds over the run's recorded stories, once finished; null while it runs or when no story has a time. */
+  agentSeconds: number | null;
   /** Stories recorded out of those in scope. */
   stories: { done: number; scope: number };
 }
 export interface SeriesScore { median: number; min: number; max: number; total: number | null; n: number }
+export interface SeriesAgentTime { median: number; min: number; max: number; n: number }
 export interface Series { stack: string; label: string; machine: string; prefix: string; runs: SeriesRun[]; size: number; done: number; active: boolean;
   /** The median, lowest and highest score of record over the finished runs; null while none is scored. */
-  score: SeriesScore | null }
+  score: SeriesScore | null;
+  /** The median, shortest and longest agent time over the finished runs that have one; null while none has. */
+  agentTime: SeriesAgentTime | null }
 
 
 /** Runs named `<prefix>-rN` of one stack are one series. Cancelled, failed and stopped runs are not in it, and neither
@@ -55,14 +61,32 @@ export function seriesOf(rows: Row[]): Series[] {
     const ordered = rs.toSorted((a, b) => a.runId.localeCompare(b.runId, undefined, { numeric: true }));
     const runs = ordered.map((r): SeriesRun => {
       const s = r.status === "finished" ? scoreOfRecord(r) : null;
-      return { runId: r.runId, state: states[r.status]!, score: s?.passed ?? null, total: s?.total ?? null, stories: { done: r.stories.length, scope: r.storiesWorking.scope } };
+      return { runId: r.runId, state: states[r.status]!, score: s?.passed ?? null, total: s?.total ?? null, agentSeconds: r.status === "finished" ? agentTime(r).recordedSeconds : null, stories: { done: r.stories.length, scope: r.storiesWorking.scope } };
     });
     const scores = runs.map((r) => r.score).filter((x): x is number => x !== null);
     const m = median(scores);
+    const times = runs.map((r) => r.agentSeconds).filter((x): x is number => x !== null);
+    const t = median(times);
+    const agent = t === null ? null : { median: t, min: Math.min(...times), max: Math.max(...times), n: times.length };
     const score = m === null ? null : { median: m, min: Math.min(...scores), max: Math.max(...scores), total: runs.find((r) => r.total !== null)?.total ?? null, n: scores.length };
-    return { stack: rs[0].stack, label: rs[0].label, machine: rs[0].machine, prefix: seriesPrefix(rs[0].runId), runs, size: runs.length, done: runs.filter((r) => r.state === "finished").length, active: runs.some((r) => r.state !== "finished"), score };
+    return { stack: rs[0].stack, label: rs[0].label, machine: rs[0].machine, prefix: seriesPrefix(rs[0].runId), runs, size: runs.length, done: runs.filter((r) => r.state === "finished").length, active: runs.some((r) => r.state !== "finished"), score, agentTime: agent };
   });
   return all.toSorted((a, b) => Number(b.active) - Number(a.active) || b.prefix.localeCompare(a.prefix, undefined, { numeric: true }));
+}
+
+export type SeriesSortKey = "score" | "agentTime";
+export type SeriesSortDir = "asc" | "desc";
+
+/** The series by their score (median of the scores of record) or their agent time (median over the finished runs). A series with no figure is last
+ * in either direction, and equal figures keep the order they came in. The input is not changed. */
+export function sortSeries(series: Series[], key: SeriesSortKey, dir: SeriesSortDir): Series[] {
+  const figure = (s: Series): number | null => (key === "score" ? s.score?.median ?? null : s.agentTime?.median ?? null);
+  const sign = dir === "asc" ? 1 : -1;
+  return series.toSorted((a, b) => {
+    const x = figure(a), y = figure(b);
+    if (x === null || y === null) return Number(x === null) - Number(y === null);
+    return sign * (x - y);
+  });
 }
 
 // ---------- the utilisation timeline: what each machine ran, and the gaps ----------

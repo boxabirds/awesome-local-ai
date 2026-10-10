@@ -142,6 +142,33 @@ test.describe("series", () => {
     expect(g(highest[1]) - r(highest[1])).toBeGreaterThan(g(lowest[1]) - r(lowest[1]));   // the higher score is greener, the lower redder
   });
 
+  test("each series states its agent time, and the score and agent time columns sort the rows, a second click reversing, the ones with no figure always last", async ({ page }) => {
+    const rows = overview(page).locator(".series-row");
+    await expect(rows.first()).toBeVisible();
+    const column = (attr: string) => rows.evaluateAll((els, a) => els.map((e) => { const v = (e as HTMLElement).dataset[a as string]; return v === undefined || v === "" ? null : Number(v); }), attr);
+    const inOrder = (xs: (number | null)[], dir: "asc" | "desc") => {
+      const have = xs.filter((x): x is number => x !== null);
+      const sorted = [...have].sort((a, b) => (dir === "asc" ? a - b : b - a));
+      return JSON.stringify(have) === JSON.stringify(sorted) && JSON.stringify(xs.slice(have.length)) === JSON.stringify(xs.slice(have.length).map(() => null));
+    };
+    await expect(overview(page).locator(".series-row .series-time").first()).toBeVisible();
+    const head = (key: string) => overview(page).locator(`.series-head [data-sort="${key}"]`);
+    await expect(head("score")).toHaveAttribute("aria-sort", "none");
+    await head("score").click();
+    await expect(head("score")).toHaveAttribute("aria-sort", "descending");
+    expect(inOrder(await column("score"), "desc"), "score, best first").toBe(true);
+    await head("score").click();
+    await expect(head("score")).toHaveAttribute("aria-sort", "ascending");
+    expect(inOrder(await column("score"), "asc"), "score, lowest first").toBe(true);
+    await head("agentTime").click();
+    await expect(head("agentTime")).toHaveAttribute("aria-sort", "ascending");
+    await expect(head("score")).toHaveAttribute("aria-sort", "none");
+    expect(inOrder(await column("seconds"), "asc"), "agent time, shortest first").toBe(true);
+    await head("agentTime").click();
+    await expect(head("agentTime")).toHaveAttribute("aria-sort", "descending");
+    expect(inOrder(await column("seconds"), "desc"), "agent time, longest first").toBe(true);
+  });
+
   test("a series with nothing scored yet has a dash for its score", async ({ page }) => {
     await expect(overview(page).locator(".series-row .series-score", { hasText: "—" }).first()).toBeVisible();
   });
