@@ -3,9 +3,19 @@ import { createSticky, getStickyText, snapshot, type StickySnapshot } from '../.
 import { collectTextSnapshots, type TextSnapshot } from '../../shared/objects/text';
 import { collectConnectorViews, createConnector, type ConnectorView, type Endpoint } from '../../shared/objects/connector';
 import { collectShapeSnapshots, createShape, getShapeLabel, type ShapeSnap } from '../../shared/objects/shape';
+import {
+  collectStrokeSnapshots,
+  scaledPoints,
+  type StrokeSnap
+} from '../../shared/objects/stroke';
+import type { Point } from '../../shared/geometry';
 import type { StickyColor } from '../../shared/config';
 import type { SyncStatus } from '../sync/connectBoard';
 import type { Camera } from './camera';
+
+export interface StrokeView extends StrokeSnap {
+  worldPoints: readonly Point[];
+}
 
 declare global {
   interface Window {
@@ -15,6 +25,7 @@ declare global {
       getTexts(): readonly TextSnapshot[];
       getShapes(): readonly ShapeSnap[];
       getConnectors(): readonly ConnectorView[];
+      getStrokes(): readonly StrokeView[];
       createShapeAt(opts: {
         kind: 'rect' | 'ellipse' | 'diamond';
         x: number;
@@ -46,6 +57,7 @@ export function installTestHooks(
     getTexts: () => collectTextSnapshots(doc),
     getShapes: () => collectShapeSnapshots(doc),
     getConnectors: () => collectConnectorViews(doc),
+    getStrokes: () => collectStrokeSnapshots(doc).map((s) => ({ ...s, worldPoints: scaledPoints(s) })),
     createShapeAt: ({ kind, x, y, width, height, square, label }) => {
       const rect =
         width !== undefined && height !== undefined

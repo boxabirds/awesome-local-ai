@@ -109,6 +109,38 @@ export async function getNotes(page: Page): Promise<NoteState[]> {
   });
 }
 
+export interface StrokeState {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  color: string;
+  thickness: string;
+  pointCount: number;
+  worldPoints: Array<{ x: number; y: number }>;
+}
+
+export async function getStrokes(page: Page): Promise<StrokeState[]> {
+  return page.evaluate(() => {
+    const hook = window.__vidi6;
+    if (!hook) throw new Error('window.__vidi6 missing; run the test build (MODE=test)');
+    return hook.getStrokes().map((s) => ({
+      id: s.id,
+      x: s.x,
+      y: s.y,
+      width: s.width,
+      height: s.height,
+      z: s.z,
+      color: s.color as string,
+      thickness: s.thickness as string,
+      pointCount: s.points.length,
+      worldPoints: s.worldPoints.map((p) => ({ x: p.x, y: p.y }))
+    }));
+  });
+}
+
 export function noteLocator(page: Page, id: string): Locator {
   return page.locator(`[data-testid="sticky-note"][data-id="${id}"]`);
 }

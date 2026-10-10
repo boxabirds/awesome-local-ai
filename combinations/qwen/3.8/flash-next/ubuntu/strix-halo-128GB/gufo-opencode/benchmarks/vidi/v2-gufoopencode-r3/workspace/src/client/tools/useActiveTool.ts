@@ -3,7 +3,7 @@ import type { ShapeKind } from '../../shared/config';
 import type { SelectionController } from '../board/useSelection';
 
 // All toolbar tool ids. 'sticky' stays a one-shot toolbar action (story 2)
-// and 'pen' / 'image' / 'comment' arrive with later stories; only the
+// and 'image' / 'comment' arrive with later stories; only the
 // pointer-gesture tools below can become active on the board.
 export type ToolId =
   | 'select'
@@ -31,7 +31,8 @@ const ACTIVATABLE: ReadonlySet<ToolId> = new Set<ToolId>([
   'select',
   'text',
   'shape',
-  'connector'
+  'connector',
+  'pen'
 ]);
 
 function isTextEntry(target: EventTarget | null): boolean {

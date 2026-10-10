@@ -108,6 +108,19 @@ export function Toolbar({
       </button>
       <button
         type="button"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        title="Pen – or press P, then draw on the board"
+        onClick={() => onSelectTool('pen')}
+        disabled={disabled}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M3 17l1-4L14 3l3 3L7 16l-4 1z" fill="#fff" stroke="#0f172a" strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M12 5l3 3" fill="none" stroke="#0f172a" strokeWidth="1.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
         aria-label="Sticky note (N)"
         title="Sticky note – or press N, or double-click the board"
         onClick={onCreateSticky}

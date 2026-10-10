@@ -16,9 +16,12 @@ import { useBoardDoc } from '../board/useBoardDoc';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { useSelection } from '../board/useSelection';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { PenTool } from '../tools/PenTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ShapeToolbar } from '../tools/ShapeToolbar';
 import { useActiveTool } from '../tools/useActiveTool';
+import { usePenOptions } from '../tools/usePenOptions';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useUndo } from '../board/useUndo';
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -171,6 +174,13 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
     canEdit: editable,
     selection
   });
+  // Pen colour/thickness: session-only, never synced (story 11).
+  const pen = usePenOptions();
+  // Each committed stroke (or split part) is its own undo step: close the
+  // capture window right after createStroke (undoManager.stopCapturing()).
+  const onPenCommitted = useCallback(() => {
+    undoController.boundary();
+  }, [undoController]);
 
   // A tool-created object becomes the selection and the board returns to
   // Select (tools.return_to_select); the undo step is bounded around it.
@@ -300,6 +310,16 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
         {tool === 'connector' && editable && (
           <ConnectorTool doc={doc} camera={camera} userId={identity.id} onCreated={onToolCreated} />
         )}
+        {tool === 'pen' && editable && (
+          <PenTool
+            camera={camera}
+            color={pen.color}
+            thickness={pen.thickness}
+            doc={doc}
+            identityId={identity.id}
+            onCommitted={onPenCommitted}
+          />
+        )}
         <Toolbar
           onCreateSticky={onCreateSticky}
           tool={tool}
@@ -309,6 +329,14 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
           disabled={!editable}
           undo={undoState}
         />
+        {tool === 'pen' && editable && (
+          <PenToolbar
+            color={pen.color}
+            thickness={pen.thickness}
+            onColor={pen.setColor}
+            onThickness={pen.setThickness}
+          />
+        )}
         {editable && (
           <SelectionOverlay
             objects={objects}

@@ -462,3 +462,43 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
   try/catch like BoardViewport already does.
 - Browser matrix unchanged: only Chromium binaries are available on this
   machine, so the story-10 e2e (TC-23..27) run in Chromium.
+
+## Story 11 decisions (pen sketching)
+
+- Pen stays active after committing a stroke (no `onToolCreated` handback like
+  Shape/Text). BoardPage wires PenTool's `onCommitted` to
+  `undoController.boundary()` so each stroke is its own undo step.
+- StrokeObject renders a root `<svg pointerEvents="none">` (no div wrapper)
+  with two paths: the visible smoothed line (`pointer-events: none`) and a
+  wide transparent hit path (`pointer-events="stroke"`). Blink refuses hit
+  targets on SVG descendants that re-enable pointer events through an HTML
+  ancestor with `pointer-events: none`, so `.board-world` no longer sets
+  `pointer-events: none`. The layer is a 0x0 box (cannot capture events
+  itself) and every child controls its own hit behaviour; `.board-origin-marker`
+  gained explicit `pointer-events: none` (it previously relied on the removed
+  inheritance, which broke sticky double-click-at-origin tests).
+- Connectors still keep a hit path under a `pointer-events: none` root div and
+  are therefore only selectable via their endpoint handles (pre-existing
+  behaviour, unchanged).
+- `smoothPath` (midpoint quadratic chains) passes through the MIDPOINTS of
+  consecutive points, not the points themselves; e2e clicks/drags on the line
+  target `mid(p[i], p[i+1])`, which is exactly on the curve.
+- TC-19: after a sticky creation flow the note stays selected and the
+  floating note toolbar covers the board, stealing the wheel event; the test
+  deselects (V + click empty) before wheel-panning. PenTool forwards native
+  (non-passive) wheel/pinch to `useBoardCamera()` while active.
+- Split commits: reaching `STROKE_MAX_POINTS` flushes the part and the next
+  part starts at the previous part's last world point (shared anchor), so the
+  joined polyline is continuous (TC-12).
+- A zero-movement click commits a 2-point dot (padded to `thickness` so the
+  bbox is non-degenerate).
+- Registry hit test for strokes: `distanceToPolyline` against scaled points
+  with tolerance `max(thickness/2, STROKE_HIT_TOLERANCE_PX / zoom)`; clicks
+  inside the bbox but far from the line fall through to objects below.
+- `window.__vidi6.getStrokes()` returns stroke snapshots plus current scaled
+  world points; `tests/e2e/helpers/board.ts` exposes `getStrokes(page)`.
+- Component tests live in two files (`PenTool.test.tsx`,
+  `StrokeObject.test.tsx`); jsdom lacks `setPointerCapture`, PenTool wraps it
+  in try/catch like BoardViewport.
+- Browser matrix unchanged: only Chromium binaries are available, so the
+  story-11 e2e (TC-17..20) runs in Chromium.
