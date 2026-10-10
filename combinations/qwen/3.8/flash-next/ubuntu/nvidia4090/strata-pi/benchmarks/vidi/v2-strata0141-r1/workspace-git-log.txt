@@ -1,3 +1,62 @@
+commit 0fcf68b3b8cdadf6db9c116f47a020993f9e9d03
+agent  Sat Oct 10 23:10:10 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                | 144 +++++++
+ PROGRESS.md                             |  93 ++++-
+ package.json                            |   3 +-
+ scripts/embed-image-fixtures.mjs        |  65 +++
+ scripts/make-image-fixtures.mjs         | 282 +++++++++++++
+ src/client/board/BoardView.tsx          |  98 ++++-
+ src/client/board/Toolbar.tsx            |  29 ++
+ src/client/board/useBoardKeys.ts        |  37 +-
+ src/client/images/DropHighlight.tsx     |  89 +++++
+ src/client/images/ImageToasts.tsx       |  53 +++
+ src/client/images/uploadImage.ts        | 109 +++++
+ src/client/images/useImageInsert.tsx    | 677 ++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      | 121 ++++++
+ src/client/objects/ImageObject.tsx      | 303 ++++++++++++++
+ src/client/objects/registry.tsx         |  26 ++
+ src/client/styles.css                   | 194 ++++++++-
+ src/client/testHooks.ts                 |   5 +
+ src/shared/config.ts                    |  57 +++
+ src/shared/image-format.ts              | 182 +++++++++
+ src/shared/objects/image.ts             | 553 ++++++++++++++++++++++++++
+ src/worker/assets.ts                    | 202 ++++++++++
+ src/worker/index.ts                     |  45 ++-
+ tests/component/ImageObject.test.tsx    | 488 +++++++++++++++++++++++
+ tests/component/useImageInsert.test.tsx | 497 +++++++++++++++++++++++
+ tests/e2e/helpers/images.ts             | 367 +++++++++++++++++
+ tests/e2e/images.spec.ts                | 276 +++++++++++++
+ tests/fixtures/embeddedImages.ts        |  36 ++
+ tests/fixtures/fakeProvider.ts          |  11 +
+ tests/fixtures/fakeUpload.ts            | 213 ++++++++++
+ tests/fixtures/images/animated.gif      | Bin 0 -> 233 bytes
+ tests/fixtures/images/drawing.svg       |   5 +
+ tests/fixtures/images/not-an-image.png  |   5 +
+ tests/fixtures/images/photo-large.jpg   | Bin 0 -> 3456556 bytes
+ tests/fixtures/images/photo.jpg         | Bin 0 -> 89410 bytes
+ tests/fixtures/images/photo.png         | Bin 0 -> 218340 bytes
+ tests/fixtures/images/photo.webp        | Bin 0 -> 5180 bytes
+ tests/fixtures/images/truncated.png     | Bin 0 -> 109170 bytes
+ tests/fixtures/oversizeImage.ts         |  63 +++
+ tests/integration/assets.test.ts        | 423 ++++++++++++++++++++
+ tests/unit/image-format.test.ts         | 182 +++++++++
+ tests/unit/object-image.test.ts         | 416 ++++++++++++++++++++
+ tests/unit/registry.test.ts             |  72 +++-
+ tests/unit/validate-files.test.ts       | 194 +++++++++
+ wrangler.jsonc                          |   6 +
+ 44 files changed, 6583 insertions(+), 38 deletions(-)
+commit 7c12c1fd50cb4bb545254ebb5641948365b553e6
+vidi-agent  Sat Oct 10 19:29:34 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 33 ++++++++++-----------------------
+ 1 file changed, 10 insertions(+), 23 deletions(-)
 commit 2471328949772e2d49394e54c6069950f0c4f006
 agent  Sat Oct 10 19:25:19 2026 +0100
 
