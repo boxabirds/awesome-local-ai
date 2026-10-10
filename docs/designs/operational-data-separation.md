@@ -65,11 +65,11 @@ because data lives in a working tree.
 7. **The public repository's history is rewritten** (owner, 10 Oct 2026) to remove the run data, since removing it
    from the tree alone leaves it in every clone. One force-push, by the owner, after no machine depends on the old
    checkout; every clone is re-cloned.
-8. **The data root is `ops/data` under a per-machine home** (owner, 10 Oct 2026): `~/awesome-local-ai/ops/data`.
-   On the Mac that is outside the checkout (`~/expts/awesome-local-ai`). On a bench node `~/awesome-local-ai` is the
-   checkout itself today (`tools/dbench/README.md:38`), so the node's checkout moves or goes first (B, "the node
-   needs no checkout"); the harness refuses a data root that is inside a git checkout, so the two can never fuse
-   again by accident. Open point 1 asks the owner to confirm the node arrangement.
+8. **Everything a machine runs or produces lives in the XDG user locations** (owner, 10 Oct 2026): binaries in
+   `~/.local/bin/awesome-local-ai/`, the data root at `~/.local/share/awesome-local-ai/data/`, logs in
+   `~/.local/share/awesome-local-ai/logs/`, configuration in `~/.config/awesome-local-ai/` (section H). No machine
+   has a checkout of the public repository for operations; the harness and dbench refuse a data root inside a git
+   checkout, so the two can never fuse again by accident.
 9. **The benchmarker splits into `benchmarker-engine` and `benchmarker-web`** (owner, 10 Oct 2026). The engine is
    the backend that does the data processing and owns every API; the web service is presentation only. Judges talk
    to the engine. Section G.
@@ -80,6 +80,10 @@ because data lives in a working tree.
     kept (it was a decision about analysis, 3 Oct 2026, not about storage).
 12. **Nothing is published by default.** An export is a gated artifact in `exports/`; putting one somewhere public is
     a separate act each time, by the owner.
+13. **Roadmap: the system locations.** `/usr/local/bin`, `/var/lib/awesome-local-ai/`, `/var/log/awesome-local-ai/`
+    and `/etc/awesome-local-ai/`, under a dedicated service user, come later (owner, 10 Oct 2026). To keep that move
+    a configuration change and not a code change, every path in this design is read from one `paths` table in the
+    configuration and nothing is hard-coded to the home directory.
 
 ## Architecture
 
@@ -89,7 +93,7 @@ SYSTEMS (repositories; pinned, read-only on a machine)
                      pack public parts (bench.json, scope), docs, tests          -> release dir (no .git) on nodes
   private repo       packs/<name>/acceptance, GRADING.md, scope, JUDGING.md     -> checkout at the pack tag on nodes
 
-OPERATIONAL DATA (the data root: ~/awesome-local-ai/ops/data on every machine; never inside a repository)
+OPERATIONAL DATA (the data root: ~/.local/share/awesome-local-ai/data on every machine; never inside a repository)
   node   runs/<run id>/                     the run directory the harness writes
          jobs/<job>/inputs/                 what dbench delivers for this job (reference run, baselines)
   host   lake/<node>/<run id>/              byte-exact copies + collection.json
@@ -112,7 +116,7 @@ FLOW
 
 What stays in git: code, definitions, specs, the suite. What leaves git: every file under a run directory, the private
 `runs/` and `gradings/`, and the git-ignored `state/`. Below, `$BENCH_DATA` stands for the data root,
-`~/awesome-local-ai/ops/data` (decision 8).
+`~/.local/share/awesome-local-ai/data` (decision 8; section H has the whole machine layout).
 
 ## A. Identity: one grammar, four languages
 
@@ -203,8 +207,7 @@ keys and the recording secret move from the private `state/` to the data root; t
 `ops/anomaly-tracking.md` is a document in the systems repository and keeps using git; it stops importing
 `drive.push_with_rebase` and uses plain `git push`.
 
-**Backup.** `ops/backup` already backs up a `state` path; it points at `$BENCH_DATA` instead. `RESTORE.md` loses "and
-the public repository": a rebuild of the warehouse needs only the lake.
+**Backup.** Section I: the backup job follows the data root and takes on two kinds of data that git used to hold.
 
 ## D. Held-out detail, audits and judges
 
@@ -279,6 +282,74 @@ address.
 
 The gallery stays a separate service that reads the data root directly on the host; it is not merged into the engine.
 
+## H. Where things live on a machine
+
+Today a node keeps what it runs and what it produces in scattered places under the home directory, and the host's
+services log into the checkout (`ops/services/install.sh`: `ops/service-state/<label>.{out,err}.log`, git-ignored).
+The owner's decision (8 and 13): the XDG user locations now, the system locations on the roadmap. Every row below is
+one entry in the `paths` table of the configuration, so the roadmap column is a change of that table and a move.
+
+| What | Today | This design | Roadmap |
+|---|---|---|---|
+| binaries: `dbench`, `benchmarker-engine`, `benchmarker-web`, `vidi-gallery`, `anthropic-token-counter` | `~/.local/bin/dbench`; the rest run from `tools/target/release/` in the checkout | `~/.local/bin/awesome-local-ai/` | `/usr/local/bin/` |
+| the data root | the checkout | `~/.local/share/awesome-local-ai/data/` | `/var/lib/awesome-local-ai/data/` |
+| harness releases | `~/.dbench/releases/<tag>/` | `~/.local/share/awesome-local-ai/releases/<tag>/` | `/var/lib/awesome-local-ai/releases/` |
+| installed engines and models | `~/.local/share/<install-id>/` | `~/.local/share/awesome-local-ai/installs/<install-id>/` | `/var/lib/awesome-local-ai/installs/` |
+| agent work roots | `~/.w/<id>/`, linked from `~/.vidi-bench/work/<long name>` | `~/.local/share/awesome-local-ai/work/<id>/` | `/var/lib/awesome-local-ai/work/` |
+| logs | `~/.dbench/dbench.log` on a node; `ops/service-state/*.log` in the host's checkout | `~/.local/share/awesome-local-ai/logs/<service>.log` | `/var/log/awesome-local-ai/` |
+| configuration: nodes, backup, engine, paths | `~/.config/dbench/nodes.toml`, `~/.config/bench-backup/config.toml`, flags in the service units | `~/.config/awesome-local-ai/{nodes,backup,engine,paths}.toml` | `/etc/awesome-local-ai/` |
+| secrets: node token, Claude token, restic password, recording secret, judge tokens | `~/.dbench/token`, `~/.dbench/claude-oauth-token`, `~/.config/bench-backup/password`, `state/recording-secret` | `~/.config/awesome-local-ai/secrets/` (directory 0700, files 0600) | `/etc/awesome-local-ai/secrets/`, owned by the service user |
+| the public repository | `~/awesome-local-ai` on a node, `~/expts/awesome-local-ai` on the host | wherever the owner develops; no service reads it | the same |
+
+Notes:
+
+- `~/.local/bin/awesome-local-ai/` is a directory, so it is not on `PATH` by itself. Service units name binaries by
+  full path; for a shell, one `PATH` line in the profile, which `setup-node.sh` writes.
+- Logs: each service writes to standard output and error, and its unit redirects them to
+  `logs/<service>.out.log` and `logs/<service>.err.log`; the harness's own per-run logs (`server.log`, `proxy.log`,
+  the agent stream) are data and stay in the run directory. Rotation is the installer's job (`newsyslog` on macOS,
+  `logrotate` on Linux), configured by `dbench service-unit`. For the record, the XDG specification's own place for
+  logs is `~/.local/state/<app>/`; the owner chose `share/logs/` so that data and logs sit together, and the roadmap
+  moves them to `/var/log` in any case.
+- The agent work root today is deliberately short (`~/.w/<10 characters>`); Unix socket paths are limited to about
+  104 bytes and Playwright and wrangler create sockets under it. `~/.local/share/awesome-local-ai/work/<id>/` is
+  longer by 30 bytes. Whether that was the reason, and whether the longer path still fits, is checked by a test
+  before the work root moves; if it does not fit, the work root alone keeps a short path and the table says so.
+- On macOS the user agents (launchd) and these same paths apply; `/var/lib` on the roadmap is for the Linux nodes,
+  with the macOS equivalents decided when that work is planned.
+
+## I. Backup
+
+`ops/backup/backup.py` today: a nightly launchd job (`com.awesome-local-ai.bench-backup`, 03:30) that stages the two
+databases from `state/insights/` with SQLite's online backup, backs up `STATE_PATHS = (collected, recordings,
+judging, annotate, keys, recording-secret, insights)` of the private repository's `state/` to two restic repositories,
+excludes the live database files and `backups`, keeps 14 daily and 8 weekly snapshots, and writes `history.jsonl` and
+`status.json` to `state/backups/`; `forecast.py` adds a capacity forecast and a staleness check that the monitor reads.
+Its configuration is `~/.config/bench-backup/config.toml` with the password beside it.
+
+What changes:
+
+1. **`Config.state` becomes the data root** (`$BENCH_DATA`, from the `paths` table), configuration moves to
+   `~/.config/awesome-local-ai/backup.toml` and the password to `~/.config/awesome-local-ai/secrets/restic-password`.
+   The two restic repositories stay where they are. A test asserts that no repository path is under the data root.
+2. **`STATE_PATHS` becomes the data root's directories:** `lake`, `reference`, `warehouse`, `analytics`,
+   `recordings`, `judging`, `annotate`, `keys`, `gradings`, `exports`, plus `~/.config/awesome-local-ai/secrets/`
+   (restic encrypts; the keys and the recording secret are in the set today). **Two of these are newly unprotected
+   by the move:** the held-out detail (today the private repository's `runs/`, whose remote was its backup) and
+   `gradings/`. After step 6 the restic snapshots and the node are their only copies, so both must be in the set and
+   seen in a snapshot before step 6 runs (ordered sequence).
+3. **`DATABASES`** are staged from `warehouse/conversations.db` and `analytics/analytics.db`; `EXCLUDES` follows
+   (`warehouse/*.db*`, `analytics/*.db*`, `backups`, `backup-staging`).
+4. **A MECE test over the data root:** every top-level directory present is named in exactly one of `BACKED_UP` and
+   `NOT_BACKED_UP` (`backups`, `backup-staging`, and on a node `runs/` and `jobs/`, whose copy is the lake). A new
+   directory fails the test until it is classified. Logs (`share/logs/`) are outside the data root and not backed up.
+5. **Node data roots are not backed up**, as today: the lake is their copy. Stated in `README.md` rather than assumed.
+6. **`RESTORE.md`**: the new paths; the warehouse is rebuilt from the lake alone (no public repository); how to put
+   back `gradings/` and `reference/`; a restore drill (one run from the latest snapshot into a scratch directory,
+   byte-compared with the lake) as a documented, repeatable step.
+7. **`ops/monitor/monitor.py`** reads `status.json` from `<data root>/backups/`; `forecast.py` is unchanged but for
+   the paths.
+
 ## Refactoring method
 
 The owner's method, applied to this change. The "touched set" is every function the inventory names in classes A, B,
@@ -319,9 +390,11 @@ C and E (`docs/dataflow.md` and the sweep behind this design list them by file a
 ## Ordered sequence
 
 0. Nothing moves while a story is running on the machine concerned; each node is switched between runs.
-1. **Host data root.** Stop the collector; move the private `state/` to `$BENCH_DATA` (lake, warehouse, analytics,
-   recordings, judging, keys, backups); update `nodes.toml`, the backup config and the service files; restart; confirm
-   the next nightly backup reports both repositories ok.
+1. **Host layout.** Stop the collector and the services; create `~/.local/share/awesome-local-ai/{data,logs}` and
+   `~/.config/awesome-local-ai/`; move the private `state/` into the data root (lake, warehouse, analytics,
+   recordings, judging, annotate, keys, backups) and the secrets into `config/secrets/`; write the `paths` table;
+   point `nodes.toml`, the backup configuration and the service units at it, with logs under `share/logs/`; restart;
+   confirm the next nightly backup reports both repositories ok and that its snapshot lists `lake`.
 2. **Identity module** in four languages with shared goldens; every consumer switched to it (no behaviour change
    yet).
 3. **Collector allow-list extended** (B) and the MECE file-name test; let it run until every run in the lake is
@@ -330,14 +403,17 @@ C and E (`docs/dataflow.md` and the sweep behind this design list them by file a
    of the warehouse; state and faults ported; files, control and conversations served. Compare (Verification). Then
    `benchmarker-web` pointed at it, the old server and `dbench collect` retired. The gallery and the monitor move to
    the data root the same way, each compared before its git path is deleted.
-5. **Nodes**, one at a time between runs: release that carries the definitions and has the record path deleted; the
-   node's checkout moved aside (or removed; installs that need a checkout use one at another path); the node's run
-   directories moved from the old checkout into `~/awesome-local-ai/ops/data/runs/` (a move, not a copy; the lake
-   already has them); dbench restarted with the data root; the first story of the next run watched to its record in
-   the lake.
-6. **Repositories.** Move the reference-model records to `reference/` in the data root; remove every run directory
-   from the public tree in one commit; move `runs/`, `gradings/`, `archive/` and `state/` out of the private
-   repository; then rewrite the public history (decision 7) and re-clone everywhere.
+5. **Nodes**, one at a time between runs: the binaries installed under `~/.local/bin/awesome-local-ai/`; the
+   release that carries the definitions and has the record path deleted, materialised under `share/releases/`; the
+   `paths` table written; the node's run directories moved from the old checkout into `share/data/runs/` (a move,
+   not a copy; the lake already has them); `~/.dbench/releases`, `~/.w` and `~/.vidi-bench` migrated or retired per
+   section H; the checkout removed (installs that need one use a checkout at a development path); dbench restarted as
+   a unit that logs to `share/logs/`; the first story of the next run watched to its record in the lake.
+6. **Repositories.** Move the reference-model records to `reference/` in the data root and `runs/` and `gradings/`
+   out of the private repository into the lake and `gradings/`; **wait for one nightly backup whose snapshot lists
+   `reference`, `gradings` and the held-out files** (section I, point 2); then remove every run directory from the
+   public tree in one commit, remove `archive/` and `state/` from the private repository, rewrite the public history
+   (decision 7) and re-clone everywhere.
 7. **Gradings API and the judge clients** (D), then the **export step** (F), since nothing else depends on them.
 8. **Guide and docs.** `benchmarks/docs/guide` (entities: data root, lake as record; flows 1 and 2 change; the
    publication flow is new), `docs/dataflow.md`, `ops/RUNBOOK-lake-warehouse.md`, `ops/backup/RESTORE.md`,
@@ -359,19 +435,21 @@ C and E (`docs/dataflow.md` and the sweep behind this design list them by file a
   series.
 - **Repository:** `tests/privacy-test.sh` passes with zero run directories tracked; a fresh clone of the public
   repository is under 50 MB.
+- **Backup:** after step 1 the nightly snapshot lists `lake`, `warehouse`, `analytics` and the staged databases pass
+  `pragma integrity_check`; after step 6 it lists `reference` and `gradings`; the restore drill in `RESTORE.md`
+  brings one run back byte-identical to the lake. The MECE test over the data root's directories passes.
+- **Layout:** no service unit on any machine names a path inside a git checkout (a test over the generated units);
+  the host's `ops/service-state/` is gone; every binary a unit starts is under `~/.local/bin/awesome-local-ai/`.
 
 ## Open points for the owner
 
-Decided on 10 Oct 2026: the data root name, the history rewrite, the engine and web split, judges through the
-engine's API, reference-model runs under `reference/`, and nothing published by default (decisions 7 to 12). Two
-points remain.
+Decided on 10 Oct 2026: the machine layout (XDG now, system locations on the roadmap), the history rewrite, the
+engine and web split, judges through the engine's API, reference-model runs under `reference/`, and nothing
+published by default (decisions 7 to 13). Two points remain.
 
-1. **The data root on bench nodes.** `~/awesome-local-ai` is the checkout on a node today, so `~/awesome-local-ai/
-   ops/data` would sit inside it. Proposed: after this design a node needs no checkout of the public repository (the
-   release carries the definitions), so on each node the checkout is moved aside (a path such as
-   `~/src/awesome-local-ai`, kept for installing engines and models) and `~/awesome-local-ai` becomes a plain
-   directory whose only content is `ops/data`. The harness and dbench refuse a data root inside a git checkout, so the
-   arrangement cannot regress silently. Confirm, or name another path for nodes.
+1. **Configuration and secrets directory.** `~/.config/awesome-local-ai/` with a `secrets/` subdirectory is my
+   proposal to go with the owner's binaries, data and logs locations; the owner named those three and not this one.
+   Confirm, or name another.
 2. **The private repository's contents.** "Scope" means `packs/vidi/scope/<name>.json`: the file that names a scope
    (for example `canvas`) and lists the stories it covers, which decides what a run must finish and what the gallery
    reviews. Proposed: the private repository keeps only the private system inputs, `packs/<name>/{acceptance,
