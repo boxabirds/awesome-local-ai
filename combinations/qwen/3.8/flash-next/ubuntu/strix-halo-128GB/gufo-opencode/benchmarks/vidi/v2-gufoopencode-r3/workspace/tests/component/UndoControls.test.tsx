@@ -54,6 +54,7 @@ function BindController({ controller }: { controller: UndoController }) {
   return (
     <Toolbar
       onCreateSticky={() => undefined}
+        onPickImages={() => undefined}
       tool="select"
       onSelectTool={() => undefined}
       shapeKind="rect"
@@ -100,6 +101,7 @@ describe('undo.controls (buttons)', () => {
     render(
       <Toolbar
         onCreateSticky={() => undefined}
+        onPickImages={() => undefined}
         tool="select"
         onSelectTool={() => undefined}
                 shapeKind="rect"
@@ -119,6 +121,7 @@ describe('undo.controls (buttons)', () => {
     render(
       <Toolbar
         onCreateSticky={() => undefined}
+        onPickImages={() => undefined}
         tool="select"
         onSelectTool={() => undefined}
                 shapeKind="rect"

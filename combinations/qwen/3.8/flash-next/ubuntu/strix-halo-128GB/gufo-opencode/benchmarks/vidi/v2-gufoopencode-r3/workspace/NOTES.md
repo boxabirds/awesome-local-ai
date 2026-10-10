@@ -502,3 +502,82 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
   in try/catch like BoardViewport.
 - Browser matrix unchanged: only Chromium binaries are available, so the
   story-11 e2e (TC-17..20) runs in Chromium.
+
+## Story 12 decisions (images on the board)
+
+- Format identity is magic bytes, never the filename or Content-Type:
+  `sniffImageType` (`src/shared/image-format.ts`) checks the first
+  `IMAGE_SNIFF_BYTES` (12) bytes for the PNG/JPEG/GIF/WebP signatures and the
+  worker re-sniffs on upload (415 on mismatch), so client and server agree on
+  ground truth. Asset keys are `<boardId>/<random 22-char>` and never mutated,
+  which is what makes `Cache-Control: …, immutable` sound; served responses
+  also carry `nosniff` + `default-src 'none'` CSP.
+- Upload order in the worker (per design): id pattern → `exists()` RPC →
+  Content-Length → read body → byte length → sniff → put; nothing is written
+  on any error path.
+- Image lifecycle (`src/shared/objects/image.ts`): `uploading → ready |
+  failed`, `uploadStartedAt` stamped at creation. Status transitions
+  (`markImageReady/Failed/Retrying`) are transacted with a second untracked
+  origin `UPLOAD_ORIGIN` (not `LOCAL_ORIGIN`), so uploads completing never
+  pollute the undo stack; the placeholder creation itself is a normal
+  `LOCAL_ORIGIN` write (one undo step per drop). `displayStatus` derives
+  `unfinished` client-side when `uploading` and stale for
+  `IMAGE_UPLOAD_STALE_MS` (another tab died mid-upload) — anyone can remove
+  an unfinished image.
+- `useImageInsert` (client) owns drop/paste/picker:
+  `navigator.onLine === false` → the offline toast with no doc writes;
+  `IMAGE_MAX_FILES_PER_ADD` (20) is counted over the *accepted* set after
+  format+size validation, in design message order (format → size → count);
+  paste is ignored while `isTextEntry(e.target)`; natural dimensions come from
+  `createImageBitmap(file)` and files it *rejects* are dropped with the type
+  toast (content, not name, decides — TC-29), same ground-truth rule as the
+  server sniff. Placement rows via `layoutRow` centred on the viewport
+  centre (drop point for drops, viewport centre for paste/picker); each image
+  uploads via XHR (`uploadImage.ts`) for real `upload.onprogress` →
+  placeholder shows the percent. Placeholder creation is bracketed by
+  `undo.boundary()` calls so one drop = exactly one undo step.
+- Retry semantics: `retryImage` flips `failed → uploading` and re-runs the
+  upload in the *tab that pressed Retry* only; other clients just see the
+  status change via sync (no cross-tab orchestration — the doc is the queue,
+  in-memory per tab).
+- `ImageObject.tsx` is purely presentational; controls come through
+  `ImageControlsContext` (provided by `ImageControlsProvider` in BoardPage
+  with a 30 s clock tick so `uploading → unfinished` re-renders without new
+  events). A `failed` image *without* controls (e.g. a fixture rendered bare)
+  shows "Image unavailable" with no Remove — Remove for anyone exists only in
+  the `unfinished` state, matching the design's permission split.
+- Registry entry: `resizable: true, aspectLocked: true, minSize:
+  IMAGE_MIN_SIZE_WORLD, editableText: false`, bbox hit-test; anchor shrinks to
+  the bitmap (img display block) so corner drags grab the visible frame.
+- Test-environment gotchas (jsdom component project):
+  - jsdom has **no `createImageBitmap`** — stub it in `beforeEach`
+    (`vi.stubGlobal('createImageBitmap', () => Promise.resolve({width, height,
+    close(){}}))`); TC-29 installs a rejecting stub instead.
+  - Mock the upload module with `vi.hoisted(() => vi.fn())` +
+    `vi.mock('../../src/client/images/uploadImage', …)`.
+  - Deferred upload promises must be resolved **with a value**
+    (`resolve({ kind: 'ok', assetKey })`); resolving with `undefined` makes
+    the hook deref `result.assetKey` and the rejection is swallowed by the
+    catch-all.
+  - Harnesses that capture a prop (e.g. `connection`) into a ref need a
+    forced re-render (`useReducer` bump) when it changes, else the ref keeps
+    the first value.
+- E2E gotchas:
+  - Specs run as ESM: `__dirname` is undefined — load fixtures with
+    `new URL('../fixtures/images/', import.meta.url)` + `fileURLToPath`.
+  - Drops build a real `DataTransfer` with real `File`s inside
+    `page.evaluate` and dispatch `dragenter/dragover/drop` on `.board-root`
+    (React 19 delegation picks the synthetic events up).
+  - Intermediate "Uploading…" states are observable by delaying uploads with
+    `page.route('**/api/boards/*/assets', … setTimeout + route.continue())`;
+    assert progress with a scoped locator — a bare `getByText(/^\d+%$/)` also
+    matches the zoom control's "100%".
+  - All web-first assertions must be `await`ed (`await expect(…)`), plain
+    `expect(locator).toHaveCount` silently passes.
+- Flake note: the first full parallel run right after a cold `wrangler dev`
+  start flaked three tests (live-collab TC-24, navigation TC-27 — already a
+  documented pre-existing flake, and images TC-27); three subsequent full
+  runs (one `--workers=1`, two parallel, plus nightly) were 56/56 green.
+  Treated as cold-start load, consistent with the story-9 note.
+- Browser matrix unchanged: only Chromium binaries are available, so the
+  story-12 e2e (TC-25..28) runs in Chromium.

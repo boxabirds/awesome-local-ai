@@ -2,10 +2,12 @@ import { isValidBoardId } from '../shared/board-id';
 import { createBoard } from './create-board';
 import { BoardRoom } from './board-room';
 import { handleTestHook } from './test-hooks';
+import { handleServe, handleUpload } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   // Enables the /__test/boards/:id/* corruption hooks. Set only in the e2e
   // wrangler environment, never in production config.
   TEST_HOOKS?: string;
@@ -13,6 +15,8 @@ export interface Env {
 
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)$/;
 const BOARD_PATH = /^\/api\/boards\/([^/]+)$/;
+const BOARD_ASSETS_PATH = /^\/api\/boards\/([^/]+)\/assets$/;
+const ASSET_PATH = /^\/api\/assets\/([^/]+)\/([^/]+)$/;
 
 function jsonError(error: string, status: number): Response {
   return new Response(JSON.stringify({ error }) + '\n', {
@@ -50,6 +54,30 @@ export default {
         status: 201,
         headers: { 'content-type': 'application/json' }
       });
+    }
+
+    const boardAssetsMatch = BOARD_ASSETS_PATH.exec(url.pathname);
+    if (boardAssetsMatch !== null) {
+      if (request.method !== 'POST') {
+        return new Response('Method not allowed\n', {
+          status: 405,
+          headers: { Allow: 'POST' }
+        });
+      }
+      return handleUpload(request, env, boardAssetsMatch[1]);
+    }
+
+    const assetMatch = ASSET_PATH.exec(url.pathname);
+    if (assetMatch !== null) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return new Response('Method not allowed\n', {
+          status: 405,
+          headers: { Allow: 'GET, HEAD' }
+        });
+      }
+      // Key checked as a whole; percent-encoded dots never decode to
+      // traversal here because the raw path segments are matched verbatim.
+      return handleServe(env, `${assetMatch[1]}/${assetMatch[2]}`);
     }
 
     const boardMatch = BOARD_PATH.exec(url.pathname);

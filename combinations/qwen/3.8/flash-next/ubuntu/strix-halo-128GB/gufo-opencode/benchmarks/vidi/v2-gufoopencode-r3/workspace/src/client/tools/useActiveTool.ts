@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ShapeKind } from '../../shared/config';
 import type { SelectionController } from '../board/useSelection';
 
@@ -48,6 +48,9 @@ export interface UseActiveToolOptions {
   canEdit?: boolean;
   // Passed through so toolCreated() can make the new object the selection.
   selection?: SelectionController;
+  // Story 12: 'image' is not a persistent tool — I opens the file picker
+  // and the board stays on Select.
+  onImagePick?(): void;
 }
 
 export interface UseActiveToolResult {
@@ -62,9 +65,14 @@ export interface UseActiveToolResult {
 // return-to-Select rule: after a tool creates an object (toolCreated) or on
 // Escape, Select is active again and nothing pending is created.
 export function useActiveTool(options: UseActiveToolOptions = {}): UseActiveToolResult {
-  const { canEdit = true, selection } = options;
+  const { canEdit = true, selection, onImagePick } = options;
   const [tool, setToolState] = useState<ToolId>('select');
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
+
+  // Image opens the picker without ever becoming the active tool; keep the
+  // latest callback without re-binding the key listener.
+  const imagePickRef = useRef(onImagePick);
+  imagePickRef.current = onImagePick;
 
   // A board that stops being editable cannot keep a creation tool active.
   useEffect(() => {
@@ -81,8 +89,14 @@ export function useActiveTool(options: UseActiveToolOptions = {}): UseActiveTool
       }
       if (e.key.length !== 1) return;
       const id = TOOL_SHORTCUTS[e.key.toLowerCase()];
-      if (id === undefined || !ACTIVATABLE.has(id)) return; // 'n' is story 2's note creation
+      if (id === undefined) return;
       if (!canEdit) return;
+      if (id === 'image') {
+        // Story 12: I opens the file picker; Select stays active.
+        imagePickRef.current?.();
+        return;
+      }
+      if (!ACTIVATABLE.has(id)) return; // 'n' is story 2's note creation
       setToolState((prev) => (prev === id ? prev : id));
     };
     window.addEventListener('keydown', onKeyDown);

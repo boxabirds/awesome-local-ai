@@ -23,5 +23,12 @@
       "tag": "v1",
       "new_sqlite_classes": ["BoardRoom"]
     }
+  ],
+  // Story 12: image assets, immutable under unguessable keys.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
   ]
 }

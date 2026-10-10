@@ -39,6 +39,10 @@ import {
 import { installTestHooks } from '../canvas/testHooks';
 import { BoardCameraContext, useCamera } from '../canvas/useCamera';
 import { getObjectType } from '../objects/registry';
+import { ImageControlsProvider } from '../objects/ImageObject';
+import { DropHighlight } from '../images/DropHighlight';
+import { useImageInsert } from '../images/useImageInsert';
+import { ToastHost } from '../ui/Toast';
 import { STICKY_PADDING_WORLD } from '../objects/StickyNote';
 import { createCanvasMeasurer } from '../objects/textLayout';
 import { TextToolbar } from '../objects/TextToolbar';
@@ -170,9 +174,27 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
     );
   }, [board.camera, createAtWorldPoint, viewport, editable]);
 
+  // Story 12: drop, paste and picker flows. The picker callback lives here
+  // so the I shortcut never activates a tool.
+  const insert = useImageInsert({
+    doc,
+    boardId: resolvedId,
+    camera: board.camera,
+    connection: connectionStatus,
+    identityId: identity.id,
+    undo: undoController
+  });
+  const { onPaste } = insert;
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => onPaste(e);
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [onPaste]);
+
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
     canEdit: editable,
-    selection
+    selection,
+    onImagePick: insert.openPicker
   });
   // Pen colour/thickness: session-only, never synced (story 11).
   const pen = usePenOptions();
@@ -265,8 +287,23 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
         ref={rootRef}
         className="board-root"
         style={{ '--sticky-padding': `${STICKY_PADDING_WORLD}px` } as React.CSSProperties}
+        onDragEnter={insert.onDragEnter}
+        onDragOver={insert.onDragOver}
+        onDragLeave={insert.onDragLeave}
+        onDrop={insert.onDrop}
       >
         <ConnectionStatus status={connectionStatus} />
+        <ImageControlsProvider
+          doc={doc}
+          controls={{
+            identityId: identity.id,
+            progress: (id) => insert.progress.get(id),
+            canRetry: insert.canRetry,
+            retry: (id) => {
+              insert.retry(id);
+            }
+          }}
+        >
         <BoardViewport
           onDoubleClickEmpty={onDoubleClickEmpty}
           onEmptyClick={() => {
@@ -298,6 +335,7 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
           })}
           {marquee.rect !== null && <MarqueeRect rect={marquee.rect} />}
         </BoardViewport>
+        </ImageControlsProvider>
         {tool === 'shape' && editable && (
           <ShapeTool
             kind={shapeKind}
@@ -322,6 +360,7 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
         )}
         <Toolbar
           onCreateSticky={onCreateSticky}
+          onPickImages={insert.openPicker}
           tool={tool}
           onSelectTool={setTool}
           shapeKind={shapeKind}
@@ -459,6 +498,8 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
           onReset={board.reset}
         />
         <NavigationHint visible={!hasNavigated} />
+        <DropHighlight visible={insert.draggingFiles} />
+        <ToastHost />
       </div>
     </BoardCameraContext.Provider>
   );

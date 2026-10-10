@@ -3,6 +3,7 @@ import type * as Y from 'yjs';
 import { objectBounds, registerSelectableType, type ObjectSnapshot } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
@@ -17,6 +18,7 @@ import { getStrokeSnap, scaledPoints } from '../../shared/objects/stroke';
 import type { UndoController } from '../board/undo';
 import type { EndEditNext } from '../board/useSelection';
 import { ConnectorObject } from './ConnectorObject';
+import { ImageObjectView } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { StrokeObject } from './StrokeObject';
@@ -143,4 +145,17 @@ registerObjectType('stroke', {
       Math.max(PEN_THICKNESS_WORLD[snap.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom)
     );
   }
+});
+
+// An image is selected, moved and resized like a sticky, but the resize is
+// always proportional (aspectLocked) and stops at IMAGE_MIN_SIZE_WORLD
+// (image.aspect_resize). It has no editable text.
+registerObjectType('image', {
+  Component: ImageObjectView,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, point) =>
+    rectContains(objectBounds(obj), { x: point.x, y: point.y, width: 0, height: 0 })
 });

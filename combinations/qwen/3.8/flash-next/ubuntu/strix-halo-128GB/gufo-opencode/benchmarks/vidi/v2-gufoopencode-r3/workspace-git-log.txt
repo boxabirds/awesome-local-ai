@@ -1,3 +1,54 @@
+commit 94c1c113ea0526786b473e9263ccdaf5371645cd
+agent  Sat Oct 10 22:22:56 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                |  79 +++++++++
+ PROGRESS.md                             |  18 +-
+ src/client/board/Toolbar.tsx            |  16 ++
+ src/client/canvas/testHooks.ts          |   3 +
+ src/client/images/DropHighlight.tsx     |   8 +
+ src/client/images/uploadImage.ts        |  40 +++++
+ src/client/images/useImageInsert.ts     | 283 ++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  39 +++++
+ src/client/index.css                    | 116 +++++++++++++
+ src/client/objects/ImageObject.tsx      | 252 ++++++++++++++++++++++++++++
+ src/client/objects/registry.tsx         |  15 ++
+ src/client/pages/BoardPage.tsx          |  43 ++++-
+ src/client/tools/useActiveTool.ts       |  20 ++-
+ src/client/ui/Toast.tsx                 |  63 +++++++
+ src/shared/config.ts                    |  11 ++
+ src/shared/image-format.ts              |  37 +++++
+ src/shared/objects/image.ts             | 267 ++++++++++++++++++++++++++++++
+ src/worker/assets.ts                    |  72 ++++++++
+ src/worker/index.ts                     |  28 ++++
+ tests/component/ImageObject.test.tsx    | 251 ++++++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   |   3 +
+ tests/component/useImageInsert.test.tsx | 200 ++++++++++++++++++++++
+ tests/e2e/images.spec.ts                | 222 +++++++++++++++++++++++++
+ tests/fixtures/images/animation.gif     | Bin 0 -> 14451 bytes
+ tests/fixtures/images/evil.svg          |   2 +
+ tests/fixtures/images/fake.png          | Bin 0 -> 512 bytes
+ tests/fixtures/images/photo.jpg         | Bin 0 -> 4304210 bytes
+ tests/fixtures/images/photo.webp        | Bin 0 -> 950 bytes
+ tests/fixtures/images/report.png        |   1 +
+ tests/fixtures/images/screenshot.png    | Bin 0 -> 5974 bytes
+ tests/fixtures/images/truncated.png     | Bin 0 -> 1024 bytes
+ tests/integration/assets.test.ts        | 157 ++++++++++++++++++
+ tests/unit/image-format.test.ts         |  76 +++++++++
+ tests/unit/image-model.test.ts          | 188 +++++++++++++++++++++
+ tests/unit/validate-files.test.ts       |  73 ++++++++
+ wrangler.jsonc                          |   7 +
+ 36 files changed, 2577 insertions(+), 13 deletions(-)
+commit 76a5b0d1542ccee8e570bfda433144cafebb94d9
+vidi-agent  Sat Oct 10 21:17:55 2026 +0000
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 commit 87958b28fa9c8f872dd00f3fc675818dc581450e
 agent  Sat Oct 10 21:13:56 2026 +0000
 

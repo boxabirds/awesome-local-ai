@@ -1,6 +1,7 @@
 import type * as Y from 'yjs';
 import { createSticky, getStickyText, snapshot, type StickySnapshot } from '../../shared/board-model';
 import { collectTextSnapshots, type TextSnapshot } from '../../shared/objects/text';
+import { collectImageSnapshots, type ImageSnap } from '../../shared/objects/image';
 import { collectConnectorViews, createConnector, type ConnectorView, type Endpoint } from '../../shared/objects/connector';
 import { collectShapeSnapshots, createShape, getShapeLabel, type ShapeSnap } from '../../shared/objects/shape';
 import {
@@ -26,6 +27,7 @@ declare global {
       getShapes(): readonly ShapeSnap[];
       getConnectors(): readonly ConnectorView[];
       getStrokes(): readonly StrokeView[];
+      getImages(): readonly ImageSnap[];
       createShapeAt(opts: {
         kind: 'rect' | 'ellipse' | 'diamond';
         x: number;
@@ -58,6 +60,7 @@ export function installTestHooks(
     getShapes: () => collectShapeSnapshots(doc),
     getConnectors: () => collectConnectorViews(doc),
     getStrokes: () => collectStrokeSnapshots(doc).map((s) => ({ ...s, worldPoints: scaledPoints(s) })),
+    getImages: () => collectImageSnapshots(doc),
     createShapeAt: ({ kind, x, y, width, height, square, label }) => {
       const rect =
         width !== undefined && height !== undefined

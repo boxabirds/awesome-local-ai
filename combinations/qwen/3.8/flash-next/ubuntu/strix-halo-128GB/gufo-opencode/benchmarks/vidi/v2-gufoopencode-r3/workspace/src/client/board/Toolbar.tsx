@@ -6,6 +6,8 @@ import type { UndoState } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  // Story 12: opens the system file picker; not a persistent tool.
+  onPickImages(): void;
   tool: ToolId;
   onSelectTool(tool: ToolId): void;
   shapeKind: ShapeKind;
@@ -24,6 +26,7 @@ const KIND_LABELS: Record<ShapeKind, string> = {
 // Fixed left-side vertical toolbar.
 export function Toolbar({
   onCreateSticky,
+  onPickImages,
   tool,
   onSelectTool,
   shapeKind,
@@ -117,6 +120,19 @@ export function Toolbar({
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path d="M3 17l1-4L14 3l3 3L7 16l-4 1z" fill="#fff" stroke="#0f172a" strokeWidth="1.5" strokeLinejoin="round" />
           <path d="M12 5l3 3" fill="none" stroke="#0f172a" strokeWidth="1.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Image – or press I, to add images in the middle of the view"
+        onClick={onPickImages}
+        disabled={disabled}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <rect x="2.5" y="3.5" width="15" height="13" rx="2" fill="#fff" stroke="#0f172a" strokeWidth="1.5" />
+          <circle cx="7" cy="8" r="1.5" fill="#0f172a" />
+          <path d="M4 14.5l4-4 3 3 2.5-2.5 2.5 3" fill="none" stroke="#0f172a" strokeWidth="1.5" strokeLinejoin="round" />
         </svg>
       </button>
       <button

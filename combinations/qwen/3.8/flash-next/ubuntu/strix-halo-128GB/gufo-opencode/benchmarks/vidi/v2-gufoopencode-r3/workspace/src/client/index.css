@@ -838,3 +838,119 @@ body {
   background: #dbeafe;
   color: #1d4ed8;
 }
+
+/* Story 12: images. */
+
+.image-object-anchor {
+  position: absolute;
+}
+
+.image-object {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.image-object-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: fill;
+}
+
+.image-object--uploading,
+.image-object--unfinished,
+.image-object--unavailable {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.image-object--failed {
+  background: #e2e8f0;
+  border: 2px solid #e53935;
+  color: #b71c1c;
+}
+
+.image-status-label {
+  font-size: 13px;
+  text-align: center;
+  padding: 0 8px;
+}
+
+.image-progress-track {
+  width: min(80%, 220px);
+  height: 6px;
+  border-radius: 3px;
+  background: #cbd5e1;
+  overflow: hidden;
+}
+
+.image-progress-fill {
+  height: 100%;
+  background: #1e88e5;
+  transition: width 120ms linear;
+}
+
+.image-progress-label {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.image-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.image-retry-button,
+.image-remove-button {
+  padding: 3px 10px;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  background: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.image-retry-button:hover,
+.image-remove-button:hover {
+  background: #f1f5f9;
+}
+
+.drop-highlight {
+  position: absolute;
+  inset: 12px;
+  border: 2px dashed #1e88e5;
+  border-radius: 8px;
+  background: rgb(30 136 229 / 0.06);
+  pointer-events: none;
+  z-index: 50;
+}
+
+.toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.25);
+  white-space: nowrap;
+}
