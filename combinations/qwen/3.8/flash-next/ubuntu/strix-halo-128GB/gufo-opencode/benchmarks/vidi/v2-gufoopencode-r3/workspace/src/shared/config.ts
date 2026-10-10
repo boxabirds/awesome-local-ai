@@ -37,6 +37,10 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+// Story 8: per-user undo.
+export const UNDO_CAPTURE_TIMEOUT_MS = 500; // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;
+
 export const STICKY_SIZE_WORLD = 200;
 export const STICKY_TEXT_MAX_CHARS = 1000;
 export const STICKY_COUNTER_THRESHOLD_CHARS = 50; // counter shows when remaining <= this

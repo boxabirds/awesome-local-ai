@@ -11,7 +11,8 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['tests/unit/**/*.test.ts']
+          include: ['tests/unit/**/*.test.ts'],
+          setupFiles: ['./tests/unit/setup-clock.ts']
         }
       },
       {

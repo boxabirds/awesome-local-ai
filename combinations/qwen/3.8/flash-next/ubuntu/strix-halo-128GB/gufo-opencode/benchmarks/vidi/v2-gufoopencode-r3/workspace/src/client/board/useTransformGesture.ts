@@ -186,9 +186,11 @@ export function useTransformGesture(options: TransformGestureOptions) {
         // Selection vanished at the exact threshold: nothing to move.
         g.pending = null;
       }
-      bringObjectsToFront(doc, g.entries.map((e) => e.id));
       g.active = true;
+      // Announce the step boundary before raising: the z-order change then
+      // belongs to the same undo step as the drag itself.
       latest.current.onGestureStart?.();
+      bringObjectsToFront(doc, g.entries.map((e) => e.id));
       return;
     }
     g.active = true;

@@ -170,8 +170,13 @@ body {
   cursor: pointer;
 }
 
-.board-toolbar button:hover {
+.board-toolbar button:hover:not(:disabled) {
   background: #eef2f7;
+}
+
+.board-toolbar button:disabled {
+  color: #9aa4b2;
+  cursor: default;
 }
 
 .board-toolbar button:focus-visible {

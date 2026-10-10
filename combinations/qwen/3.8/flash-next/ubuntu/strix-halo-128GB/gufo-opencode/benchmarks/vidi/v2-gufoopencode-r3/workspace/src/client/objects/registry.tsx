@@ -3,6 +3,7 @@ import type * as Y from 'yjs';
 import { objectBounds, registerSelectableType, type ObjectSnapshot } from '../../shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
+import type { UndoController } from '../board/undo';
 import type { EndEditNext } from '../board/useSelection';
 import { StickyNote } from './StickyNote';
 
@@ -22,6 +23,9 @@ export interface ObjectProps {
   onObjectPointerDown(e: ReactPointerEvent<HTMLElement>, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditNext): void;
+  // This tab's undo history, for components that own keyboard input while
+  // editing (the sticky text editor routes Ctrl/Cmd+Z to it).
+  undo?: UndoController;
 }
 
 // The only per-type knobs. Selection, move, resize, delete, keyboard and the

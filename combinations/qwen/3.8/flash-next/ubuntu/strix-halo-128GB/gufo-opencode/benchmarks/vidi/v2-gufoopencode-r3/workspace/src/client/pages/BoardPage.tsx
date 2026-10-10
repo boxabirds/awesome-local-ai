@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-model';
 import { isValidBoardId, newBoardId } from '../../shared/board-id';
@@ -7,10 +7,12 @@ import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { Toolbar } from '../board/Toolbar';
+import { createUndo } from '../board/undo';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
+import { useUndo } from '../board/useUndo';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { ZoomControls } from '../canvas/ZoomControls';
@@ -101,10 +103,24 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
   const selection = useSelection(objects);
   const { editingId } = selection;
 
+  // This tab's own history, one per doc. It never leaves the tab: only
+  // LOCAL_ORIGIN transactions are captured (design §Undo controller).
+  const undoController = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undoController.destroy(), [undoController]);
+  const undoState = useUndo(undoController, editable);
+
   // Local-only flag: hides the floating toolbar while a gesture runs.
   const [dragging, setDragging] = useState(false);
-  const onGestureStart = useCallback(() => setDragging(true), []);
-  const onGestureEnd = useCallback(() => setDragging(false), []);
+  const onGestureStart = useCallback(() => {
+    // Close the previous capture window so this gesture is its own step.
+    undoController.boundary();
+    setDragging(true);
+  }, [undoController]);
+  const onGestureEnd = useCallback(() => {
+    // Close this gesture's window so the next change is never merged into it.
+    undoController.boundary();
+    setDragging(false);
+  }, [undoController]);
 
   const gesture = useTransformGesture({
     doc,
@@ -116,7 +132,7 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
     onGestureEnd
   });
   const marquee = useMarquee(board.camera, objects, selection);
-  useBoardKeys({ doc, objects, selection, canEdit: editable });
+  useBoardKeys({ doc, objects, selection, canEdit: editable, undo: undoController });
 
   useEffect(() => {
     installTestHooks(board.setCamera, doc, connection);
@@ -124,10 +140,12 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
 
   const createAtWorldPoint = useCallback(
     (world: Point) => {
+      undoController.boundary();
       const id = createSticky(doc, world);
+      undoController.boundary();
       selection.startEdit(id);
     },
-    [doc, selection]
+    [doc, selection, undoController]
   );
 
   const onDoubleClickEmpty = useCallback(
@@ -158,9 +176,11 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
   const showSelectionBar = editable && selectionCount >= 2 && !dragging;
 
   const deleteSelection = useCallback(() => {
+    undoController.boundary();
     deleteObjects(doc, [...selection.ids]);
     selection.clear();
-  }, [doc, selection]);
+    undoController.boundary();
+  }, [doc, selection, undoController]);
 
   return (
     <BoardCameraContext.Provider value={board}>
@@ -193,12 +213,13 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
                 onObjectPointerDown={gesture.onObjectPointerDown}
                 onStartEdit={selection.startEdit}
                 onEndEdit={selection.endEdit}
+                undo={undoController}
               />
             );
           })}
           {marquee.rect !== null && <MarqueeRect rect={marquee.rect} />}
         </BoardViewport>
-        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
+        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoState} />
         {editable && (
           <SelectionOverlay
             objects={objects}
@@ -224,11 +245,15 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
               count={1}
               singleSticky={{ color: singleNote.color }}
               onColor={(color) => {
+                undoController.boundary();
                 setStickyColor(doc, singleNote.id, color);
+                undoController.boundary();
               }}
               onDelete={() => {
+                undoController.boundary();
                 deleteObjects(doc, [singleNote.id]);
                 selection.clear();
+                undoController.boundary();
               }}
             />
           </div>

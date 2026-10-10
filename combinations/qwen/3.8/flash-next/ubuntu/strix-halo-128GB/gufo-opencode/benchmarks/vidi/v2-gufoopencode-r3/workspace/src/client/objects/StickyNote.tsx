@@ -11,8 +11,17 @@ export const STICKY_PADDING_WORLD = 16;
 export type StickyNoteProps = ObjectProps;
 
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { obj, doc, selected, editing, editable = true, onObjectPointerDown, onStartEdit, onEndEdit } =
-    props;
+  const {
+    obj,
+    doc,
+    selected,
+    editing,
+    editable = true,
+    onObjectPointerDown,
+    onStartEdit,
+    onEndEdit,
+    undo
+  } = props;
   const measureRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
 
@@ -85,7 +94,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
         aria-hidden="true"
       />
       {showEditor ? (
-        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} undo={undo} />
       ) : (
         <div className="sticky-note-text">
           <div className="sticky-note-text-inner" style={{ fontSize: fit.fontPx }}>

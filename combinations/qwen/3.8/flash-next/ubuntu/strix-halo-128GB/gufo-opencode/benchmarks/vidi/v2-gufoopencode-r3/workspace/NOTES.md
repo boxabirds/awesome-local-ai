@@ -328,3 +328,55 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
   `KeyboardEvent`s need `cancelable: true` to observe preventDefault.
 - e2e: `getNotes` now reports width/height (resize assertions). Single-page
   specs use `openBoard(page)` (the `/` route is not a board since story 5).
+
+---
+
+# Story 8: Undo and redo my own changes without undoing anyone else's
+
+## Architecture
+- `createUndo(doc, opts)` (`src/client/board/undo.ts`) wraps a Yjs
+  `UndoManager` scoped to the `objects` map with
+  `trackedOrigins: new Set([LOCAL_ORIGIN])`, so remote provider updates and the
+  story-4 load update never enter the stacks and can never be undone from a tab.
+  The controller exposes `undo/redo` (boolean: false when nothing was undone),
+  `boundary()` (→ `stopCapturing`), `canUndo/canRedo`, `addScope` (story 16),
+  `onChange` and `destroy`.
+- History trimming uses the `stack-item-added` event (not yjs `limit`, which is
+  deprecated), shifting the undo stack down to `UNDO_MAX_STEPS`; `captureTimeout`
+  and the step cap come from named settings `UNDO_CAPTURE_TIMEOUT_MS` /
+  `UNDO_MAX_STEPS` in `src/shared/config.ts`.
+- Step boundaries are explicit `boundary()` calls so a gesture or a typing
+  session is exactly one step regardless of frame count: `useTransformGesture`
+  start/end (and the z-raise is now issued *after* `onGestureStart` so the raise
+  shares the move step), toolbar create, note-toolbar colour/delete, key delete
+  /nudge, and `StickyTextEditor` mount/unmount.
+
+## Deviations from design.md
+- The design names `App.tsx` as the controller owner, but since story 5
+  `App.tsx` is a thin router; the controller is created in `BoardPage.tsx`
+  inside the view that owns the `Y.Doc` (one controller per doc, recreated and
+  `destroy`ed with it). Same intent, correct home.
+- `ObjectProps` (`src/client/objects/registry.tsx`) gained an optional `undo?:
+  UndoController` so the controller reaches `StickyTextEditor` (which intercepts
+  Ctrl+Z while editing and syncs external/undo writes via `ytext.observe`). The
+  design did not list this prop; it is the minimal way to thread the controller.
+- `addScope` takes a local `UndoScope = Y.AbstractType<any> | Y.Doc` alias:
+  the design's `AbstractType<unknown>` is contravariant and rejects concrete
+  `YMap<unknown>` callers.
+- `LOAD_ORIGIN` stays in `src/worker/board-store.ts`. Importing it into a unit
+  test would drag Cloudflare worker types into the client `tsconfig` program, so
+  `tests/unit/peer.ts` uses a local stand-in symbol; the real origin path is
+  covered by e2e TC-24-style load tests.
+
+## Testing notes
+- yjs is externalised as CJS in vitest, so `vi.mock('lib0/time')` never intercepts
+  the clock inside `node_modules`. The capture-timeout tests drive a `globalThis`
+  clock seam installed once per worker via the unit project's `setupFiles`
+  (`tests/unit/setup-clock.ts`), toggled per test in `undo-boundaries.test.ts`.
+- Confirmed empirically (scratch yjs probe) that `UndoManager.undo()` returns the
+  popped `StackItem` (truthy) or `null`, and *skips* steps whose inverse has no
+  effect (e.g. moving a note later deleted by a peer) until it finds one that
+  actually applies; a move-only stack + remote delete therefore undoes nothing and
+  empties the stack (TC-23's clean no-op).
+- Browser matrix unchanged: only Chromium binaries are available here; all e2e
+  (37 tests incl. TC-22/23/24) pass in Chromium.

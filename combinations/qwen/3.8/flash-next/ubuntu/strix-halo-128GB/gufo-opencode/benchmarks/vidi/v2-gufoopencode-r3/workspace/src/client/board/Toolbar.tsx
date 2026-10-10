@@ -1,14 +1,17 @@
 import type { JSX } from 'react';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS } from '../../shared/config';
+import { UndoButtons } from './UndoButtons';
+import type { UndoState } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   // Disabled while the board cannot be loaded (load_failed), TC-23.
   disabled?: boolean;
+  undo: UndoState;
 }
 
 // Fixed left-side vertical toolbar.
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled = false, undo }: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -29,6 +32,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX
           <path d="M12 18V14a2 2 0 0 1 2-2h4" fill="none" stroke="#0f172a" strokeWidth="1.5" />
         </svg>
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }
