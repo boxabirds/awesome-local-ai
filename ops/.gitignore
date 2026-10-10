@@ -2,3 +2,4 @@
 monitor-log.jsonl
 monitor-status.json
 monitor-state/
+service-state/
