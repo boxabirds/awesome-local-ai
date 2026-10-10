@@ -14,6 +14,7 @@ import {
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
+import type { ToolState } from './useTool';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -22,6 +23,9 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   undoBoundary?(): void;
   undoShortcuts?: { undo(): void; redo(): void };
+  // Story 9: V/T switch the board tool; N creates a sticky at the view centre.
+  tool?: ToolState;
+  onCreateSticky?(): void;
 }
 
 function isTextTarget(target: EventTarget | null): boolean {
@@ -61,7 +65,22 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       }
       if (editing) return; // Escape inside the editor is handled by the editor
       if (e.key === 'Escape') {
+        // Escape always returns to the Select tool (text.tool_ui).
+        o.tool?.setTool('select');
         if (selection.ids.size > 0) selection.clear();
+        return;
+      }
+      if (!mod && !e.altKey && (e.key === 'v' || e.key === 'V')) {
+        o.tool?.setTool('select');
+        return;
+      }
+      if (!mod && !e.altKey && (e.key === 't' || e.key === 'T')) {
+        o.tool?.setTool('text');
+        return;
+      }
+      if (!mod && !e.altKey && (e.key === 'n' || e.key === 'N')) {
+        // N creates a sticky at the view centre, like the toolbar button.
+        o.onCreateSticky?.();
         return;
       }
       if (selection.ids.size === 0) return;

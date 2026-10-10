@@ -84,3 +84,11 @@ class FakeWebSocket {
 }
 
 globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+
+// The text measurer probes getContext('2d'); without the canvas package jsdom
+// logs a "Not implemented" jsdomError before returning null. The estimator
+// fallback is exactly what those tests run against (TC-32 covers it in unit),
+// so stub the probe directly to keep stderr clean.
+HTMLCanvasElement.prototype.getContext = vi
+  .fn()
+  .mockReturnValue(null) as unknown as typeof HTMLCanvasElement.prototype.getContext;

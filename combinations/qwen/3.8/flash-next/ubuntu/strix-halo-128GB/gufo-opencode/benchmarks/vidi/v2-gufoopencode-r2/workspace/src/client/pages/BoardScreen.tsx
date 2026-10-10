@@ -11,17 +11,24 @@ import { seedBoard } from '../board/seedBoard';
 import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { useTool } from '../board/useTool';
 import { createUndo } from '../board/undo';
 import { useUndo } from '../board/useUndo';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
 import { getObjectType } from '../objects/registry';
+import { createLazyMeasurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
+import { createText, setTextSize } from '../../shared/objects/text';
+import { getIdentity } from '../identity/identity';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
+import { TEXT_FONT_FAMILY, type TextSize } from '../../shared/config';
 import {
   createSticky,
   deleteObjects,
+  objectSnapshots,
   setStickyColor,
   snapshot,
   type StickySnapshot,
@@ -57,6 +64,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
         board: {
           doc,
           getNotes: () => snapshot(doc),
+          getObjectSnapshots: () => objectSnapshots(doc),
           seedBoard: (count) => seedBoard(doc, count),
           undo,
         },
@@ -67,6 +75,8 @@ export function BoardScreen({ boardId }: { boardId: string }) {
 
   const editable = canEdit(connection);
   const camera = viewport?.camera ?? DEFAULT_CAMERA;
+  const tool = useTool(editable);
+  const measurer = useMemo(() => createLazyMeasurer(TEXT_FONT_FAMILY), []);
 
   const gesture = useTransformGesture({
     doc,
@@ -82,15 +92,6 @@ export function BoardScreen({ boardId }: { boardId: string }) {
       setGestureActive(false);
       undo.boundary();
     },
-  });
-
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: objects,
-    canEdit: editable,
-    undoBoundary: undo.boundary,
-    undoShortcuts: { undo: undoState.undo, redo: undoState.redo },
   });
 
   const createStickyAtWorld = useCallback(
@@ -110,6 +111,42 @@ export function BoardScreen({ boardId }: { boardId: string }) {
     if (!viewport) return;
     createStickyAtWorld(viewport.centerWorld());
   }, [viewport, createStickyAtWorld]);
+
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undoBoundary: undo.boundary,
+    undoShortcuts: { undo: undoState.undo, redo: undoState.redo },
+    tool,
+    onCreateSticky: createStickyAtCentre,
+  });
+
+  // Text tool click: place text with its top-left at the clicked world point,
+  // return to Select and start editing immediately (text.tool_ui).
+  const createTextAtScreen = useCallback(
+    (screen: Point) => {
+      if (!editable || !viewport) return;
+      const world = viewport.screenToWorld(screen);
+      undo.boundary(); // creation is one undo step
+      const id = createText(doc, world, getIdentity().id);
+      undo.boundary();
+      tool.setTool('select');
+      if (id !== null) selection.startEdit(id);
+    },
+    [doc, selection, editable, undo, viewport, tool],
+  );
+
+  const changeTextSize = useCallback(
+    (id: string, size: TextSize) => {
+      if (!editable) return;
+      undo.boundary(); // the size change is one undo step
+      if (setTextSize(doc, id, size)) remeasureTextBox(doc, id, measurer);
+      undo.boundary();
+    },
+    [doc, editable, undo, measurer],
+  );
 
   const deleteSelection = useCallback(() => {
     if (!editable || selection.ids.size === 0) return;
@@ -142,13 +179,21 @@ export function BoardScreen({ boardId }: { boardId: string }) {
   return (
     <>
       <ConnectionStatus state={connection} />
-      <Toolbar onCreateSticky={createStickyAtCentre} disabled={!editable} undo={undoState} />
+      <Toolbar
+        onCreateSticky={createStickyAtCentre}
+        disabled={!editable}
+        undo={undoState}
+        tool={tool.tool}
+        onToolChange={tool.setTool}
+      />
       <BoardViewport
         onCreateStickyAtWorld={createStickyAtWorld}
         onClearSelection={selection.clear}
         onViewportHandle={setViewport}
         snapshot={objects}
         onMarqueeSelect={(ids) => selection.setMany(ids, true)}
+        textToolActive={tool.tool === 'text'}
+        onCreateTextAtScreen={createTextAtScreen}
         overlay={
           <SelectionOverlay
             ids={selection.ids}
@@ -187,6 +232,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
           onDelete={deleteSelection}
           suppress={gestureActive || selection.editingId !== null}
           onColor={changeColor}
+          onTextSize={changeTextSize}
         />
       </BoardViewport>
     </>

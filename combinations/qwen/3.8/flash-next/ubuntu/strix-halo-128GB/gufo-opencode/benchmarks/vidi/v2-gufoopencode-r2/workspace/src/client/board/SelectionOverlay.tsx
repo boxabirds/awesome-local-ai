@@ -37,6 +37,13 @@ export function SelectionOverlay({
   const box = unionRects(selected.map(objectBounds));
   if (!box) return null;
   const anyResizable = selected.some((o) => getObjectType(o.type)?.resizable === true);
+  // Text-only selections show just e/w: height belongs to the layout, not
+  // the user (text.consistent). Mixed selections keep all eight handles.
+  const horizontalOnly =
+    selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const visibleHandles = (Object.keys(HANDLE_POSITIONS) as Handle[]).filter(
+    (handle) => !horizontalOnly || handle === 'e' || handle === 'w',
+  );
   const origin = worldToScreen(camera, { x: box.x, y: box.y });
   const width = box.width * camera.zoom;
   const height = box.height * camera.zoom;
@@ -48,7 +55,7 @@ export function SelectionOverlay({
         style={{ left: origin.x, top: origin.y, width, height }}
       />
       {anyResizable &&
-        (Object.keys(HANDLE_POSITIONS) as Handle[]).map((handle) => {
+        visibleHandles.map((handle) => {
           const { fx, fy, label } = HANDLE_POSITIONS[handle];
           return (
             <button

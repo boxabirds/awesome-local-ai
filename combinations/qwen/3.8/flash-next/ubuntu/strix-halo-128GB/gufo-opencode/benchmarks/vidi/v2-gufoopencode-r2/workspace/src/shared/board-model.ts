@@ -5,13 +5,18 @@
 //   Y.Doc
 //     meta: Y.Map { schemaVersion: 1 }
 //     objects: Y.Map<string, Y.Map> with { type:'sticky', x, y, color, text: Y.Text, z, createdAt }
+//     objects: Y.Map<string, Y.Map> with { type:'text', x, y, width, height, text: Y.Text,
+//       size, widthMode, z, createdAt, createdBy } (story 9)
 
 import * as Y from 'yjs';
 import {
   DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  TEXT_SIZES,
   type StickyColor,
+  type TextSize,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
 
@@ -35,6 +40,19 @@ export interface StickySnapshot extends ObjectSnapshot {
   type: 'sticky';
   color: StickyColor;
   text: string;
+}
+
+// Story 9 free text. Defined next to the snapshot reader that produces it;
+// shared/objects/text.ts re-exports it.
+export interface TextSnapshot extends ObjectSnapshot {
+  type: 'text';
+  text: string;
+  size: TextSize;
+  widthMode: 'auto' | 'fixed';
+}
+
+export function isTextSize(value: unknown): value is TextSize {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, value);
 }
 
 function isStickyColor(value: unknown): value is StickyColor {
@@ -320,6 +338,18 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
         text: text instanceof Y.Text ? text.toString() : '',
       };
       out.push(sticky);
+    } else if (type === 'text') {
+      const text = obj.get('text');
+      const size = obj.get('size');
+      const widthMode = obj.get('widthMode');
+      const textSnap: TextSnapshot = {
+        ...base,
+        type: 'text',
+        text: text instanceof Y.Text ? text.toString() : '',
+        size: isTextSize(size) ? size : DEFAULT_TEXT_SIZE,
+        widthMode: widthMode === 'fixed' ? 'fixed' : 'auto',
+      };
+      out.push(textSnap);
     } else {
       out.push(base);
     }

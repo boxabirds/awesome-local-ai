@@ -103,6 +103,31 @@ export function getNotes(page: Page): Promise<NoteInfo[]> {
   );
 }
 
+export interface TextInfo {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  size: string;
+  widthMode: string;
+}
+
+/** Story 9: free-text objects as the shared snapshot reader sees them. */
+export function getTexts(page: Page): Promise<TextInfo[]> {
+  return page.evaluate(() =>
+    (
+      window as never as {
+        __vidi6: { board: { getObjectSnapshots?(): TextInfo[] } };
+      }
+    )
+      .__vidi6.board.getObjectSnapshots!()
+      .filter((o) => o.type === 'text'),
+  );
+}
+
 export async function gridSpacingPx(page: Page): Promise<string> {
   return page
     .getByTestId('board-grid')

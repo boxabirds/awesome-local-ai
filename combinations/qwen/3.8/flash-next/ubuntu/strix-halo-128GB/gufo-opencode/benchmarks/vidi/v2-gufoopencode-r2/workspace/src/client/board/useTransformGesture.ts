@@ -12,7 +12,7 @@ import {
   resizeObjects,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD, TEXT_FONT_FAMILY } from '../../shared/config';
 import {
   clampScale,
   resizeRect,
@@ -24,12 +24,16 @@ import {
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
+import { setTextWidthFixed } from '../../shared/objects/text';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
+import { createLazyMeasurer, type Measurer } from '../objects/textLayout';
 import type { Selection } from './useSelection';
 
 interface GestureEntry {
   id: string;
   rect: Rect;
   minSize: number;
+  horizontal: boolean;
 }
 
 interface GestureStart {
@@ -87,6 +91,11 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
   const optsRef = useRef(opts);
   optsRef.current = opts;
   const gestureRef = useRef<GestureStart | null>(null);
+  const measurerRef = useRef<Measurer | null>(null);
+  const getMeasurer = (): Measurer => {
+    if (measurerRef.current === null) measurerRef.current = createLazyMeasurer(TEXT_FONT_FAMILY);
+    return measurerRef.current;
+  };
 
   const applyFrame = useCallback((g: GestureStart) => {
     const o = optsRef.current;
@@ -113,6 +122,25 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       MAX_OBJECT_SIZE_WORLD,
     );
     const to = anchoredRect(from, g.handle, from.width * clamped.x, from.height * clamped.y);
+    // A horizontal-handle drag over text objects writes fixed widths and lets
+    // the layout recompute the height (text.resize_width); mixed selections
+    // fall through to the generic proportional path below.
+    if (
+      g.entries.length > 0 &&
+      g.entries.every((e) => e.horizontal) &&
+      (g.handle === 'e' || g.handle === 'w')
+    ) {
+      const measure = getMeasurer();
+      for (const e of g.entries) {
+        const r = scaleWithin(e.rect, from, to);
+        setTextWidthFixed(o.doc, e.id, r.width);
+        if (r.x !== e.rect.x || r.y !== e.rect.y) {
+          moveObjects(o.doc, new Map([[e.id, { x: r.x, y: e.rect.y }]]));
+        }
+        remeasureTextBox(o.doc, e.id, measure);
+      }
+      return;
+    }
     const updates = new Map<string, Rect>();
     for (const e of g.entries) updates.set(e.id, scaleWithin(e.rect, from, to));
     resizeObjects(o.doc, updates);
@@ -199,7 +227,13 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         const obj = snapshot.find((o) => o.id === id);
         if (!obj) continue;
         const rect = objectBounds(obj);
-        entries.push({ id, rect, minSize: getObjectType(obj.type)?.minSize ?? 0 });
+        const spec = getObjectType(obj.type);
+        entries.push({
+          id,
+          rect,
+          minSize: spec?.minSize ?? 0,
+          horizontal: spec?.handles === 'horizontal',
+        });
         rects.push(rect);
       }
       gestureRef.current = {

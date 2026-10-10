@@ -45,6 +45,10 @@ export interface BoardViewportProps {
   // enclosed objects instead of panning.
   snapshot?: readonly ObjectSnapshot[];
   onMarqueeSelect?(ids: string[]): void;
+  // Story 9: while the Text tool is active the board shows a text cursor and
+  // a click anywhere (empty space or over an object) places text there.
+  textToolActive?: boolean;
+  onCreateTextAtScreen?(point: Point): void;
   // Screen-space layer (selection overlay) rendered above the world layer.
   overlay?: ReactNode;
 }
@@ -56,6 +60,8 @@ export function BoardViewport({
   onViewportHandle,
   snapshot,
   onMarqueeSelect,
+  textToolActive = false,
+  onCreateTextAtScreen,
   overlay,
 }: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -271,7 +277,7 @@ export function BoardViewport({
       data-testid="board-viewport"
       data-interaction={panning ? 'panning' : 'idle'}
       className="board-viewport"
-      style={{ cursor: panning ? 'grabbing' : 'grab' }}
+      style={{ cursor: textToolActive ? 'text' : panning ? 'grabbing' : 'grab' }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -311,6 +317,23 @@ export function BoardViewport({
         {children}
         <MarqueeRect rect={marquee.rect} camera={camera} />
       </div>
+      {textToolActive && (
+        <div
+          data-testid="text-tool-catcher"
+          className="text-tool-catcher"
+          aria-hidden="true"
+          onPointerDown={(e) => {
+            // Text tool: the click places text; it never pans or marquees.
+            e.preventDefault();
+            e.stopPropagation();
+            const el = viewportRef.current;
+            if (!el) return;
+            const rect = el.getBoundingClientRect();
+            onCreateTextAtScreen?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+        />
+      )}
       {overlay}
       <div className="board-ui" data-board-ui="true">
         <ZoomControls

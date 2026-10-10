@@ -52,3 +52,15 @@ export const NUDGE_LARGE_STEP_WORLD = 10; // Shift+arrow nudge distance
 // Story 8: undo and redo.
 export const UNDO_CAPTURE_TIMEOUT_MS = 500; // typing pause that ends a burst
 export const UNDO_MAX_STEPS = 200;
+
+// Story 9: free text anywhere on the board.
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600; // auto boxes grow to this width, then wrap
+export const TEXT_MIN_WIDTH_WORLD = 40; // fixed-width clamp and initial estimate width
+export const TEXT_MAX_CHARS = 5000; // per text object, mirroring sticky text limits
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+export const TEXT_LINE_HEIGHT = 1.3; // multiplier of the size for line height and box height
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+export const TEXT_PADDING_WORLD = 8; // extra width an auto box adds past its longest line
+export const TEXT_ESTIMATED_GLYPH_WIDTH_RATIO = 0.52; // measure fallback without a canvas

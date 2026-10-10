@@ -332,3 +332,58 @@
 - Persistence e2e 4/4; nightly 2/2 (E2E_SOAK_MS=10000).
 - Firefox/WebKit remain environment-blocked (missing GTK/WPE system libs,
   see story 1 notes).
+
+## Story 9 notes (write free text anywhere on the board)
+
+### Deviations from design / spec
+
+- Story 6 (identity) does not exist yet, so `createText` receives a minimal
+  local guest id from `src/client/identity/identity.ts`
+  (`'g_' + 16 random bytes, base64url`, stable per session). `createdBy` is
+  stored on the object and covered by the unit model tests, but the snapshot
+  reader does not expose it (no other story consumes it yet).
+- `TextSnapshot` lives in `src/shared/board-model.ts` next to the snapshot
+  reader that produces it (the design's module list put text types only under
+  `shared/objects/`); `shared/objects/text.ts` re-exports it so both import
+  paths read naturally.
+- `isEmptyText`/`deleteIfEmpty` return `false` for stale ids instead of
+  throwing: a missing object is "not a text object we may delete", and the
+  edit-end path then just unmounts.
+- The design lists `note: TextSnapshot` among `TextObject`'s props; the
+  registry types components as `ComponentType<ObjectProps>`, so — like the
+  existing `StickyNote` — the component derives `note` from `obj`.
+- TC-26 asserts the auto box caps at 600 within a practical tolerance
+  (≤ 602, ≥ 560) instead of the design's 600 ± 2: greedy word-wrap ends the
+  longest line somewhere below the wrap width (592 = 600 − padding), so an
+  exact ± 2 hit is font-metric dependent. Multi-line growth is asserted
+  directly.
+- Auto width adds `TEXT_PADDING_WORLD` (8) once past the longest line; the
+  value 0.52 for `TEXT_ESTIMATED_GLYPH_WIDTH_RATIO` was calibrated so the
+  no-canvas estimator roughly tracks 20px sans text.
+- The board toolbar relabels the sticky button to "Sticky note (N)" and adds
+  "Select (V)" / "Text (T)" buttons; no existing test matched the old label.
+- Undo needs no special casing for nested `Y.Text`: verified empirically that
+  `UndoManager` tracks a `Y.Text` nested in the scoped `Y.Map` (story 8's
+  `addScope` is per-map-root), so text edits fall into the editor's own
+  capture window like sticky text does.
+
+### Verified on this machine (story 9)
+
+- `npm run typecheck` clean (both tsconfigs); `npm run build` clean,
+  `__vidi6` absent from the production bundle (grep count 0).
+- Unit: 152 tests pass (new: text-model TC-01..TC-06 + stale-id/height
+  cases, text-layout TC-07..TC-11 + TC-32 estimate fallback).
+- Component: 89 tests pass (new: TextBoxSync TC-12/TC-13 + fixed-width
+  clamp, Tool TC-14..TC-18, TextObject TC-19..TC-25). The component setup
+  stubs `HTMLCanvasElement.getContext` to `null` so the estimator fallback
+  path runs without jsdom's "Not implemented" stderr noise.
+- Integration (workerd): 51/51 unchanged.
+- E2E chromium default suite: 38/38, incl. text.spec TC-26 (auto cap +
+  wrapping), TC-27 (e/w-only fixed-width drag wraps and grows height),
+  TC-28 (XL heading, move, delete, undo restores), TC-29 (two users typing
+  into one text converge with every character), TC-30
+  (MAX_CONCURRENT_EDITORS=5 each create a heading; all see all), TC-31
+  (click-then-Escape leaves nothing; marquee over the area selects nothing).
+- Persistence e2e 4/4; nightly 2/2 (E2E_SOAK_MS=10000).
+- Firefox/WebKit remain environment-blocked (missing GTK/WPE system libs,
+  see story 1 notes).

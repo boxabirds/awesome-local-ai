@@ -7,9 +7,12 @@ import {
   objectBounds,
   type ObjectSnapshot,
   type StickySnapshot,
+  type TextSnapshot,
 } from '../../shared/board-model';
 import { unionRects } from '../../shared/geometry';
+import type { TextSize } from '../../shared/config';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 
 export interface SelectionBarProps {
   ids: ReadonlySet<string>;
@@ -20,6 +23,8 @@ export interface SelectionBarProps {
   suppress?: boolean;
   // Provided by the board so the single-sticky NoteToolbar can recolour.
   onColor?(id: string, color: StickySnapshot['color']): void;
+  // Provided by the board so the single-text TextToolbar can resize.
+  onTextSize?(id: string, size: TextSize): void;
 }
 
 export function SelectionBar({
@@ -28,6 +33,7 @@ export function SelectionBar({
   onDelete,
   suppress = false,
   onColor,
+  onTextSize,
 }: SelectionBarProps): React.JSX.Element | null {
   if (ids.size === 0 || suppress) return null;
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -37,6 +43,8 @@ export function SelectionBar({
   const countText = `${ids.size} selected`;
   const singleSticky =
     ids.size === 1 && selected[0].type === 'sticky' ? (selected[0] as StickySnapshot) : null;
+  const singleText =
+    ids.size === 1 && selected[0].type === 'text' ? (selected[0] as TextSnapshot) : null;
   return (
     <div
       className="selection-bar"
@@ -53,7 +61,9 @@ export function SelectionBar({
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >
-      {singleSticky && onColor ? (
+      {singleText && onTextSize ? (
+        <TextToolbar size={singleText.size} onSize={(s) => onTextSize(singleText.id, s)} onDelete={onDelete} />
+      ) : singleSticky && onColor ? (
         <NoteToolbar color={singleSticky.color} onColor={(c) => onColor(singleSticky.id, c)} onDelete={onDelete} />
       ) : (
         <>

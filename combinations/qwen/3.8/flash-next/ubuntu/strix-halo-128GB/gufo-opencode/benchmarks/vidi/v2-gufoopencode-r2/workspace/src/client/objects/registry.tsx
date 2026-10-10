@@ -5,10 +5,11 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { markTypeKnown, objectBounds, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 // Props every registered object component receives from the board renderer;
 // pointerdown delegates to useTransformGesture so all types share one
@@ -32,6 +33,9 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  // 'horizontal' restricts resize handles to e/w (story 9 text: only width is
+  // user-controlled, height belongs to the layout).
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -56,6 +60,17 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: (obj, worldPoint) =>
+    rectContains(objectBounds(obj), { x: worldPoint.x, y: worldPoint.y, width: 0, height: 0 }),
+});
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: (obj, worldPoint) =>
     rectContains(objectBounds(obj), { x: worldPoint.x, y: worldPoint.y, width: 0, height: 0 }),
 });
