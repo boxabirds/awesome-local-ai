@@ -1,3 +1,66 @@
+commit f7e22d3b70cd756903e4147eb3e32d911c76a204
+agent  Sat Oct 10 03:22:25 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                      | 163 ++++++++++
+ PROGRESS.md                                   |  18 +-
+ src/client/board/Board.tsx                    |  99 +++++-
+ src/client/board/Toolbar.tsx                  |  25 ++
+ src/client/board/useTool.ts                   |   6 +-
+ src/client/board/useTransformGesture.ts       |  16 +-
+ src/client/canvas/BoardViewport.tsx           |  11 +
+ src/client/images/DropHighlight.tsx           |  93 ++++++
+ src/client/images/uploadImage.ts              | 119 +++++++
+ src/client/images/useImageInsert.ts           | 440 ++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts            |  73 +++++
+ src/client/objects/ImageObject.tsx            | 408 ++++++++++++++++++++++++
+ src/client/objects/registry.tsx               |  23 ++
+ src/client/styles.css                         | 170 ++++++++++
+ src/client/tools/useActiveTool.ts             |  41 ++-
+ src/client/ui/Toast.tsx                       |  93 ++++++
+ src/shared/board-model.ts                     |  18 +-
+ src/shared/config.ts                          |  73 +++++
+ src/shared/geometry.ts                        |   6 +
+ src/shared/image-format.ts                    |  92 ++++++
+ src/shared/objects/image.ts                   | 350 ++++++++++++++++++++
+ src/worker/assets.ts                          | 140 ++++++++
+ src/worker/index.ts                           |  56 +++-
+ tests/component/ImageObject.test.tsx          | 231 ++++++++++++++
+ tests/component/TransformGesture.test.tsx     |  26 +-
+ tests/component/fixtures/images.tsx           | 275 ++++++++++++++++
+ tests/component/fixtures/upload-stub.ts       | 130 ++++++++
+ tests/component/useImageInsert.test.tsx       | 224 +++++++++++++
+ tests/e2e/helpers/images.ts                   | 314 ++++++++++++++++++
+ tests/e2e/helpers/participants.ts             |  13 +-
+ tests/e2e/images.spec.ts                      | 322 +++++++++++++++++++
+ tests/fixtures/image-bytes.ts                 |  79 +++++
+ tests/fixtures/image-files.ts                 |  63 ++++
+ tests/fixtures/images/animated.gif            | Bin 0 -> 231 bytes
+ tests/fixtures/images/broken.png              | Bin 0 -> 1739 bytes
+ tests/fixtures/images/disguised-pdf.png       |   5 +
+ tests/fixtures/images/generate.mjs            | 266 ++++++++++++++++
+ tests/fixtures/images/photo-4032x3024.jpg     | Bin 0 -> 1105149 bytes
+ tests/fixtures/images/photo-640x480.webp      | Bin 0 -> 5436 bytes
+ tests/fixtures/images/screenshot-1200x800.png | Bin 0 -> 3988 bytes
+ tests/fixtures/images/screenshot-1440x900.png | Bin 0 -> 5217 bytes
+ tests/fixtures/images/screenshot-900x600.png  | Bin 0 -> 2490 bytes
+ tests/fixtures/images/svg-with-script.svg     |   5 +
+ tests/integration/assets.test.ts              | 259 +++++++++++++++
+ tests/unit/image-format.test.ts               | 120 +++++++
+ tests/unit/image-model.test.ts                | 273 ++++++++++++++++
+ tests/unit/validate-files.test.ts             | 112 +++++++
+ wrangler.jsonc                                |   4 +
+ 48 files changed, 5228 insertions(+), 26 deletions(-)
+commit 154d75d1f8513adb6341242f47cc9ecd9cbfa44d
+vidi-agent  Sat Oct 10 00:40:41 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 commit e7762b95ce375e20667a21bb2c3abcf0aceaf9db
 agent  Fri Oct 9 23:34:46 2026 +0000
 
