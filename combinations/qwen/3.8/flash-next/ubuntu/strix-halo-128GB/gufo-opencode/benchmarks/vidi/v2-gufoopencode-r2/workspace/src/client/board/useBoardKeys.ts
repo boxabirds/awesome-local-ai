@@ -16,8 +16,9 @@ import { getObjectType } from '../objects/registry';
 import { TOOL_SHORTCUTS, type ToolId } from '../tools/useActiveTool';
 import type { Selection } from './useSelection';
 
-// Only tools that exist as modes (sticky is an instant create, and the
-// story 12 tool ids have no implementation yet) can be switched to.
+// Only tools that exist as modes can be switched to (sticky is an instant
+// create, and story 12's image tool opens the file picker instead of being
+// a mode).
 const SWITCHABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 export interface BoardKeysOptions {
@@ -31,6 +32,8 @@ export interface BoardKeysOptions {
   // Story 10 adds S (shape) and L (connector) through TOOL_SHORTCUTS.
   tool?: { setTool(tool: ToolId): void };
   onCreateSticky?(): void;
+  // Story 12: I opens the image file picker (instant action, like N).
+  onOpenImagePicker?(): void;
 }
 
 function isTextTarget(target: EventTarget | null): boolean {
@@ -81,6 +84,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         const shortcut = TOOL_SHORTCUTS[e.key.toLowerCase()];
         if (shortcut === 'sticky') {
           o.onCreateSticky?.();
+          return;
+        }
+        if (shortcut === 'image') {
+          o.onOpenImagePicker?.();
           return;
         }
         if (shortcut !== undefined && SWITCHABLE_TOOLS.includes(shortcut)) {

@@ -6,6 +6,7 @@ import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
+import { DropHighlight } from '../images/DropHighlight';
 import type { ObjectSnapshot } from '../../shared/board-model';
 
 const DOT_COLOR = '#c8cdd4';
@@ -55,6 +56,9 @@ export interface BoardViewportProps {
   onCreateTextAtScreen?(point: Point): void;
   // Screen-space layer (selection overlay) rendered above the world layer.
   overlay?: ReactNode;
+  // Story 12: image files dropped onto the board; the drop point in world
+  // coordinates is where the row's first image starts.
+  onFilesDrop?(files: File[], world: Point): void;
 }
 
 export function BoardViewport({
@@ -67,6 +71,7 @@ export function BoardViewport({
   textToolActive = false,
   onCreateTextAtScreen,
   overlay,
+  onFilesDrop,
 }: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -259,6 +264,40 @@ export function BoardViewport({
     onCreateStickyAtWorld?.(world);
   };
 
+  // Story 12: files dragged over the board show the drop highlight. The
+  // depth counter avoids flicker as the drag crosses child elements.
+  const [dragDepth, setDragDepth] = useState(0);
+  const hasFiles = (e: React.DragEvent<HTMLDivElement>): boolean =>
+    Array.from(e.dataTransfer?.types ?? []).includes('Files');
+
+  const onDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    setDragDepth((d) => d + 1);
+  };
+
+  const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); // required for drop to fire
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const onDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!hasFiles(e)) return;
+    setDragDepth((d) => Math.max(0, d - 1));
+  };
+
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    setDragDepth(0);
+    const el = viewportRef.current;
+    if (!el || !onFilesDrop) return;
+    const rect = el.getBoundingClientRect();
+    const world = screenToWorld(camera, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+    onFilesDrop([...(e.dataTransfer?.files ?? [])], world);
+  };
+
   // Expose an imperative viewport handle for App-rendered siblings.
   useEffect(() => {
     onViewportHandle?.({
@@ -299,6 +338,10 @@ export function BoardViewport({
         else endPanning();
       }}
       onDoubleClick={onDoubleClick}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
     >
       <div
         ref={gridRef}
@@ -326,6 +369,7 @@ export function BoardViewport({
         {children}
         <MarqueeRect rect={marquee.rect} camera={camera} />
       </div>
+      {dragDepth > 0 && <DropHighlight />}
       {textToolActive && (
         <div
           data-testid="text-tool-catcher"

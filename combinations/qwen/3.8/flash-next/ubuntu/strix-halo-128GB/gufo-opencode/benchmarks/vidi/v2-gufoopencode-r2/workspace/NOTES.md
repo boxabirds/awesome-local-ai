@@ -494,3 +494,74 @@
 - E2E chromium default suite: 47/47, incl. pen.spec TC-17 (draw + reload
   persistence), TC-18 (live both ways), TC-19 (no pan, wheel still zooms),
   TC-20 (one undo per stroke, pen stays active).
+
+## Story 12 notes (drop images onto the board)
+
+### Implementation decisions and deviations
+
+- Fixture deviation: `tests/fixtures/images/photo-4032x3024.png` is a real
+  4032x3024 PNG, not the JPEG the design's fixture table names — a
+  dependency-free encoder in `generate.mjs` can emit PNG frames (the GIF/WebP
+  fixtures are minimal hand-built 1-frame files). Magic-byte sniffing, the
+  800-unit placement cap (TC-03/TC-07) and the e2e flows are exercised
+  identically; no browser test decodes the WebP fixture (Chromium would, jsdom
+  cannot, so component tests stub `createImageBitmap`).
+- `uploadImage` keeps the design's XHR-with-progress contract but returns a
+  Promise that resolves on 201 / rejects on anything else (the design's
+  `{kind:'ok'|'failed'}` union adds nothing once the caller only branches on
+  resolve/reject). `useImageInsert` likewise owns drop/paste/picker with the
+  design's behaviors; drop geometry comes from BoardViewport (which owns the
+  camera + rect) through a new optional `onFilesDrop(files, worldPoint)` prop.
+- The `Image` toolbar button and the `I` shortcut are instant actions like the
+  Sticky note (open the picker, tool stays Select); `image` is deliberately
+  absent from `SWITCHABLE_TOOLS` and handled beside `sticky` in `useBoardKeys`.
+- Status updates need live upload progress, Retry/Remove and a stale clock,
+  which `ObjectProps` cannot carry, so `useImageInsert` exposes an
+  `ImageControllerContext` consumed by `ImageObject`. `ImageObject` derives the
+  display status with `displayStatus(snap, controller.now())`; BoardScreen
+  re-renders every 30 s while mounted so `unfinished` appears without a doc
+  change.
+- `markImageRetrying` (beyond the design sketch) also clears `assetKey` and
+  stamps a fresh `uploadStartedAt`, so a retried upload restarts the 5-minute
+  stale window and cannot flash a stale image URL.
+- Client decode failures (corrupt bytes that pass the MIME check) surface the
+  type message via `createImageBitmap` rejection (TC-29) — the same message
+  the server's 415 would produce.
+- Invalid/unknown `status` values in the snapshot reader default to `failed`
+  (safe visible state) instead of throwing.
+- Integration TC-11 traversal case uses an encoded slash (`..%2Ffoo`): the URL
+  parser normalises `%2E%2E` segments away before the route regex ever sees
+  them, so `%2E%2E..` cannot reach the handler as a literal dot-dot.
+- `.image-object` needs `pointer-events: auto` (the `.world-layer` opt-in
+  pattern from stories 9/10) — without it selection clicks and the
+  Retry/Remove buttons hit the grid instead (caught by e2e TC-27/TC-28).
+- E2E adjustment to story 7's `selection.spec.ts` TC-36 (precedent set in
+  story 10 notes): the new Image button grew the vertically-centred toolbar
+  from 276 px to ~318 px (≈ y 224..576), covering the old marquee start
+  (133, 560); start/end moved to y=610/190, which still enclose the note rows.
+  No product behaviour changed.
+- Persistence/nightly suites are unaffected and re-run green: images are
+  ordinary object rows in `objects` (story 4 compaction) and the nightly soak
+  only exercises sticky/text tools.
+
+### Verified on this machine (story 12)
+
+- `npm run typecheck` clean (both tsconfigs); `npm run build` clean,
+  `__vidi6` absent from the production bundle.
+- Unit: 191 tests pass (new: image-format TC-01/TC-02, image-insert-validate
+  TC-08/TC-09, image-model TC-03..TC-07 incl. ±1 ms stale boundary and
+  untracked-origin undo).
+- Component: 115 tests pass (new: useImageInsert TC-17..TC-19, TC-29;
+  ImageObject TC-21..TC-24).
+- Integration (workerd): 57/57 (new assets-api TC-10..TC-13, TC-15, TC-16;
+  R2 real in Miniflare, BoardRoom existence RPC real, put-failure wrapped).
+- E2E chromium default suite: 51/51, incl. images.spec TC-25 (drop three
+  files; Sam sees three "Uploading…" placeholders then all three render —
+  drop-to-visible latency attached to the report, not asserted), TC-26 (I-key
+  picker with renamed PDF + 11 MB file: one image, both toast messages),
+  TC-27 (aspect-locked resize ±1 %, min-size clamp, present after reload in a
+  fresh context), TC-28 (aborted upload → Upload failed → Retry succeeds after
+  the route is restored).
+- Persistence e2e: 4/4; nightly: 2/2 (E2E_SOAK_MS=10000).
+- Firefox/WebKit remain environment-blocked (missing GTK/WPE system libs,
+  see story 1 notes).

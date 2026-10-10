@@ -19,6 +19,9 @@ export interface ToolbarProps {
   onToolChange?(tool: ToolId): void;
   shapeKind?: ShapeKind;
   onShapeKind?(kind: ShapeKind): void;
+  // Story 12: the Image button opens the file picker (instant action, like
+  // the Sticky note button — it is not a mode).
+  onPickImage?(): void;
 }
 
 const SHAPE_KIND_LABELS: ReadonlyArray<{ kind: ShapeKind; label: string }> = [
@@ -35,6 +38,7 @@ export function Toolbar({
   onToolChange,
   shapeKind = 'rect',
   onShapeKind,
+  onPickImage,
 }: ToolbarProps): React.JSX.Element {
   return (
     <div
@@ -161,6 +165,27 @@ export function Toolbar({
           <path d="M11 4l3 3" stroke="currentColor" strokeWidth="1.5" />
         </svg>
         <span>Pen</span>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar-button"
+        data-testid="tool-image"
+        aria-label="Image (I)"
+        title="Image – or press I, then choose image files"
+        onClick={onPickImage}
+        disabled={disabled}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <rect x="2.5" y="3.5" width="13" height="11" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M2.5 11.5 6 8l3 2.5 2.5-2 4 4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <circle cx="6.2" cy="6.6" r="1.2" fill="currentColor" />
+        </svg>
+        <span>Image</span>
       </button>
       {undo ? <UndoButtons {...undo} /> : null}
       {tool === 'shape' ? (

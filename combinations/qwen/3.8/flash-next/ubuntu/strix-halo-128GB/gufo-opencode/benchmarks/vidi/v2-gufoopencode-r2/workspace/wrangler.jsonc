@@ -17,6 +17,14 @@
       }
     ]
   },
+  // Story 12: uploaded board images. Local dev/test uses Miniflare's local
+  // R2; production points at the real vidi6-assets bucket.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   // SQLite-backed from the start so story 4 (persistence) needs no class migration.
   "migrations": [
     {

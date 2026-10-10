@@ -8,6 +8,7 @@
 // only asks "does this board exist?" never writes storage.
 
 import { isValidBoardId } from '../shared/board-id';
+import { handleAssetServe, handleAssetUpload } from './assets';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { maybeHandleTestHook } from './test-hooks';
@@ -15,6 +16,8 @@ import { maybeHandleTestHook } from './test-hooks';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  // Story 12: uploaded board images (unguessable `<boardId>/<assetId>` keys).
+  ASSETS_BUCKET: R2Bucket;
   // Set to '1' by the e2e/dev workers (wrangler dev --var TEST_HOOKS:1) to
   // enable the storage-corruption test hooks. Never set in production.
   TEST_HOOKS?: string;
@@ -23,6 +26,8 @@ export interface Env {
 const ROOM_ROUTE = /^\/api\/rooms\/([^/?]+)$/;
 const BOARDS_COLLECTION = '/api/boards';
 const BOARD_ITEM_ROUTE = /^\/api\/boards\/([^/?]+)$/;
+const ASSET_UPLOAD_ROUTE = /^\/api\/boards\/([^/?]+)\/assets$/;
+const ASSET_SERVE_ROUTE = /^\/api\/assets\/([^/?]+)\/([^/?]+)$/;
 
 function jsonError(status: number, error: string): Response {
   return new Response(JSON.stringify({ error }), {
@@ -76,6 +81,27 @@ export default {
             headers: { 'content-type': 'application/json' },
           })
         : jsonError(404, 'not_found');
+    }
+
+    const assetUploadMatch = ASSET_UPLOAD_ROUTE.exec(url.pathname);
+    if (assetUploadMatch !== null) {
+      if (req.method !== 'POST') {
+        return jsonError(405, 'method_not_allowed');
+      }
+      const boardId = decodeId(assetUploadMatch[1]);
+      if (boardId === null) return jsonError(404, 'not_found');
+      return handleAssetUpload(req, env, boardId);
+    }
+
+    const assetServeMatch = ASSET_SERVE_ROUTE.exec(url.pathname);
+    if (assetServeMatch !== null) {
+      if (req.method !== 'GET') {
+        return jsonError(405, 'method_not_allowed');
+      }
+      const boardId = decodeId(assetServeMatch[1]);
+      const assetId = decodeId(assetServeMatch[2]);
+      if (boardId === null || assetId === null) return jsonError(404, 'not_found');
+      return handleAssetServe(req, env, boardId, assetId);
     }
 
     const match = ROOM_ROUTE.exec(url.pathname);

@@ -12,12 +12,14 @@ import {
   STROKE_HIT_TOLERANCE_PX,
   STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
 } from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { scaledPoints } from '../../shared/objects/stroke';
 import type { UndoController } from '../board/undo';
 import { ConnectorObject } from './ConnectorObject';
+import { ImageObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { StrokeObject } from './StrokeObject';
@@ -133,4 +135,16 @@ registerObjectType('stroke', {
     );
     return distanceToPolyline(scaledPoints(s), worldPoint) <= tolerance;
   },
+});
+
+// Story 12 image: aspect-locked free resize (natural placement size is
+// decided at add time, after that it behaves like a sticky for transforms).
+registerObjectType('image', {
+  Component: ImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, worldPoint) =>
+    rectContains(objectBounds(obj), { x: worldPoint.x, y: worldPoint.y, width: 0, height: 0 }),
 });

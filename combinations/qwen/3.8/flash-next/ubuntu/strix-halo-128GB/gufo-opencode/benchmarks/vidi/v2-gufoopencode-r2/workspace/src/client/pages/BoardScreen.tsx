@@ -23,6 +23,12 @@ import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
 import { getObjectType } from '../objects/registry';
+import {
+  IMAGE_PICKER_ACCEPT,
+  ImageControllerContext,
+  useImageInsert,
+} from '../images/useImageInsert';
+import { Toast } from '../ui/Toast';
 import { createLazyMeasurer } from '../objects/textLayout';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 import { createText, setTextSize } from '../../shared/objects/text';
@@ -119,6 +125,25 @@ export function BoardScreen({ boardId }: { boardId: string }) {
     createStickyAtWorld(viewport.centerWorld());
   }, [viewport, createStickyAtWorld]);
 
+  // Story 12: drop/paste/picker image insertion. A slow clock tick re-renders
+  // the board so stale "uploading" placeholders flip to "unfinished" (model
+  // rule image.uploading / image.unfinished).
+  const [, setImageClock] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setImageClock((c) => c + 1), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    connection,
+    canEdit: () => editable,
+    getViewport: () => viewport,
+    undo,
+    isTextEditing: () => selection.editingId !== null,
+  });
+
   useBoardKeys({
     doc,
     selection,
@@ -128,6 +153,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
     undoShortcuts: { undo: undoState.undo, redo: undoState.redo },
     tool: active,
     onCreateSticky: createStickyAtCentre,
+    onOpenImagePicker: imageInsert.openPicker,
   });
 
   // A Shape/Connector tool creation: the new item becomes the only selection
@@ -214,7 +240,18 @@ export function BoardScreen({ boardId }: { boardId: string }) {
         onToolChange={active.setTool}
         shapeKind={active.shapeKind}
         onShapeKind={active.setShapeKind}
+        onPickImage={imageInsert.openPicker}
       />
+      <input
+        ref={imageInsert.inputRef}
+        type="file"
+        multiple
+        accept={IMAGE_PICKER_ACCEPT}
+        data-testid="image-file-input"
+        className="image-file-input"
+        onChange={imageInsert.onFilesChosen}
+      />
+      <Toast message={imageInsert.toast} />
       {active.tool === 'pen' && editable ? (
         <PenToolbar
           color={penOptions.color}
@@ -223,7 +260,9 @@ export function BoardScreen({ boardId }: { boardId: string }) {
           onThickness={penOptions.setThickness}
         />
       ) : null}
+      <ImageControllerContext.Provider value={imageInsert.controller}>
       <BoardViewport
+        onFilesDrop={imageInsert.addFilesAtPoint}
         onCreateStickyAtWorld={createStickyAtWorld}
         onClearSelection={selection.clear}
         onViewportHandle={setViewport}
@@ -305,6 +344,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
           onShapeStyle={changeShapeStyle}
         />
       </BoardViewport>
+      </ImageControllerContext.Provider>
     </>
   );
 }

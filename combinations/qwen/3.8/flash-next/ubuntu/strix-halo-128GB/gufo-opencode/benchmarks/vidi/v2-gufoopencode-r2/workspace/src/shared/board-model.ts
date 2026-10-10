@@ -14,6 +14,10 @@
 //     objects: Y.Map<string, Y.Map> with { type:'stroke', x, y, width, height,
 //       points: number[] (flattened, bbox-relative), baseWidth, baseHeight,
 //       color, thickness, z, createdAt, createdBy } (story 11)
+//     objects: Y.Map<string, Y.Map> with { type:'image', x, y, width, height,
+//       assetKey: string | null, contentType, naturalWidth, naturalHeight,
+//       status: 'uploading' | 'ready' | 'failed', uploadStartedAt, uploaderId,
+//       z, createdAt, createdBy } (story 12)
 
 import * as Y from 'yjs';
 import {
@@ -127,6 +131,26 @@ export function isPenColor(value: unknown): value is keyof typeof PEN_COLORS {
 
 export function isPenThickness(value: unknown): value is keyof typeof PEN_THICKNESS_WORLD {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value);
+}
+
+// Story 12 image. `assetKey` is null while the upload is in flight; `status`
+// is the persisted upload state (the derived `unfinished` display state lives
+// in shared/objects/image.ts, not in the document).
+export type ImageStatus = 'uploading' | 'ready' | 'failed';
+
+export interface ImageSnap extends ObjectSnapshot {
+  type: 'image';
+  assetKey: string | null;
+  contentType: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  status: ImageStatus;
+  uploadStartedAt: number;
+  uploaderId: string;
+}
+
+export function isImageStatus(value: unknown): value is ImageStatus {
+  return value === 'uploading' || value === 'ready' || value === 'failed';
 }
 
 function isFlatPointArray(value: unknown): value is readonly number[] {
@@ -517,6 +541,26 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
         thickness: isPenThickness(thickness) ? thickness : DEFAULT_PEN_THICKNESS,
       };
       out.push(stroke);
+    } else if (type === 'image') {
+      const assetKey = obj.get('assetKey');
+      const contentType = obj.get('contentType');
+      const naturalWidth = obj.get('naturalWidth');
+      const naturalHeight = obj.get('naturalHeight');
+      const status = obj.get('status');
+      const uploadStartedAt = obj.get('uploadStartedAt');
+      const uploaderId = obj.get('uploaderId');
+      const image: ImageSnap = {
+        ...base,
+        type: 'image',
+        assetKey: typeof assetKey === 'string' ? assetKey : null,
+        contentType: typeof contentType === 'string' ? contentType : 'application/octet-stream',
+        naturalWidth: typeof naturalWidth === 'number' && naturalWidth > 0 ? naturalWidth : 1,
+        naturalHeight: typeof naturalHeight === 'number' && naturalHeight > 0 ? naturalHeight : 1,
+        status: isImageStatus(status) ? status : 'failed',
+        uploadStartedAt: typeof uploadStartedAt === 'number' ? uploadStartedAt : 0,
+        uploaderId: typeof uploaderId === 'string' ? uploaderId : '',
+      };
+      out.push(image);
     } else {
       out.push(base);
     }

@@ -860,3 +860,106 @@ body {
   background: #e7eef7;
   border-color: #5577aa;
 }
+
+/* ---- Story 12: images ---- */
+
+.image-file-input {
+  display: none;
+}
+
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.image-object-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.image-object-failed {
+  border: 2px solid #d1242f;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.image-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 14px;
+  text-align: center;
+  padding: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.image-state-placeholder {
+  background: #eceef1;
+  color: #57606a;
+  border-radius: 2px;
+}
+
+.image-state-uploading {
+  color: #57606a;
+}
+
+.image-state-failed {
+  color: #d1242f;
+}
+
+.image-state-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.image-action-button {
+  padding: 4px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2328;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.image-action-button:hover {
+  background: #f3f4f6;
+}
+
+.drop-highlight {
+  position: absolute;
+  inset: 16px;
+  border: 2px dashed #5577aa;
+  border-radius: 12px;
+  background: rgba(85, 119, 170, 0.08);
+  pointer-events: none;
+  z-index: 60;
+}
+
+.board-toast {
+  position: fixed;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80vw;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: #1f2328;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-line;
+  text-align: center;
+  pointer-events: none;
+  z-index: 100;
+}
