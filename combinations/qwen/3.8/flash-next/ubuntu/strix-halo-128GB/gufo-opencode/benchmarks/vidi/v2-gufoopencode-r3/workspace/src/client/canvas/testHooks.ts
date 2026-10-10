@@ -1,5 +1,6 @@
 import type * as Y from 'yjs';
 import { createSticky, getStickyText, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { collectTextSnapshots, type TextSnapshot } from '../../shared/objects/text';
 import type { StickyColor } from '../../shared/config';
 import type { SyncStatus } from '../sync/connectBoard';
 import type { Camera } from './camera';
@@ -9,6 +10,7 @@ declare global {
     __vidi6?: {
       setCamera(cam: Camera): void;
       getNotes(): readonly StickySnapshot[];
+      getTexts(): readonly TextSnapshot[];
       connectionState(): SyncStatus | 'offline';
       createNote(opts: { x: number; y: number; text?: string; color?: StickyColor }): string;
     };
@@ -27,6 +29,7 @@ export function installTestHooks(
   window.__vidi6 = {
     setCamera,
     getNotes: () => snapshot(doc),
+    getTexts: () => collectTextSnapshots(doc),
     connectionState: () => (connection === null ? 'offline' : connection.status()),
     // Scripted bulk creation for persistence specs: goes through the exact
     // same board-model mutation path as UI actions (local origin → sync →

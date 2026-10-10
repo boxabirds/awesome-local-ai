@@ -50,7 +50,14 @@ function Harness({ undo, canEdit }: { undo: UndoController; canEdit: boolean }):
 }
 
 function BindController({ controller }: { controller: UndoController }) {
-  return <Toolbar onCreateSticky={() => undefined} undo={useUndo(controller, true)} />;
+  return (
+    <Toolbar
+      onCreateSticky={() => undefined}
+      tool="select"
+      onSelectTool={() => undefined}
+      undo={useUndo(controller, true)}
+    />
+  );
 }
 
 function undoButton(): HTMLElement {
@@ -90,6 +97,8 @@ describe('undo.controls (buttons)', () => {
     render(
       <Toolbar
         onCreateSticky={() => undefined}
+        tool="select"
+        onSelectTool={() => undefined}
         undo={{ canUndo: false, canRedo: false, undo: vi.fn(), redo: vi.fn() }}
       />
     );
@@ -103,7 +112,12 @@ describe('undo.controls (buttons)', () => {
     const undo = vi.fn();
     const redo = vi.fn();
     render(
-      <Toolbar onCreateSticky={() => undefined} undo={{ canUndo: true, canRedo: true, undo, redo }} />
+      <Toolbar
+        onCreateSticky={() => undefined}
+        tool="select"
+        onSelectTool={() => undefined}
+        undo={{ canUndo: true, canRedo: true, undo, redo }}
+      />
     );
     expect(undoButton()).toBeEnabled();
     expect(redoButton()).toBeEnabled();

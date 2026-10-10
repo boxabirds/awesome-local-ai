@@ -43,15 +43,23 @@ export function SelectionOverlay({
 }: SelectionOverlayProps): JSX.Element | null {
   const boxes: Rect[] = [];
   let resizable = false;
+  // True while every selected type asks for horizontal-only handles (text):
+  // mixed selections still show all eight (story 9 design key decision 2).
+  let horizontalOnly = true;
+  let any = false;
   for (const obj of objects) {
     if (!selectedIds.has(obj.id)) continue;
     const spec = getObjectType(obj.type);
     if (spec === undefined) continue;
+    any = true;
+    if (spec.handles !== 'horizontal') horizontalOnly = false;
     boxes.push(objectBounds(obj));
     if (spec.resizable) resizable = true;
   }
   const union = unionRects(boxes);
   if (union === null || !resizable) return null;
+  const visibleHandles =
+    any && horizontalOnly ? HANDLES.filter(({ handle }) => handle === 'e' || handle === 'w') : HANDLES;
   const topLeft = worldToScreen(camera, { x: union.x, y: union.y });
   const bottomRight = worldToScreen(camera, {
     x: union.x + union.width,
@@ -70,7 +78,7 @@ export function SelectionOverlay({
         data-testid="selection-box"
         style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
       />
-      {HANDLES.map(({ handle, label }) => {
+      {visibleHandles.map(({ handle, label }) => {
         const p = anchor(box, handle);
         return (
           <button

@@ -27,12 +27,23 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   // This tab's undo history. Absent means undo/redo keys are left alone.
   undo?: UndoController;
+  // N creates a sticky note at the view centre (story 9 regression of the
+  // story 2 toolbar action).
+  onCreateSticky?(): void;
 }
 
 // Window-level selection keyboard commands: Ctrl/Cmd+A select all, Escape
 // clear, arrows nudge, Delete/Backspace delete, Enter edits a single sticky,
-// Ctrl/Cmd+Z undo and Ctrl/Cmd+Shift+Z / Ctrl+Y redo (story 8).
-export function useBoardKeys({ doc, objects, selection, canEdit, undo }: BoardKeysOptions): void {
+// Ctrl/Cmd+Z undo and Ctrl/Cmd+Shift+Z / Ctrl+Y redo (story 8), N creates a
+// sticky note (story 9).
+export function useBoardKeys({
+  doc,
+  objects,
+  selection,
+  canEdit,
+  undo,
+  onCreateSticky
+}: BoardKeysOptions): void {
   const { ids, editingId } = selection;
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -62,6 +73,18 @@ export function useBoardKeys({ doc, objects, selection, canEdit, undo }: BoardKe
       }
       if (key === 'Escape') {
         selection.clear();
+        return;
+      }
+      if (
+        canEdit &&
+        onCreateSticky !== undefined &&
+        (key === 'n' || key === 'N') &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        onCreateSticky();
         return;
       }
       if (ids.size === 0) return;
@@ -107,5 +130,5 @@ export function useBoardKeys({ doc, objects, selection, canEdit, undo }: BoardKe
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, objects, selection, ids, editingId, canEdit]);
+  }, [doc, objects, selection, ids, editingId, canEdit, onCreateSticky]);
 }

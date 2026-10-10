@@ -192,7 +192,7 @@ test('TC-24 broken board: honest failure message, editing blocked, recovery with
     await expect(session.page.getByTestId('connection-status')).toContainText(
       "This board couldn't be loaded"
     );
-    const createButton = session.page.getByRole('button', { name: 'Sticky note' });
+    const createButton = session.page.getByRole('button', { name: 'Sticky note (N)' });
     await expect(createButton).toBeDisabled();
     const lockedCount = (await getNotes(session.page)).length;
     await createButton.click({ force: true }).catch(() => undefined);

@@ -38,7 +38,7 @@ afterEach(() => {
 describe('sticky.toolbars', () => {
   it('TC-27 Sticky note button creates a note at the viewport centre and edits it', () => {
     const doc = mount();
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     expect(snapshot(doc)).toHaveLength(1);
     const { width, height } = windowSize();
     const cam = initialCamera();

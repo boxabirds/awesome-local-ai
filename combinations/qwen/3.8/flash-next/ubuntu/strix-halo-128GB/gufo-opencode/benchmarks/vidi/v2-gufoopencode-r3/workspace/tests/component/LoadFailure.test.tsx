@@ -120,7 +120,7 @@ describe('persist.client_status edit gate (TC-23)', () => {
     const before = objectCount(doc);
 
     // Sticky note button is disabled and its click is a no-op.
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     expect(button).toBeDisabled();
     fireEvent.click(button);
 

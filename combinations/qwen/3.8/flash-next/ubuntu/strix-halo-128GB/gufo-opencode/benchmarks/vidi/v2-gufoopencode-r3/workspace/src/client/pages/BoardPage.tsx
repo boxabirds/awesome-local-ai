@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-model';
 import { isValidBoardId, newBoardId } from '../../shared/board-id';
+import { DEFAULT_TEXT_SIZE } from '../../shared/config';
+import { createText, getTextFields, setTextSize } from '../../shared/objects/text';
 import { checkBoard } from '../api';
+import { identity } from '../identity';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -11,6 +14,7 @@ import { createUndo } from '../board/undo';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { useSelection } from '../board/useSelection';
+import { useTool } from '../board/useTool';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useUndo } from '../board/useUndo';
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -29,6 +33,9 @@ import { installTestHooks } from '../canvas/testHooks';
 import { BoardCameraContext, useCamera } from '../canvas/useCamera';
 import { getObjectType } from '../objects/registry';
 import { STICKY_PADDING_WORLD } from '../objects/StickyNote';
+import { createCanvasMeasurer } from '../objects/textLayout';
+import { TextToolbar } from '../objects/TextToolbar';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 import { SharePanel } from '../share/SharePanel';
 import { ConnectionStatus, useConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -109,6 +116,10 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
   useEffect(() => () => undoController.destroy(), [undoController]);
   const undoState = useUndo(undoController, editable);
 
+  // Shared width measurer for the text box sync (typing, size changes and
+  // handle drags all re-measure through this one canvas context).
+  const textMeasurer = useMemo(() => createCanvasMeasurer(), []);
+
   // Local-only flag: hides the floating toolbar while a gesture runs.
   const [dragging, setDragging] = useState(false);
   const onGestureStart = useCallback(() => {
@@ -128,15 +139,11 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
     objects,
     selection,
     canEdit: editable,
+    measureText: textMeasurer,
     onGestureStart,
     onGestureEnd
   });
   const marquee = useMarquee(board.camera, objects, selection);
-  useBoardKeys({ doc, objects, selection, canEdit: editable, undo: undoController });
-
-  useEffect(() => {
-    installTestHooks(board.setCamera, doc, connection);
-  }, [board.setCamera, doc, connection]);
 
   const createAtWorldPoint = useCallback(
     (world: Point) => {
@@ -148,14 +155,6 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
     [doc, selection, undoController]
   );
 
-  const onDoubleClickEmpty = useCallback(
-    (screenPoint: Point) => {
-      if (!editable) return; // load-failed board is never editable (TC-23)
-      createAtWorldPoint(screenToWorld(board.camera, screenPoint));
-    },
-    [board.camera, createAtWorldPoint, editable]
-  );
-
   const onCreateSticky = useCallback(() => {
     if (!editable) return; // load-failed board is never editable (TC-23)
     // Centre of the visible board area, wherever the board has been panned.
@@ -164,6 +163,48 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
     );
   }, [board.camera, createAtWorldPoint, viewport, editable]);
 
+  const { tool, setTool } = useTool(editable);
+
+  // Text tool click (story 9): create text whose top-left is the clicked
+  // world point, start editing it immediately and hand the board back to the
+  // Select tool so the next click selects/moves instead of creating.
+  const onTextToolClick = useCallback(
+    (screenPoint: Point) => {
+      if (!editable) return;
+      setTool('select');
+      const world = screenToWorld(board.camera, screenPoint);
+      undoController.boundary();
+      const id = createText(doc, world, identity.id);
+      if (id !== null) {
+        undoController.boundary();
+        selection.startEdit(id);
+      }
+      undoController.boundary();
+    },
+    [board.camera, doc, editable, selection, setTool, undoController]
+  );
+
+  useBoardKeys({
+    doc,
+    objects,
+    selection,
+    canEdit: editable,
+    undo: undoController,
+    onCreateSticky
+  });
+
+  useEffect(() => {
+    installTestHooks(board.setCamera, doc, connection);
+  }, [board.setCamera, doc, connection]);
+
+  const onDoubleClickEmpty = useCallback(
+    (screenPoint: Point) => {
+      if (!editable) return; // load-failed board is never editable (TC-23)
+      createAtWorldPoint(screenToWorld(board.camera, screenPoint));
+    },
+    [board.camera, createAtWorldPoint, editable]
+  );
+
   const { camera, hasNavigated } = board;
   const selectionCount = selection.ids.size;
 
@@ -171,8 +212,12 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
   // toolbar; two or more: the multi-select bar.
   const singleId = selectionCount === 1 ? [...selection.ids][0] : null;
   const singleNote = singleId === null ? undefined : notes.find((n) => n.id === singleId);
+  const singleText =
+    singleId === null ? undefined : objects.find((o) => o.id === singleId && o.type === 'text');
   const showNoteToolbar =
     editable && singleNote !== undefined && editingId === null && !dragging;
+  const showTextToolbar =
+    editable && singleText !== undefined && editingId === null && !dragging;
   const showSelectionBar = editable && selectionCount >= 2 && !dragging;
 
   const deleteSelection = useCallback(() => {
@@ -196,6 +241,8 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
             selection.clear();
           }}
           marquee={marquee}
+          textTool={tool === 'text'}
+          onTextToolClick={onTextToolClick}
         >
           {objects.map((obj) => {
             const spec = getObjectType(obj.type);
@@ -219,7 +266,13 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
           })}
           {marquee.rect !== null && <MarqueeRect rect={marquee.rect} />}
         </BoardViewport>
-        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoState} />
+        <Toolbar
+          onCreateSticky={onCreateSticky}
+          tool={tool}
+          onSelectTool={setTool}
+          disabled={!editable}
+          undo={undoState}
+        />
         {editable && (
           <SelectionOverlay
             objects={objects}
@@ -252,6 +305,37 @@ export function BoardView({ doc: providedDoc, boardId }: BoardViewProps = {}) {
               onDelete={() => {
                 undoController.boundary();
                 deleteObjects(doc, [singleNote.id]);
+                selection.clear();
+                undoController.boundary();
+              }}
+            />
+          </div>
+        )}
+        {showTextToolbar && singleText !== undefined && (
+          <div
+            className="note-toolbar-anchor"
+            style={{
+              left: worldToScreen(camera, {
+                x: singleText.x + (singleText.width ?? 0) / 2,
+                y: singleText.y
+              }).x,
+              top:
+                worldToScreen(camera, { x: singleText.x, y: singleText.y }).y -
+                NOTE_TOOLBAR_GAP_PX
+            }}
+          >
+            <TextToolbar
+              size={getTextFields(doc, singleText.id)?.size ?? DEFAULT_TEXT_SIZE}
+              onSize={(size) => {
+                undoController.boundary();
+                setTextSize(doc, singleText.id, size);
+                // Top-left stays put; the box re-measures for the new font.
+                remeasureTextBox(doc, singleText.id, textMeasurer);
+                undoController.boundary();
+              }}
+              onDelete={() => {
+                undoController.boundary();
+                deleteObjects(doc, [singleText.id]);
                 selection.clear();
                 undoController.boundary();
               }}

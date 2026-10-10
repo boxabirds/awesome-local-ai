@@ -380,3 +380,34 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
   empties the stack (TC-23's clean no-op).
 - Browser matrix unchanged: only Chromium binaries are available here; all e2e
   (37 tests incl. TC-22/23/24) pass in Chromium.
+
+## Story 9 decisions (free text anywhere)
+- Identity placeholder: `src/client/identity.ts` exports
+  `export const identity = { id: crypto.randomUUID() };`. Story 6 (who is
+  editing) is not implemented, so `createdBy` on text objects records a stable
+  per-session UUID; replace this module when story 6 lands.
+- Auto-width layout caps at `TEXT_MAX_AUTO_WIDTH_WORLD` (600): measured text
+  wider than the cap wraps at the cap; height is always `lines × fontPx ×
+  TEXT_LINE_HEIGHT`. Fixed width clamps to `TEXT_MIN_WIDTH_WORLD` (40).
+- `createCanvasMeasurer()` uses a 2D canvas when available and falls back to a
+  deterministic estimator (`length × fontPx × 0.5`) otherwise (jsdom has no
+  canvas). The fallback only affects box height/width, never content.
+- Box writes are local-only (`useTextBoxSync`): remote transactions never
+  trigger remeasure, so peers cannot fight over a text box; the box is
+  recomputed independently from the same shared text on each client.
+- Text is invisible to `hitTest` only when empty *and* not selected; the object
+  is deleted on Escape (`deleteIfEmpty`) inside the same undo capture window as
+  ending the edit, so empty text can never be committed (TC-20, TC-31).
+- Resize handles for text are `e`/`w` only (`handles: 'horizontal'` in the
+  type spec). Single-text horizontal drag switches the box to fixed width
+  without touching x/y; in mixed selections texts reposition proportionally
+  (`scaleWithin`) and font size never changes.
+- Browser matrix unchanged: only Chromium binaries are installed here, so
+  "TC-26 also in firefox/webkit" is not runnable on this machine; the layout
+  assertions use ±2 world units tolerance to absorb font differences.
+- Known pre-existing flake: e2e navigation TC-27 (1,000,000-unit grid pan)
+  intermittently fails under default parallel workers (camera applied while
+  the page still shows "Connecting…", pan error 8px vs ≤1). Reproduced
+  identically at story 8 HEAD (`0ac096b`), so it is environmental, not a
+  story 9 regression. Passes reliably alone and with `--workers=1`
+  (full suite 43/43 green that way).

@@ -13,6 +13,11 @@ export interface BoardViewportProps {
   // Shift+drag on empty space selects objects with a marquee (story 7);
   // without it, Shift+drag pans like everything else.
   marquee?: MarqueeController;
+  // Text tool active (story 9): the board shows a text cursor and a plain
+  // click anywhere — over empty space or over an object — creates text at
+  // that point without panning, marquee-ing or selecting.
+  textTool?: boolean;
+  onTextToolClick?(screenPoint: Point): void;
 }
 
 interface GestureEventLike extends Event {
@@ -27,7 +32,14 @@ function mod(value: number, modulus: number): number {
   return ((value % modulus) + modulus) % modulus;
 }
 
-export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick, marquee }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  onDoubleClickEmpty,
+  onEmptyClick,
+  marquee,
+  textTool = false,
+  onTextToolClick
+}: BoardViewportProps) {
   const board = useBoardCamera();
   const { camera } = board;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -116,11 +128,45 @@ export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick, marq
   };
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (textTool) return; // story 9: clicks in text mode create text, not notes
     const target = e.target as HTMLElement;
     // Objects stop propagation; anything reaching here is empty board space.
     if (target.dataset.panSurface !== 'true') return;
     onDoubleClickEmpty?.({ x: e.clientX, y: e.clientY });
   };
+
+  // Text tool (story 9): intercept pointerdown in the capture phase, before
+  // React's root listeners run, so no pan, marquee or object handler sees it
+  // — clicking on an existing object still creates text on top of it. A
+  // press-and-release under the drag threshold creates text at that point.
+  useEffect(() => {
+    if (!textTool || onTextToolClick === undefined) return;
+    const el = rootRef.current;
+    if (el === null) return;
+    const onCaptureDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      let moved = false;
+      const onMove = (ev: PointerEvent) => {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) >= DRAG_THRESHOLD_PX) {
+          moved = true;
+        }
+      };
+      const onUp = (ev: PointerEvent) => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        if (!moved) onTextToolClick({ x: ev.clientX, y: ev.clientY });
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    };
+    el.addEventListener('pointerdown', onCaptureDown, true);
+    return () => {
+      el.removeEventListener('pointerdown', onCaptureDown, true);
+    };
+  }, [textTool, onTextToolClick]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -194,7 +240,7 @@ export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick, marq
       {...(panning ? { 'data-panning': 'true' } : {})}
       className="board-viewport"
       style={{
-        cursor: panning ? 'grabbing' : 'grab',
+        cursor: textTool ? 'text' : panning ? 'grabbing' : 'grab',
         backgroundImage: `radial-gradient(circle, #c3cad4 ${DOT_RADIUS_PX}px, transparent ${DOT_RADIUS_PX}px)`,
         backgroundSize: `${gridSpacingPx}px ${gridSpacingPx}px`,
         backgroundPosition: `${gridPositionX}px ${gridPositionY}px`

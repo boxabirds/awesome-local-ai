@@ -8,6 +8,7 @@ import {
   type ObjectSnapshot
 } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import { getTextFields, setTextWidthFixed } from '../../shared/objects/text';
 import {
   clampScale,
   resizeRect,
@@ -18,6 +19,8 @@ import {
   type Rect
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
+import type { Measurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 import { getObjectType } from '../objects/registry';
 import type { SelectionController } from './useSelection';
 
@@ -30,6 +33,8 @@ export interface TransformGestureOptions {
   selection: SelectionController;
   // False on a load-failed board: gestures are ignored entirely (TC-25).
   canEdit: boolean;
+  // Width measurer for text objects whose box is derived from content.
+  measureText?: Measurer;
   onGestureStart?(): void;
   onGestureEnd?(): void;
 }
@@ -38,6 +43,9 @@ interface GestureEntry {
   id: string;
   rect: Rect;
   minSize: number;
+  // Text entries resize by width only; height is remeasured from content.
+  text: boolean;
+  fixedWidth: boolean;
 }
 
 interface Gesture {
@@ -60,7 +68,7 @@ interface Gesture {
 
 // Apply the pending pointer delta for the current animation frame (moves) or
 // compute and write the clamped bounding-box scale (resizes).
-function applyGesture(doc: Y.Doc, g: Gesture): void {
+function applyGesture(doc: Y.Doc, g: Gesture, measureText: Measurer | undefined): void {
   if (g.pending === null || g.entries.length === 0) return;
   const { x: dwx, y: dwy } = g.pending;
   if (g.kind === 'move') {
@@ -90,11 +98,44 @@ function applyGesture(doc: Y.Doc, g: Gesture): void {
     y: scaleRaw.y === 1 ? 0 : dwy * ((clamped.y - 1) / (scaleRaw.y - 1))
   };
   const to = resizeRect(from, g.handle, adjusted, g.aspect);
-  const rectsOut = new Map<string, Rect>();
-  for (const e of g.entries) {
-    rectsOut.set(e.id, scaleWithin(e.rect, from, to));
+
+  // Story 9: a text object's height is derived from its content and its font
+  // size never changes. A single text is dragged into fixed-width mode via
+  // the e/w handle; in mixed selections text is repositioned proportionally
+  // and only fixed widths scale, with the box re-measured locally.
+  const texts = g.entries.filter((e) => e.text);
+  const others = g.entries.filter((e) => !e.text);
+  if (texts.length > 0 && measureText !== undefined) {
+    if (g.entries.length === 1) {
+      const e = texts[0];
+      setTextWidthFixed(doc, e.id, to.width);
+      if (to.x !== e.rect.x || to.y !== e.rect.y) {
+        moveObjects(doc, new Map([[e.id, { x: to.x, y: to.y }]]));
+      }
+      remeasureTextBox(doc, e.id, measureText);
+      return;
+    }
+    const positions = new Map<string, Point>();
+    for (const e of texts) {
+      const scaled = scaleWithin(e.rect, from, to);
+      positions.set(e.id, { x: scaled.x, y: scaled.y });
+    }
+    moveObjects(doc, positions);
+    for (const e of texts) {
+      if (e.fixedWidth) {
+        const scaled = scaleWithin(e.rect, from, to);
+        setTextWidthFixed(doc, e.id, scaled.width);
+      }
+      remeasureTextBox(doc, e.id, measureText);
+    }
   }
-  resizeObjects(doc, rectsOut);
+  if (others.length > 0) {
+    const rectsOut = new Map<string, Rect>();
+    for (const e of others) {
+      rectsOut.set(e.id, scaleWithin(e.rect, from, to));
+    }
+    resizeObjects(doc, rectsOut);
+  }
 }
 
 // Generic press-drag gesture for all registered object types: group move
@@ -138,7 +179,7 @@ export function useTransformGesture(options: TransformGestureOptions) {
           const cur = gestureRef.current;
           if (cur === null) return;
           cur.raf = null;
-          applyGesture(latest.current.doc, cur);
+          applyGesture(latest.current.doc, cur, latest.current.measureText);
         });
       }
     };
@@ -147,7 +188,7 @@ export function useTransformGesture(options: TransformGestureOptions) {
       if (g === null) return;
       if (g.raf !== null) cancelAnimationFrame(g.raf);
       g.raf = null;
-      if (flush && g.active) applyGesture(latest.current.doc, g);
+      if (flush && g.active) applyGesture(latest.current.doc, g, latest.current.measureText);
       gestureRef.current = null;
       stopListening();
       if (g.active && !g.ended) {
@@ -180,7 +221,7 @@ export function useTransformGesture(options: TransformGestureOptions) {
       const ids = [...selection.ids];
       g.entries = ids.flatMap((id) => {
         const o = objects.find((c) => c.id === id);
-        return o ? [{ id, rect: objectBounds(o), minSize: minSizeOf(o) }] : [];
+        return o ? [{ id, rect: objectBounds(o), minSize: minSizeOf(o), text: false, fixedWidth: false }] : [];
       });
       if (g.entries.length === 0) {
         // Selection vanished at the exact threshold: nothing to move.
@@ -227,7 +268,7 @@ export function useTransformGesture(options: TransformGestureOptions) {
 
   const onHandlePointerDown = (e: ReactPointerEvent<HTMLElement>, handle: Handle) => {
     e.stopPropagation();
-    const { objects, selection, canEdit } = latest.current;
+    const { objects, selection, canEdit, doc } = latest.current;
     if (!canEdit || e.button !== 0) return;
     const selected = [...selection.ids].flatMap((id) => {
       const o = objects.find((c) => c.id === id);
@@ -240,7 +281,9 @@ export function useTransformGesture(options: TransformGestureOptions) {
     const entries: GestureEntry[] = selected.map(({ o, bounds }) => ({
       id: o.id,
       rect: bounds,
-      minSize: minSizeOf(o)
+      minSize: minSizeOf(o),
+      text: o.type === 'text',
+      fixedWidth: o.type === 'text' ? getTextFields(doc, o.id)?.widthMode === 'fixed' : false
     }));
     gestureRef.current = {
       kind: 'resize',

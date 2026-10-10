@@ -163,7 +163,7 @@ test.describe('sticky note workflows', () => {
   }) => {
     const cam = { x: -50000, y: -30000, zoom: 1 };
     await setCamera(page, cam);
-    await page.getByRole('button', { name: 'Sticky note' }).click();
+    await page.getByRole('button', { name: 'Sticky note (N)' }).click();
     await expect(page.locator('[data-testid="sticky-textarea"]')).toBeVisible();
 
     const notes = await getNotes(page);
