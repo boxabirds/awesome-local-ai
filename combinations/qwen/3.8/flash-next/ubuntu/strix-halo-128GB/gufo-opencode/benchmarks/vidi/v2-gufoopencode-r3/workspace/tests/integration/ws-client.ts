@@ -215,3 +215,15 @@ export async function connectBoard(
   await client.waitForSync();
   return client;
 }
+
+// Story 5: a board must be created (POST /api/boards) before it can be joined;
+// connecting an unknown id is refused. Tests use this instead of an arbitrary
+// id so the room exists before clients connect.
+export async function createBoard(fetcher: RoomFetcher): Promise<string> {
+  const response = await fetcher('https://example.com/api/boards', { method: 'POST' });
+  if (response.status !== 201) {
+    throw new Error(`create board failed with status ${response.status}`);
+  }
+  const body = (await response.json()) as { id: string };
+  return body.id;
+}

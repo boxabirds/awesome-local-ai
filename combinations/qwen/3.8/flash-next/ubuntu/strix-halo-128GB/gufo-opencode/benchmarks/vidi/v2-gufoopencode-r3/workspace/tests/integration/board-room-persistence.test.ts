@@ -22,12 +22,13 @@ import {
 import type { BoardStore } from '../../src/worker/board-store';
 import { BoardRoom } from '../../src/worker/board-room';
 import type { Env } from '../../src/worker/index';
-import { connectBoard, RoomClient, waitFor } from './ws-client';
+import { connectBoard, createBoard, RoomClient, waitFor } from './ws-client';
 
 const testEnv = env as unknown as Env;
 
 const fetcher = SELF.fetch.bind(SELF);
-const newId = () => crypto.randomUUID().slice(0, 8) + '-' + Date.now();
+// Boards must be created through the board API before joining (story 5).
+const newId = () => createBoard(fetcher);
 
 function sortById(notes: readonly StickySnapshot[]): StickySnapshot[] {
   return [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -84,7 +85,7 @@ function createNotes(client: RoomClient, count: number): void {
 
 describe('BoardRoom persistence (TC-12, TC-13, TC-18)', () => {
   it('TC-12 stores the update before the peer observes it', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 
@@ -103,7 +104,7 @@ describe('BoardRoom persistence (TC-12, TC-13, TC-18)', () => {
   });
 
   it('TC-13 a reopened room serves the same board to a fresh client', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
     createNotes(a, 25);
@@ -122,7 +123,7 @@ describe('BoardRoom persistence (TC-12, TC-13, TC-18)', () => {
   });
 
   it('TC-18 broadcast reaches sockets accepted before a reconstruct', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 
@@ -141,7 +142,7 @@ describe('BoardRoom persistence (TC-12, TC-13, TC-18)', () => {
 
 describe('BoardRoom storage failure (TC-14)', () => {
   it('TC-14 an unsaved change is not broadcast and is recovered on reconnect', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 
@@ -179,7 +180,7 @@ describe('BoardRoom storage failure (TC-14)', () => {
 
 describe('BoardRoom load failure (TC-15, TC-16, TC-26)', () => {
   async function boardWithCorruptSnapshot(): Promise<string> {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     createNotes(a, 25);
     await a.waitForSync();
@@ -234,7 +235,7 @@ describe('BoardRoom load failure (TC-15, TC-16, TC-26)', () => {
   });
 
   it('TC-26 an SQL read failure on load closes new sockets with 4500', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     await inRoom(boardId, (room) => {
       room.debugSetStore({
         migrate() {},
@@ -257,7 +258,7 @@ describe('BoardRoom load failure (TC-15, TC-16, TC-26)', () => {
 
 describe('BoardRoom garbage (TC-17)', () => {
   it('TC-17 a garbage update closes with 1003 and is not stored', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const before = await countUpdates(boardId);
 

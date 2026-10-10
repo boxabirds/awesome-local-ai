@@ -36,6 +36,26 @@ export class BoardRoom extends DurableObject<Env> {
     this.ctx.waitUntil(this.ctx.blockConcurrencyWhile(() => this.loadRoom()));
   }
 
+  // ---- board existence / creation RPC (story 5: share.board_api) ----
+  // Callable directly on the Durable Object stub from the Worker entry.
+  // initialize() creates the schema and records created_at exactly once; an
+  // existing board is never re-initialised (TC-15). exists() is read-only and
+  // never creates tables, so probing an unknown id leaves no storage (TC-06).
+
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.markCreated() ? 'created' : 'exists';
+  }
+
+  async exists(): Promise<boolean> {
+    try {
+      return this.store.existsReadOnly();
+    } catch {
+      // A broken SQL store is a storage problem (handled by the load-failure
+      // path), not a "does not exist" answer.
+      return true;
+    }
+  }
+
   // ---- lifecycle ----
 
   private async loadRoom(): Promise<void> {
@@ -45,7 +65,9 @@ export class BoardRoom extends DurableObject<Env> {
     this.attachDocHandler(doc);
     let result: LoadResult;
     try {
-      this.store.migrate();
+      // Story 5: migrate() no longer runs here — loading a board with no
+      // tables is a clean empty state, and the schema is created on
+      // initialize() (board creation) or lazily on the first append.
       result = this.store.load(doc);
     } catch (error) {
       result = {
@@ -120,6 +142,20 @@ export class BoardRoom extends DurableObject<Env> {
   // ---- WebSocket endpoints (hibernation API) ----
 
   async fetch(_request: Request): Promise<Response> {
+    // Story 5: unknown or never-created boards are rejected before any socket
+    // is accepted, so connecting can no longer create a board implicitly
+    // (share.not_found). A storage trouble is not "unknown": fall through to
+    // the load-failure handling below rather than claiming not-found.
+    let exists: boolean;
+    try {
+      exists = this.store.existsReadOnly();
+    } catch {
+      exists = true;
+    }
+    if (!exists) {
+      return new Response('Board not found\n', { status: 404 });
+    }
+
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
@@ -327,6 +363,19 @@ export class BoardRoom extends DurableObject<Env> {
     return this.store.debugRowCount();
   }
 
+  // Legacy-board seed (share.legacy_boards, TC-08/TC-31): write real updates
+  // with no created_at, so the board exists via data rows only. The room's
+  // in-memory doc (if any) is dropped; the next load reconstructs from the
+  // seeded log like any legacy board would.
+  async testSeedLegacy(updatesB64: string[]): Promise<void> {
+    this.assertTestHooks();
+    const updates = updatesB64.map(decodeBase64Bytes);
+    this.store.debugSeedUpdates(updates);
+    this.doc = null;
+    this.state = 'loading';
+    await this.loadRoom();
+  }
+
   private assertTestHooks(): void {
     if (this.env.TEST_HOOKS !== '1') {
       throw new Error('test hooks are disabled');
@@ -338,5 +387,13 @@ function frame(type: number, body: Uint8Array): Uint8Array {
   const out = new Uint8Array(body.length + 1);
   out[0] = type;
   out.set(body, 1);
+  return out;
+}
+
+// base64 → bytes for the legacy-seed test hook (workerd provides atob).
+function decodeBase64Bytes(value: string): Uint8Array {
+  const binary = atob(value);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
   return out;
 }

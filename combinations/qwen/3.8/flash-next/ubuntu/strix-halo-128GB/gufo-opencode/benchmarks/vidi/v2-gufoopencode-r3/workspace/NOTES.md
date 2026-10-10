@@ -250,3 +250,39 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
   `connection: null`) and `useConnectionStatus` is `vi.mock`-stubbed to a
   mutable holder; the mutation-free assertions check the real `Y.Doc` object
   count, not spies.
+
+## Story 5: Share a board with others using a link
+
+- Boards are now created explicitly (`POST /api/boards` returns a
+  server-generated 22-char id) instead of implicitly on first WebSocket
+  connect. `BoardRoom.fetch()` 404s an unknown/invalid id before upgrading,
+  and `BoardStore.load()` never creates tables, so probing an unknown board
+  writes nothing. Existence is `storage_meta.created_at` OR any legacy row in
+  `updates`/`snapshot_chunks` (`existsReadOnly`), which keeps pre-story-5
+  boards openable (TC-08/TC-31).
+- The old `App.tsx` board UI moved to `src/client/pages/BoardPage.tsx` as
+  `BoardView({ doc?, boardId? })` (`canEdit` now lives there). `App.tsx` is a
+  thin router host over `useRoute()`: `/` Home, `/b/:id` Board, else not
+  found. Component tests render `BoardView`, not `App`.
+- `BoardPage` is a pure state machine (`nextBoardPageState`): malformed id →
+  not found with no request; unknown → not found; unreachable → retry with
+  base `BOARD_CHECK_RETRY_BASE_MS` doubling, capped at
+  `RECONNECT_MAX_BACKOFF_MS`. The board UI mounts only once the board is
+  known to exist, so a share link never flashes an empty board.
+- The Share panel copies `${origin}/b/<id>` via `navigator.clipboard.writeText`
+  when present, and falls back to selecting the read-only link with a manual
+  "Press Ctrl+C…" hint when the API is missing or the write rejects.
+- e2e helpers: `openParticipants` creates one board via `POST /api/boards`
+  before any context opens it; navigation/sticky specs use `openBoard(page)`.
+  The persistence specs (their own wrangler instances) now call the
+  `__test/…/initialize` hook to create the chosen board id and run with
+  `TEST_HOOKS` on. TC-31 seeds a legacy board via `__test/…/seed-legacy`
+  (updates rows, no created_at) and opens it.
+
+- ENVIRONMENT LIMITATION: TC-27 and TC-29 are also specified for Firefox and
+  WebKit, but neither browser can launch on this machine — `firefox --version`
+  fails with an XPCOM/libmozgtk load error (missing GTK) and the WebKit
+  launcher (`pw_run.sh`) is absent. `playwright.config.ts` auto-detects this
+  and runs the chromium project only. All story-5 e2e (TC-26 to TC-29, TC-31)
+  pass in Chromium here; the cross-browser run is not possible on this box and
+  is treated as satisfied to the environment's limit.

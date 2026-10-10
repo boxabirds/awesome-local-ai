@@ -6,7 +6,7 @@ import { createSyncStatusMachine } from '../../src/client/sync/connectBoard';
 import { createSticky, initDoc } from '../../src/shared/board-model';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../src/shared/protocol';
 
-// A mutable status holder drives App's load-failed gate without a real
+// A mutable status holder drives the board's load-failed gate without a real
 // provider; useConnectionStatus is stubbed to read it, everything else (the
 // badge, the edit gate, the note components) stays real.
 const holder = vi.hoisted(() => ({ status: 'connected' as string }));
@@ -15,7 +15,7 @@ vi.mock('../../src/client/sync/ConnectionStatus', async (importOriginal) => {
   return { ...actual, useConnectionStatus: () => holder.status as never };
 });
 
-const { App, canEdit } = await import('../../src/client/App');
+const { BoardView, canEdit } = await import('../../src/client/pages/BoardPage');
 
 function newBoardDoc(withNote = false): Y.Doc {
   const doc = new Y.Doc();
@@ -96,7 +96,7 @@ describe('persist.client_status close-code mapping (TC-28)', () => {
 describe('persist.client_status edit gate (TC-23)', () => {
   it('TC-23 double-click creates a note while connected', () => {
     const doc = newBoardDoc();
-    render(<App doc={doc} />);
+    render(<BoardView doc={doc} />);
     const before = objectCount(doc);
     fireEvent.doubleClick(screen.getByTestId('board-viewport'), { clientX: 300, clientY: 300 });
     expect(objectCount(doc)).toBe(before + 1);
@@ -105,7 +105,7 @@ describe('persist.client_status edit gate (TC-23)', () => {
   it('TC-23 load_failed board: double-click, Sticky note button and Delete do not mutate', () => {
     const doc = newBoardDoc(true);
     holder.status = 'connected';
-    const { rerender } = render(<App doc={doc} />);
+    const { rerender } = render(<BoardView doc={doc} />);
 
     // Select the existing note while still connected so Delete has a target.
     const note = screen.getAllByTestId('sticky-note')[0];
@@ -115,7 +115,7 @@ describe('persist.client_status edit gate (TC-23)', () => {
     // Switch the board to load-failed.
     holder.status = 'load_failed';
     act(() => {
-      rerender(<App doc={doc} />);
+      rerender(<BoardView doc={doc} />);
     });
     const before = objectCount(doc);
 

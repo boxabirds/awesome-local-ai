@@ -4,12 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { createSticky } from '../../src/shared/board-model';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { newBoardId } from '../../src/shared/board-id';
-import { RoomClient, connectBoard, waitFor } from './ws-client';
+import { RoomClient, connectBoard, createBoard, waitFor } from './ws-client';
 import type { Env } from '../../src/worker/index';
 
 describe('Worker entry routing (TC-04..TC-06)', () => {
-  // TC-04 (negative): an invalid id gets 400 and never creates an object.
-  it('TC-04 rejects invalid board ids with 400 without touching the namespace', async () => {
+  // TC-04 (negative, story 5): an invalid room id is indistinguishable from
+  // an unknown board — 404, never 400, and the namespace is never touched.
+  it('TC-04 rejects invalid board ids with 404 without touching the namespace', async () => {
     const namespace = (env as unknown as Env).BOARD_ROOM;
     const original = namespace.idFromName.bind(namespace);
     let calls = 0;
@@ -22,7 +23,7 @@ describe('Worker entry routing (TC-04..TC-06)', () => {
       const response = await SELF.fetch('https://example.com/api/rooms/bad!id', {
         headers: { Upgrade: 'websocket' }
       });
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(404);
       expect(calls).toBe(0);
     } finally {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,7 +54,7 @@ describe('BoardRoom acceptance and isolation (TC-13, TC-17)', () => {
   // TC-13 (negative): a 6th participant on a 5-capacity setting is not
   // refused and their edits reach everyone. Boundary from the named setting.
   it('TC-13 accepts MAX_CONCURRENT_EDITORS + 1 connections and relays edits', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard(SELF.fetch.bind(SELF));
     const participants = MAX_CONCURRENT_EDITORS + 1;
     const clients: RoomClient[] = [];
     for (let i = 0; i < participants; i += 1) {
@@ -70,10 +71,11 @@ describe('BoardRoom acceptance and isolation (TC-13, TC-17)', () => {
 
   // TC-17 (negative): updates must not cross boards.
   it('TC-17 keeps boards separate', async () => {
-    const board1 = newBoardId();
-    const board2 = newBoardId();
-    const client1 = await connectBoard(SELF.fetch.bind(SELF), board1);
-    const client2 = await connectBoard(SELF.fetch.bind(SELF), board2);
+    const fetcher = SELF.fetch.bind(SELF);
+    const board1 = await createBoard(fetcher);
+    const board2 = await createBoard(fetcher);
+    const client1 = await connectBoard(fetcher, board1);
+    const client2 = await connectBoard(fetcher, board2);
 
     const frameIndex = client2.frames.length;
     let updatesOnBoard2 = 0;

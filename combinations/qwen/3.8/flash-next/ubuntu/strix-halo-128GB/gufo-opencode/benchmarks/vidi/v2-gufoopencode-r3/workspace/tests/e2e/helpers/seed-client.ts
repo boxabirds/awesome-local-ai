@@ -112,6 +112,35 @@ export async function seedNotes(
   });
 }
 
+// Story 5: create/ensure a board with a chosen id (server-side initialize
+// RPC) so its /b/<id> link and room WebSocket are accepted. Requires test
+// hooks on the wrangler instance.
+export async function initBoard(port: number, boardId: string): Promise<void> {
+  const response = await fetch(
+    `http://127.0.0.1:${port}/__test/boards/${boardId}/initialize`,
+    { method: 'POST' }
+  );
+  if (!response.ok) {
+    throw new Error(`initialize failed: ${response.status} ${await response.text()}`);
+  }
+}
+
+// Story 5 (share.legacy_boards): write updates rows with no storage_meta
+// created_at, so the board predates the create API yet must still open.
+export async function seedLegacyBoard(port: number, boardId: string, updates: string[]): Promise<void> {
+  const response = await fetch(
+    `http://127.0.0.1:${port}/__test/boards/${boardId}/seed-legacy`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ updates })
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`seed-legacy failed: ${response.status} ${await response.text()}`);
+  }
+}
+
 export async function forceCompact(port: number, boardId: string): Promise<void> {
   const response = await fetch(
     `http://127.0.0.1:${port}/__test/boards/${boardId}/compact`,

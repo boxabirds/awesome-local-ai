@@ -15,17 +15,18 @@ import {
   snapshot,
   type StickySnapshot
 } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   CLOSE_UNSUPPORTED_DATA,
   MESSAGE_AWARENESS,
   MESSAGE_SYNC
 } from '../../src/shared/protocol';
 import { mulberry32, runRandomOps } from './random-ops';
-import { RoomClient, connectBoard, waitFor } from './ws-client';
+import { RoomClient, connectBoard, createBoard, waitFor } from './ws-client';
 
 const fetcher = SELF.fetch.bind(SELF);
-const newId = () => crypto.randomUUID().slice(0, 8) + '-' + Date.now();
+// Boards no longer come into existence by connecting (story 5): every test
+// board is created through the board API first.
+const newId = () => createBoard(fetcher);
 
 function sortById(notes: readonly StickySnapshot[]): StickySnapshot[] {
   return [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -37,7 +38,7 @@ function settle(ms = 200): Promise<void> {
 
 describe('BoardRoom sync relay (TC-07, TC-08)', () => {
   it('TC-07 relays an edit as exactly one sync update frame', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 
@@ -56,7 +57,7 @@ describe('BoardRoom sync relay (TC-07, TC-08)', () => {
   });
 
   it('TC-08 does not echo a client own updates back to it', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 
@@ -74,7 +75,7 @@ describe('BoardRoom sync relay (TC-07, TC-08)', () => {
 
 describe('BoardRoom CRDT convergence (TC-09, TC-10, TC-11)', () => {
   it('TC-09 converges concurrent text inserts to identical text', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 
@@ -105,7 +106,7 @@ describe('BoardRoom CRDT convergence (TC-09, TC-10, TC-11)', () => {
   });
 
   it('TC-10 converges concurrent moves to one agreed position', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 
@@ -133,7 +134,7 @@ describe('BoardRoom CRDT convergence (TC-09, TC-10, TC-11)', () => {
   });
 
   it('TC-11 keeps concurrent creates distinct and visible to everyone', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 
@@ -156,7 +157,7 @@ describe('BoardRoom CRDT convergence (TC-09, TC-10, TC-11)', () => {
 
 describe('BoardRoom randomized convergence (TC-12)', () => {
   it('TC-12 five clients converge after interleaved random ops', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
     console.log(`TC-12 seed: ${seed} (reproducible with this seed)`);
 
@@ -203,7 +204,7 @@ describe('BoardRoom randomized convergence (TC-12)', () => {
 
 describe('BoardRoom late join and resilience (TC-14, TC-15, TC-16, TC-18, TC-31)', () => {
   it('TC-14 a late joiner catches up with the full board', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
     for (let i = 0; i < 10; i += 1) {
@@ -235,7 +236,7 @@ describe('BoardRoom late join and resilience (TC-14, TC-15, TC-16, TC-18, TC-31)
 
   for (const [label, sendMalformed] of malformedCases) {
     it(`TC-15 (${label}) closes only the offending socket with 1003`, async () => {
-      const boardId = newId();
+      const boardId = await newId();
       const a = await RoomClient.connect(
         fetcher,
         `https://example.com/api/rooms/${boardId}`
@@ -275,7 +276,7 @@ describe('BoardRoom late join and resilience (TC-14, TC-15, TC-16, TC-18, TC-31)
   }
 
   it('TC-16 relays awareness frames verbatim to everyone', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 
@@ -303,7 +304,7 @@ describe('BoardRoom late join and resilience (TC-14, TC-15, TC-16, TC-18, TC-31)
   });
 
   it('TC-18 a fresh room instance is repopulated from a reconnecting client', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
     for (let i = 0; i < 3; i += 1) createSticky(a.doc, { x: i * 30, y: 0 });
@@ -313,7 +314,7 @@ describe('BoardRoom late join and resilience (TC-14, TC-15, TC-16, TC-18, TC-31)
 
     // Simulated restart: a brand-new BoardRoom (fresh object id) starts with
     // an empty doc and must recover everything from clients that reconnect.
-    const freshBoardId = newBoardId();
+    const freshBoardId = await newId();
     const freshUrl = `https://example.com/api/rooms/${freshBoardId}`;
     await a.reconnect(fetcher, freshUrl);
     await a.waitForSync();
@@ -331,7 +332,7 @@ describe('BoardRoom late join and resilience (TC-14, TC-15, TC-16, TC-18, TC-31)
   });
 
   it('TC-31 survives sending to a socket that died between sync and broadcast', async () => {
-    const boardId = newId();
+    const boardId = await newId();
     const a = await connectBoard(fetcher, boardId);
     const b = await connectBoard(fetcher, boardId);
 

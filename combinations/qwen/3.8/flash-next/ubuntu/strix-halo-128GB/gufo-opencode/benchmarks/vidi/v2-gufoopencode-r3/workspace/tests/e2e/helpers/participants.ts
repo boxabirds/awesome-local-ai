@@ -1,10 +1,9 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS
 } from '../../../src/shared/config';
-import { getNotes, type NoteState } from './board';
+import { getNotes, createBoard, type NoteState } from './board';
 
 export interface Participant {
   name: string;
@@ -13,12 +12,16 @@ export interface Participant {
 }
 
 // One isolated browser context per participant: no shared storage, no
-// BroadcastChannel shortcut — everything goes through the BoardRoom.
+// BroadcastChannel shortcut — everything goes through the BoardRoom. The
+// board is created once via the board API (story 5) so every participant's
+// link points at a board that actually exists.
 export async function openParticipants(
   browser: Browser,
-  names: string[],
-  boardId = newBoardId()
+  names: string[]
 ): Promise<Participant[]> {
+  const bootstrap = await browser.newContext();
+  const boardId = await createBoard(bootstrap.request);
+  await bootstrap.close();
   const participants = await Promise.all(
     names.map(async (name) => {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });

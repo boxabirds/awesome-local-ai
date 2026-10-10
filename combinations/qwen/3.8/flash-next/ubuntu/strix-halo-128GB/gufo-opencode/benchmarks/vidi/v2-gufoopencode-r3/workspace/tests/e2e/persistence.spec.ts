@@ -10,6 +10,7 @@ import { connectionState, snapshotKey } from './helpers/participants';
 import {
   corruptSnapshot,
   forceCompact,
+  initBoard,
   readNoteCount,
   repairSnapshot,
   seedNotes
@@ -29,6 +30,8 @@ interface Board {
 async function openBoard(browser: Browser, port: number, boardId: string): Promise<Board> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
+  // Story 5: opening /b/<id> needs the board to exist; ensure it (idempotent).
+  await initBoard(port, boardId);
   await page.goto(`http://127.0.0.1:${port}/b/${boardId}`);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await expect
@@ -71,7 +74,7 @@ test('TC-19 overnight return: 25 varied notes survive a process restart identica
   let wrangler: WranglerProcess | null = null;
   const contexts: BrowserContext[] = [];
   try {
-    wrangler = await startWrangler({ port: 22708 });
+    wrangler = await startWrangler({ port: 22708, testHooks: true });
     const boardId = newBoardId();
     const first = await openBoard(browser, wrangler.port, boardId);
     contexts.push(first.context);
@@ -96,7 +99,7 @@ test('TC-19 overnight return: 25 varied notes survive a process restart identica
     await first.context.close();
     contexts.length = 0;
     await wrangler.stop();
-    wrangler = await startWrangler({ port: 22708, persistDir: wrangler.persistDir });
+    wrangler = await startWrangler({ port: 22708, persistDir: wrangler.persistDir, testHooks: true });
 
     const second = await openBoard(browser, wrangler.port, boardId);
     contexts.push(second.context);
@@ -121,7 +124,7 @@ test('TC-20 leave immediately: a change seen by a peer survives an instant exit 
   let wrangler: WranglerProcess | null = null;
   const contexts: BrowserContext[] = [];
   try {
-    wrangler = await startWrangler({ port: 22710 });
+    wrangler = await startWrangler({ port: 22710, testHooks: true });
     const boardId = newBoardId();
     const alex = await openBoard(browser, wrangler.port, boardId);
     const sam = await openBoard(browser, wrangler.port, boardId);
@@ -140,7 +143,7 @@ test('TC-20 leave immediately: a change seen by a peer survives an instant exit 
     await Promise.all([alex.context.close(), sam.context.close()]);
     contexts.length = 0;
     await wrangler.stop();
-    wrangler = await startWrangler({ port: 22710, persistDir: wrangler.persistDir });
+    wrangler = await startWrangler({ port: 22710, persistDir: wrangler.persistDir, testHooks: true });
 
     const returner = await openBoard(browser, wrangler.port, boardId);
     contexts.push(returner.context);
@@ -227,6 +230,7 @@ test('TC-21 big board open: all PERSIST_TESTED_NOTES notes render; open time log
   try {
     wrangler = await startWrangler({ port: 22712, testHooks: true });
     const boardId = newBoardId();
+    await initBoard(wrangler.port, boardId);
     await seedNotes(wrangler.port, boardId, PERSIST_TESTED_NOTES);
     // Fold the append log into a chunked snapshot so the browser's open
     // exercises the snapshot + replay reconstruction path, not just a long log.

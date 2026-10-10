@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { BoardView } from '../../src/client/pages/BoardPage';
 import { panBy, resetCamera, zoomAt } from '../../src/client/canvas/camera';
 import { WHEEL_ZOOM_SENSITIVITY } from '../../src/shared/config';
 import { flushFrames, initialCamera, windowSize, worldTransform } from './helpers';
@@ -15,7 +15,7 @@ afterEach(() => {
 
 describe('viewport.input (BoardViewport)', () => {
   it('TC-13 drag pans the world layer by exactly the pointer delta; Idle→Panning→Idle', () => {
-    render(<App />);
+    render(<BoardView />);
     const viewport = screen.getByTestId('board-viewport');
     const world = screen.getByTestId('world-layer');
     const cam0 = initialCamera();
@@ -40,7 +40,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-14 pointercancel freezes the camera; later moves are ignored', () => {
-    render(<App />);
+    render(<BoardView />);
     const viewport = screen.getByTestId('board-viewport');
     const world = screen.getByTestId('world-layer');
     const cam0 = initialCamera();
@@ -59,7 +59,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-15 plain wheel pans by -delta and is defaultPrevented', () => {
-    render(<App />);
+    render(<BoardView />);
     const viewport = screen.getByTestId('board-viewport');
     const world = screen.getByTestId('world-layer');
     const cam0 = initialCamera();
@@ -78,7 +78,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-16 Ctrl+wheel zooms around the pointer and is defaultPrevented', () => {
-    render(<App />);
+    render(<BoardView />);
     const viewport = screen.getByTestId('board-viewport');
     const world = screen.getByTestId('world-layer');
     const cam0 = initialCamera();
@@ -97,7 +97,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-17 Safari gesturechange doubles the zoom and is defaultPrevented', () => {
-    render(<App />);
+    render(<BoardView />);
     const viewport = screen.getByTestId('board-viewport');
     const world = screen.getByTestId('world-layer');
     const cam0 = initialCamera();
@@ -113,7 +113,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-18 Ctrl+= / Ctrl+- / Ctrl+0 zoom in, out and reset, each defaultPrevented', () => {
-    render(<App />);
+    render(<BoardView />);
     const world = screen.getByTestId('world-layer');
     const label = screen.getByTestId('zoom-label');
 
@@ -132,7 +132,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-29 click without movement leaves the camera and the hint untouched', () => {
-    render(<App />);
+    render(<BoardView />);
     const viewport = screen.getByTestId('board-viewport');
     const world = screen.getByTestId('world-layer');
     const cam0 = initialCamera();
@@ -145,7 +145,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-30 Ctrl+wheel over the zoom controls does not zoom the board and is not prevented', () => {
-    render(<App />);
+    render(<BoardView />);
     const world = screen.getByTestId('world-layer');
     const cam0 = initialCamera();
     const controls = screen.getByTestId('zoom-controls');

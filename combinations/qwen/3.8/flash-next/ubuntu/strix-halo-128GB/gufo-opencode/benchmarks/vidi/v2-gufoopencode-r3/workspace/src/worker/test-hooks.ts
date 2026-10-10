@@ -7,7 +7,12 @@ import type { Env } from './index';
 //   POST /__test/boards/:id/compact           force snapshot compaction
 //   POST /__test/boards/:id/corrupt-snapshot  damage snapshot chunk 0
 //   POST /__test/boards/:id/repair            restore the saved original
-const HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair|rows)$/;
+//   POST /__test/boards/:id/initialize        ensure the board exists (story 5)
+//   POST /__test/boards/:id/seed-legacy       write updates rows with no
+//                                             created_at (share.legacy_boards)
+//   POST /__test/boards/:id/rows              report row counts
+const HOOK_PATH =
+  /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair|rows|initialize|seed-legacy)$/;
 
 export async function handleTestHook(
   request: Request,
@@ -35,6 +40,14 @@ export async function handleTestHook(
     case 'repair':
       await stub.testRepairSnapshot();
       break;
+    case 'initialize':
+      await stub.initialize();
+      break;
+    case 'seed-legacy': {
+      const body = (await request.json()) as { updates: string[] };
+      await stub.testSeedLegacy(body.updates);
+      break;
+    }
     case 'rows': {
       const rows = await stub.testRowCount();
       return Response.json(rows);

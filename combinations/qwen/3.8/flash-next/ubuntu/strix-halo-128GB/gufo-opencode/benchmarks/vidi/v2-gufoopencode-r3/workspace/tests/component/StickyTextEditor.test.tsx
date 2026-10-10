@@ -1,14 +1,14 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
-import { App } from '../../src/client/App';
+import { BoardView } from '../../src/client/pages/BoardPage';
 import { createSticky, getStickyText, initDoc, snapshot } from '../../src/shared/board-model';
 import { SHORT_PHRASE } from '../fixtures/texts';
 
 function mount(): Y.Doc {
   const doc = new Y.Doc();
   initDoc(doc);
-  render(<App doc={doc} />);
+  render(<BoardView doc={doc} />);
   return doc;
 }
 

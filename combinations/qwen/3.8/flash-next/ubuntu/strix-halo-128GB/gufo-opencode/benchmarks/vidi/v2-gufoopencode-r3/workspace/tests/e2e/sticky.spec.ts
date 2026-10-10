@@ -6,6 +6,7 @@ import {
   setCamera,
   typeIntoEditor,
   worldToViewport,
+  openBoard,
   type ViewportPoint
 } from './helpers/board';
 import { PROSE_1000 } from '../fixtures/texts';
@@ -26,7 +27,7 @@ function near(actual: number, expected: number, tolerance = 1): boolean {
 
 test.describe('sticky note workflows', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
     await expect(page.getByTestId('board-viewport')).toBeVisible();
   });
 

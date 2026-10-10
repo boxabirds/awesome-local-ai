@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
-import { App } from '../../src/client/App';
+import { BoardView } from '../../src/client/pages/BoardPage';
 import { createSticky, initDoc, snapshot } from '../../src/shared/board-model';
 import { STICKY_COLORS } from '../../src/shared/config';
 import { initialCamera, windowSize } from './helpers';
@@ -9,7 +9,7 @@ import { initialCamera, windowSize } from './helpers';
 function mount(): Y.Doc {
   const doc = new Y.Doc();
   initDoc(doc);
-  render(<App doc={doc} />);
+  render(<BoardView doc={doc} />);
   return doc;
 }
 

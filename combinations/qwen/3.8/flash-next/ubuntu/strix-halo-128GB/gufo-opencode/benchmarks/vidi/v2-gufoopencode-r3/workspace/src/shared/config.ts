@@ -25,6 +25,11 @@ export const PERSIST_TESTED_NOTES = 2000; // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000; // PRD persist.large_board
 export const STORAGE_SCHEMA_VERSION = 1;
 
+// Story 5: sharing.
+export const CREATE_BUDGET_MS = 2000; // PRD share.create
+export const LINK_COPIED_MS = 2000; // PRD share.copy
+export const BOARD_CHECK_RETRY_BASE_MS = 1_000; // doubles up to RECONNECT_MAX_BACKOFF_MS
+
 export const STICKY_SIZE_WORLD = 200;
 export const STICKY_TEXT_MAX_CHARS = 1000;
 export const STICKY_COUNTER_THRESHOLD_CHARS = 50; // counter shows when remaining <= this

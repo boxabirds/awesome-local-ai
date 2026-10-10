@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
 export interface ViewportPoint {
   x: number;
@@ -128,4 +128,22 @@ export async function typeIntoEditor(page: Page, text: string): Promise<void> {
     setter.call(el, value);
     el.dispatchEvent(new Event('input', { bubbles: true }));
   }, text);
+}
+
+// Story 5: a board must be created before it can be opened. Creates one via
+// the board API (returns the server-generated id) for page-based specs.
+export async function createBoard(request: APIRequestContext): Promise<string> {
+  const response = await request.post('/api/boards');
+  if (!response.ok()) {
+    throw new Error(`create board failed: ${response.status()} ${await response.text()}`);
+  }
+  return ((await response.json()) as { id: string }).id;
+}
+
+// Opens a fresh board at /b/<id> and waits for the board UI.
+export async function openBoard(page: Page): Promise<string> {
+  const id = await createBoard(page.request);
+  await page.goto(`/b/${id}`);
+  await expect(page.getByTestId('board-viewport')).toBeVisible();
+  return id;
 }
