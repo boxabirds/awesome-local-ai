@@ -1,0 +1,177 @@
+:root {
+  --board-bg: #f7f8fa;
+  --grid-dot: #c7ced9;
+  --ink: #0f172a;
+  --panel-bg: #ffffff;
+  --panel-border: #d8dee9;
+  --focus: #2563eb;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--board-bg);
+}
+
+#root {
+  height: 100%;
+}
+
+.board-root {
+  position: fixed;
+  inset: 0;
+}
+
+/* Board surface: fills the window, grab cursor while panning. */
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--board-bg);
+  cursor: grab;
+  user-select: none;
+}
+
+.board-viewport[data-panning='true'] {
+  cursor: grabbing;
+}
+
+/* Dot grid: spacing and position follow the camera so it looks attached. */
+.board-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle at center,
+    var(--grid-dot) 0 var(--grid-dot-radius),
+    transparent var(--grid-dot-radius)
+  );
+  background-size: var(--grid-size) var(--grid-size);
+  background-position: var(--grid-offset-x) var(--grid-offset-y);
+}
+
+/* World layer: board objects live here, drawn in world coordinates. */
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.board-world > * {
+  pointer-events: auto;
+}
+
+/* Small crosshair at world (0,0): the board's starting point. */
+.board-origin-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.board-origin-marker::before,
+.board-origin-marker::after {
+  content: '';
+  position: absolute;
+  background: var(--grid-dot);
+}
+
+.board-origin-marker::before {
+  left: 0;
+  top: 6px;
+  width: 14px;
+  height: 2px;
+}
+
+.board-origin-marker::after {
+  left: 6px;
+  top: 0;
+  width: 2px;
+  height: 14px;
+}
+
+/* Zoom control, bottom right. */
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgb(15 23 42 / 8%);
+}
+
+.zoom-button,
+.zoom-reset {
+  font: inherit;
+  color: inherit;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.zoom-button {
+  width: 34px;
+  height: 34px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.zoom-reset {
+  padding: 7px 10px;
+}
+
+.zoom-button:hover:not(:disabled),
+.zoom-reset:hover {
+  background: #eef2f7;
+}
+
+.zoom-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.zoom-button:focus-visible,
+.zoom-reset:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.zoom-percent {
+  min-width: 52px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* First-use hint, bottom centre. */
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 8px 14px;
+  color: #f8fafc;
+  background: rgb(15 23 42 / 85%);
+  border-radius: 8px;
+  font-size: 14px;
+  white-space: nowrap;
+}

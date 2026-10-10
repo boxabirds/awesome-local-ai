@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-17",
+  "send_metrics": false,
+  "observability": {
+    "enabled": false
+  },
+  // Story 1 ships the client only; the Worker entry (Durable Objects) arrives
+  // in story 3. `wrangler dev` serves the built client from `dist/client`.
+  "assets": {
+    "directory": "./dist/client"
+  }
+}

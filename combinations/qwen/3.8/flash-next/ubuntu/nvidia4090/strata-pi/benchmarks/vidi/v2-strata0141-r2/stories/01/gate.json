@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\nadded 135 packages, and audited 136 packages in 2s\n\n28 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.42 kB \u2502 gzip:  0.28 kB\ndist/client/assets/index-BhIlbp8I.css    2.25 kB \u2502 gzip:  0.92 kB\ndist/client/assets/index-BGdpkVpy.js   227.97 kB \u2502 gzip: 71.33 kB\n\n\u001b[32m\u2713 built in 98ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.2,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/62862176b6/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 22\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (15)\u001b[39m\n\u001b[2m   Start at \u001b[22m 00:16:41\n\u001b[2m   Duration \u001b[22m 113ms\u001b[2m (transform 44%, tests 40%, import 13%, worker 4%)\u001b[22m\n\n",
+      "passed": 15,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/62862176b6/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 78\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 137\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 426\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m20 passed\u001b[39m\u001b[22m\u001b[90m (20)\u001b[39m\n\u001b[2m   Start at \u001b[22m 00:16:41\n\u001b[2m   Duration \u001b[22m 855ms\u001b[2m (environment 48%, tests 37%, import 8%, transform 6%)\u001b[22m\n\n",
+      "passed": 20,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 8.1,
+      "tail": "\n> vidi6@0.1.0 test:e2e\n> playwright test --project=chromium\n\n[WebServer] \n[WebServer] > vidi6@0.1.0 build:test\n[WebServer] > vite build --mode test\n[WebServer] \n[WebServer] vite v8.3.4 building client environment for test...\n[WebServer] transforming...\n[WebServer] \u2713 23 modules transformed.\n[WebServer] rendering chunks...\n[WebServer] computing gzip size...\n[WebServer] dist/client/index.html                   0.42 kB \u2502 gzip:  0.29 kB\n[WebServer] dist/client/assets/index-BhIlbp8I.css    2.25 kB \u2502 gzip:  0.92 kB\n[WebServer] dist/client/assets/index-GGp9_F94.js   228.15 kB \u2502 gzip: 71.39 kB\n[WebServer] \n[WebServer] \u2713 built in 88ms\n\nRunning 9 tests using 9 workers\n\n  \u2713  1 [chromium] \u203a tests/e2e/navigation.spec.ts:82:3 \u203a workflow 1: first visit navigation \u203a TC-15e scrolling moves the board in the scroll direction (404ms)\n  \u2713  6 [chromium] \u203a tests/e2e/navigation.spec.ts:172:3 \u203a workflow 2: limits and recovery \u203a TC-18e Ctrl+= / \u2212 / 0 zoom and reset from the keyboard (394ms)\n  \u2713  7 [chromium] \u203a tests/e2e/navigation.spec.ts:155:3 \u203a workflow 2: limits and recovery \u203a TC-26 Reset view returns to 100% with the starting point centred, from anywhere (389ms)\n  \u2713  4 [chromium] \u203a tests/e2e/navigation.spec.ts:99:3 \u203a workflow 1: first visit navigation \u203a TC-24 Ctrl+wheel zooms around the pointer and never zooms the page (442ms)\n  \u2713  9 [chromium] \u203a tests/e2e/navigation.spec.ts:57:3 \u203a workflow 1: first visit navigation \u203a TC-23 dragging 200 px right and 100 px down moves the board by exactly that (359ms)\n  \u2713  5 [chromium] \u203a tests/e2e/navigation.spec.ts:235:3 \u203a board gestures do not zoom the page \u203a TC-31 page zoom is unchanged after every board zoom gesture (530ms)\n  \u2713  2 [chromium] \u203a tests/e2e/navigation.spec.ts:38:3 \u203a workflow 1: first visit navigation \u203a TC-28 the navigation hint is shown on load and gone after the first pan (548ms)\n  \u2713  8 [chromium] \u203a tests/e2e/navigation.spec.ts:189:3 \u203a workflow 3: far travel \u203a TC-27 a million units from the start still pans exactly and the grid stays even (546ms)\n  \u2713  3 [chromium] \u203a tests/e2e/navigation.spec.ts:126:3 \u203a workflow 2: limits and recovery \u203a TC-25 zooming in with the + button stops at 400% and disables the button (5.3s)\n\n  9 passed (7.7s)\n",
+      "passed": 9,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
