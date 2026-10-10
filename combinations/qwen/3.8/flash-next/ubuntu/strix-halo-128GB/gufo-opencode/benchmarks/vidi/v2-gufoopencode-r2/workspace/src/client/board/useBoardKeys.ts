@@ -17,8 +17,8 @@ import { TOOL_SHORTCUTS, type ToolId } from '../tools/useActiveTool';
 import type { Selection } from './useSelection';
 
 // Only tools that exist as modes (sticky is an instant create, and the
-// story 11/12 tool ids have no implementation yet) can be switched to.
-const SWITCHABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+// story 12 tool ids have no implementation yet) can be switched to.
+const SWITCHABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 export interface BoardKeysOptions {
   doc: Y.Doc;

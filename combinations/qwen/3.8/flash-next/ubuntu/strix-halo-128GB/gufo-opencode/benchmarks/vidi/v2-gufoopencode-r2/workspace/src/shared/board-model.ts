@@ -11,13 +11,20 @@
 //       fill, stroke, label: Y.Text, z, createdAt, createdBy } (story 10)
 //     objects: Y.Map<string, Y.Map> with { type:'connector', from, to, z, createdAt,
 //       createdBy } where x/y/width/height are stored 0 and derived in snapshot() (story 10)
+//     objects: Y.Map<string, Y.Map> with { type:'stroke', x, y, width, height,
+//       points: number[] (flattened, bbox-relative), baseWidth, baseHeight,
+//       color, thickness, z, createdAt, createdBy } (story 11)
 
 import * as Y from 'yjs';
 import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
   DEFAULT_SHAPE_FILL,
   DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   SHAPE_FILL_COLORS,
   SHAPE_KINDS,
   SHAPE_STROKE_COLORS,
@@ -100,6 +107,35 @@ export function isFillColor(value: unknown): value is FillColor {
 
 export function isStrokeColor(value: unknown): value is StrokeColor {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, value);
+}
+
+// Story 11 freehand stroke. `points` is a flattened [x0, y0, x1, y1, ...]
+// array relative to the bbox origin at creation size (baseWidth/baseHeight);
+// the render scale is width/baseWidth, height/baseHeight.
+export interface StrokeSnap extends ObjectSnapshot {
+  type: 'stroke';
+  points: readonly number[];
+  baseWidth: number;
+  baseHeight: number;
+  color: keyof typeof PEN_COLORS;
+  thickness: keyof typeof PEN_THICKNESS_WORLD;
+}
+
+export function isPenColor(value: unknown): value is keyof typeof PEN_COLORS {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_COLORS, value);
+}
+
+export function isPenThickness(value: unknown): value is keyof typeof PEN_THICKNESS_WORLD {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value);
+}
+
+function isFlatPointArray(value: unknown): value is readonly number[] {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    value.length % 2 === 0 &&
+    value.every((n) => typeof n === 'number' && Number.isFinite(n))
+  );
 }
 
 function isEndpoint(value: unknown): value is Endpoint {
@@ -465,6 +501,22 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
         to,
       };
       out.push(connector);
+    } else if (type === 'stroke') {
+      const points = obj.get('points');
+      const baseWidth = obj.get('baseWidth');
+      const baseHeight = obj.get('baseHeight');
+      const color = obj.get('color');
+      const thickness = obj.get('thickness');
+      const stroke: StrokeSnap = {
+        ...base,
+        type: 'stroke',
+        points: isFlatPointArray(points) ? points : [],
+        baseWidth: typeof baseWidth === 'number' && baseWidth > 0 ? baseWidth : base.width ?? 1,
+        baseHeight: typeof baseHeight === 'number' && baseHeight > 0 ? baseHeight : base.height ?? 1,
+        color: isPenColor(color) ? color : DEFAULT_PEN_COLOR,
+        thickness: isPenThickness(thickness) ? thickness : DEFAULT_PEN_THICKNESS,
+      };
+      out.push(stroke);
     } else {
       out.push(base);
     }

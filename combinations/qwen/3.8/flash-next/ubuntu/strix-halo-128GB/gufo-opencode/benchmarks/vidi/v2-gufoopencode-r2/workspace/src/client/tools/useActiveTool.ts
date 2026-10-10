@@ -30,8 +30,9 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 };
 
 // The tools that stay active across clicks and are refused when the board is
-// read-only (load_failed). `sticky` is an instant create, not a mode.
-const EDIT_TOOLS: readonly ToolId[] = ['text', 'shape', 'connector'];
+// read-only (load_failed). `sticky` is an instant create, not a mode. Pen is
+// a mode that never calls toolCreated, so it stays active after each stroke.
+const EDIT_TOOLS: readonly ToolId[] = ['text', 'shape', 'connector', 'pen'];
 
 export interface ActiveTool {
   tool: ToolId;

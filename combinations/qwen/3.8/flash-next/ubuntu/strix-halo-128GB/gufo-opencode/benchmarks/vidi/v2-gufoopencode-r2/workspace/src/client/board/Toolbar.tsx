@@ -141,6 +141,27 @@ export function Toolbar({
         </svg>
         <span>Connector</span>
       </button>
+      <button
+        type="button"
+        className="board-toolbar-button"
+        data-testid="tool-pen"
+        aria-label="Pen (P)"
+        title="Pen – or press P, then drag on the board"
+        aria-pressed={tool === 'pen'}
+        onClick={() => onToolChange?.('pen')}
+        disabled={disabled}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <path
+            d="M2.5 15.5 4 11 12.5 2.5 15.5 5.5 7 14 2.5 15.5Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path d="M11 4l3 3" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+        <span>Pen</span>
+      </button>
       {undo ? <UndoButtons {...undo} /> : null}
       {tool === 'shape' ? (
         <div

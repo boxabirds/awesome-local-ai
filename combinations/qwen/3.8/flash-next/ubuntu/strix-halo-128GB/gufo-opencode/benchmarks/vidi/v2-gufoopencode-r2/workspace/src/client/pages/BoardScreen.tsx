@@ -14,6 +14,9 @@ import { useBoardKeys } from '../board/useBoardKeys';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
 import { ShapeTool } from '../tools/ShapeTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { createUndo } from '../board/undo';
 import { useUndo } from '../board/useUndo';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -79,6 +82,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
   const editable = canEdit(connection);
   const camera = viewport?.camera ?? DEFAULT_CAMERA;
   const active = useActiveTool(editable);
+  const penOptions = usePenOptions();
   const measurer = useMemo(() => createLazyMeasurer(TEXT_FONT_FAMILY), []);
 
   const gesture = useTransformGesture({
@@ -211,6 +215,14 @@ export function BoardScreen({ boardId }: { boardId: string }) {
         shapeKind={active.shapeKind}
         onShapeKind={active.setShapeKind}
       />
+      {active.tool === 'pen' && editable ? (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
+        />
+      ) : null}
       <BoardViewport
         onCreateStickyAtWorld={createStickyAtWorld}
         onClearSelection={selection.clear}
@@ -244,6 +256,15 @@ export function BoardScreen({ boardId }: { boardId: string }) {
                 by={getIdentity().id}
                 undo={undo}
                 onCreated={onToolCreated}
+              />
+            ) : active.tool === 'pen' && editable ? (
+              <PenTool
+                camera={camera}
+                color={penOptions.color}
+                thickness={penOptions.thickness}
+                doc={doc}
+                identityId={getIdentity().id}
+                undo={undo}
               />
             ) : null}
           </>

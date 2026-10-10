@@ -447,3 +447,50 @@
   connectors.spec TC-25 (drag-create attach + endpoint detach), TC-26
   (collaborative rearrange converges), TC-27 (delete race invariants).
 - Persistence e2e 4/4; nightly 2/2 (E2E_SOAK_MS=10000).
+
+## Story 11 notes (sketch freehand with a pen)
+
+### Implementation decisions and deviations
+
+- `PenTool` takes an optional `undo?: UndoController` prop (not in the
+  design's prop list) and calls `undo.boundary()` before committing each
+  part, so one stroke (or one split part at the 5000-point limit) is one
+  Ctrl+Z step. Without a boundary, Y.UndoManager would merge rapid strokes.
+- `BoardViewport.tsx` needed no changes (the design table suggested it
+  might): the pen catcher is an overlay child of the viewport, so pan only
+  starts when `e.target` is the viewport/grid itself and never steals pen
+  drags, while wheel events bubble up and keep panning/zooming — verified
+  by e2e TC-19.
+- The stroke bbox is the point range padded outward by thickness/2 on every
+  side, so a zero-length stroke (a dot) renders as a full round cap. e2e
+  bbox assertions account for this padding (e.g. thick = 8 ⇒ origin −4).
+- `hitTest` in the registry gained an optional third `zoom` parameter so
+  stroke can use a screen-space (STROKE_HIT_TOLERANCE_PX) line distance;
+  other types ignore it. The same tolerance guards StrokeObject's pointer
+  handler (`nearLine`), and its container div is `pointer-events: none`
+  with only the invisible hit path opting in, so clicks inside the bbox
+  but far from the line fall through to objects below (TC-16).
+- Pointer capture uses `getCoalescedEvents()` when available (real
+  browsers batch high-rate input); jsdom falls back to single events.
+  Preview re-renders are batched with one `requestAnimationFrame` per
+  frame; point arrays live in refs so capture costs O(1) per move.
+- Pen options (colour/thickness) are session state via `usePenOptions`,
+  per the PRD ("no persistence requested"); the toolbar keeps the tool
+  active because PenTool never calls `toolCreated`.
+- Split at STROKE_MAX_POINTS commits the first part immediately and starts
+  the next part at the join point; scaled points of consecutive parts share
+  that endpoint exactly (TC-12 asserts via `scaledPoints`).
+
+### Verified on this machine (story 11)
+
+- `npm run typecheck` clean; `npm run build` clean, `__vidi6` absent from
+  the production bundle (grep found no matches).
+- Unit: 177 tests pass (new: stroke TC-01..TC-08 — simplify correctness on
+  the seeded handwritten loop, split/endpoint preservation, smoothPath
+  output, bbox/dot, scaled resize, flat-array guard, guards).
+- Component: 107 tests pass (new: PenTool TC-09..TC-14, StrokeObject
+  TC-15/TC-16/TC-21).
+- Integration (workerd): 51/51 unchanged.
+- E2E chromium default suite: 47/47, incl. pen.spec TC-17 (draw + reload
+  persistence), TC-18 (live both ways), TC-19 (no pan, wheel still zooms),
+  TC-20 (one undo per stroke, pen stays active).

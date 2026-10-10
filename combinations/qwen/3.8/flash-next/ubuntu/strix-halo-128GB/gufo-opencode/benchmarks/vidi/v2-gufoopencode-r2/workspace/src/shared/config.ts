@@ -89,3 +89,18 @@ export const CONNECTOR_HIT_TOLERANCE_PX = 6;
 export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
 export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// Story 11: freehand pen sketching.
+export const PEN_COLORS = {
+  black: '#212121', blue: '#1E88E5', red: '#E53935',
+  green: '#43A047', orange: '#FB8C00', purple: '#8E24AA',
+} as const;
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenColor = keyof typeof PEN_COLORS;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1; // RDP tolerance in screen pixels at drawing zoom
+export const STROKE_MAX_POINTS = 5000; // recorded points per committed stroke part
+export const STROKE_HIT_TOLERANCE_PX = 6; // line-distance hit tolerance in screen pixels
+export const STROKE_MIN_SIZE_WORLD = 4;

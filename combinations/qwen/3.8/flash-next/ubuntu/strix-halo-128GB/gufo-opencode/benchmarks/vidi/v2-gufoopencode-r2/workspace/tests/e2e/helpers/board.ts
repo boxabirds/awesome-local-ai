@@ -191,3 +191,28 @@ export async function gridSpacingPx(page: Page): Promise<string> {
     .getByTestId('board-grid')
     .evaluate((el) => getComputedStyle(el).backgroundSize.split(' ')[0]);
 }
+
+export interface StrokeInfo {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  thickness: string;
+  points: { x: number; y: number }[];
+}
+
+/** Story 11: stroke objects as the shared snapshot reader sees them. */
+export function getStrokes(page: Page): Promise<StrokeInfo[]> {
+  return page.evaluate(() =>
+    (
+      window as never as {
+        __vidi6: { board: { getObjectSnapshots?(): StrokeInfo[] } };
+      }
+    )
+      .__vidi6.board.getObjectSnapshots!()
+      .filter((o) => o.type === 'stroke'),
+  );
+}

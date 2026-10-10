@@ -4,13 +4,23 @@
 
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
-import { markTypeKnown, objectBounds, type ObjectSnapshot } from '../../shared/board-model';
-import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { markTypeKnown, objectBounds, type ObjectSnapshot, type StrokeSnap } from '../../shared/board-model';
+import {
+  PEN_THICKNESS_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { scaledPoints } from '../../shared/objects/stroke';
 import type { UndoController } from '../board/undo';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 
 // Props every registered object component receives from the board renderer;
@@ -43,7 +53,9 @@ export interface ObjectTypeSpec {
   // 'horizontal' restricts resize handles to e/w (story 9 text: only width is
   // user-controlled, height belongs to the layout).
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  // zoom (screen pixels → world units) is only needed by line-distance hit
+  // tests (story 11 stroke); bounds-based specs ignore it.
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -102,4 +114,23 @@ registerObjectType('connector', {
   editableText: false,
   hitTest: (obj, worldPoint) =>
     rectContains(objectBounds(obj), { x: worldPoint.x, y: worldPoint.y, width: 0, height: 0 }),
+});
+
+// Line-distance selection (pen.select): hit only within half the thickness or
+// STROKE_HIT_TOLERANCE_PX screen pixels of the drawn line, whichever is
+// larger, so a click inside the bbox but far from the line misses.
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, worldPoint, zoom) => {
+    const s = obj as StrokeSnap;
+    const tolerance = Math.max(
+      PEN_THICKNESS_WORLD[s.thickness] / 2,
+      STROKE_HIT_TOLERANCE_PX / (zoom || 1),
+    );
+    return distanceToPolyline(scaledPoints(s), worldPoint) <= tolerance;
+  },
 });
