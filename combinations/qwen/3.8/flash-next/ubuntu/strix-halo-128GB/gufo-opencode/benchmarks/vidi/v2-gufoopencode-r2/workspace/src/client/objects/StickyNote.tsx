@@ -22,6 +22,7 @@ export function StickyNote({
   selected,
   editing,
   editable,
+  undo,
   onObjectPointerDown,
   onStartEdit,
   onEndEdit,
@@ -80,7 +81,7 @@ export function StickyNote({
     >
       {editing && editable ? (
         ytext ? (
-          <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} />
+          <StickyTextEditor ytext={ytext} fontPx={fontPx} undo={undo} onEnd={onEndEdit} />
         ) : null
       ) : (
         <div

@@ -11,6 +11,8 @@ import { seedBoard } from '../board/seedBoard';
 import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { createUndo } from '../board/undo';
+import { useUndo } from '../board/useUndo';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
@@ -40,16 +42,27 @@ export function BoardScreen({ boardId }: { boardId: string }) {
   const [viewport, setViewport] = useState<ViewportHandle | null>(null);
   const [gestureActive, setGestureActive] = useState(false);
 
+  // One undo history per tab per doc session; stacks hold only LOCAL_ORIGIN
+  // steps, so remote edits can never be undone (undo.history).
+  const undo = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undo.destroy(), [undo]);
+  const undoState = useUndo(undo, canEdit(connection));
+
   // Test-only: expose the live doc, note snapshot and connection state for
   // e2e assertions. Gated by mode so seed code and hooks are dead-code
   // eliminated from production builds.
   if (import.meta.env.MODE === 'test') {
     useEffect(() => {
       installTestHook({
-        board: { doc, getNotes: () => snapshot(doc), seedBoard: (count) => seedBoard(doc, count) },
+        board: {
+          doc,
+          getNotes: () => snapshot(doc),
+          seedBoard: (count) => seedBoard(doc, count),
+          undo,
+        },
         connectionState: () => connection,
       });
-    }, [doc, connection]);
+    }, [doc, connection, undo]);
   }
 
   const editable = canEdit(connection);
@@ -61,21 +74,36 @@ export function BoardScreen({ boardId }: { boardId: string }) {
     selection,
     snapshot: objects,
     canEdit: editable,
-    onGestureStart: () => setGestureActive(true),
-    onGestureEnd: () => setGestureActive(false),
+    onGestureStart: () => {
+      setGestureActive(true);
+      undo.boundary(); // the whole drag is one undo step
+    },
+    onGestureEnd: () => {
+      setGestureActive(false);
+      undo.boundary();
+    },
   });
 
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undoBoundary: undo.boundary,
+    undoShortcuts: { undo: undoState.undo, redo: undoState.redo },
+  });
 
   const createStickyAtWorld = useCallback(
     (world: Point) => {
       if (!editable) return; // load_failed: creation is a no-op
       // createSticky takes the note centre, so the note lands centred here.
+      undo.boundary(); // creation is one undo step
       const id = createSticky(doc, world);
+      undo.boundary();
       // Creation immediately starts editing with an empty caret (FR-4).
       if (typeof id === 'string') selection.startEdit(id);
     },
-    [doc, selection, editable],
+    [doc, selection, editable, undo],
   );
 
   const createStickyAtCentre = useCallback(() => {
@@ -85,16 +113,20 @@ export function BoardScreen({ boardId }: { boardId: string }) {
 
   const deleteSelection = useCallback(() => {
     if (!editable || selection.ids.size === 0) return;
+    undo.boundary(); // the delete is one undo step
     deleteObjects(doc, [...selection.ids]);
+    undo.boundary();
     selection.clear();
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, undo]);
 
   const changeColor = useCallback(
     (id: string, color: StickySnapshot['color']) => {
       if (!editable) return;
+      undo.boundary(); // the colour change is one undo step
       setStickyColor(doc, id, color);
+      undo.boundary();
     },
-    [doc, editable],
+    [doc, editable, undo],
   );
 
   // Render in stable creation order (never re-sorted by z) so bringToFront
@@ -110,7 +142,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
   return (
     <>
       <ConnectionStatus state={connection} />
-      <Toolbar onCreateSticky={createStickyAtCentre} disabled={!editable} />
+      <Toolbar onCreateSticky={createStickyAtCentre} disabled={!editable} undo={undoState} />
       <BoardViewport
         onCreateStickyAtWorld={createStickyAtWorld}
         onClearSelection={selection.clear}
@@ -139,6 +171,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
               selected={selection.ids.has(obj.id)}
               editing={selection.editingId === obj.id}
               editable={editable}
+              undo={undo}
               onObjectPointerDown={gesture.onObjectPointerDown}
               onStartEdit={selection.startEdit}
               onEndEdit={(next) => {

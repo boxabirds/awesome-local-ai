@@ -7,6 +7,7 @@ import type * as Y from 'yjs';
 import { markTypeKnown, objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 // Props every registered object component receives from the board renderer;
@@ -19,6 +20,7 @@ export interface ObjectProps {
   selected: boolean;
   editing: boolean;
   editable: boolean;
+  undo?: UndoController;
   onObjectPointerDown(e: ReactPointerEvent<HTMLDivElement>, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;

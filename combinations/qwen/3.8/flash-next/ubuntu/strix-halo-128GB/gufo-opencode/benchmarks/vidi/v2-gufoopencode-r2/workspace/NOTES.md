@@ -274,3 +274,61 @@
   2000-note load measured 3783ms (over the 3000ms budget; reported, not
   asserted - unchanged behavior from story 4).
 - Nightly: 2 tests pass (capacity soak; idle-stability 45s, no Reconnecting).
+
+## Story 8 notes (undo my own changes)
+
+### Deviations from design / spec
+
+- The design has `App.tsx` create the `UndoController`, but since story 5
+  `App.tsx` is only a router shell; `BoardScreen` owns the `Y.Doc`, the
+  connection and the edit lock, so the controller is created (and destroyed)
+  there and threaded to `Toolbar`/`useBoardKeys`/object components.
+- `ObjectProps` gained an optional `undo?: UndoController`, forwarded
+  `StickyNote -> StickyTextEditor`. The design pinned the undo shortcut only
+  at the board level; the editor needs the controller to intercept Ctrl+Z/Y
+  while editing (otherwise the window-level handler and the native textarea
+  undo race).
+- UndoManager is constructed with `trackedOrigins = new Set([LOCAL_ORIGIN])`,
+  scope = `doc.getMap('objects')` plus each note's `text` Y.Text added via
+  `addToScope` (and removed on delete), so text typing and model ops live in
+  one personal stack. Remote ops carry their own origin and are never
+  captured (TC-05).
+- Undo/redo runs inside `doc.transact(fn, LOCAL_ORIGIN)` so the compensating
+  transaction is itself a single local step (redoable) rather than a
+  no-origin transaction.
+- lib0 binds `export const getUnixTime = Date.now` at module load, so
+  `vi.useFakeTimers()` installed later never reaches the UndoManager capture
+  timeout. The vitest *unit* project now inlines `yjs`/`lib0`
+  (`server.deps.inline`) and `undo-boundaries.test.ts` mocks `lib0/time`
+  (`getUnixTime: () => Date.now()`), which restores controllable capture
+  timing (TC-13) without touching production code.
+- The component suites fake only rAF (never the wall clock), so TC-14/15/17
+  pin "one drag = one undo step" through begin/end gesture boundaries, which
+  is the property that actually holds regardless of capture-timeout ordering.
+- `moveObject`/`moveObjects` write top-left x/y directly; the first drag
+  assertions wrongly assumed center semantics and were fixed.
+- Trimmed undo/redo stack items release their yjs structs to GC only when the
+  doc is destroyed (yjs pins structs referenced by stack items); the cost is
+  bounded by the per-side stack limit (design accepts full-session history
+  anyway). `controller.destroy()` also detaches the two doc-level listeners
+  (`afterTransaction`, `destroy`) that `UndoManager.destroy()` itself leaves
+  registered.
+
+### Verified on this machine (story 8)
+
+- `npm run typecheck` clean (both tsconfigs); `npm run build` clean,
+  `__vidi6` absent from the production bundle (grep count 0).
+- Unit: 138 tests pass (new: undo-history TC-01..TC-11, undo-boundaries
+  TC-12/TC-13 + addScope/onChange/no-op cases).
+- Component: 74 tests pass (new: UndoBoundaries TC-14..TC-17, UndoControls
+  TC-18..TC-21).
+- Integration (workerd): 51/51 unchanged.
+- E2E chromium default suite: 32/32, incl. undo.spec TC-22 (undo 8 deletions
+  while a colleague adds a note; redo), TC-23 (undo a move of a remotely
+  deleted note: no pageerror, stays gone, board keeps working), TC-24
+  (MAX_CONCURRENT_EDITORS=5 each undo create/type/move; boards converge
+  identical). TC-22 restore latencies 2-108ms (budget 1000ms; reported not
+  asserted).
+- Persistence e2e 4/4; nightly 2/2 (E2E_SOAK_MS=10000).
+- Firefox/WebKit remain environment-blocked (missing GTK/WPE system libs,
+  see story 1 notes).

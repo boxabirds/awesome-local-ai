@@ -1,12 +1,21 @@
 // Fixed left toolbar. The Sticky note button creates a note at the centre of
-// the visible board area (the App resolves the viewport centre to world).
+// the visible board area (the App resolves the viewport centre to world),
+// followed by the story 8 undo/redo pair.
+
+import { UndoButtons } from './UndoButtons';
+import type { UndoState } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
+  undo?: UndoState;
 }
 
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): React.JSX.Element {
+export function Toolbar({
+  onCreateSticky,
+  disabled = false,
+  undo,
+}: ToolbarProps): React.JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -35,6 +44,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): Rea
         </svg>
         <span>Sticky note</span>
       </button>
+      {undo ? <UndoButtons {...undo} /> : null}
     </div>
   );
 }

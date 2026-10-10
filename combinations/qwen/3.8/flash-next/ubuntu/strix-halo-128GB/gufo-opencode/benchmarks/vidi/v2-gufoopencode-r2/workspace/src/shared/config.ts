@@ -48,3 +48,7 @@ export const STICKY_MIN_SIZE_WORLD = 50; // registry minSize for sticky notes
 export const MAX_OBJECT_SIZE_WORLD = 20_000; // one global maximum for every type
 export const NUDGE_STEP_WORLD = 1; // arrow-key nudge distance
 export const NUDGE_LARGE_STEP_WORLD = 10; // Shift+arrow nudge distance
+
+// Story 8: undo and redo.
+export const UNDO_CAPTURE_TIMEOUT_MS = 500; // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;

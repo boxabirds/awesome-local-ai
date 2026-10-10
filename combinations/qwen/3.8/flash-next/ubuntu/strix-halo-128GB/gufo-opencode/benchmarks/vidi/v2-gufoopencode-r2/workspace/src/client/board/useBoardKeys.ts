@@ -20,6 +20,8 @@ export interface BoardKeysOptions {
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undoBoundary?(): void;
+  undoShortcuts?: { undo(): void; redo(): void };
 }
 
 function isTextTarget(target: EventTarget | null): boolean {
@@ -43,6 +45,18 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         if (editing) return;
         e.preventDefault();
         selection.setMany(allObjectIds(o.snapshot), false);
+        return;
+      }
+      if (mod && !e.altKey && (e.key === 'z' || e.key === 'Z' || e.key === 'y' || e.key === 'Y')) {
+        // Ctrl/Cmd+Z undoes; Ctrl/Cmd+Shift+Z and Ctrl+Y redo (undo.controls).
+        // Focus in a text target never reaches here (early return above), so
+        // a sticky being edited and foreign inputs keep their own behaviour.
+        e.preventDefault();
+        if (!o.canEdit) return;
+        const redo =
+          e.key === 'y' || e.key === 'Y' || (e.shiftKey && (e.key === 'z' || e.key === 'Z'));
+        if (redo) o.undoShortcuts?.redo();
+        else o.undoShortcuts?.undo();
         return;
       }
       if (editing) return; // Escape inside the editor is handled by the editor
@@ -72,12 +86,15 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           positions.set(obj.id, { x: b.x + arrow.x * step, y: b.y + arrow.y * step });
         }
         moveObjects(o.doc, positions);
+        o.undoBoundary?.(); // each nudge is one undo step
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         if (!o.canEdit) return;
+        o.undoBoundary?.();
         deleteObjects(o.doc, [...selection.ids]);
+        o.undoBoundary?.(); // the delete is one undo step
         selection.clear();
         return;
       }

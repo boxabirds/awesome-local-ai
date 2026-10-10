@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
+import type { UndoController } from '../board/undo';
 import {
   STICKY_TEXT_BOX_WORLD,
   applyTextDiff,
@@ -17,12 +18,14 @@ import {
 export interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
+  undo?: UndoController;
   onEnd(next: 'selected' | 'unselected'): void;
 }
 
 export function StickyTextEditor({
   ytext,
   fontPx,
+  undo,
   onEnd,
 }: StickyTextEditorProps): React.JSX.Element {
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -30,7 +33,15 @@ export function StickyTextEditor({
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
   const [length, setLength] = useState(() => ytext.toString().length);
+
+  // Editing is its own undo step: boundaries open and close it (undo.boundaries).
+  useEffect(() => {
+    undoRef.current?.boundary();
+    return () => undoRef.current?.boundary();
+  }, [ytext]);
 
   // Start editing (sticky.edit_start): value from Y.Text, focus, caret at end.
   useEffect(() => {
@@ -117,6 +128,23 @@ export function StickyTextEditor({
           flush();
         }}
         onKeyDown={(e) => {
+          const mod = e.ctrlKey || e.metaKey;
+          if (mod && !e.altKey && (e.key === 'z' || e.key === 'Z' || e.key === 'y' || e.key === 'Y')) {
+            // Native textarea undo would diverge from Y.Text: route to the
+            // controller (undo.boundaries). The observer above mirrors the
+            // result back into the textarea (origin is the manager, not us).
+            e.preventDefault();
+            e.stopPropagation();
+            flush();
+            const controller = undoRef.current;
+            if (!controller) return;
+            if (e.key === 'y' || (e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+              controller.redo();
+            } else {
+              controller.undo();
+            }
+            return;
+          }
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();

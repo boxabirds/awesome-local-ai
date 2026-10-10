@@ -2,12 +2,15 @@ import type { Camera } from './camera';
 import type * as Y from 'yjs';
 import type { StickySnapshot } from '../../shared/board-model';
 import type { ConnectionState } from '../sync/connectBoard';
+import type { UndoController } from '../board/undo';
 
 export interface BoardTestHooks {
   doc: Y.Doc;
   getNotes(): readonly StickySnapshot[];
   /** Seeded, realistic board mutations (persistence e2e only). */
   seedBoard(count: number): void;
+  /** Per-tab undo controller (story 8 e2e only). */
+  undo?: UndoController;
 }
 
 export interface Vidi6TestHooks {
