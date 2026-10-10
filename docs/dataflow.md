@@ -47,6 +47,243 @@ flowchart TD
   ADB --> INS[insight scripts]
 ```
 
+## Components and the data they own
+
+Each component with the entities it makes (solid arrow: writes) and the entities it reads
+(dotted arrow). Mermaid has no UML component diagram, so this is a flowchart with one box per
+component.
+
+```mermaid
+flowchart LR
+  subgraph HARNESS["Harness (benchmark machine)"]
+    E_RUN[Run directory]
+    E_REC["Published record<br/>metrics.json, run.json, run-status.json,<br/>summary.md, finalize.json, workspace.bundle"]
+    E_SUM["Score summaries<br/>accept-summary.json (counts only)"]
+    E_CONV["Agent conversation<br/>compact log + prompt.md"]
+    E_RAW["Machine-only files<br/>full event stream, server.log,<br/>conditions.jsonl, egress, progress.json"]
+    E_HELD["Held-out detail<br/>accept.json, accept-report.json,<br/>audit.jsonl, artifacts, screenshots"]
+  end
+  subgraph GH["GitHub"]
+    G_PUB[(Public repo main)]
+    G_PRIV[(Private repo main)]
+  end
+  subgraph NODEAPI["dbench node API"]
+    N_RUNS["/v1/runs, /v1/runs/files, /v1/runs/file"]
+  end
+  subgraph COLLECT["dbench collect (Mac)"]
+    C_LAKE[("Lake<br/>copies + collection.json")]
+    C_WH[("Warehouse<br/>conversations.db")]
+    C_AN[("Analytics<br/>analytics.db")]
+    C_API["Conversation API :7761"]
+  end
+  subgraph READERS["Readers"]
+    R_BM["Benchmarker :7760"]
+    R_GAL["Gallery :7800"]
+    R_INS["Insight scripts"]
+  end
+
+  E_REC --> G_PUB
+  E_SUM --> G_PUB
+  E_CONV --> G_PUB
+  E_HELD --> G_PRIV
+  E_RAW --> N_RUNS
+  N_RUNS --> C_LAKE
+  G_PUB -.-> C_WH
+  C_LAKE -.-> C_WH
+  C_WH --> C_AN
+  C_WH --> C_API
+  G_PUB -.-> R_BM
+  G_PRIV -.-> R_BM
+  C_API -.-> R_BM
+  G_PUB -.-> R_GAL
+  G_PRIV -.-> R_GAL
+  C_AN -.-> R_INS
+```
+
+## Data entities
+
+The entities the warehouse holds, from `tools/dbench/src/ingest/schema.sql` (schema version 2,
+`user_version` 3). `sk` is the integer key of a story run, stable across re-ingest; a story's
+own id is `stories.rel`, `<run dir>/stories/NN`. Columns are left out except the keys.
+
+```mermaid
+erDiagram
+  RUNS ||--o{ STORIES : "run_id"
+  STORIES ||--o{ CALLS : "sk"
+  STORIES ||--o{ TOOLS : "sk"
+  CALLS ||--o{ TOOLS : "sk, call_idx"
+  STORIES ||--o{ MSGS : "sk"
+  STORIES ||--o{ COMPACTIONS : "sk"
+  STORIES ||--o{ ATTEMPTS : "sk"
+  ATTEMPTS ||--o{ SESSIONS : "sk, attempt"
+  STORIES ||--o{ EVENTS : "sk"
+  STORIES ||--o| MEMORY : "sk"
+  STORIES ||--|| COLLECTION : "sk"
+  RUNS ||--o{ REQUESTS : "run_id"
+  STORIES ||--o{ REQUESTS : "sk"
+  CALLS ||--o{ REQUESTS : "sk, call_idx"
+  RUNS ||--o{ CONDITIONS : "run_id"
+  STORIES ||--o{ CONDITIONS : "sk"
+
+  RUNS {
+    text id PK "run directory relative to the repo"
+    text node "dbench node it was pulled from"
+    text pack_version
+    text state "run-status.json"
+  }
+  STORIES {
+    integer sk PK
+    text rel "run dir / stories / NN"
+    text run_id FK
+    integer passed
+    integer total
+    real agent_seconds
+  }
+  CALLS {
+    integer sk
+    integer idx "one model call"
+  }
+  TOOLS {
+    integer sk
+    integer call_idx
+    integer idx "one tool call"
+  }
+  REQUESTS {
+    text run_id
+    text source "llama-log, gufo, mlx-serve, strata, meter-proxy"
+    integer idx "order in that server log"
+  }
+  CONDITIONS {
+    text run_id
+    real at "30 s machine reading"
+  }
+  EVENTS {
+    integer sk
+    integer ord "time-ordered stream the API pages over"
+  }
+```
+
+`analytics.db` is a separate file, derived from the warehouse (`analytics/schema.sql`):
+`analytics_story`, `call_context`, `think_text`, plus `theme`, `theme_story` and `theme_share`,
+which the insight scripts write and a rebuild carries over. `COLLECTION` records what each story
+run was ingested from (`events_source` is `full`, `compact` or `none`) and how far.
+
+## Key workflows
+
+### 1. A story is recorded and published (harness, `drive.record_story`)
+
+```mermaid
+sequenceDiagram
+  participant H as Harness
+  participant RD as Run directory
+  participant PRIV as Private repo main
+  participant PUB as Public repo main
+  H->>RD: story finishes, results written
+  H->>H: record_refusal check, abort any rebase left over
+  H->>RD: make_public, make_publishable (summaries, size limit)
+  H->>PRIV: record_private copies held-out detail, pushes a plumbing commit
+  Note over H,PRIV: the detail goes first, so the private repo has it whatever happens to the public commit
+  H->>H: stage the run in a private index, redact credentials, leak check
+  alt a held-out title or other problem is found
+    H-->>RD: refuse, write publish-refused.json, nothing committed
+  else clean
+    H->>H: commit
+    H->>PUB: push_with_rebase
+    alt push fails
+      H-->>H: reported unpushed, next story carries the backlog
+    end
+  end
+```
+
+### 2. Collection and ingest (`dbench collect`, one pass every 10 s)
+
+```mermaid
+sequenceDiagram
+  participant C as dbench collect
+  participant N as Node API
+  participant L as Lake
+  participant G as Public origin/main
+  participant W as conversations.db
+  participant A as analytics.db
+  loop every pass
+    C->>N: GET /v1/runs
+    loop each wanted run
+      C->>N: GET /v1/runs/files
+      C->>N: GET /v1/runs/file from local length, prefix check
+      N-->>C: new bytes
+      C->>L: append, update collection.json
+    end
+    opt a file changed, or the 60 s fetch is due
+      C->>G: git fetch origin main
+      C->>W: ingest changed stories (record from git, raw files from the lake)
+      C->>A: after_ingest, recompute changed story runs
+      Note over C,A: an analytics failure prints one line and collection carries on
+    end
+  end
+```
+
+### 3. The benchmarker refreshes
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant S as Benchmarker server
+  participant G as Public origin/main
+  participant P as Private origin
+  participant D as dbench status
+  participant API as Conversation API
+  loop every 60 s
+    S->>G: git fetch, ls-tree, cat-file --batch
+    S->>P: git fetch --tags, suite test counts
+  end
+  loop every 10 s
+    S->>D: dbench status
+  end
+  loop every 5 s
+    B->>S: GET /api/state
+    S-->>B: rows from the last fetch and the last dbench read
+  end
+  B->>S: GET /api/conversations/...
+  S->>API: passed through
+  API-->>B: warehouse rows
+```
+
+### 4. The gallery picks up a finished run (after commit `c7dd88f3f`)
+
+```mermaid
+sequenceDiagram
+  participant H as Harness
+  participant G as Public origin/main
+  participant GAL as Gallery
+  participant WC as Working copy
+  participant U as Review page
+  H->>G: final score, run finished, push
+  loop every 60 s
+    GAL->>WC: sync_repo, git pull --ff-only
+    Note over GAL,WC: a conflicting local edit makes git refuse, the copy is left alone
+    GAL->>WC: reviewable(): finished, scored, has workspace.bundle
+    GAL->>GAL: newly_reviewable, prepare_all
+  end
+  U->>GAL: GET /api/review/state, up to 20 times, 5 s apart
+  GAL-->>U: builds, or "waiting" until the run is listed
+```
+
+### 5. An independent judge's result comes back
+
+```mermaid
+sequenceDiagram
+  participant J as Judge
+  participant S as judge-submit.sh
+  participant PRIV as Private repo main
+  participant C as judge_collect.py
+  participant K as Machine holding the package key
+  J->>S: results for build A and B
+  S->>PRIV: commit gradings/package/results/judge from a temporary checkout, push
+  C->>PRIV: fetch, read gradings/package/results/judge
+  C->>K: un-blind with the package key
+  K-->>C: build names
+```
+
 ## Provenance, by kind of data
 
 ### 1. The published record (public repo)
