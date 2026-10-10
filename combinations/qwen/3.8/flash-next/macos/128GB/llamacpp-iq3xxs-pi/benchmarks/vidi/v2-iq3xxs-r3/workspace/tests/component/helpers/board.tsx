@@ -4,7 +4,14 @@ import type * as Y from 'yjs';
 import { BoardContents } from '../../../src/client/board/BoardContents';
 import { BoardSession } from '../../../src/client/pages/BoardPage';
 import { CameraProvider } from '../../../src/client/canvas/CameraProvider';
-import { createSticky, getStickyText, setStickyColor, snapshot } from '../../../src/shared/board-model';
+import {
+  createSticky,
+  getStickyText,
+  objectBounds,
+  objectSnapshots,
+  setStickyColor,
+  snapshot,
+} from '../../../src/shared/board-model';
 import type { StickySnapshot } from '../../../src/shared/board-model';
 import { STICKY_SIZE_WORLD } from '../../../src/shared/config';
 import type { StickyColor } from '../../../src/shared/config';
@@ -188,7 +195,7 @@ export function dispatchGesture(
 
 /** Dispatch a keydown event and hand it back so `defaultPrevented` can be read. */
 export function dispatchKey(
-  init: { key: string; ctrlKey?: boolean; metaKey?: boolean },
+  init: { key: string; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean; altKey?: boolean },
   target: Element = document.body,
 ): Event {
   const event = new globalThis.KeyboardEvent('keydown', {
@@ -197,9 +204,107 @@ export function dispatchKey(
     key: init.key,
     ctrlKey: init.ctrlKey ?? false,
     metaKey: init.metaKey ?? false,
+    shiftKey: init.shiftKey ?? false,
+    altKey: init.altKey ?? false,
   });
   act(() => {
     target.dispatchEvent(event);
   });
   return event;
+}
+
+/* -------------------------------------------------------------------------- *
+ * Story 7: selecting, moving and resizing objects.                           *
+ *                                                                            *
+ * A pointer in these tests is given in viewport coordinates, and the camera   *
+ * is normally set to its origin at zoom 1 first, so those numbers are also    *
+ * world units. Points are put into the middle of the object under them, so    *
+ * what a test says about a delta is what the board stores.                    *
+ * -------------------------------------------------------------------------- */
+
+/** Put a note on a rendered board, and let the screen hear about it. */
+export function addNote(
+  doc: Y.Doc,
+  opts: { x?: number; y?: number; text?: string; color?: StickyColor } = {},
+): string {
+  let id = '';
+  act(() => {
+    id = seedSticky(doc, opts);
+  });
+  return id;
+}
+
+/** Where a note's middle is on the screen, which is where a press should land. */
+export function centreOfNote(doc: Y.Doc, id: string): Point {
+  const note = readNote(doc, id);
+  if (!note) throw new Error(`no note ${id}`);
+  return { x: note.x + STICKY_SIZE_WORLD / 2, y: note.y + STICKY_SIZE_WORLD / 2 };
+}
+
+/** The middle of any object, generic types included. */
+export function centreOfObject(doc: Y.Doc, id: string): Point {
+  const object = objectSnapshots(doc).find((entry) => entry.id === id);
+  if (!object) throw new Error(`no object ${id}`);
+  const bounds = objectBounds(object);
+  return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+}
+
+/** Press, and hold: the object is under the pointer, which has not moved. */
+export function press(target: Element, point: Point, extra: Record<string, unknown> = {}): void {
+  pointerEvent('pointerDown', target, point, extra);
+}
+
+/** …and let go in the same place it was pressed. */
+export function releaseAt(target: Element, point: Point, extra: Record<string, unknown> = {}): void {
+  pointerEvent('pointerUp', target, point, extra);
+}
+
+/**
+ * Press, pull the pointer away by `delta`, and release: a drag. `extra` goes on
+ * every event, so `{ shiftKey: true }` is Shift held for the whole gesture.
+ * Whether the board wrote anything is left to a frame flush and the caller.
+ */
+export function drag(
+  target: Element,
+  from: Point,
+  delta: Point,
+  extra: Record<string, unknown> = {},
+): void {
+  const to = { x: from.x + delta.x, y: from.y + delta.y };
+  pointerEvent('pointerDown', target, from, extra);
+  pointerEvent('pointerMove', target, to, extra);
+  pointerEvent('pointerUp', target, to, extra);
+}
+
+/** A press and release on a note's middle: a click on it. */
+export function clickNote(
+  doc: Y.Doc,
+  id: string,
+  { shift = false }: { shift?: boolean } = {},
+): void {
+  const point = centreOfNote(doc, id);
+  const extra = shift ? { shiftKey: true } : {};
+  press(noteById(id), point, extra);
+  releaseAt(noteById(id), point, extra);
+}
+
+/** Every object the board is drawing an outline around, in document order. */
+export function selectedElements(): HTMLElement[] {
+  return [...document.querySelectorAll('[data-selected="true"]')] as HTMLElement[];
+}
+
+/** Their ids, sorted, so a test can say what is selected without order noise. */
+export function selectedIds(): string[] {
+  return selectedElements()
+    .map((element) => element.dataset.noteId ?? element.dataset.boxId ?? element.dataset.objectId ?? '')
+    .filter((id) => id !== '')
+    .sort();
+}
+
+/** What the board says how many objects it has, whatever their types. */
+export function objectSizes(doc: Y.Doc, id: string): { x: number; y: number; width: number; height: number } {
+  const object = objectSnapshots(doc).find((entry) => entry.id === id);
+  if (!object) throw new Error(`no object ${id}`);
+  const bounds = objectBounds(object);
+  return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
 }

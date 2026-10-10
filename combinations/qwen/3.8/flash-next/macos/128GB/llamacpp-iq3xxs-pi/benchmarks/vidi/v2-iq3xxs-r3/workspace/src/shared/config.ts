@@ -169,3 +169,27 @@ export const LINK_COPIED_MS = 2_000;
  * (story 3), the same ceiling the websocket reconnect uses.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1_000;
+
+/* --- Story 7: selecting, moving and resizing many objects ---------------- */
+
+/**
+ * Side of one resize handle, in *screen* pixels: the handles of the selection's
+ * bounding box stay this big whatever the zoom is, so a small object at 10% is
+ * still grabbable.
+ */
+export const HANDLE_SIZE_PX = 8;
+
+/** A sticky note may not be resized smaller than this (board units). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/**
+ * No object of any type may be resized larger than this (board units). One
+ * global maximum, unlike the minimum, which each type declares (sel.size_limits).
+ */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** One arrow-key press moves the selection this many board units (sel.nudge). */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Shift + arrow key moves it this much (sel.nudge). */
+export const NUDGE_LARGE_STEP_WORLD = 10;

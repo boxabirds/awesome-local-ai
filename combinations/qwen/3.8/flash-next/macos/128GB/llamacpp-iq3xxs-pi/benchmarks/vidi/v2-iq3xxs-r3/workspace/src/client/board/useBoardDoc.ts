@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 
-import { initDoc, OBJECTS_KEY, snapshot } from '../../shared/board-model';
+import { initDoc, OBJECTS_KEY, objectSnapshots, snapshot } from '../../shared/board-model';
 import { connectBoard } from '../sync/connectBoard';
 import type { BoardConnection, ConnectionState } from '../sync/connectBoard';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 
 /** What the hook exposes: the live document plus an immutable render view. */
 export interface BoardDoc {
@@ -12,6 +12,13 @@ export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Notes sorted by (z, id); recomputed only when the doc changes. */
   readonly notes: readonly StickySnapshot[];
+  /**
+   * Every object on the board, whatever its type, sorted by (z, id): what the
+   * selection, the marquee, the group gestures and the selection bar are
+   * computed from. Types this build cannot draw are in here too — they are
+   * someone else's object, and its rectangle is still known.
+   */
+  readonly objects: readonly ObjectSnapshot[];
   /** Live connection state of this board, as the badge shows it (live.status). */
   readonly connection: ConnectionState;
   /** The connection itself, or `null` while this board is offline by design. */
@@ -49,8 +56,12 @@ export function useBoardDoc(
     return created;
   }, [injected, boardId]);
 
+  // One observation of the shared map, feeding two views of it: the notes the
+  // board draws, and every object the selection machinery needs. They are read
+  // through `useSyncExternalStore` so a render always sees one consistent version
+  // of the document, wherever the change came from.
   const store = useMemo(() => {
-    let cached: readonly StickySnapshot[] | undefined;
+    let cached: { readonly notes: readonly StickySnapshot[]; readonly objects: readonly ObjectSnapshot[] } | undefined;
     const objects = doc.getMap<Y.Map<unknown>>(OBJECTS_KEY);
     return {
       subscribe(onChange: () => void): () => void {
@@ -61,14 +72,15 @@ export function useBoardDoc(
         objects.observeDeep(invalidate);
         return () => objects.unobserveDeep(invalidate);
       },
-      getSnapshot(): readonly StickySnapshot[] {
-        if (cached === undefined) cached = snapshot(doc);
+      getSnapshot(): { readonly notes: readonly StickySnapshot[]; readonly objects: readonly ObjectSnapshot[] } {
+        if (cached === undefined) cached = { notes: snapshot(doc), objects: objectSnapshots(doc) };
         return cached;
       },
     };
   }, [doc]);
 
-  const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const view = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const { notes, objects } = view;
 
   // The state machine starts where the design's diagram starts: a board that
   // has just been opened has not synced yet, whatever it says on screen a
@@ -91,5 +103,5 @@ export function useBoardDoc(
     };
   }, [doc, boardId, injected]);
 
-  return { doc, notes, connection, live };
+  return { doc, notes, objects, connection, live };
 }

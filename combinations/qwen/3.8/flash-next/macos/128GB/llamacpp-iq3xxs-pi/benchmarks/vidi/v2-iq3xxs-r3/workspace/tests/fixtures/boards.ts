@@ -88,6 +88,54 @@ export interface PlacedNote {
   color: StickyColor;
 }
 
+/**
+ * One note a browser test asks the client to create: where its top-left corner
+ * goes, and what it says. `src/client/testSeed.ts` turns these into real notes
+ * through the board model, so a seeded board is a board somebody made.
+ */
+export interface SeedPlacement {
+  readonly x: number;
+  readonly y: number;
+  readonly text: string;
+  readonly color: StickyColor;
+}
+
+/** Story 7's fixture is twenty notes, in two clusters of ten. */
+export const SELECTION_BOARD_NOTES = 20;
+
+/**
+ * The story 7 board: two clusters of ten, five columns and two rows each, notes
+ * twenty board units into each other inside a row (stacking is where selection
+ * shows up) and clusters far enough apart that a rectangle around one of them
+ * leaves the other alone.
+ *
+ * The first cluster sits inside the view a board opens with (`INITIAL_CAMERA`
+ * centred in a 1280x800 window), because that is where a person gestures; the
+ * second is where the rest of the board is, and stays untouched.
+ */
+export function selectionBoard(seed = 6): SeedPlacement[] {
+  const rng = makeRng(seed);
+  const columns = [-580, -400, -220, -40, 140];
+  const clusters = [
+    [-330, -140],
+    [240, 430],
+  ];
+  const placements: SeedPlacement[] = [];
+  for (const rows of clusters) {
+    for (const y of rows) {
+      for (const x of columns) {
+        placements.push({
+          x,
+          y,
+          text: realisticText(rng),
+          color: COLOR_NAMES[Math.floor(rng() * COLOR_NAMES.length)] as StickyColor,
+        });
+      }
+    }
+  }
+  return placements;
+}
+
 /** A fixture board: the document, its notes, and the updates it went through. */
 export interface BuiltBoard {
   readonly doc: Y.Doc;

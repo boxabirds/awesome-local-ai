@@ -51,6 +51,18 @@ export async function expectCamera(page: Page, expected: Camera, tolerance = 1e-
     .toEqual({ dx: 0, dy: 0, dzoom: 0 });
 }
 
+/**
+ * The view a board opens with: `INITIAL_ZOOM`, world origin in the middle of the
+ * window. A test that turns an element's screen box into a mouse point needs this
+ * view to have arrived: the window's size is measured a beat after the board
+ * mounts, and until then the camera is still at its default, which puts board
+ * coordinates on the screen unchanged (a note at board -420 sits at screen -420,
+ * which is nowhere a mouse can press).
+ */
+export function expectInitialView(page: Page): Promise<void> {
+  return expectCamera(page, { x: -VIEWPORT.width / 2, y: -VIEWPORT.height / 2, zoom: 1 });
+}
+
 /** The zoom label always shows the camera it renders. */
 export async function expectZoomLabel(page: Page, expected: string): Promise<void> {
   await expect(page.getByTestId('zoom-percent')).toHaveText(expected);

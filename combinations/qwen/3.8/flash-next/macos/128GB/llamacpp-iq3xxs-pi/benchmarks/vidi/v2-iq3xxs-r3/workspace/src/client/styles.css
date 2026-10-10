@@ -214,12 +214,101 @@ body {
 
 /* Screen-space anchor above the note: the inverse zoom scale keeps the
    toolbar a fixed screen size at any zoom instead of scaling with the board. */
-.note-toolbar-anchor {
+/* --- Story 7: the selection ------------------------------------------- */
+
+/* The marquee rectangle: a translucent fill and a rule thin enough to see the
+   objects inside it, because that is what the drag is about. */
+.marquee-rect {
   position: absolute;
-  left: 0;
-  transform-origin: 0 0;
-  z-index: 1;
+  box-sizing: border-box;
+  border: 1px solid #2b6cff;
+  background: rgba(43, 108, 255, 0.12);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* The selection's bounding box: one line around the objects, not a box that
+   could be mistaken for an object of its own. */
+.selection-overlay {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed #2b6cff;
+  /* The box is decoration; only its handles take input, so a drag that starts
+     inside the box still grabs the object underneath, or pans the board. */
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Handles are fixed in *screen* pixels (`HANDLE_SIZE_PX`, set inline), which is
+   why they live outside the world layer: a handle that shrank with the board
+   would be impossible to grab at 10%. */
+.selection-handle {
+  position: absolute;
+  padding: 0;
+  border: 1px solid #14509e;
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   pointer-events: auto;
+  touch-action: none;
+}
+
+/* The bar and the toolbar hang above the box, centred on it, and never scale. */
+.selection-anchor {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  /* The chrome takes input; the gap around it does not swallow presses meant
+     for the board behind it. */
+  pointer-events: none;
+  z-index: 4;
+}
+
+.selection-anchor > * {
+  pointer-events: auto;
+}
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+.selection-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: #35392f;
+}
+
+.toolbar-button {
+  height: 24px;
+  padding: 0 8px;
+  font: inherit;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.toolbar-button.danger {
+  color: #b3261e;
+  border-color: rgba(179, 38, 30, 0.4);
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-button:disabled {
+  color: #9a9a93;
+  border-color: rgba(0, 0, 0, 0.12);
+  cursor: not-allowed;
 }
 
 .note-toolbar {

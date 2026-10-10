@@ -589,3 +589,30 @@ quarantined: 1}`, which reaches the room as a load failure (close 4500) and
   story 5's "the Durable Object resets while a board is idle", which is not
   automatable here (see PROGRESS.md). `grep -n "TC-30" tests/e2e/` says which is
   which before anybody spends an afternoon on it.
+
+## Story 7: gesturing at several objects at once (TC-32 to TC-36)
+- **Wait for the view before turning a box into a mouse point.** Story 5's note
+  above about "the gap is the view" bit these tests too, in a worse way: a board
+  whose initial camera has not landed yet renders a note at board `-420` at screen
+  `-420`, so a Shift+drag aimed at it moves the mouse to a negative point, presses
+  nothing, and the test reports "nothing was selected" (measured: 1 run in ~10 on
+  a loaded machine). `expectInitialView` (`tests/e2e/helpers/board.ts`) is the
+  wait — it asserts the camera the board opens with, which is an assertion these
+  tests were making implicitly and never checking.
+- **A marquee helper says so when the board did not start one.** `marquee`
+  (`tests/e2e/helpers/selection.ts`) waits for `marquee-rect` halfway through the
+  drag. Before that, every failure of a rectangle came out as "selection never
+  became …", which sent the debugging to the selection instead of to the press.
+- **A press belongs to whatever is under it, including the page.** In a 1280x800
+  window the share button sits at ~(16..46, 30..70) and the board toolbar at
+  ~(16..48, 382..424). Above a cluster of notes, that is exactly where a
+  top-left-to-bottom-right marquee would start, so these marquee drags all start
+  at the bottom-left and go up: the rectangle is the same either way, and the
+  press lands on the board.
+- **Reads of the selection are polled, never read once.** A single
+  `selectionOf(page)` after `mouse.up` loses the race with React's re-render
+  (~5% of runs on chromium, more under full-suite load). `expectSelected` polls.
+- **A resize expectation takes the axis that was pulled further.** Sticky notes
+  are aspect-locked, so a corner pull of (150, 150) on a non-square box scales by
+  `max(|scaleX-1|, |scaleY-1|)` — geometry's aspect lock, TC-04/TC-05. Writing the
+  expectation as `scaleX` is a test that fails on a correct board.

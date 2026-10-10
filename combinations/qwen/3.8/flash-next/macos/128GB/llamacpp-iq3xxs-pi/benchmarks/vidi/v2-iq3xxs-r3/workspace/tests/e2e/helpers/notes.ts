@@ -8,6 +8,8 @@ export interface NoteData {
   readonly x: number;
   readonly y: number;
   readonly z: number;
+  readonly width: number;
+  readonly height: number;
   readonly color: string;
   readonly selected: boolean;
   readonly overflow: boolean;
@@ -27,6 +29,8 @@ export function readNotes(page: Page): Promise<NoteData[]> {
         x: Number(data.x),
         y: Number(data.y),
         z: Number(data.z),
+        width: Number(data.width),
+        height: Number(data.height),
         color: data.color ?? '',
         selected: data.selected === 'true',
         overflow: data.overflow === 'true',

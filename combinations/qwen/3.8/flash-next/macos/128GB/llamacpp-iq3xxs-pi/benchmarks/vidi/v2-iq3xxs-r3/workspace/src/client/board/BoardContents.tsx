@@ -1,19 +1,34 @@
-import { useCallback, useEffect } from "react";
-import type { JSX } from "react";
+import { useCallback, useEffect } from 'react';
+import type { JSX } from 'react';
 
-import { BoardViewport } from "../canvas/BoardViewport";
-import { useBoard } from "../canvas/CameraProvider";
-import { screenToWorld } from "../canvas/camera";
-import { publishConnection, publishConnectionState } from "../canvas/testHooks";
-import { seedBoard, type SeedNote } from "../testSeed";
-import { useBoardDoc } from "./useBoardDoc";
-import { useSelection } from "./useSelection";
-import { canEdit } from "./editable";
-import { Toolbar } from "./Toolbar";
-import { ConnectionStatus } from "../sync/ConnectionStatus";
-import { createSticky, deleteObject } from "../../shared/board-model";
-import type { Point } from "../canvas/camera";
-import { StickyNote } from "../objects/StickyNote";
+import { BoardViewport } from '../canvas/BoardViewport';
+import { useBoard } from '../canvas/CameraProvider';
+import { screenToWorld, worldToScreen } from '../canvas/camera';
+import { publishConnection, publishConnectionState } from '../canvas/testHooks';
+import { seedBoard, type SeedNote } from '../testSeed';
+import { useBoardDoc } from './useBoardDoc';
+import { useSelection } from './useSelection';
+import { useTransformGesture } from './useTransformGesture';
+import { useBoardKeys } from './useBoardKeys';
+import { boundingBox, SelectionOverlay } from './SelectionOverlay';
+import { SelectionBar } from './SelectionBar';
+import { MarqueeRect, useMarquee } from './Marquee';
+import { NOTE_TOOLBAR_GAP_PX } from '../objects/NoteToolbar';
+import type { StickyColor } from '../../shared/config';
+import { canEdit } from './editable';
+import { Toolbar } from './Toolbar';
+import { ConnectionStatus } from '../sync/ConnectionStatus';
+import { getObjectType } from '../objects/registry';
+import {
+  createSticky,
+  deleteObjects,
+  isStickySnapshot,
+  setStickyColor,
+} from '../../shared/board-model';
+import type { Point } from '../canvas/camera';
+// Registers the sticky note; the object components are reached through the
+// registry, so this file says nothing about how any one type looks.
+import '../objects/registry';
 
 declare global {
   interface Window {
@@ -31,15 +46,13 @@ declare global {
   }
 }
 
-/** Is this keystroke the board's, or the field being typed in? */
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement
-  );
+/**
+ * Render order, never z order: restacking mid-gesture would make React move the
+ * dragged element in the DOM, which drops pointer capture and kills the drag.
+ * Stacking comes from each object's own `zIndex` style instead.
+ */
+function byCreation(a: { createdAt: number; id: string }, b: { createdAt: number; id: string }): number {
+  return a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1);
 }
 
 export interface BoardContentsProps {
@@ -50,39 +63,80 @@ export interface BoardContentsProps {
    */
   boardId?: string | null;
   /** Use an existing document instead of owning one (component tests). */
-  doc?: import("yjs").Doc;
+  doc?: import('yjs').Doc;
 }
 
 /**
- * Everything inside the camera context: the board document, the local
- * selection, the notes inside the viewport and the window keyboard wiring
- * (Enter starts editing, Delete/Backspace delete the selected note — never
- * while its text is being edited).
+ * Everything inside the camera context: the board document, this screen's
+ * selection, the objects inside the viewport, and the three ways of changing
+ * them — the pointer (a generic transform gesture), the keyboard, and the bar
+ * above a selection.
+ *
+ * Story 7 moved the board from "notes and their interactions" to "objects and
+ * their selection". Nothing here names a sticky note any more except where it
+ * creates one (the toolbar's button) and where it colours one (the selection
+ * bar's swatches): rendering, selecting, moving, resizing and deleting go through
+ * the object type registry, so a story 9 type arrives to a board that already
+ * knows how to do all five (`sel.all_types`).
  */
-export function BoardContents({
-  boardId = null,
-  doc,
-}: BoardContentsProps = {}): JSX.Element {
+export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}): JSX.Element {
   const board = useBoard();
   const {
     doc: document,
-    notes,
+    objects,
     connection,
     live,
   } = useBoardDoc(boardId, { doc });
-  const { selectedId, editingId, select, startEdit, endEdit } =
-    useSelection(document);
+  const selection = useSelection(objects);
   /** Every way this client can change the board, decided in one place. */
   const editable = canEdit(connection);
+  const { camera } = board;
 
   /** Start editing, if this board may be edited at all (TC-23). */
   const startEditing = useCallback(
     (id: string): void => {
       if (!editable) return;
-      startEdit(id);
+      selection.startEdit(id);
     },
-    [editable, startEdit],
+    [editable, selection],
   );
+
+  /** One delete for the whole selection, then the selection lets go. */
+  const deleteSelection = useCallback((): void => {
+    if (!editable) return;
+    deleteObjects(document, [...selection.ids]);
+    selection.clear();
+  }, [document, editable, selection]);
+
+  /** One recolour for the whole selection, in one update on the wire. */
+  const recolourSelection = useCallback(
+    (color: StickyColor): void => {
+      if (!editable) return;
+      const ids = [...selection.ids];
+      document.transact(() => {
+        for (const id of ids) setStickyColor(document, id, color);
+      });
+    },
+    [document, editable, selection],
+  );
+
+  // The gesture, the marquee and the keys all act on the same selection, and all
+  // read the board through `objects` — so an object deleted by somebody else
+  // stops being dragged, and stops being nudged, on the same frame it vanishes.
+  const gesture = useTransformGesture({
+    doc: document,
+    camera,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+  });
+  const marquee = useMarquee(camera, objects, useCallback(
+    (ids: string[]): void => {
+      selection.setMany(ids, true);
+    },
+    [selection],
+  ));
+  useBoardKeys({ doc: document, selection, snapshot: objects, canEdit: editable });
 
   /** Create a note centred on a world point, selected and in edit mode. */
   const createAndEdit = useCallback(
@@ -91,27 +145,27 @@ export function BoardContents({
       // nothing while the board could not be loaded (TC-23).
       if (!editable) return;
       const id = createSticky(document, world);
-      if (typeof id !== "string") return; // non-finite point: nothing happens
-      select(id);
+      if (typeof id !== 'string') return; // non-finite point: nothing happens
       startEditing(id);
     },
-    [document, editable, select, startEditing],
+    [document, editable, startEditing],
   );
 
-  // A board that stops being editable also stops being *edited*: a note that was
-  // open for typing closes, so the keystrokes that come after the bad news have
-  // nowhere to go.
+  // A board that stops being editable also stops being *edited*: an object that
+  // was open for typing closes, so the keystrokes that come after the bad news
+  // have nowhere to go.
+  const editingId = selection.editingId;
   useEffect(() => {
-    if (!editable && editingId !== null) endEdit("selected");
-  }, [editable, editingId, endEdit]);
+    if (!editable && editingId !== null) selection.endEdit();
+  }, [editable, editingId, selection]);
 
   // Test-only hook, dropped from production builds: lets e2e tests delete a
   // note behind the client's back, as a collaborator would (stale
   // interactions, TC-37; there is no second client until story 3).
   useEffect(() => {
-    if (import.meta.env.MODE !== "test") return;
+    if (import.meta.env.MODE !== 'test') return;
     window.__vidi6Board = {
-      deleteNote: (noteId: string) => deleteObject(document, noteId),
+      deleteNote: (noteId: string) => deleteObjects(document, [noteId]) > 0,
       seed: (seeds: SeedNote[]) => seedBoard(document, seeds),
     };
     return () => {
@@ -123,7 +177,7 @@ export function BoardContents({
   // from "has never connected" by looking at the DOM (TC-29 watches the state
   // itself while two boards sit idle).
   useEffect(() => {
-    if (import.meta.env.MODE !== "test") return;
+    if (import.meta.env.MODE !== 'test') return;
     publishConnectionState(connection);
   }, [connection]);
 
@@ -131,60 +185,88 @@ export function BoardContents({
   // outage is more than the network being off: an established socket survives
   // that emulation, so the socket goes too and the retry then fails.
   useEffect(() => {
-    if (import.meta.env.MODE !== "test") return;
+    if (import.meta.env.MODE !== 'test') return;
     publishConnection(live);
     return () => publishConnection(null);
   }, [live]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      // Delete/Backspace while editing go to the text, never the note
-      // (sticky.delete), and neither key acts on behalf of an input.
-      if (isEditableTarget(event.target)) return;
-      if (event.key === "Enter") {
-        if (editingId !== null || selectedId === null || !editable) return; // TC-36, TC-23
-        event.preventDefault();
-        startEditing(selectedId);
-      } else if (event.key === "Delete" || event.key === "Backspace") {
-        // Deleting is a change to the board, so it waits for the board (TC-23).
-        if (editingId !== null || selectedId === null || !editable) return;
-        event.preventDefault();
-        deleteObject(document, selectedId);
-        select(null);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [document, editable, editingId, selectedId, select, startEditing]);
+  // The selection's bounding box, in the screen pixels it is drawn in: the bar
+  // hangs above it and the handles sit on its corners, and neither one grows when
+  // the board is zoomed in (`sel.bar`, `sel.resize`).
+  const box = boundingBox(selection.ids, objects);
+  const topLeft = box ? worldToScreen(camera, { x: box.x, y: box.y }) : null;
+  const anchorLeft = topLeft !== null && box !== null ? topLeft.x + (box.width * camera.zoom) / 2 : 0;
+  const anchorTop = topLeft !== null ? topLeft.y - NOTE_TOOLBAR_GAP_PX : 0;
+  // The selection bar's toolbar variant needs the colour of the one note it is
+  // about; a selection of more than one note has no single colour to show.
+  const lone = selection.ids.size === 1 ? objects.find((object) => selection.ids.has(object.id)) : undefined;
 
   return (
     <>
       <BoardViewport
-        onEmptySpaceClick={() => {
-          select(null);
-        }}
+        onEmptySpaceClick={selection.clear}
         onEmptySpaceDoubleClick={createAndEdit}
-      >
-        {/* Render in creation order, never in snapshot (z) order: restacking
-            mid-drag would make React move the dragged element in the DOM,
-            which drops pointer capture and kills the drag. Stacking itself
-            comes from the note's own zIndex style. */}
-        {[...notes]
-          .sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))
-          .map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={document}
-              zoom={board.camera.zoom}
-              selected={selectedId === note.id}
-              editing={editingId === note.id}
+        marquee={marquee}
+        overlay={
+          <>
+            <SelectionOverlay
+              ids={selection.ids}
+              snapshot={objects}
+              camera={camera}
               editable={editable}
-              onSelect={select}
-              onStartEdit={startEditing}
-              onEndEdit={endEdit}
+              onHandlePointerDown={gesture.onHandlePointerDown}
             />
-          ))}
+            {box && !selection.editingId ? (
+              <div
+                className="selection-anchor"
+                data-testid="selection-anchor"
+                style={{ left: `${anchorLeft}px`, top: `${anchorTop}px` }}
+              >
+                <SelectionBar
+                  ids={selection.ids}
+                  snapshot={objects}
+                  editable={editable}
+                  dragging={gesture.dragging}
+                  color={lone && isStickySnapshot(lone) ? lone.color : undefined}
+                  onColor={recolourSelection}
+                  onDelete={deleteSelection}
+                />
+              </div>
+            ) : null}
+            <MarqueeRect rect={marquee.rect} camera={camera} />
+          </>
+        }
+      >
+        {objects
+          .slice()
+          .sort(byCreation)
+          .map((object) => {
+            // Objects of a type this build cannot draw are left out: their data
+            // stays in the document, untouched, and their absence is visible in
+            // what cannot be selected.
+            const spec = getObjectType(object.type);
+            if (!spec) return null;
+            const Component = spec.Component;
+            return (
+              <Component
+                key={object.id}
+                object={object}
+                doc={document}
+                zoom={camera.zoom}
+                selected={selection.ids.has(object.id)}
+                editing={selection.editingId === object.id}
+                editable={editable}
+                dragging={gesture.draggingIds.has(object.id)}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                onStartEdit={startEditing}
+                onEndEdit={(next) => {
+                  // Typing ends; a press outside the object lets go of it too.
+                  if (next === 'unselected') selection.clear();
+                  else selection.endEdit();
+                }}
+              />
+            );
+          })}
       </BoardViewport>
       {/* Top centre, above every state of the board (live.status). It never
           covers a control and never disables one. */}
@@ -198,7 +280,7 @@ export function BoardContents({
             x: board.viewport.width / 2,
             y: board.viewport.height / 2,
           };
-          createAndEdit(screenToWorld(board.camera, centre));
+          createAndEdit(screenToWorld(camera, centre));
         }}
       />
     </>

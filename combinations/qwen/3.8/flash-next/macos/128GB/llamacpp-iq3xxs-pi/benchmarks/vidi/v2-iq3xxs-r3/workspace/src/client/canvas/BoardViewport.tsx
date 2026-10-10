@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   JSX,
   MouseEvent as ReactMouseEvent,
@@ -15,6 +15,7 @@ import {
 } from '../../shared/config';
 import type { Point } from './camera';
 import { screenToWorld } from './camera';
+import type { Marquee } from '../board/Marquee';
 import { useBoard } from './CameraProvider';
 import type { BoardController } from './CameraProvider';
 
@@ -76,6 +77,19 @@ export interface BoardViewportProps {
   /** A double-click on empty board space, point in world coordinates
    *  (sticky.create_dblclick; a double-click on an object never gets here). */
   onEmptySpaceDoubleClick?(world: Point): void;
+  /**
+   * Shift+drag on empty board space draws this instead of panning
+   * (`sel.marquee_ui`): the rectangle is decided in world units, and the ids it
+   * encloses are selected when the pointer comes up. Without Shift — or without
+   * this prop — story 1's pan is untouched.
+   */
+  marquee?: Marquee;
+  /**
+   * Screen-space chrome over the board: the selection's outline, handles, bar.
+   * Rendered outside the world layer, so it keeps its size at every zoom, and
+   * never becomes part of what other people see.
+   */
+  overlay?: ReactNode;
 }
 
 /**
@@ -90,6 +104,8 @@ export function BoardViewport({
   children,
   onEmptySpaceClick,
   onEmptySpaceDoubleClick,
+  marquee,
+  overlay,
 }: BoardViewportProps): JSX.Element {
   const board = useBoard();
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -101,10 +117,20 @@ export function BoardViewport({
   const panDistanceRef = useRef(0);
   const panLastRef = useRef<Point | null>(null);
   const [panning, setPanning] = useState(false);
+  /** The press drawing a marquee, which is the pointer that is *not* panning. */
+  const marqueePointerIdRef = useRef<number | null>(null);
+  const [marqueeActive, setMarqueeActive] = useState(false);
 
   /** Latest callbacks, so nothing needs re-attaching when they change. */
-  const callbacksRef = useRef({ onEmptySpaceClick, onEmptySpaceDoubleClick });
-  callbacksRef.current = { onEmptySpaceClick, onEmptySpaceDoubleClick };
+  const callbacksRef = useRef({ onEmptySpaceClick, onEmptySpaceDoubleClick, marquee });
+  callbacksRef.current = { onEmptySpaceClick, onEmptySpaceDoubleClick, marquee };
+
+  /** Abandon the rectangle in progress; the selection is left as it was. */
+  const cancelMarquee = useCallback(() => {
+    marqueePointerIdRef.current = null;
+    setMarqueeActive(false);
+    callbacksRef.current.marquee?.cancel();
+  }, []);
 
   useEffect(() => {
     boardRef.current = board;
@@ -182,11 +208,34 @@ export function BoardViewport({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // While a marquee is being dragged, Escape abandons it. (Escape also lets go of
+  // the selection — the board's own keyboard handler does that, and cannot be
+  // out-ordered from here — so one key means "never mind" to both.)
+  useEffect(() => {
+    if (!marqueeActive) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') cancelMarquee();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [marqueeActive, cancelMarquee]);
+
   const startPan = (event: ReactPointerEvent<HTMLDivElement>) => {
     const surface = surfaceRef.current;
     if (!surface) return;
     if (event.button !== 0) return;
     if (!isPanSurface(event.target)) return;
+    // Shift turns the same press on the same empty space into a marquee instead
+    // of a pan (`sel.marquee_ui`); nothing else about the press changes.
+    if (event.shiftKey && callbacksRef.current.marquee) {
+      marqueePointerIdRef.current = event.pointerId;
+      setMarqueeActive(true);
+      if (typeof surface.setPointerCapture === 'function') {
+        surface.setPointerCapture(event.pointerId);
+      }
+      callbacksRef.current.marquee.begin(boardPoint(surface, event.clientX, event.clientY));
+      return;
+    }
     panPointerIdRef.current = event.pointerId;
     panDistanceRef.current = 0;
     panLastRef.current = boardPoint(surface, event.clientX, event.clientY);
@@ -200,6 +249,10 @@ export function BoardViewport({
   const movePan = (event: ReactPointerEvent<HTMLDivElement>) => {
     const surface = surfaceRef.current;
     if (!surface) return;
+    if (marqueePointerIdRef.current === event.pointerId) {
+      callbacksRef.current.marquee?.move(boardPoint(surface, event.clientX, event.clientY));
+      return;
+    }
     if (panPointerIdRef.current !== event.pointerId) return;
     const point = boardPoint(surface, event.clientX, event.clientY);
     const last = panLastRef.current;
@@ -209,10 +262,26 @@ export function BoardViewport({
   };
 
   const endPan = (event: ReactPointerEvent<HTMLDivElement>, released: boolean): void => {
+    const surface = surfaceRef.current;
+    if (marqueePointerIdRef.current === event.pointerId) {
+      marqueePointerIdRef.current = null;
+      setMarqueeActive(false);
+      if (
+        surface &&
+        typeof surface.releasePointerCapture === 'function' &&
+        surface.hasPointerCapture?.(event.pointerId)
+      ) {
+        surface.releasePointerCapture(event.pointerId);
+      }
+      // A marquee that came up selects; one that was interrupted selects
+      // nothing (TC-22), and neither one counts as a click on empty space.
+      if (released) callbacksRef.current.marquee?.end();
+      else callbacksRef.current.marquee?.cancel();
+      return;
+    }
     if (panPointerIdRef.current !== event.pointerId) return;
     panPointerIdRef.current = null;
     panLastRef.current = null;
-    const surface = surfaceRef.current;
     if (surface && typeof surface.releasePointerCapture === 'function' && surface.hasPointerCapture?.(event.pointerId)) {
       surface.releasePointerCapture(event.pointerId);
     }
@@ -288,6 +357,8 @@ export function BoardViewport({
         ) : null}
         {children}
       </div>
+      {/* Screen-space chrome, last so it paints over the objects it describes. */}
+      {overlay}
     </div>
   );
 }
