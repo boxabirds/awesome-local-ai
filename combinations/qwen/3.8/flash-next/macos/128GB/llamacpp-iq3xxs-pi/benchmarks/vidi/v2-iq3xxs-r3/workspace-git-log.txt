@@ -1,3 +1,78 @@
+commit 721d1514655c816f609508171c3a1d5c70691f00
+agent  Sat Oct 10 21:07:08 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                       |  27 +++
+ PROGRESS.md                    |   4 +-
+ tests/e2e/helpers/board.ts     |  12 +
+ tests/e2e/helpers/notes.ts     |   4 +
+ tests/e2e/helpers/selection.ts | 203 +++++++++++++++++
+ tests/e2e/selection.spec.ts    | 485 +++++++++++++++++++++++++++++++++++++++++
+ tests/fixtures/boards.ts       |  48 ++++
+ 7 files changed, 781 insertions(+), 2 deletions(-)
+commit a0a3934b33b6dcf0beabd60b0f74501d11671e46
+agent  Sat Oct 10 20:05:41 2026 +0000
+
+    story 7: component tests for the selection bar, marquee, transform gesture and keyboard (task 14, TC-16 to TC-31)
+
+
+ PROGRESS.md                               |  20 +-
+ tests/component/BoardKeys.test.tsx        | 167 +++++++++++++++
+ tests/component/Marquee.test.tsx          | 126 ++++++++++++
+ tests/component/SelectionBar.test.tsx     | 120 +++++++++++
+ tests/component/TransformGesture.test.tsx | 330 ++++++++++++++++++++++++++++++
+ tests/component/helpers/board.tsx         | 109 +++++++++-
+ tests/unit/board-model-group.test.ts      |  10 +-
+ 7 files changed, 867 insertions(+), 15 deletions(-)
+commit 2188c0b1e18dc372a55dd8f1879f3fb41b24fe01
+agent  Sat Oct 10 20:04:59 2026 +0000
+
+    story 7: selection, marquee, generic transform gesture and keyboard commands (tasks 2, 8, 10-13)
+
+
+ src/client/board/BoardContents.tsx      | 270 +++++++++++++--------
+ src/client/board/Marquee.tsx            | 118 ++++++++++
+ src/client/board/SelectionBar.tsx       |  94 ++++++++
+ src/client/board/SelectionOverlay.tsx   | 127 ++++++++++
+ src/client/board/useBoardDoc.ts         |  26 +-
+ src/client/board/useBoardKeys.ts        | 134 +++++++++++
+ src/client/board/useSelection.ts        | 180 +++++++++-----
+ src/client/board/useTransformGesture.ts | 405 ++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  79 ++++++-
+ src/client/objects/StickyNote.tsx       | 271 ++++-----------------
+ src/client/objects/registry.tsx         |  55 ++++-
+ src/client/styles.css                   |  97 +++++++-
+ src/shared/board-model.ts               | 273 ++++++++++++++++-----
+ src/shared/geometry.ts                  | 216 +++++++++++++++--
+ 14 files changed, 1868 insertions(+), 477 deletions(-)
+commit 31145507f8b03ed66fc69916e94dfd5d6e94f94a
+agent  Sat Oct 10 18:40:11 2026 +0000
+
+    story 7: unit tests for geometry, group operations, the type registry and selection (tasks 6, 7, 9)
+
+
+ PROGRESS.md                          |   2 +-
+ src/client/board/useSelection.ts     |  38 ++++
+ src/client/objects/registry.tsx      |  59 ++++++
+ src/shared/board-model.ts            | 129 ++++++++++++-
+ src/shared/config.ts                 |  24 +++
+ src/shared/geometry.ts               |  84 +++++++++
+ tests/fixtures/testbox.tsx           | 125 +++++++++++++
+ tests/unit/board-model-group.test.ts | 345 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 244 +++++++++++++++++++++++++
+ tests/unit/registry.test.ts          | 103 +++++++++++
+ tests/unit/selection.test.ts         | 163 +++++++++++++++++
+ 11 files changed, 1310 insertions(+), 6 deletions(-)
+commit 2524329848ebdf8aecc20598bbaae24adbfe4270
+vidi-agent  Sat Oct 10 19:01:43 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 96 +++++++++----------------------------------------------------
+ 1 file changed, 13 insertions(+), 83 deletions(-)
 commit 71529757181f93b50b7e0453d23fc711421bb974
 agent  Sat Oct 10 17:52:13 2026 +0000
 
