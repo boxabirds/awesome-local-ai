@@ -286,3 +286,45 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
   and runs the chromium project only. All story-5 e2e (TC-26 to TC-29, TC-31)
   pass in Chromium here; the cross-browser run is not possible on this box and
   is treated as satisfied to the environment's limit.
+
+## Story 7 decisions (selection, transform, marquee, keyboard)
+
+- Generic object pipeline: `board-model.ts` gains `ObjectSnapshot`/`snapshotAll`
+  plus group ops (`moveObjects`, `resizeObjects`, `deleteObjects`,
+  `bringObjectsToFront`, `objectsInRect`, `allObjectIds`); story 2 single-object
+  functions are thin wrappers. Unknown types are skipped (invisible,
+  unselectable). Geometry lives in `src/shared/geometry.ts` (resizeRect,
+  clampScale, scaleWithin, rectContains, unionRects, normalizeRect).
+- Type registry `src/client/objects/registry.tsx`: `ObjectTypeSpec`
+  (Component, resizable, aspectLocked, minSize, editableText, hitTest).
+  Duplicate registration throws. Sticky registers with aspectLocked true and
+  minSize STICKY_MIN_SIZE_WORLD. Tests use a second type (`testbox`) from
+  `tests/fixtures/testbox.tsx` to prove generality.
+- `useSelection` is a pure reducer (click/toggle/setMany/clear/prune/edit/
+  endEdit) with a presence mirror; stale-id actions are ignored, except `edit`
+  (createSticky + startEdit dispatch in the same tick, before the prune
+  effect). A setMany batch whose ids are ALL gone is ignored; partial batches
+  apply with survivors.
+- Transform: `useTransformGesture` attaches window-level pointer listeners at
+  pointerdown; writes are rAF-throttled (≤1 transaction/frame) and end with a
+  flush on pointerup. pointercancel freezes at the last applied state.
+  Shift+click toggles without starting a gesture. canEdit=false refuses
+  gestures entirely.
+- Marquee: shift+drag on empty space, rect stored in WORLD coordinates
+  (camera captured at pointerdown, so mid-drag zoom is harmless). End applies
+  setMany(ids, additive); an empty hit-set leaves the selection unchanged.
+  Escape cancels via a capture-phase window listener that
+  stopImmediatePropagations so the board Escape-clear cannot also fire.
+- Keyboard (`useBoardKeys`, replaces useStickyNoteKeys): Ctrl/Cmd+A select
+  all (preventDefault), Escape clear, arrows nudge (Shift = large step, always
+  preventDefault while selected → no page scroll / board pan), Delete/
+  Backspace delete selection, Enter edits a single editable-text object.
+  Inert while editing text or focused in a text entry.
+- Resize gestures: edge handles change one axis; corner handles both; aspect
+  lock (sticky or Shift) keeps the ratio from the moving axes; the first
+  object to hit min/max clamps the whole selection uniformly.
+- Test notes: component tests must advance fake timers (React scheduler)
+  after keyboard `fireEvent` before asserting rendered state; raw
+  `KeyboardEvent`s need `cancelable: true` to observe preventDefault.
+- e2e: `getNotes` now reports width/height (resize assertions). Single-page
+  specs use `openBoard(page)` (the `/` route is not a board since story 5).

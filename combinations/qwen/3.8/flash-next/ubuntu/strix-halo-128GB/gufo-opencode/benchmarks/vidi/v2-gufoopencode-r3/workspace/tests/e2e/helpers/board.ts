@@ -88,6 +88,8 @@ export interface NoteState {
   color: string;
   text: string;
   z: number;
+  width: number | null;
+  height: number | null;
 }
 
 export async function getNotes(page: Page): Promise<NoteState[]> {
@@ -100,7 +102,9 @@ export async function getNotes(page: Page): Promise<NoteState[]> {
       y: n.y,
       color: n.color as string,
       text: n.text,
-      z: n.z
+      z: n.z,
+      width: (n as { width?: number }).width ?? null,
+      height: (n as { height?: number }).height ?? null
     }));
   });
 }

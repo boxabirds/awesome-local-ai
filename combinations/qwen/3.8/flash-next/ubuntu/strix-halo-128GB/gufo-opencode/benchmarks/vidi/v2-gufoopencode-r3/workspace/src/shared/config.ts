@@ -30,6 +30,13 @@ export const CREATE_BUDGET_MS = 2000; // PRD share.create
 export const LINK_COPIED_MS = 2000; // PRD share.copy
 export const BOARD_CHECK_RETRY_BASE_MS = 1_000; // doubles up to RECONNECT_MAX_BACKOFF_MS
 
+// Story 7: multi-select, move, resize.
+export const HANDLE_SIZE_PX = 8;
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 export const STICKY_SIZE_WORLD = 200;
 export const STICKY_TEXT_MAX_CHARS = 1000;
 export const STICKY_COUNTER_THRESHOLD_CHARS = 50; // counter shows when remaining <= this

@@ -462,3 +462,82 @@ body {
   color: #92400e;
   font-size: 12px;
 }
+
+/* Story 7: multi-select */
+
+.marquee-rect {
+  position: absolute;
+  border: 1px solid #2563eb;
+  background: rgb(37 99 235 / 0.12);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.selection-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 25;
+}
+
+.selection-box {
+  position: absolute;
+  border: 1px solid #2563eb;
+  pointer-events: none;
+}
+
+.selection-handle {
+  position: absolute;
+  padding: 0;
+  border: 1px solid #2563eb;
+  border-radius: 2px;
+  background: #ffffff;
+  cursor: nwse-resize;
+  pointer-events: auto;
+}
+
+.selection-handle--n,
+.selection-handle--s {
+  cursor: ns-resize;
+}
+
+.selection-handle--e,
+.selection-handle--w {
+  cursor: ew-resize;
+}
+
+.selection-bar-anchor {
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  z-index: 30;
+}
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #d4d9e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgb(15 23 42 / 0.18);
+}
+
+.selection-count {
+  font-size: 13px;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-delete {
+  padding: 4px 10px;
+  border: 1px solid #dc2626;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import type { MarqueeController } from '../board/Marquee';
 import type { Point } from './camera';
 import { useBoardCamera } from './useCamera';
 
@@ -9,6 +10,9 @@ export interface BoardViewportProps {
   onDoubleClickEmpty?(screenPoint: Point): void;
   // Press and release on empty board space without dragging.
   onEmptyClick?(): void;
+  // Shift+drag on empty space selects objects with a marquee (story 7);
+  // without it, Shift+drag pans like everything else.
+  marquee?: MarqueeController;
 }
 
 interface GestureEventLike extends Event {
@@ -23,11 +27,12 @@ function mod(value: number, modulus: number): number {
   return ((value % modulus) + modulus) % modulus;
 }
 
-export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick }: BoardViewportProps) {
+export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick, marquee }: BoardViewportProps) {
   const board = useBoardCamera();
   const { camera } = board;
   const rootRef = useRef<HTMLDivElement>(null);
   const panningRef = useRef(false);
+  const marqueeRef = useRef(false);
   const panStartRef = useRef<Point | null>(null);
   const panMovedRef = useRef(false);
   const gestureScaleRef = useRef(1);
@@ -47,6 +52,16 @@ export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick }: Bo
     // later stories stop propagation (and are not pan surfaces).
     const target = e.target as HTMLElement;
     if (target.dataset.panSurface !== 'true') return;
+    if (marquee !== undefined && e.shiftKey) {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // jsdom lacks pointer capture; events still reach this element.
+      }
+      marqueeRef.current = true;
+      marquee.begin({ x: e.clientX, y: e.clientY });
+      return;
+    }
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
@@ -61,6 +76,10 @@ export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick }: Bo
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeRef.current) {
+      marquee?.move({ x: e.clientX, y: e.clientY });
+      return;
+    }
     if (!panningRef.current) return;
     const start = panStartRef.current;
     if (
@@ -71,6 +90,29 @@ export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick }: Bo
       panMovedRef.current = true;
     }
     board.panMove({ x: e.clientX, y: e.clientY });
+  };
+
+  const endMarquee = (commit: boolean) => {
+    if (!marqueeRef.current) return;
+    marqueeRef.current = false;
+    if (commit) marquee?.end();
+    else marquee?.cancel();
+  };
+
+  const onPointerUp = () => {
+    if (marqueeRef.current) {
+      endMarquee(true);
+      return;
+    }
+    stopPanning();
+  };
+
+  const onPointerCancelOrLost = () => {
+    if (marqueeRef.current) {
+      endMarquee(false);
+      return;
+    }
+    stopPanning();
   };
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -159,9 +201,9 @@ export function BoardViewport({ children, onDoubleClickEmpty, onEmptyClick }: Bo
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={stopPanning}
-      onPointerCancel={stopPanning}
-      onLostPointerCapture={stopPanning}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancelOrLost}
+      onLostPointerCapture={onPointerCancelOrLost}
       onDoubleClick={onDoubleClick}
     >
       <div
