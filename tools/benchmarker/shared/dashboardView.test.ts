@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SLOW_MIN_MINUTES, SLOW_MIN_RUNS, SLOW_RATIO, observations, scorePlot, seriesOf, slowStories, utilisation } from "./dashboardView.ts";
+import { SLOW_MIN_MINUTES, SLOW_MIN_RUNS, SLOW_RATIO, observations, scorePlot, seriesOf, sortSeries, slowStories, utilisation } from "./dashboardView.ts";
 import { SILENT_MINUTES, type NowLine } from "./overviewView.ts";
 import type { JobRef, Row, RunStatus } from "./types.ts";
 
@@ -56,6 +56,36 @@ describe("a series of runs of one stack", () => {
   });
   it("a run whose id has no -rN is its own series of one", () => {
     expect(seriesOf([finished("run-9", HOUR)]).map((s) => [s.prefix, s.size])).toEqual([["run-9", 1]]);
+  });
+});
+
+describe("a series' agent time, and sorting series by it or by score", () => {
+  it("a series' agent time is the median of its finished runs' agent time, with the range and how many had one; unfinished runs and runs with no story time are not in it", () => {
+    const rs = [finished("s-r1", 1 * HOUR), finished("s-r2", 3 * HOUR), finished("s-r3", 2 * HOUR), run({ id: "s-r4", status: "queued" }), run({ id: "s-r5", status: "finished", storySecs: [] })];
+    const [s] = seriesOf(rs);
+    expect(s.agentTime).toEqual({ median: 2 * HOUR, min: 1 * HOUR, max: 3 * HOUR, n: 3 });
+    expect(s.runs.map((r) => r.agentSeconds)).toEqual([1 * HOUR, 3 * HOUR, 2 * HOUR, null, null]);
+  });
+  it("a series with nothing finished has no agent time", () => {
+    expect(seriesOf([run({ id: "t-r1", status: "queued" })])[0].agentTime).toBeNull();
+  });
+  const three = () => seriesOf([
+    finished("a-r1", 5 * HOUR, { stack: "q/a/pi", score: 50 }), finished("b-r1", 2 * HOUR, { stack: "q/b/pi", score: 70 }), finished("c-r1", 9 * HOUR, { stack: "q/c/pi", score: 60 }),
+    run({ id: "d-r1", stack: "q/d/pi", status: "queued" }),
+  ]);
+  it("sorts by score, best first or lowest first; a series with no score is last either way", () => {
+    expect(sortSeries(three(), "score", "desc").map((s) => s.stack)).toEqual(["q/b/pi", "q/c/pi", "q/a/pi", "q/d/pi"]);
+    expect(sortSeries(three(), "score", "asc").map((s) => s.stack)).toEqual(["q/a/pi", "q/c/pi", "q/b/pi", "q/d/pi"]);
+  });
+  it("sorts by agent time, shortest first or longest first; a series with none is last either way", () => {
+    expect(sortSeries(three(), "agentTime", "asc").map((s) => s.stack)).toEqual(["q/b/pi", "q/a/pi", "q/c/pi", "q/d/pi"]);
+    expect(sortSeries(three(), "agentTime", "desc").map((s) => s.stack)).toEqual(["q/c/pi", "q/a/pi", "q/b/pi", "q/d/pi"]);
+  });
+  it("equal figures keep the order they came in, and the input is not changed", () => {
+    const tie = seriesOf([finished("a-r1", HOUR, { stack: "q/a/pi", score: 60 }), finished("b-r1", HOUR, { stack: "q/b/pi", score: 60 })]);
+    const before = tie.map((s) => s.stack);
+    expect(sortSeries(tie, "score", "desc").map((s) => s.stack)).toEqual(before);
+    expect(tie.map((s) => s.stack)).toEqual(before);
   });
 });
 
