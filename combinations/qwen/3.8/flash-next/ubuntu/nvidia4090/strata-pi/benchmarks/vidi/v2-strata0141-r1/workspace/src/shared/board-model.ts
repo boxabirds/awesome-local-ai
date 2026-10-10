@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
 import { rectContains, type Point, type Rect } from './geometry';
+import type { TextSnapshot } from './objects/text';
 import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
@@ -60,9 +61,14 @@ export interface StickySnapshot extends ObjectSnapshot {
   readonly text: string;
 }
 
-/** Is this snapshot a sticky note? (the only type stories 1-5 have) */
+/** Is this snapshot a sticky note? */
 export function isStickySnapshot(obj: ObjectSnapshot): obj is StickySnapshot {
   return obj.type === 'sticky';
+}
+
+/** Is this snapshot a free text object (story 9)? */
+export function isTextSnapshot(obj: ObjectSnapshot): obj is TextSnapshot {
+  return obj.type === 'text';
 }
 
 const isFiniteNumber = (value: unknown): value is number =>

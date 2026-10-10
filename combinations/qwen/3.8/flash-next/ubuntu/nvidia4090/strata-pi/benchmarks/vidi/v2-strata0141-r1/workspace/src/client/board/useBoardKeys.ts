@@ -42,6 +42,15 @@ export interface BoardKeyOptions {
    * capture window around it, so a nudge or a delete is one undo step.
    */
   history?: BoardKeyHistory;
+  /**
+   * Story 9 (`text.tool_ui`): V and Escape go back to Select, T holds the Text
+   * tool, N creates a sticky note at the centre of the view. Ignored while a text
+   * editor is open or focus is in a field, so typing a letter is never a shortcut
+   * (TC-16). T and N do nothing on a board this client may not edit (TC-15).
+   */
+  selectTool?(): void;
+  textTool?(): void;
+  createSticky?(): void;
 }
 
 /** The part of `UndoController` the keyboard needs. */
@@ -68,7 +77,8 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, history } = inputs.current;
+      const { doc, selection, snapshot, canEdit, history, selectTool, textTool, createSticky } =
+        inputs.current;
 
       if (isTextEntry(event.target) || isTextEntry(document.activeElement)) {
         return; // typing in a note (or any field) is not a board command
@@ -78,6 +88,7 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       }
 
       const key = event.key;
+      const hasModifier = event.ctrlKey || event.metaKey || event.altKey;
       const selectAllKey = (event.ctrlKey || event.metaKey) && !event.altKey && (key === 'a' || key === 'A');
 
       if (selectAllKey) {
@@ -91,6 +102,8 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       if (key === 'Escape') {
         event.preventDefault();
         selection.clear();
+        // Escape also puts the Select tool back in hand (`text.tool_ui`, TC-14).
+        selectTool?.();
         return;
       }
 
@@ -117,6 +130,27 @@ export function useBoardKeys(options: BoardKeyOptions): void {
           history.undo();
         }
         return;
+      }
+
+      // `text.tool_ui`: the tool keys work with nothing selected - choosing a tool
+      // is not a selection command - so they live above the "nothing selected"
+      // rule, and only where a key would not have been typing (`isTextEntry` and the
+      // editing guard above already returned for those).
+      if (!hasModifier && canEdit) {
+        if (key === 'v' || key === 'V') {
+          selectTool?.();
+          return;
+        }
+        if (key === 't' || key === 'T') {
+          event.preventDefault();
+          textTool?.();
+          return;
+        }
+        if (key === 'n' || key === 'N') {
+          event.preventDefault();
+          createSticky?.();
+          return;
+        }
       }
 
       const ids = [...selection.ids];

@@ -2,7 +2,7 @@ import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { unionRects, HANDLES, type Handle, type Rect } from '../../shared/geometry';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import { worldToScreen, type Camera } from '../canvas/camera';
-import type { PointerEventLike } from '../objects/registry';
+import type { HandlesMode, PointerEventLike } from '../objects/registry';
 
 /**
  * The bounding box and the eight resize handles of a selection
@@ -19,6 +19,12 @@ export interface SelectionOverlayProps {
   camera: Camera;
   /** False when no selected object's type is resizable: handles are hidden. */
   resizable: boolean;
+  /**
+   * Which handles this selection may show (`sel.resize`): `horizontal` - the two
+   * side handles only - when every selected object's type derives its height from
+   * its content, `all` (the default) otherwise.
+   */
+  handles?: HandlesMode;
   onHandlePointerDown(event: PointerEventLike, handle: Handle): void;
 }
 
@@ -32,6 +38,9 @@ const HANDLE_NAME: Record<Handle, string> = {
   sw: 'bottom-left corner',
   w: 'left edge',
 };
+
+/** The handles a `horizontal` selection gets: its left and right edge (`text.height`). */
+export const HORIZONTAL_HANDLES: readonly Handle[] = ['w', 'e'];
 
 /** Where a handle sits on the box, in world units. */
 function handleAnchor(box: Rect, handle: Handle): { x: number; y: number } {
@@ -62,7 +71,7 @@ function handleAnchor(box: Rect, handle: Handle): { x: number; y: number } {
 }
 
 export function SelectionOverlay(props: SelectionOverlayProps) {
-  const { ids, snapshot, camera, resizable, onHandlePointerDown } = props;
+  const { ids, snapshot, camera, resizable, handles = 'all', onHandlePointerDown } = props;
 
   const selected = snapshot.filter((obj) => ids.has(obj.id));
   if (selected.length === 0) {
@@ -72,6 +81,7 @@ export function SelectionOverlay(props: SelectionOverlayProps) {
   if (!box) {
     return null;
   }
+  const shown = handles === 'horizontal' ? HORIZONTAL_HANDLES : HANDLES;
   const topLeft = worldToScreen(camera, { x: box.x, y: box.y });
   const bottomRight = worldToScreen(camera, { x: box.x + box.width, y: box.y + box.height });
   const width = Math.abs(bottomRight.x - topLeft.x);
@@ -80,7 +90,12 @@ export function SelectionOverlay(props: SelectionOverlayProps) {
   const top = Math.min(topLeft.y, bottomRight.y);
 
   return (
-    <div className="selection-overlay" data-testid="selection-overlay" data-resizable={resizable ? 'true' : 'false'}>
+    <div
+      className="selection-overlay"
+      data-testid="selection-overlay"
+      data-resizable={resizable ? 'true' : 'false'}
+      data-handles={handles}
+    >
       <div
         className="selection-overlay__box"
         data-testid="selection-box"
@@ -88,7 +103,7 @@ export function SelectionOverlay(props: SelectionOverlayProps) {
         style={{ left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` }}
       />
       {resizable
-        ? HANDLES.map((handle) => {
+        ? shown.map((handle) => {
             const anchor = worldToScreen(camera, handleAnchor(box, handle));
             return (
               <button

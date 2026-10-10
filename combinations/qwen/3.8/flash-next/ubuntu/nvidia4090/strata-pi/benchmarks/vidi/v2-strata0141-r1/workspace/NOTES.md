@@ -656,3 +656,176 @@ carried a reduction from Playwright's default 16 for the same reason). With thre
 workers the whole suite - 42 tests, nightly included - is green in about 1m20s,
 where six workers took 3m20s and lost TC-31 on most runs. No assertion, timeout or
 wait inside any test was loosened; `share.spec.ts` is untouched.
+
+## Story 9 - write free text anywhere on the board
+
+### Two settings the design named, two it did not
+
+`src/shared/config.ts` holds the named story 9 settings exactly (`TEXT_MAX_AUTO_WIDTH_WORLD`,
+`TEXT_MIN_WIDTH_WORLD`, `TEXT_MAX_CHARS`, `TEXT_SIZES`, `DEFAULT_TEXT_SIZE`, `TEXT_SIZE_NAMES`,
+`TEXT_LINE_HEIGHT`, `TEXT_FONT_FAMILY`). Two more were needed because the maths has to be
+stated somewhere:
+
+- `TEXT_BOX_PADDING_WORLD = 8` - the automatic box is the widest line plus a little slack, so
+  text does not touch the edge of the box it just grew to. The slack is itself capped by
+  `TEXT_MAX_AUTO_WIDTH_WORLD`, which is what makes TC-26's stored width land exactly on the
+  maximum instead of a pixel past it.
+- `TEXT_ESTIMATED_GLYPH_WIDTH_RATIO = 0.55` - the fallback width per character when nothing
+  can measure (`createCanvasMeasurer`, TC-32). Named because a component test and a browser
+  must be able to disagree by a known amount and not by a mystery.
+
+`TextSnapshot` lives in `src/shared/objects/text.ts`, next to the code that reads it, and
+re-declares `width` and `height` as required: for free text the box is always measured, so an
+optional dimension would only mean "this code forgot to measure".
+
+### `useTool` holds a tool, and only a tool
+
+The contract is `useTool(canEdit) -> { tool, setTool }`. Creation is not in the hook:
+`BoardView.createTextAt` calls `createText`, puts the tool back to Select and starts editing,
+which is what makes Text a one-shot tool (TC-17) and keeps the hook testable without a
+document. `canEdit` going false while Text is held puts the tool back to Select (TC-15) inside
+the hook, because that is a rule about the tool, not about the board.
+
+`BoardViewport` takes the press in the **capture** phase while Text is active. Without it, a
+click on an existing object would be that object's pointerdown first - selection or a drag -
+and never reach the board. With it, Text paints on top of whatever is there (TC-17), a press
+that moves creates nothing, and neither panning nor the marquee runs.
+
+`useClientId` (`src/client/useClientId.ts`) is a stable anonymous per-tab id used as
+`createdBy`. Story 6 owns identity; when it lands this is one call to replace.
+
+### Handles are a property of the object type
+
+`ObjectTypeSpec` gained `handles?: 'all' | 'horizontal'` and the registry answers
+`selectionHandlesMode(ids, typeOf)`: `'horizontal'` only when **every** selected object is
+horizontal. `SelectionOverlay` renders `e`/`w` in that mode and all eight otherwise; a mixed
+text + note selection therefore has top and bottom handles (TC-23), which is what the gesture
+needs to scale the group.
+
+`useTransformGesture` has a third kind, `resize-width`, chosen when the selection is all
+horizontal:
+
+- one text: `setTextWidthFixed` (which fixes `widthMode`) then `remeasureTextBox` with this
+  client's measurer; dragging `w` moves `x` by the same amount so the **right** edge stays put;
+- a mixed selection: the ordinary `resize` path, but a horizontal object is *moved* with the
+  group instead of stretched - `to + (rect - box) * scale` - its automatic width untouched, a
+  fixed width scaled and then re-measured, and its height always derived. No handle ever calls
+  `setTextSize`, and no handle writes a text height.
+
+### One measurer per board
+
+`sharedMeasurer()` builds the canvas (or estimate) measurer once. A board can hold hundreds of
+text objects and a canvas context per object is pure waste, since the font is set per
+measurement. Tests that want exact numbers pass their own measurer (`layoutText`'s last
+parameter, `remeasureTextBox`'s second), which is how the unit and box-sync tests stay exact.
+
+jsdom has no canvas and no `OffscreenCanvas`, so component tests run through the estimate -
+deterministic, and the same fallback TC-32 demands. Their expected boxes are therefore
+computed with `layoutText(..., estimateTextWidth)` rather than hard-coded numbers. Chromium's
+canvas measurer is what the e2e tests measure against.
+
+### One editor, two callers
+
+`TextEditor` is story 2's sticky editor with the sticky-specific numbers turned into props:
+`maxChars`, `fontPx`, `width`, `onInput`, counter limit/threshold, class names, test ids and
+the aria label. `StickyTextEditor` is now a thin wrapper that passes sticky values
+(`STICKY_TEXT_MAX_CHARS`, fit-to-box font, `sticky-*` test ids and the `Sticky note text`
+label) and a no-op `onInput`, because a note's box is not derived from its words. Story 2's
+tests are untouched. `counterVisible(length, max, threshold)` gained its two defaults for the
+same reason.
+
+The `undo` prop is `UndoController | null` because `useBoardUndo()` answers null for a board
+that cannot be edited; null only disables the boundary calls.
+
+### What the 300-character e2e test found (`text.object`, `text.concurrent`)
+
+TC-26 types 300 characters into a fresh text object. Run at `--workers=6`, 2 or 3 runs in 10
+stored a sentence with one character moved inside a word and its length intact:
+"...once th enotes were...", "Grouping simialr notes", "lined up in colmuns". Nothing was lost,
+which made it harder to see than a dropped keystroke.
+
+The cause was a **controlled** textarea. React re-asserts a controlled field after an input event:
+it writes back the value from the render that is about to be replaced. A keystroke that arrives
+before that render lands is applied to the text React put back, not to the text the person had
+typed, and the character typed just before it is gone from the field - while the document still
+holds it. The instrumented log caught exactly that moment: the base the editor diffed from was
+`"…Groupin"` while the document held `"…Grouping"`, and the field held neither.
+
+`TextEditor` no longer hands React the field's value at all. The field is uncontrolled
+(`defaultValue` at mount), and `mirror` is the only thing that writes `el.value`:
+
+- after every write it compares the document's text with the field and **leaves the field alone
+  when they already agree**, which is every ordinary keystroke - so no render, no peer merge and
+  no remeasure can repaint under someone's fingers;
+- when they disagree - a character dropped by the limit, a colleague's characters arriving - it
+  writes the document's text and puts the caret back where the person had it, unless they were
+  typing at the end, because writing a textarea's value in a browser moves the caret to the end of
+  what it is given;
+- only the character counter needs a render (`shownLength`), and nothing that renders touches the
+  field.
+
+`textRef` remains the base for the next difference: the text this editor knows the person was
+looking at, never a snapshot from an older render.
+
+What the diagnosis ruled out, because each one looked plausible and cost time:
+
+- The difference written to `Y.Text`. An in-app log of every write (the base it diffed from, the
+  value the field held, the document's text before and after) showed the write itself correct at
+  every keystroke; what was wrong is that the field had already been rewritten by something else.
+- A remount of the editor, and a server snapshot arriving mid-burst. The log carried an instance
+  id per mount and marked every remote change: no remote change appeared in a corruption window,
+  and the double mount entry turned out to be StrictMode re-running effects, not a remount.
+- Keystroke batching. A page-side capture listener recorded the field after every keystroke; under
+  load, 300 keystrokes arrived as 300 separate input events, each a correct prefix of the fixture.
+- Slow rendering alone. `Emulation.setCPUThrottlingRate` at 20x does not reproduce it, so nothing
+  in the harness throttles.
+- jsdom, for this one. A component test cannot express it: assigning a textarea its own value back
+  leaves the caret where it was in jsdom (checked directly, not assumed), and React's
+  re-assertion of a controlled field does not happen in a jsdom `act` batch (verified by making
+  the field controlled again and watching the same test pass). TC-26 is the guard, and it is an
+  honest one - the character-order invariant it asserts is the one the product owes.
+
+What jsdom *can* express, and now tests: a burst of browser-style input events dispatched without
+waiting for React. React 19's synthetic `onChange` is not reached by a raw dispatch, its `onInput`
+is, so `TextEditor` handles both (`onChange` is the same event under React's name) and the test
+puts 49 characters into the field one at a time and asserts the stored text back verbatim.
+
+After the change: TC-26 at `--workers=6 --repeat-each=5` is green (30 runs), TC-26 alone at
+`--workers=6 --repeat-each=5` is green, and the configured 3-worker suite is green repeatedly.
+Over-capacity runs still occasionally flake elsewhere - `wrangler dev` answers `Network connection
+lost` for some board creations, and story 4's deliberate snapshot-corruption test logs its decode
+error into the same console - which is the story 8 note about worker caps, not this one.
+
+### Test-only hooks for text
+
+`window.__vidi6` gained `texts()` and `createText({at, text, size})` (test build only), reading
+through `objectSnapshots(doc).filter(isTextSnapshot)` and writing through `createText` +
+`setTextSize` + `getTextContent`, i.e. the model's own functions. `notes()` is unchanged.
+`isTextSnapshot` joins `isStickySnapshot` in the board model.
+
+The board element also carries `data-editing-id`, which is how a test names the object this
+screen is editing - the only reliable way on a board where five people are creating text at the
+same moment (TC-30's helper reads it instead of diffing the ids on screen, which cannot tell
+whose object is whose).
+
+### E2E notes
+
+- `tests/e2e/text.spec.ts` - TC-26 to TC-31 plus a size-while-editing case, all through the
+  product: `t` for the tool, a real click, real typing, a real handle drag, real Ctrl+Z. Each
+  test parks the camera at `{0, 0, 1}` through the story 7 helper, so a drag can be stated in
+  board units.
+- TC-29 asserts a *merge*, not a transcript. Two clients typing into one `Y.Text` at the same
+  time keep each person's characters in order, but whose word lands in front is Yjs's choice -
+  the run that failed expected "everyone brought an example" as a substring and got
+  "timee|boxed|veryone", with every character present. The assertions are now: both screens
+  identical, each person's text a subsequence of the result, total length exact, and the
+  character counts equal to the concatenation. A substring assertion would have been a test of
+  the merge order rather than of the product.
+- TC-29 waits for the shared **object** to be on both boards, not for the seed text to match on
+  both. One person's typing arrives character by character - a loaded run was seen holding
+  "Ret", then "Retro", then the whole seed - and a test that waits for the seed to match exactly
+  is a test of how fast the machine syncs. Nothing asserted below depends on it: the merged text
+  holds the seed characters once whatever order the merge picks.
+- `TEXT_ANNOTATION` (`tests/fixtures/texts.ts`) is exactly 300 characters of the existing
+  prose generator, with its length asserted at module load like the other fixtures.
+- The e2e suite is 47 tests, green in about 1m with the worker cap story 8 left in place.

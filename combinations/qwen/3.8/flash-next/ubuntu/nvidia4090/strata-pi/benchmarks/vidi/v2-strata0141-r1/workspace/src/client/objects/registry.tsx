@@ -7,8 +7,9 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { rectContainsPoint, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * The object type registry (anchor `sel.registry`).
@@ -71,8 +72,25 @@ export interface ObjectTypeSpec {
   /** Smallest side this type allows, in world units (`sel.size_limits`). */
   minSize: number;
   editableText: boolean;
+  /**
+   * Which resize handles this type may use (`sel.resize`). A text object only
+   * has room for its left and right edges; a type that does not say gets all
+   * eight, which is how every type before story 9 was drawn.
+   */
+  handles?: HandlesMode;
   /** Is this world point on this object? */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+}
+
+/** Which resize handles a type may use: all eight, or its two horizontal edges. */
+export type HandlesMode = 'all' | 'horizontal';
+
+/** The handles a type uses when its spec does not say. */
+export const DEFAULT_HANDLES_MODE: HandlesMode = 'all';
+
+/** The handles one type actually gets. */
+export function handlesOf(spec: ObjectTypeSpec | undefined): HandlesMode {
+  return spec?.handles ?? DEFAULT_HANDLES_MODE;
 }
 
 /**
@@ -123,6 +141,32 @@ export function selectionIsResizable(ids: Iterable<string>, typeOf: (id: string)
   return false;
 }
 
+/**
+ * Which handles a selection may show (`sel.resize`).
+ *
+ * `horizontal` only when **every** object in the selection takes handles on its left
+ * and right edge alone - one text object, or a group of them. A sticky note in the
+ * selection brings the other six back, because that note is resized as a rectangle
+ * whatever else is selected with it.
+ */
+export function selectionHandlesMode(
+  ids: Iterable<string>,
+  typeOf: (id: string) => string,
+): HandlesMode {
+  let mode: HandlesMode | null = null;
+  for (const id of ids) {
+    const spec = getObjectType(typeOf(id));
+    if (!spec) {
+      continue; // an id whose type is not registered is not part of this decision
+    }
+    if (handlesOf(spec) !== 'horizontal') {
+      return 'all';
+    }
+    mode = 'horizontal';
+  }
+  return mode ?? 'all';
+}
+
 /** Does this selection contain a type that keeps its proportions (Key decision 3)? */
 export function selectionIsAspectLocked(
   ids: Iterable<string>,
@@ -159,6 +203,22 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: hitTestBounds,
+});
+
+/* -------------------------------------------------------------------------- */
+/* Text (`text.*`): width resizable, height derived, horizontal handles only. */
+/* -------------------------------------------------------------------------- */
+
+registerObjectType('text', {
+  Component: TextObject as ComponentType<ObjectProps<never>>,
+  resizable: true,
+  // A text object has no proportions to keep: its height follows its content and
+  // only its width is a number a person sets (`text.height`, Key decision 2).
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: hitTestBounds,
 });
 

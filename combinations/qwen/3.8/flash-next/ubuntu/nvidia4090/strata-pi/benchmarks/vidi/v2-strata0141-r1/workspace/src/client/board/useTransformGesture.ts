@@ -7,7 +7,8 @@ import {
   resizeObjects,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import { setTextWidthFixed } from '../../shared/objects/text';
+import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import {
   clampScale,
   resizeRect,
@@ -21,11 +22,15 @@ import {
 import type { Camera } from '../canvas/camera';
 import {
   getObjectType,
+  handlesOf,
+  selectionHandlesMode,
   selectionIsAspectLocked,
   selectionIsResizable,
   selectionMinSizes,
   type PointerEventLike,
 } from '../objects/registry';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
+import type { Measurer } from '../objects/textLayout';
 import type { Selection } from './useSelection';
 
 /**
@@ -67,6 +72,12 @@ export interface TransformGestureOptions {
   snapshot: readonly ObjectSnapshot[];
   /** False when the room could not load this board: the gesture writes nothing. */
   canEdit: boolean;
+  /**
+   * This board's measurer (`text.layout`). A horizontal resize changes a text
+   * object's width, and the height that follows from it is measured here, by this
+   * client, in the same gesture (`text.height`, Key decision 1).
+   */
+  measure?: Measurer;
   onGestureStart?(): void;
   onGestureEnd?(): void;
 }
@@ -82,7 +93,7 @@ export interface TransformGesture {
 
 const NO_IDS: ReadonlySet<string> = new Set<string>();
 
-type GestureKind = 'move' | 'resize';
+type GestureKind = 'move' | 'resize' | 'resize-width';
 
 interface ActiveGesture {
   kind: GestureKind;
@@ -118,7 +129,6 @@ const typeLookup = (
 
 export function useTransformGesture(options: TransformGestureOptions): TransformGesture {
   const { doc, camera, selection, snapshot, canEdit } = options;
-
   // The window listeners below live for the whole mount, so they read their
   // inputs through a ref: they always see the current camera, selection and
   // snapshot without being re-attached on every render.
@@ -190,6 +200,11 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
       return;
     }
 
+    if (gesture.kind === 'resize-width') {
+      applyWidthResize(gesture, delta);
+      return;
+    }
+
     const handle = gesture.handle;
     const box = gesture.startBox;
     if (!handle || !box || box.width <= 0 || box.height <= 0) {
@@ -211,10 +226,109 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
     const to = resizeRectFromScale(box, handle, scale);
 
     const next = new Map<string, Rect>();
+    const moved = new Map<string, Point>();
+    const typeOf = typeLookup(current);
     startRects.forEach((rect, id) => {
+      if (handlesOf(getObjectType(typeOf(id))) === 'horizontal') {
+        // A text object in a mixed group: its height comes from its content and an
+        // automatic width from its words, so it is **moved** with the group instead
+        // of being stretched, and only a width it already holds fixed scales with it
+        // (Key decision 2, TC-23).
+        moved.set(id, {
+          x: to.x + (rect.x - box.x) * scale.x,
+          y: to.y + (rect.y - box.y) * scale.y,
+        });
+        return;
+      }
       next.set(id, scaleWithin(rect, box, to));
     });
     resizeObjects(document, next);
+
+    if (moved.size > 0) {
+      moveObjects(document, moved);
+      const measure = inputs.current.options.measure;
+      moved.forEach((_position, id) => {
+        const obj = current.find((entry) => entry.id === id);
+        if (obj?.type !== 'text' || (obj as { widthMode?: unknown }).widthMode !== 'fixed') {
+          return;
+        }
+        const rect = startRects.get(id)!;
+        setTextWidthFixed(document, id, rect.width * scale.x);
+        if (measure) {
+          // The height the new width needs, measured by the client doing the drag.
+          remeasureTextBox(document, id, measure);
+        }
+      });
+    }
+  };
+
+  /**
+   * A horizontal handle drag (`text.fixed_width`, Key decision 2).
+   *
+   * One text object: its own width follows the handle and becomes fixed, its
+   * height is remeasured from it, and dragging its left edge keeps its right edge
+   * where it was.
+   *
+   * A group: the bounding box follows the handle, every object keeps its place
+   * inside that box relative to the others, and a text object whose width is
+   * already fixed scales with the box (an automatic one keeps the width its
+   * content chose). A sticky note in the selection is resized as a rectangle
+   * along with the rest. The font size never changes here (TC-23).
+   */
+  const applyWidthResize = (gesture: ActiveGesture, delta: Point): void => {
+    const handle = gesture.handle;
+    const box = gesture.startBox;
+    const startRects = gesture.startRects;
+    if (!handle || !box || !startRects || box.width <= 0) {
+      return;
+    }
+    const { doc: document, measure } = inputs.current.options;
+    const current = inputs.current.snapshot;
+    const typeOf = typeLookup(current);
+    const ids = [...startRects.keys()];
+
+    if (ids.length === 1 && typeOf(ids[0]!) === 'text') {
+      const id = ids[0]!;
+      const rect = startRects.get(id)!;
+      const minSize = getObjectType('text')?.minSize ?? TEXT_MIN_WIDTH_WORLD;
+      const wanted = handle === 'e' ? rect.width + delta.x : rect.width - delta.x;
+      const width = Math.min(Math.max(wanted, minSize), MAX_OBJECT_SIZE_WORLD);
+      setTextWidthFixed(document, id, width);
+      if (handle === 'w') {
+        // The edge that was not dragged stays put.
+        moveObjects(document, new Map([[id, { x: rect.x + rect.width - width, y: rect.y }]]));
+      }
+      if (measure) {
+        remeasureTextBox(document, id, measure);
+      }
+      return;
+    }
+
+    const target = resizeRect(box, handle, delta, false);
+    // A group may not be squeezed below the smallest side its own types allow.
+    const minTotal = Math.max(0, ...selectionMinSizes(ids, typeOf));
+    const widest = Math.min(Math.max(target.width, minTotal), MAX_OBJECT_SIZE_WORLD);
+    const scaleX = box.width > 0 ? widest / box.width : 1;
+    const anchorX = handle === 'e' ? box.x : box.x + box.width - widest;
+
+    const positions = new Map<string, Point>();
+    startRects.forEach((rect, id) => {
+      positions.set(id, { x: anchorX + (rect.x - box.x) * scaleX, y: rect.y });
+    });
+    moveObjects(document, positions);
+
+    startRects.forEach((rect, id) => {
+      const obj = current.find((entry) => entry.id === id);
+      const fixedText =
+        obj?.type === 'text' && (obj as { widthMode?: unknown }).widthMode === 'fixed';
+      if (!fixedText) {
+        return; // an automatic text object's width belongs to its content, not the drag
+      }
+      setTextWidthFixed(document, id, rect.width * scaleX);
+      if (measure) {
+        remeasureTextBox(document, id, measure);
+      }
+    });
   };
 
   const scheduleGesture = (gesture: ActiveGesture): void => {
@@ -367,7 +481,11 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
     if (!selectionIsResizable(ids, typeOf)) {
       return; // handles are hidden for this selection anyway
     }
-    beginGesture(event, 'resize', ids, handle);
+    // A selection of text objects only has side handles, and a side handle on
+    // them changes width alone: their height follows their content (`text.height`).
+    const kind: GestureKind =
+      selectionHandlesMode(ids, typeOf) === 'horizontal' ? 'resize-width' : 'resize';
+    beginGesture(event, kind, ids, handle);
   }, []);
 
   return { onObjectPointerDown, onHandlePointerDown, activeIds };

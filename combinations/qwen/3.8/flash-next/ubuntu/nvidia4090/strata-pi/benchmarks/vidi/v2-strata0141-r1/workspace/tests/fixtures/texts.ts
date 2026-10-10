@@ -55,6 +55,18 @@ export const LONG_TEXT = prose(LONG_TEXT_LENGTH);
 /** 1,200 characters of prose, i.e. past the limit. */
 export const OVER_LONG_TEXT = prose(1200);
 
+export const TEXT_ANNOTATION_LENGTH = 300;
+
+/**
+ * Exactly 300 characters of prose: long enough that free text on the board has to
+ * wrap at TEXT_MAX_AUTO_WIDTH_WORLD and become several lines (story 9, TC-26).
+ */
+export const TEXT_ANNOTATION = prose(TEXT_ANNOTATION_LENGTH);
+
+if (TEXT_ANNOTATION.length !== TEXT_ANNOTATION_LENGTH) {
+  throw new Error(`fixture TEXT_ANNOTATION must be exactly ${TEXT_ANNOTATION_LENGTH} characters`);
+}
+
 if (LONG_TEXT.length !== LONG_TEXT_LENGTH) {
   throw new Error(`fixture LONG_TEXT must be exactly ${LONG_TEXT_LENGTH} characters`);
 }

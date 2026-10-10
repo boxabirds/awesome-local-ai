@@ -1,6 +1,7 @@
 import type { Camera } from './canvas/camera';
-import type { StickyColor } from '../shared/config';
+import type { StickyColor, TextSize } from '../shared/config';
 import type { StickySnapshot } from '../shared/board-model';
+import type { TextSnapshot } from '../shared/objects/text';
 
 /** Test-only note creation arguments, mirroring `createSticky`. */
 export interface TestStickyParams {
@@ -8,6 +9,13 @@ export interface TestStickyParams {
   color?: StickyColor;
   /** Typed-in text, written straight into the note's `Y.Text`. */
   text?: string;
+}
+
+/** Test-only text object creation arguments, mirroring `createText`. */
+export interface TestTextParams {
+  at: { x: number; y: number };
+  text?: string;
+  size?: TextSize;
 }
 
 /** Test-only bulk seeding: `count` notes spread over a rectangle. */
@@ -25,6 +33,10 @@ export interface Vidi6TestHooks {
   notes(): StickySnapshot[];
   /** Put a note on the board through the model, for test setup. */
   createNote(params: TestStickyParams): string;
+  /** Every text object on the board, topmost last (story 9 e2e). */
+  texts(): TextSnapshot[];
+  /** Put a text object on the board through the model, for test setup. */
+  createText(params: TestTextParams): string;
   /** Seed many notes in one transaction, for test setup (large-board tests). */
   createNotes(params: TestSeedParams): number;
   /** The connection state the status badge is rendering (story 3). */
@@ -62,6 +74,8 @@ export function registerSeedApi(api: SeedApi | null): void {
 export interface BoardApi {
   notes: () => StickySnapshot[];
   createNote: (params: TestStickyParams) => string;
+  texts: () => TextSnapshot[];
+  createText: (params: TestTextParams) => string;
   connectionState: () => string;
 }
 
@@ -82,6 +96,8 @@ export function installTestHooks(): void {
     getCamera: () => cameraApi?.get() ?? null,
     notes: () => boardApi?.notes() ?? [],
     createNote: (params) => boardApi?.createNote(params) ?? '',
+    texts: () => boardApi?.texts() ?? [],
+    createText: (params) => boardApi?.createText(params) ?? '',
     createNotes: (params) => seedApi?.seed(params) ?? 0,
     connectionState: () => boardApi?.connectionState() ?? 'connecting',
   };

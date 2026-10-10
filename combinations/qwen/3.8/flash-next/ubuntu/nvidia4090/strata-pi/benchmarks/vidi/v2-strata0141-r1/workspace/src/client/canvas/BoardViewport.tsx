@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import type { Tool } from '../board/useTool';
 import {
   canZoomIn,
   canZoomOut,
@@ -100,6 +101,14 @@ export interface BoardViewportProps {
   onEmptyDrag?: (phase: 'begin' | 'move' | 'end' | 'cancel', screen: Point, world: Point) => void;
   /** Called whenever the camera or the surface size changes. */
   onSurfaceChange?: (surface: BoardSurface) => void;
+  /**
+   * Story 9 (`text.tool_ui`): the tool this client is holding. While Text is
+   * active the cursor changes and a press on the board creates text instead of
+   * panning, marquee-ing or selecting.
+   */
+  tool?: Tool;
+  /** The Text tool's click: the world point the new text object's top-left gets. */
+  onTextClick?: (world: Point) => void;
 }
 
 /**
@@ -112,7 +121,15 @@ export interface BoardViewportProps {
  * world layer, so they pan and zoom with the board.
  */
 export function BoardViewport(props: BoardViewportProps) {
-  const { children, onEmptyDoubleClick, onEmptyClick, onEmptyDrag, onSurfaceChange } = props;
+  const {
+    children,
+    onEmptyDoubleClick,
+    onEmptyClick,
+    onEmptyDrag,
+    onSurfaceChange,
+    tool = 'select',
+    onTextClick,
+  } = props;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(surfaceRef);
   const api = useCamera(viewport);
@@ -125,6 +142,8 @@ export function BoardViewport(props: BoardViewportProps) {
   const pendingClickRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   /** What the current empty-space press is doing: story 1's pan, or a marquee. */
   const dragModeRef = useRef<'pan' | 'marquee' | null>(null);
+  /** Story 9: a press made while the Text tool is held, waiting to become a click. */
+  const textClickRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   const screenPointFromEvent = useCallback(
     (e: { clientX: number; clientY: number }) => {
@@ -138,6 +157,57 @@ export function BoardViewport(props: BoardViewportProps) {
   );
 
   // --- dragging -------------------------------------------------------------
+  // --- the Text tool's click (`text.tool_ui`) -------------------------------
+  //
+  // Capture phase, on purpose: it runs before any board object's own pointerdown,
+  // so holding Text and pressing on a note puts text **on top of** it instead of
+  // selecting or dragging that note, and an empty-space press never becomes a pan
+  // or a marquee because the press is taken here.
+  const onPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (tool !== 'text' || !onTextClick) {
+      return;
+    }
+    if (!isBoardSurface(e.target)) {
+      return; // chrome (zoom controls, toolbar) keeps its own behaviour
+    }
+    if (e.button !== 0 && e.pointerType === 'mouse') {
+      return;
+    }
+    const point = screenPointFromEvent(e);
+    textClickRef.current = { x: point.x, y: point.y, moved: false };
+    try {
+      surfaceRef.current?.setPointerCapture(e.pointerId);
+    } catch {
+      // jsdom: the press is still tracked through the events that do arrive.
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const onPointerMoveCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    const pending = textClickRef.current;
+    if (!pending) {
+      return;
+    }
+    const point = screenPointFromEvent(e);
+    if (Math.hypot(point.x - pending.x, point.y - pending.y) >= DRAG_THRESHOLD_PX) {
+      pending.moved = true; // held long enough to drag: not a placement click
+    }
+  };
+
+  const onPointerUpCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    const pending = textClickRef.current;
+    if (!pending) {
+      return;
+    }
+    textClickRef.current = null;
+    if (!pending.moved) {
+      onTextClick?.(screenToWorld(api.camera, screenPointFromEvent(e)));
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const target = e.target;
     if (!(target instanceof Element) || target.getAttribute('data-board-surface') !== 'true') {
@@ -324,7 +394,9 @@ export function BoardViewport(props: BoardViewportProps) {
       data-testid="board"
       data-board-surface="true"
       data-panning={isPanning ? 'true' : 'false'}
+      data-tool={tool}
       style={{
+        cursor: tool === 'text' ? 'text' : undefined,
         backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, rgba(203, 213, 225, 0) 1.6px)',
         backgroundSize: `${spacingPx}px ${spacingPx}px`,
         // Each CSS tile paints its dot at the tile centre, so the offset is
@@ -335,6 +407,9 @@ export function BoardViewport(props: BoardViewportProps) {
           spacingPx,
         )}px`,
       }}
+      onPointerDownCapture={onPointerDownCapture}
+      onPointerMoveCapture={onPointerMoveCapture}
+      onPointerUpCapture={onPointerUpCapture}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

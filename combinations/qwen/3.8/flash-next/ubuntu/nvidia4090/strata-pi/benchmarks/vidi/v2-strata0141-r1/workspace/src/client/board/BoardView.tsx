@@ -4,10 +4,14 @@ import {
   createSticky,
   deleteObjects,
   getStickyText,
+  isTextSnapshot,
+  objectSnapshots,
   snapshot,
 } from '../../shared/board-model';
+import { createText, getTextContent, setTextSize } from '../../shared/objects/text';
 import { registerBoardApi, registerSeedApi } from '../testHooks';
-import { STICKY_COLOR_NAMES } from '../../shared/config';
+import { STICKY_COLOR_NAMES, type TextSize } from '../../shared/config';
+import { useClientId } from '../useClientId';
 import { BoardViewport, viewportCentre, type BoardSurface } from '../canvas/BoardViewport';
 import { screenToWorld, type Camera } from '../canvas/camera';
 import { Toolbar } from './Toolbar';
@@ -20,11 +24,13 @@ import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { useMarquee, MarqueeRect } from './Marquee';
 import { useBoardKeys } from './useBoardKeys';
+import { useTool } from './useTool';
 import { UndoControllerContext, useUndo, useUndoController } from './useUndo';
 import type { UndoController } from './undo';
 // Importing the registry is what registers the board's object types; every
 // object on the board is drawn by the component its type registered.
-import { getObjectType, type ObjectProps } from '../objects/registry';
+import { getObjectType, selectionHandlesMode, type ObjectProps } from '../objects/registry';
+import { remeasureTextBox, useMeasurer } from '../objects/useTextBoxSync';
 
 /**
  * The board: the camera surface from story 1, the object layer from stories 2
@@ -101,6 +107,13 @@ export function BoardView({
   /** Per-client selection, pruned against the board as other people change it. */
   const selection = useSelection(objects);
 
+  /** Per-client tool state (`text.tool_ui`): Select or Text, never persisted. */
+  const { tool: activeTool, setTool } = useTool(editable);
+  /** The one measurer this board writes boxes with (`text.layout`). */
+  const measure = useMeasurer();
+  /** The owner a new text object records (story 6 replaces this with an identity). */
+  const clientId = useClientId();
+
   const undoController = useUndoController(doc, providedUndo);
   const undoState = useUndo(undoController, editable);
 
@@ -124,23 +137,14 @@ export function BoardView({
     selection,
     snapshot: objects,
     canEdit: editable,
+    // A horizontal drag on text measures the height that follows from the new
+    // width, here, by this client (`text.height`, Key decision 1).
+    measure,
     onGestureStart,
     onGestureEnd,
   });
 
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
-
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: objects,
-    canEdit: editable,
-    history: {
-      undo: undoState.undo,
-      redo: undoState.redo,
-      boundary: undoController.boundary,
-    },
-  });
 
   /** Create a note centred on a world point and start editing it right away. */
   const createAt = useCallback(
@@ -168,8 +172,59 @@ export function BoardView({
     createAt(screenToWorld(surface.camera, viewportCentre(surface)));
   }, [createAt, surface]);
 
-  /** Clicking empty board space without panning clears the selection (TC-19). */
-  const clearSelection = useCallback(() => selection.clear(), [selection]);
+  /**
+   * The Text tool's click (`text.tool_ui`, TC-17): a text object whose **top-left**
+   * is the point that was clicked, the tool back to Select, and editing started on
+   * the new object - so the first character is typed without another click. One
+   * creation is one undo step (TC-17).
+   */
+  const createTextAt = useCallback(
+    (world: { x: number; y: number }) => {
+      if (!editable) {
+        return;
+      }
+      undoController.boundary();
+      const id = createText(doc, world, clientId);
+      undoController.boundary();
+      setTool('select');
+      if (id !== null) {
+        selection.startEdit(id);
+      }
+    },
+    [clientId, doc, editable, selection, setTool, undoController.boundary],
+  );
+
+  /**
+   * Empty board space released without panning: with the Select tool that clears
+   * the selection (TC-19), with the Text tool it places text (`text.tool_ui`).
+   */
+  const onBoardClick = useCallback(
+    (world: { x: number; y: number }) => {
+      if (activeTool === 'text') {
+        createTextAt(world);
+        return;
+      }
+      selection.clear();
+    },
+    [activeTool, createTextAt, selection],
+  );
+
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    history: {
+      undo: undoState.undo,
+      redo: undoState.redo,
+      boundary: undoController.boundary,
+    },
+    // `text.tool_ui`: V and Escape go back to Select, T holds the Text tool, N is
+    // story 2's sticky note created at the centre of the view (TC-18).
+    selectTool: () => setTool('select'),
+    textTool: () => setTool('text'),
+    createSticky: createAtViewportCentre,
+  });
 
   /** Starting to edit is a mutation too: a note's text is the document. */
   const editNote = useCallback(
@@ -191,6 +246,25 @@ export function BoardView({
     undoController.boundary();
     selection.clear();
   }, [doc, editable, selection, undoController.boundary]);
+
+  /**
+   * A size chosen from the text toolbar (`text.object`, TC-21): the letters change,
+   * where they sit does not, and the box the new size needs is measured here, by
+   * this client, in the same undo step as the change.
+   */
+  const changeTextSize = useCallback(
+    (id: string, size: TextSize) => {
+      if (!editable) {
+        return;
+      }
+      undoController.boundary();
+      if (setTextSize(doc, id, size)) {
+        remeasureTextBox(doc, id, measure);
+      }
+      undoController.boundary();
+    },
+    [doc, editable, measure, undoController.boundary],
+  );
 
   const onEmptyDrag = useCallback(
     (phase: 'begin' | 'move' | 'end' | 'cancel', screen: { x: number; y: number }) => {
@@ -215,6 +289,20 @@ export function BoardView({
         const id = createSticky(doc, params.at, params.color);
         if (id !== '' && params.text !== undefined) {
           getStickyText(doc, id)?.insert(0, params.text);
+        }
+        return id;
+      },
+      texts: () => objectSnapshots(doc).filter(isTextSnapshot),
+      createText: (params) => {
+        const id = createText(doc, params.at, 'test-hook');
+        if (id === null) {
+          return '';
+        }
+        if (params.size !== undefined) {
+          setTextSize(doc, id, params.size);
+        }
+        if (params.text !== undefined) {
+          getTextContent(doc, id)?.insert(0, params.text);
         }
         return id;
       },
@@ -252,6 +340,11 @@ export function BoardView({
   }, [doc, connectionState]);
 
   const resizable = selectionHasResizableType(selection.ids, objects);
+  /** Text objects have no top or bottom handles; a mixed selection does (Key decision 2). */
+  const handles = selectionHandlesMode(
+    selection.ids,
+    (id) => objects.find((entry) => entry.id === id)?.type ?? '',
+  );
 
   const board = (
     <main
@@ -259,13 +352,17 @@ export function BoardView({
       data-app="vidi6"
       data-testid="app"
       data-board-editable={editable ? 'true' : 'false'}
+      data-tool={activeTool}
+      data-editing-id={selection.editingId ?? ''}
       data-selection-count={selection.ids.size}
     >
       <BoardViewport
         onSurfaceChange={setSurface}
         onEmptyDoubleClick={createAt}
-        onEmptyClick={clearSelection}
+        onEmptyClick={onBoardClick}
         onEmptyDrag={onEmptyDrag}
+        tool={activeTool}
+        onTextClick={createTextAt}
       >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -297,11 +394,19 @@ export function BoardView({
         snapshot={objects}
         camera={camera}
         resizable={resizable}
+        handles={handles}
         onHandlePointerDown={gesture.onHandlePointerDown}
       />
-      <SelectionBar ids={selection.ids} snapshot={objects} onDelete={deleteSelection} />
+      <SelectionBar
+        ids={selection.ids}
+        snapshot={objects}
+        onDelete={deleteSelection}
+        onTextSize={changeTextSize}
+      />
       <Toolbar
         onCreateSticky={createAtViewportCentre}
+        tool={activeTool}
+        onSelectTool={setTool}
         disabled={!editable}
         undo={undoState}
       />

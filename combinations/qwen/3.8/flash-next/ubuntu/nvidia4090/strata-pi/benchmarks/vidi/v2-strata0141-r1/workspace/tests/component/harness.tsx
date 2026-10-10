@@ -7,9 +7,11 @@ import {
   deleteObject,
   getStickyText,
   moveObject,
+  objectSnapshots,
   snapshot,
   type StickySnapshot,
 } from '../../src/shared/board-model';
+import { createText, type TextSnapshot } from '../../src/shared/objects/text';
 import type { BoardProvider } from '../../src/client/sync/connectBoard';
 import type { Camera } from '../../src/client/canvas/camera';
 import type { StickyColor } from '../../src/shared/config';
@@ -522,4 +524,88 @@ export function drawnPosition(id: string): { x: number; y: number } {
     throw new Error(`unexpected note transform: ${JSON.stringify(transform)}`);
   }
   return { x: Number(match[1]), y: Number(match[2]) };
+}
+
+/* ------------------------------------------------------------------------- */
+/* Text object helpers (story 9)                                             */
+/* ------------------------------------------------------------------------- */
+
+/** Which tool the rendered board says this client is holding (`text.tool_ui`). */
+export function activeTool(): string {
+  return screen.getByTestId('app').getAttribute('data-tool') ?? '';
+}
+
+/** The id the board says is being edited, or `null`. */
+export function editingId(): string | null {
+  const value = screen.getByTestId('app').getAttribute('data-editing-id');
+  return value === null || value === '' ? null : value;
+}
+
+export function toolButton(tool: 'select' | 'text'): HTMLButtonElement {
+  return screen.getByTestId(tool === 'select' ? 'select-tool' : 'text-tool') as HTMLButtonElement;
+}
+
+export function toolPressed(tool: 'select' | 'text'): boolean {
+  return toolButton(tool).getAttribute('aria-pressed') === 'true';
+}
+
+/** Create a text object through the model, and let the board re-render. */
+export function createTextObject(
+  doc: Y.Doc,
+  at: { x: number; y: number },
+  createdBy = 'component_client',
+): string {
+  let id = '';
+  act(() => {
+    id = createText(doc, at, createdBy) ?? '';
+  });
+  return id;
+}
+
+/** The text objects exactly as the document holds them (sorted by z, then id). */
+export function docTexts(doc: Y.Doc): readonly TextSnapshot[] {
+  return objectSnapshots(doc).filter((entry): entry is TextSnapshot => entry.type === 'text');
+}
+
+export function textOf(doc: Y.Doc, id: string): TextSnapshot {
+  const entry = docTexts(doc).find((candidate) => candidate.id === id);
+  if (!entry) {
+    throw new Error(`text object ${id} is not in the document`);
+  }
+  return entry;
+}
+
+export function textElement(id: string): HTMLElement {
+  return screen.getByTestId(`text-object-${id}`);
+}
+
+export function textElements(): HTMLElement[] {
+  return screen.queryAllByTestId(/^text-object-/u);
+}
+
+export function textEditorElement(): HTMLElement | null {
+  return screen.queryByTestId('text-editor');
+}
+
+export function textToolbarElement(): HTMLElement | null {
+  return screen.queryByTestId('text-toolbar');
+}
+
+/** Type into the open text editor, one input event per call. */
+export function typeIntoTextEditor(text: string): void {
+  const editor = textEditorElement();
+  if (!editor) {
+    throw new Error('no text object is being edited');
+  }
+  const textarea = editor as HTMLTextAreaElement;
+  fireEvent.change(textarea, { target: { value: `${textarea.value}${text}` } });
+}
+
+/** Replace the text editor's value outright (a paste). */
+export function pasteIntoTextEditor(text: string): void {
+  const editor = textEditorElement();
+  if (!editor) {
+    throw new Error('no text object is being edited');
+  }
+  fireEvent.change(editor as HTMLTextAreaElement, { target: { value: text } });
 }

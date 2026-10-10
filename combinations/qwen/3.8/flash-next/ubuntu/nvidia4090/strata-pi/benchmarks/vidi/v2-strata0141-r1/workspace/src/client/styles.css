@@ -335,6 +335,16 @@ body {
   cursor: default;
 }
 
+/* --- Story 9: the tool that is in hand (text.tool_ui) ------------------- */
+
+/* The pressed tool is visibly pressed, so a person can see what a click will do. */
+.toolbar__button--active {
+  border-color: #2563eb;
+  background: #e8f0fe;
+  color: #143a63;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
 /* --- Story 3: connection status badge (top centre) ----------------------- */
 
 .connection-status {
@@ -618,6 +628,127 @@ main[data-board-editable='false'] .sticky-note {
 .board input,
 .board [contenteditable='true'],
 .sticky-note__editor {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* --- Story 9: text objects (`text.object`) -------------------------------- */
+
+/*
+ * Words on the board with no fill and no frame. The box is the one the document
+ * stores, so what a person sees is what every other client sees; the width is the
+ * box's, which is what makes the browser wrap the words where our own layout
+ * counted them (`text.layout`). Line height is TEXT_LINE_HEIGHT, so the stored
+ * height and the drawn height agree.
+ */
+.text-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #1f2933;
+  font-family: 'Inter', system-ui, sans-serif;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.text-object:focus-visible,
+.text-object[data-selected='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.text-object__text {
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+  pointer-events: none;
+}
+
+.text-object__editor-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* The editor is the text while editing: same font, same box, no chrome. */
+.text-object__editor {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 2em;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+}
+
+.text-object__counter,
+.text-editor__counter {
+  display: block;
+  font-size: 12px;
+  color: #b91c1c;
+}
+
+/* The toolbar of one selected text object: its size, and deleting it. */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.text-toolbar__sizes {
+  display: flex;
+  gap: 4px;
+}
+
+.text-toolbar__size {
+  min-width: 34px;
+  padding: 6px 8px;
+  border: 1px solid #d5dbe3;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2933;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.text-toolbar__size[aria-pressed='true'] {
+  border-color: #2563eb;
+  background: #e8f0fe;
+  color: #143a63;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.text-toolbar__size:focus-visible,
+.text-toolbar__delete:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.text-toolbar__delete {
+  padding: 6px 12px;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  background: #fee2e2;
+  color: #7f1d1d;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.board .text-object__editor {
   user-select: text;
   -webkit-user-select: text;
 }

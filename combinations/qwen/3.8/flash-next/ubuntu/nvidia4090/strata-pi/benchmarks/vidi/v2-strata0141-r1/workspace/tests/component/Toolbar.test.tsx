@@ -64,8 +64,8 @@ describe('sticky.toolbar - creating a note (TC-28)', () => {
 
   it('the create button carries the exact accessible name', () => {
     renderBoard();
-    const button = screen.getByRole('button', { name: 'Sticky note' });
-    expect(button.getAttribute('aria-label')).toBe('Sticky note');
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
+    expect(button.getAttribute('aria-label')).toBe('Sticky note (N)');
     expect(screen.getByTestId('create-sticky')).toBe(button);
   });
 

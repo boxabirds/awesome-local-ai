@@ -186,6 +186,47 @@ export const NUDGE_STEP_WORLD = 1;
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
 /* ---------------------------------------------------------------------------
+ * Story 9: free text anywhere on the board. Every text setting lives here
+ * (anchors `text.auto_width`, `text.fixed_width`, `text.size`, `text.limit`).
+ * ------------------------------------------------------------------------ */
+
+/** How wide a text object may get before its lines wrap (`text.auto_width`). */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** The narrowest a text object may be made with a side handle (`text.fixed_width`). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** How many characters one text object can hold (`text.limit`). */
+export const TEXT_MAX_CHARS = 5000;
+/** The four text sizes, in board units (`text.size`). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Text created by the Text tool starts at this size. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** The four sizes, in toolbar order. */
+export const TEXT_SIZE_NAMES = Object.keys(TEXT_SIZES) as TextSize[];
+/** Accessible name of a size: `Small size`, `Extra large size`, ... */
+export const TEXT_SIZE_LABELS: Record<TextSize, string> = {
+  S: 'Small',
+  M: 'Medium',
+  L: 'Large',
+  XL: 'Extra large',
+};
+/** Line spacing multiplier: one line is TEXT_SIZES[size] * TEXT_LINE_HEIGHT tall. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif stack, used for measuring and for rendering. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/**
+ * Slack added to an automatic text box beyond its widest line, so letters are
+ * never flush against the edge a handle is grabbed at. Clamped by
+ * TEXT_MAX_AUTO_WIDTH_WORLD, so an automatic box is never wider than the maximum.
+ */
+export const TEXT_BOX_PADDING_WORLD = 8;
+/**
+ * Average glyph width as a fraction of the font size, used only when this
+ * environment cannot measure text at all (no canvas): an estimate, never a throw.
+ */
+export const TEXT_ESTIMATED_GLYPH_WIDTH_RATIO = 0.55;
+
+/* ---------------------------------------------------------------------------
  * Story 8: undo and redo of a person's own changes. Every undo setting lives
  * here (anchors `undo.typing`, `undo.limit`).
  * ------------------------------------------------------------------------ */
