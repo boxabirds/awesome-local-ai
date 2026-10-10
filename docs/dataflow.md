@@ -27,7 +27,7 @@ flowchart TD
   subgraph node["Benchmark machine"]
     H[harness runs a story] --> RD["run directory (files)"]
   end
-  RD -- "after every story: public files, held-out detail removed" --> PUB{{public repo origin/main}}
+  RD -- "after every story: the published record, see What is published" --> PUB{{public repo origin/main}}
   RD -- "held-out detail, copied" --> PRIV{{private repo origin/main}}
   JS[judge-submit.sh] --> PRIV
   RD -- "dbench node API /v1/runs: full event stream, server log, conditions, egress, progress" --> COL
@@ -50,6 +50,81 @@ flowchart TD
   PRIV -. "working copy; nothing in the gallery updates it" .-> GAL
   ADB --> INS[insight scripts]
 ```
+
+## What is published
+
+After every story the harness sorts every file in the run directory into one of four outcomes
+(`publicise.is_private`, the run's `.gitignore` written by `drive.record_story`, and
+`drive.record_private`).
+
+```mermaid
+flowchart TD
+  F[A file in the run directory] --> Q1{Local bookkeeping or raw log?}
+  Q1 -- yes --> L["Stays on the machine<br/>(collected into the lake)"]
+  Q1 -- no --> Q2{Held-out detail?}
+  Q2 -- yes --> Q3{Has a counts-only summary?}
+  Q3 -- yes --> S["Private repo gets the file<br/>public repo gets its summary"]
+  Q3 -- no --> P["Private repo only"]
+  Q2 -- no --> Q4{Staged files clean?<br/>credentials, held-out titles}
+  Q4 -- "credential" --> R["Published with a marker in its place"]
+  Q4 -- "held-out title" --> X["Nothing is committed"]
+  Q4 -- clean --> PUB["Published as is"]
+```
+
+### Published as is
+
+Listed for the run `v2-gufoopencode-r2` from `git ls-files`.
+
+| File | What it is |
+|---|---|
+| `run.json` | The run's setup: combination, model, client and version, backend, host, harness commit and release, pack version, start time, sandbox, engine settings |
+| `run-status.json` | The run's state (for example `started`), the reason, the time and the host |
+| `metrics.json` | Per-story figures and the queue of processed stories with each one's status |
+| `summary.md` | The run's per-story table, in words |
+| `finalize.json` | What the final re-score recorded: suite version, the bundle, the outside-workspace check, the repair of accounting |
+| `rescore/<suite version>/` | A re-score under a suite version: `rescore.json`, `metrics.json`, `per-story.md`, and `stories/NN/accept-summary.json` |
+| `server-health.json` | The model server's health check, `{"status":"ok"}` |
+| `workspace/` | The agent's own code, as it left it |
+| `workspace.bundle` | The workspace's git history, so any story's commit can be rebuilt |
+| `workspace-git-log.txt` | The workspace's git log |
+| `stories/NN/prompt.md` | The prompt the agent was given for the story |
+| `stories/NN/base-commit` | The workspace commit the story started from |
+| `stories/NN/gate.json` | The agent's own gate: install, build and test steps, each with command, exit code, seconds and the tail of its output |
+| `stories/NN/agent-events.compact.jsonl.gz` | The agent's conversation with the model, compacted (`AGENT_OWN_FILES`) |
+| `.gitignore` | Written by the harness: the rules in this section |
+
+An older run (`v2-gufoopencode-r1`) also tracks `egress.jsonl`, `interventions.md` and
+`run-history.jsonl`. I did not open them, so I do not describe them.
+
+### Published as a summary only
+
+| Private file | Public summary beside it | What the summary keeps |
+|---|---|---|
+| `accept.json` (a story's held-out result) | `accept-summary.json` | counts and the harness's own words: `passed`, `total`, `by_story`, `skipped`, `build_exit`, `runner_exit`, `on_partial`, `setup_fallbacks`, `harness_fault`, `install`, `scores` (`SUMMARY_FIELDS`). Never a test or its output |
+| `accept-final.json` (the whole suite after the last story) | `accept-final-summary.json` | the same fields |
+
+### Private repo only (`PRIVATE_FILES`, `PRIVATE_RUN_FILES`, `PRIVATE_DIRS`)
+
+`accept-report.json`, `heldout-detail.json`, `summary-detail.md`, `publish-refused.json`,
+`audit.jsonl`, `AUDIT.md`, and the directories `artifacts/`, `screenshots/`, `pre-suite-fix/`
+and `scoring-N/`, wherever they sit in a run record. A file with one of these names inside the
+agent's `workspace/` is the agent's own and is not treated as private.
+
+### Local only, never pushed
+
+From the run's `.gitignore`: `stories/*/agent-events.jsonl` (the full stream),
+`stories/*/conditions.jsonl`, `current_story`, `work_dir.txt`, `progress.json`, `control/`; and
+`*.log` from the repository's `.gitignore` (for example `server.log`). The collector copies
+these into the lake.
+
+### Changed on the way
+
+- **Credentials** found in a staged file are replaced by a marker naming them, and counted in
+  the record's `credentials_redacted`.
+- **Held-out test titles:** if a staged file or the commit message contains one, the whole
+  commit is refused and the reasons go to `publish-refused.json`, which is private.
+- **Size:** `make_publishable` enforces a size limit on committed files. I did not read its
+  value.
 
 ## Components and the data they own
 
