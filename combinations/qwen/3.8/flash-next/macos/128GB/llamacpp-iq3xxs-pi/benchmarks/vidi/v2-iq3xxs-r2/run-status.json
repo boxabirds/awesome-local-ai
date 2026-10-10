@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 051e7c6ec (harness-v2026.10.08.1), client pi, model qwen3.8-flash-next-iq3xxs",
-  "at": "2026-10-08T21:50:35Z",
+  "state": "finished",
+  "reason": "",
+  "at": "2026-10-10T03:30:52Z",
   "host": "Apple M5 Max 128GB"
 }
