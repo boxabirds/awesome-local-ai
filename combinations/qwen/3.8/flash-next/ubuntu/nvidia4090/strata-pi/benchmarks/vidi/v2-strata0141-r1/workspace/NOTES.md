@@ -550,3 +550,109 @@ Two suites each failed once while other suites were running beside them - one co
 passed in isolation and on every re-run. Both are timing-sensitive under load rather than wrong. No
 test was loosened, skipped or deleted to get the suite green; the changes made were the product fixes
 above, the viewport rule for synthesized pointers, and the worker cap.
+
+## Story 8 - undo and redo my own changes without undoing anyone else's
+
+### Where the history lives
+
+`src/client/board/undo.ts` is a thin `UndoController` over one `Y.UndoManager`
+scoped to `doc.getMap('objects')` with `trackedOrigins: new Set([LOCAL_ORIGIN])`
+- the origin every mutation in `src/shared/board-model.ts` already carries (story
+2). Per-user undo is that one filter: everything that arrives from the room comes
+with the provider's origin, and everything that arrives from storage comes with
+`LOAD_ORIGIN`, so neither is ever captured, and no history is stored anywhere -
+reload and it is gone (`undo.session_only`). Story 16 will call `addScope()` for
+`comments`.
+
+- **Deviation from the design text:** the design says the tab's controller is
+  "created in this tab by `App.tsx`". `App.tsx` never sees a `Y.Doc` - the
+  document only exists after `BoardPage`'s load - so `BoardView` creates it (and
+  destroys a controller when the board it was made for is replaced). Tests pass
+  their own controller through `renderBoard({ undo })`, which is how the
+  component suites read stack state without a second undo sitting next to the
+  board's.
+- Object components reach the same controller through `UndoControllerContext`
+  rather than a prop: `registry.tsx` renders every object kind from one plain
+  props object, and a story about undo should not have to widen every object's
+  props.
+- The controller has no `state()` or `steps()`. Step counting in the tests is
+  done the way a person does it - pressing until `canUndo()` is false - so a test
+  cannot pass by reading an internal number that the UI never uses.
+
+### One press is one stack item (`undo.safe`)
+
+`Y.UndoManager.undo()` pops **until a pop changes something**
+(`popStackItem`'s `while (stack.length > 0 && currStackItem === null)`). With a
+collaborative document that is the dangerous case: if the top step moved a note
+someone else deleted, Yjs walks further back and reverses earlier steps too, so
+one press of undo would undo several of my actions. `popOneStep` hands the
+manager a stack containing only its top item, calls `undo()`, and puts the rest
+back in a `finally`. A step whose object is gone then consumes itself: nothing
+visible, no error, next press continues (TC-07, TC-23).
+
+- `manager.undo()`'s own return value is *not* the answer a press needs: it says
+  whether a change was applied, and the caller has to know whether a **step was
+  consumed**. So `undo()`/`redo()` return "a step was taken", and the controller
+  `notify()`s after every press that took one. That also fixes a real bug found
+  in e2e: a press that changed nothing fires no Yjs event at all
+  (`stack-item-popped` is only fired for a pop that did something), so the
+  toolbar buttons kept showing the state from before the press and Undo stayed
+  enabled on an exhausted history.
+- `Y.StackItem` is not exported by yjs, so a popped item is typed as `unknown`
+  and never touched.
+
+### Boundaries, and what a step means
+
+`boundary()` closes the capture window; `group(open)` holds one step open for the
+whole length of one action. `useTransformGesture` calls `onGestureStart` /
+`onGestureEnd`, `BoardView` composes them with `group(true)` / `group(false)`,
+because a drag writes on every animation frame and a slow drag is longer than the
+500 ms typing window - without the group it would come back as several steps
+(TC-14). `StickyTextEditor` calls `boundary()` on mount and on unmount, so an
+editing session is its own step and `Ctrl+Z` in the textarea takes back the
+typing only (`commit()` first, then `stopPropagation()` so the board does not
+undo a second time). Colour changes, delete, create and the selection-bar delete
+each go through `boundary()` (TC-15).
+
+- `stopCapturing()` alone does not re-open a group: it only resets `lastChange`,
+  so `boundary()` also restores `captureTimeout` - a gesture whose
+  `group(false)` never ran (an exception mid-drag) is repaired by the next
+  boundary.
+- The keyboard branch in `useBoardKeys` sits after Escape and before the "nothing
+  is selected" rule, because undoing is not a selection command: `Ctrl+Z` works
+  with nothing selected (TC-21). `Ctrl+Y` is redo along with `Ctrl/Cmd+Shift+Z`,
+  and every one of them is `preventDefault`ed so the browser's own undo cannot
+  diverge from the document's (TC-19). Focus in any field - a share-link input, a
+  note's textarea - keeps the event away from the controller (TC-21 negative).
+- `useUndo` recomputes `canUndo`/`canRedo` from the stacks on every `onChange`
+  notification (a `useReducer` stamp), which is what makes `disabled` and
+  `aria-disabled` correct without duplicating the state.
+
+### e2e coordinates
+
+`setFlatCamera({x: 0, y: 0, zoom: 1})` parks world (0,0) at the **top-left of the
+screen**, not at its centre (`screen = (world - camera) * zoom`), so seeded notes
+have to sit at positive world coordinates inside 1280x800 - a note created by the
+toolbar is at `VIEWPORT_CENTRE` in world coordinates, and a note's snapshot `x/y`
+is its top-left, i.e. centre - `STICKY_SIZE_WORLD / 2`. TC-24 seeds ten notes from
+one page in a single JS task, so their creation merges into one capture-window
+step, and each of the five editors then presses `Ctrl+Z` exactly twice to take
+back their own move and their own typing.
+
+### Flakes seen, and what was done about them
+
+`tests/e2e/share.spec.ts` TC-31 (story 4 storage, Worker restart) timed out on most
+full-suite runs once story 8's e2e tests were added - and it turned out to be a
+pre-existing machine problem, not a story 8 one: the pre-story-8 commit
+(`e74d66f`, checked out into a separate worktree) fails the same way, 2 runs out
+of 2, when `share.spec.ts` and `board-persistence.spec.ts` run side by side, while
+TC-31 alone passes in 2.7 s. Both files start their own `wrangler dev` in the
+24070-24079 block, and `restart()` was taking 21 s under that load (its own
+measurement, not a guess) against 1-2 s unloaded.
+
+The change made was to the harness size, not to the test:
+`playwright.config.ts` now caps workers at 3 instead of 6 (the file already
+carried a reduction from Playwright's default 16 for the same reason). With three
+workers the whole suite - 42 tests, nightly included - is green in about 1m20s,
+where six workers took 3m20s and lost TC-31 on most runs. No assertion, timeout or
+wait inside any test was loosened; `share.spec.ts` is untouched.

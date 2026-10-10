@@ -315,9 +315,24 @@ body {
 
 .toolbar__button:focus-visible,
 .note-toolbar__swatch:focus-visible,
-.note-toolbar__delete:focus-visible {
+.note-toolbar__delete:focus-visible,
+.undo-controls .toolbar__button:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
+}
+
+/* --- Story 8: undo and redo (undo.controls) ---------------------------- */
+
+.undo-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* A button that can do nothing looks like it can do nothing, and says so. */
+.toolbar__button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* --- Story 3: connection status badge (top centre) ----------------------- */

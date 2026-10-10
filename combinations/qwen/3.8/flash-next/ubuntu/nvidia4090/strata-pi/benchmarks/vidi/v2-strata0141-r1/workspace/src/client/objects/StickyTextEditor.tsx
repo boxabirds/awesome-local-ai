@@ -3,6 +3,7 @@ import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_PADDING_WORLD, STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { applyTextDelta, clampToLimit, counterVisible } from './StickyText';
+import { useBoardUndo } from '../board/useUndo';
 
 /**
  * The textarea that edits one sticky note's `sticky.text` (anchor `sticky.text`).
@@ -35,6 +36,22 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
   const composingRef = useRef(false);
   /** Set when characters were dropped, so the caret can be restored. */
   const caretRef = useRef<number | null>(null);
+  const undo = useBoardUndo();
+
+  /**
+   * An edit session is its own undo step (`undo.boundaries`, TC-16, TC-17).
+   *
+   * Opening the editor closes whatever step was open, so typing does not join a
+   * move or a delete; closing it closes the typing step, so the next action is
+   * separate. Inside the session, the capture window is what groups the typing -
+   * a burst is one step, a burst with a pause in it is two.
+   */
+  useEffect(() => {
+    undo?.boundary();
+    return () => {
+      undo?.boundary();
+    };
+  }, [undo]);
 
   // Caret at the end of the text when editing starts.
   useEffect(() => {
@@ -111,6 +128,28 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
       ref.current?.blur();
       onEnd('selected');
       return;
+    }
+
+    // `undo.controls` while editing (`sticky.text`: the editor owns its keys, and
+    // the board's own handler ignores a key pressed in a field). Ctrl/Cmd+Z undoes
+    // this person's last step - which may well be a move made before this note was
+    // opened, because the history is the board's, not this textarea's - and the
+    // browser's own undo, which knows nothing about the document, is not allowed.
+    const zKey =
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y');
+    if (zKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      // Whatever is in the textarea is already in the document (every input event
+      // writes); committing again costs nothing and keeps the two in step.
+      commit(event.currentTarget.value);
+      if (event.key === 'y' || event.key === 'Y' || event.shiftKey) {
+        undo?.redo();
+      } else {
+        undo?.undo();
+      }
     }
     // Enter inside the textarea is a new line; Delete/Backspace edit characters.
   };

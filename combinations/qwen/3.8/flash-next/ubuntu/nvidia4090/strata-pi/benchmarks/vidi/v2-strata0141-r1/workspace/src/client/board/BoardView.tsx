@@ -20,6 +20,8 @@ import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { useMarquee, MarqueeRect } from './Marquee';
 import { useBoardKeys } from './useBoardKeys';
+import { UndoControllerContext, useUndo, useUndoController } from './useUndo';
+import type { UndoController } from './undo';
 // Importing the registry is what registers the board's object types; every
 // object on the board is drawn by the component its type registered.
 import { getObjectType, type ObjectProps } from '../objects/registry';
@@ -57,6 +59,12 @@ export interface BoardViewProps {
    */
   onTransformStart?: () => void;
   onTransformEnd?: () => void;
+  /**
+   * The undo history to use instead of making one (`undo.history`). A test that
+   * wants to read the same stacks the toolbar reads passes its own controller;
+   * the app never passes one, and the board owns its history.
+   */
+  undo?: UndoController;
 }
 
 const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
@@ -68,6 +76,7 @@ export function BoardView({
   providerFactory,
   onTransformStart,
   onTransformEnd,
+  undo: providedUndo,
 }: BoardViewProps) {
   const { doc, objects, connectionState } = useBoardDoc({
     doc: providedDoc,
@@ -92,19 +101,46 @@ export function BoardView({
   /** Per-client selection, pruned against the board as other people change it. */
   const selection = useSelection(objects);
 
+  const undoController = useUndoController(doc, providedUndo);
+  const undoState = useUndo(undoController, editable);
+
+  /**
+   * One gesture is one undo step, however many frames it wrote and however long
+   * it lasted (`undo.steps`, TC-14): the step is opened when a gesture crosses
+   * the drag threshold and closed when it ends.
+   */
+  const onGestureStart = useCallback(() => {
+    undoController.group(true);
+    onTransformStart?.();
+  }, [onTransformStart, undoController]);
+  const onGestureEnd = useCallback(() => {
+    undoController.group(false);
+    onTransformEnd?.();
+  }, [onTransformEnd, undoController]);
+
   const gesture = useTransformGesture({
     doc,
     camera,
     selection,
     snapshot: objects,
     canEdit: editable,
-    onGestureStart: onTransformStart,
-    onGestureEnd: onTransformEnd,
+    onGestureStart,
+    onGestureEnd,
   });
 
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
 
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    history: {
+      undo: undoState.undo,
+      redo: undoState.redo,
+      boundary: undoController.boundary,
+    },
+  });
 
   /** Create a note centred on a world point and start editing it right away. */
   const createAt = useCallback(
@@ -112,12 +148,15 @@ export function BoardView({
       if (!editable) {
         return;
       }
+      // A creation is a step of its own, whatever was typed or moved before it.
+      undoController.boundary();
       const id = createSticky(doc, world);
+      undoController.boundary();
       if (id !== '') {
         selection.startEdit(id);
       }
     },
-    [doc, editable, selection],
+    [doc, editable, selection, undoController.boundary],
   );
 
   /** Toolbar creation: the centre of the visible board, wherever it is panned. */
@@ -147,9 +186,11 @@ export function BoardView({
     if (!editable) {
       return;
     }
+    undoController.boundary();
     deleteObjects(doc, [...selection.ids]);
+    undoController.boundary();
     selection.clear();
-  }, [doc, editable, selection]);
+  }, [doc, editable, selection, undoController.boundary]);
 
   const onEmptyDrag = useCallback(
     (phase: 'begin' | 'move' | 'end' | 'cancel', screen: { x: number; y: number }) => {
@@ -212,7 +253,7 @@ export function BoardView({
 
   const resizable = selectionHasResizableType(selection.ids, objects);
 
-  return (
+  const board = (
     <main
       className="app"
       data-app="vidi6"
@@ -259,8 +300,19 @@ export function BoardView({
         onHandlePointerDown={gesture.onHandlePointerDown}
       />
       <SelectionBar ids={selection.ids} snapshot={objects} onDelete={deleteSelection} />
-      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
+      <Toolbar
+        onCreateSticky={createAtViewportCentre}
+        disabled={!editable}
+        undo={undoState}
+      />
       <ConnectionStatus state={connectionState} />
     </main>
   );
+
+  /**
+   * The object components are inside the history's context: a note's colour, its
+   * bin button and its text editor all close a step around the one write they
+   * make, and none of them needs a prop for it (`ObjectProps` is unchanged).
+   */
+  return <UndoControllerContext.Provider value={undoController}>{board}</UndoControllerContext.Provider>;
 }

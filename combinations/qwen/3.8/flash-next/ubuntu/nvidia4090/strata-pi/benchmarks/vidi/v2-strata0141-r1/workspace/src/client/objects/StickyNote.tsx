@@ -16,6 +16,7 @@ import {
 import { fitFontSize, type FontFit } from './StickyText';
 import { NoteToolbar } from './NoteToolbar';
 import { StickyTextEditor } from './StickyTextEditor';
+import { useBoardUndo } from '../board/useUndo';
 import type { ObjectProps, PointerEventLike } from './registry';
 
 /**
@@ -64,6 +65,8 @@ export function StickyNote(props: StickyNoteProps) {
   } = props;
 
   const [fit, setFit] = useState<FontFit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
+  /** This board's undo history, for the step boundaries this note's buttons make. */
+  const undo = useBoardUndo();
 
   const noteRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
@@ -121,17 +124,22 @@ export function StickyNote(props: StickyNoteProps) {
       if (!editable) {
         return;
       }
+      // One recolour is one undo step (`undo.boundaries`).
+      undo?.boundary();
       setStickyColor(doc, note.id, color);
+      undo?.boundary();
     },
-    [doc, editable, note.id],
+    [doc, editable, note.id, undo],
   );
 
   const handleDelete = useCallback(() => {
     if (!editable) {
       return;
     }
+    undo?.boundary();
     deleteObject(doc, note.id);
-  }, [doc, editable, note.id]);
+    undo?.boundary();
+  }, [doc, editable, note.id, undo]);
 
   return (
     <div

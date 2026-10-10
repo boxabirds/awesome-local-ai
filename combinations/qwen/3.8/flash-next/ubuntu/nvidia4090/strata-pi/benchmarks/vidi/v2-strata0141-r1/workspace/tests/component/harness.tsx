@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import * as Y from 'yjs';
 import { BoardView } from '../../src/client/board/BoardView';
+import type { UndoController } from '../../src/client/board/undo';
 import {
   createSticky,
   deleteObject,
@@ -30,6 +31,12 @@ export function renderBoard(
     /** Gesture boundary spies (`sel.transform`, and story 8's undo boundary). */
     onTransformStart?: () => void;
     onTransformEnd?: () => void;
+    /**
+     * The undo history the board uses (story 8). Given, it is the board's own
+     * history, so a test reads the very stacks the toolbar and the keys act on;
+     * left out, the board makes one for itself.
+     */
+    undo?: UndoController;
   } = {},
 ) {
   return render(
@@ -40,6 +47,7 @@ export function renderBoard(
       providerFactory={options.providerFactory}
       onTransformStart={options.onTransformStart}
       onTransformEnd={options.onTransformEnd}
+      undo={options.undo}
     />,
   );
 }

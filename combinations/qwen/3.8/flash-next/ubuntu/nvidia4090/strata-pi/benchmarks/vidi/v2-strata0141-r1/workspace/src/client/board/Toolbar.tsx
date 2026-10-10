@@ -1,17 +1,23 @@
 import { useCallback } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoState } from './useUndo';
 
 /**
- * The fixed left toolbar (anchor `sticky.toolbar`). Its only tool so far is the
- * sticky note button, which creates a note at the centre of the visible board.
+ * The fixed left toolbar (anchors `sticky.toolbar`, `undo.controls`). Its tools
+ * so far are the sticky note button, which creates a note at the centre of the
+ * visible board, and the two buttons that take a person's own changes back and
+ * forward again.
  */
 export interface ToolbarProps {
   onCreateSticky(): void;
   /** True while the room could not load the board (`persist.client_status`). */
   disabled?: boolean;
+  /** Undo and redo for this board (`undo.controls`). */
+  undo?: UndoState;
 }
 
 export function Toolbar(props: ToolbarProps) {
-  const { onCreateSticky, disabled = false } = props;
+  const { onCreateSticky, disabled = false, undo } = props;
 
   const stop = useCallback((event: React.SyntheticEvent) => {
     event.stopPropagation();
@@ -48,6 +54,14 @@ export function Toolbar(props: ToolbarProps) {
         </svg>
         <span className="toolbar__label">Sticky note</span>
       </button>
+      {undo ? (
+        <UndoButtons
+          canUndo={undo.canUndo}
+          canRedo={undo.canRedo}
+          undo={undo.undo}
+          redo={undo.redo}
+        />
+      ) : null}
     </div>
   );
 }

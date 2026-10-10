@@ -24,6 +24,8 @@ import type { Selection } from './useSelection';
 | arrows | nudge the selection by NUDGE_STEP_WORLD (Shift: NUDGE_LARGE_STEP_WORLD) |
 | Delete / Backspace | delete the selection |
 | Enter | edit the single selected object that has editable text (story 2) |
+| Ctrl/Cmd+Z | undo this person's last own step (story 8, `undo.controls`) |
+| Ctrl/Cmd+Shift+Z, Ctrl+Y | redo it |
 
 Ignored while typing (`sticky.text` owns the keyboard while a note is being
 edited: TC-30), while focus is in a field, and - for every key that writes -
@@ -34,6 +36,19 @@ export interface BoardKeyOptions {
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /**
+   * This person's own undo history (story 8, `undo.controls`). Left out, the
+   * undo and redo keys do nothing; every key that writes a change closes the
+   * capture window around it, so a nudge or a delete is one undo step.
+   */
+  history?: BoardKeyHistory;
+}
+
+/** The part of `UndoController` the keyboard needs. */
+export interface BoardKeyHistory {
+  undo(): void;
+  redo(): void;
+  boundary(): void;
 }
 
 const isTextEntry = (target: EventTarget | null): boolean =>
@@ -53,7 +68,7 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = inputs.current;
+      const { doc, selection, snapshot, canEdit, history } = inputs.current;
 
       if (isTextEntry(event.target) || isTextEntry(document.activeElement)) {
         return; // typing in a note (or any field) is not a board command
@@ -76,6 +91,31 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       if (key === 'Escape') {
         event.preventDefault();
         selection.clear();
+        return;
+      }
+
+      // `undo.controls`: Ctrl/Cmd+Z undoes this person's last own step, and
+      // Ctrl/Cmd+Shift+Z (or Ctrl+Y) redoes it. The undo shortcuts work with
+      // nothing selected - undoing is not a selection command - so they are
+      // handled before the "nothing selected, nothing to do" rule below. Typing
+      // in a note is already out of this handler (`sticky.text` owns those keys,
+      // and `StickyTextEditor` intercepts Ctrl+Z itself), and so is any field.
+      const zKey =
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        (key === 'z' || key === 'Z' || key === 'y' || key === 'Y');
+      if (zKey) {
+        if (!canEdit || history === undefined) {
+          return; // a board nobody was given has no undo to offer (TC-20)
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const isRedo = key === 'y' || key === 'Y' || event.shiftKey;
+        if (isRedo) {
+          history.redo();
+        } else {
+          history.undo();
+        }
         return;
       }
 
@@ -118,8 +158,11 @@ export function useBoardKeys(options: BoardKeyOptions): void {
           const bounds = objectBounds(obj);
           positions.set(obj.id, { x: bounds.x + arrow.x * step, y: bounds.y + arrow.y * step });
         }
-        // The same `moveObjects` a drag uses, so a nudge and a drag agree.
+        // The same `moveObjects` a drag uses, so a nudge and a drag agree - and,
+        // like a drag, a nudge is one step of its own however fast the keys go.
+        history?.boundary();
         moveObjects(doc, positions);
+        history?.boundary();
         return;
       }
 
@@ -129,7 +172,9 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         if (!canEdit) {
           return;
         }
+        history?.boundary();
         deleteObjects(doc, ids);
+        history?.boundary();
         selection.clear();
       }
     };

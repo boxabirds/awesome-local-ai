@@ -73,9 +73,15 @@ export default defineConfig({
    * every worker talks to the one dev server this config starts. Playwright's
    * default (half the cores) is 16 on a 32-core box, and at that many the server
    * and the `wrangler` children starve each other until unrelated tests time out
-   * waiting for a page that was never served. Six keeps the suite green here.
+   * waiting for a page that was never served. Six was not enough either: with six
+   * workers `share.spec.ts`'s TC-31 - which starts a Worker, restarts it, and
+   * reopens the board - timed out on most full-suite runs, including on the tree
+   * before story 8 existed, while passing in 3 s on its own. Three workers start
+   * fewer `wrangler` processes at once, and the whole suite (42 tests, nightly
+   * included) runs green in 1m20s instead of timing out in 3m20s. Nothing in any
+   * test was loosened for this; it is the machine being given a size it can serve.
    */
-  workers: Math.min(6, Math.max(1, cpus().length)),
+  workers: Math.min(3, Math.max(1, cpus().length)),
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,

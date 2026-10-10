@@ -184,3 +184,21 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 /** One Shift+arrow nudge, in board units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+/* ---------------------------------------------------------------------------
+ * Story 8: undo and redo of a person's own changes. Every undo setting lives
+ * here (anchors `undo.typing`, `undo.limit`).
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Typing that pauses this long ends the current undo step (`undo.typing`):
+ * everything typed inside one burst is undone together, and `boundary()` cuts a
+ * step short before this so a drag or a delete is never merged with its
+ * neighbours.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/**
+ * How many of a person's own steps one board remembers (`undo.limit`). Adding a
+ * step beyond this drops the oldest one.
+ */
+export const UNDO_MAX_STEPS = 200;
