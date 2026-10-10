@@ -1,3 +1,107 @@
+commit 71529757181f93b50b7e0453d23fc711421bb974
+agent  Sat Oct 10 17:52:13 2026 +0000
+
+    story 5: Share a board with others using a link
+
+commit 6a521bf3cc522d711479e746dab81829c2f742d2
+agent  Sat Oct 10 17:51:09 2026 +0000
+
+    story 5 verification: the soak's notes do stand where their drags put them
+
+
+ NOTES.md                            | 19 +++++++++++++++++++
+ PROGRESS.md                         |  4 +++-
+ tests/e2e/nightly-stability.spec.ts | 30 +++++++++++++++++++++++++++---
+ 3 files changed, 49 insertions(+), 4 deletions(-)
+commit d4f735861e31cebd971b103dd9cef250715fc83b
+agent  Sat Oct 10 17:30:53 2026 +0000
+
+    story 5 task 7: links opened in a second browser, and what a legacy log needs
+
+
+ NOTES.md                              |  57 ++++++++
+ PROGRESS.md                           |  48 ++++++-
+ playwright.browsers.ts                |   6 +-
+ src/worker/board-room.ts              |   8 +-
+ src/worker/test-hooks.ts              |  21 ++-
+ tests/e2e/helpers/share.ts            |  26 ++++
+ tests/e2e/helpers/wrangler-process.ts |   4 +
+ tests/e2e/share.spec.ts               | 250 ++++++++++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts   |  18 +++
+ 9 files changed, 422 insertions(+), 16 deletions(-)
+commit 7af8b221bfda4877771cb2b91523de168e3a3d4e
+agent  Sat Oct 10 16:38:30 2026 +0000
+
+    story 5 tasks 5-6: the share panel, and the words the board page uses
+
+
+ src/client/pages/BoardPage.tsx      |  21 ++--
+ src/client/share/SharePanel.tsx     | 156 +++++++++++++++++++++++++
+ src/client/styles.css               |  67 +++++++++++
+ src/client/sync/existence.ts        |  14 ++-
+ tests/component/SharePanel.test.tsx | 225 ++++++++++++++++++++++++++++++++++++
+ tests/component/pages.test.tsx      |  69 ++++++++---
+ 6 files changed, 520 insertions(+), 32 deletions(-)
+commit e2a5416dd443381d40383e5b35461463e225e47b
+agent  Sat Oct 10 16:24:23 2026 +0000
+
+    story 5 task 4: the app becomes two pages chosen by the address
+
+
+ PROGRESS.md                          |  18 +-
+ src/client/App.tsx                   | 308 +++--------------------------------
+ src/client/api.ts                    |  75 +++++++++
+ src/client/board/BoardContents.tsx   | 206 +++++++++++++++++++++++
+ src/client/board/editable.ts         |  14 ++
+ src/client/pages/BoardPage.tsx       | 124 ++++++++++++++
+ src/client/pages/HomePage.tsx        |  26 +++
+ src/client/pages/NewBoardButton.tsx  |  54 ++++++
+ src/client/pages/NotFoundPage.tsx    |  34 ++++
+ src/client/router.ts                 |  91 +++++++++++
+ src/client/styles.css                | 114 +++++++++++++
+ src/client/sync/existence.ts         |  90 ++++++++++
+ src/shared/board-id.ts               |  11 +-
+ tests/component/LoadFailure.test.tsx |  11 +-
+ tests/component/helpers/board.tsx    |  16 +-
+ tests/component/pages.test.tsx       | 280 +++++++++++++++++++++++++++++++
+ tests/e2e/helpers/share.ts           |  53 ++++++
+ tests/e2e/live-collaboration.spec.ts |  30 ++--
+ tests/e2e/navigation.spec.ts         |   5 +-
+ tests/e2e/nightly-stability.spec.ts  |   8 +-
+ tests/e2e/persistence.spec.ts        |  11 +-
+ tests/e2e/sticky-notes.spec.ts       |   5 +-
+ tests/integration/board-api.test.ts  |   1 -
+ 23 files changed, 1260 insertions(+), 325 deletions(-)
+commit af79d31de33c8b544f9e65b38b4d06ea8efa84d5
+agent  Sat Oct 10 15:47:18 2026 +0000
+
+    story 5 tasks 1-3: board API, room 404s, id generation and their tests
+
+
+ PROGRESS.md                               |  31 ++-
+ index.html                                |   4 +
+ src/shared/config.ts                      |  19 ++
+ src/worker/board-room.ts                  |  67 +++++-
+ src/worker/board-store.ts                 | 126 +++++++++-
+ src/worker/create-board.ts                |  60 +++++
+ src/worker/env.d.ts                       |   6 +
+ src/worker/index.ts                       |  92 +++++++-
+ src/worker/test-hooks.ts                  | 153 ++++++++++++
+ tests/integration/board-api.test.ts       | 372 ++++++++++++++++++++++++++++++
+ tests/integration/board-room.test.ts      |   5 +
+ tests/integration/persistent-room.test.ts |  16 +-
+ tests/integration/worker.test.ts          |  30 ++-
+ tests/integration/ws-client.ts            |  38 +++
+ tests/unit/create-board.test.ts           | 111 +++++++++
+ 15 files changed, 1099 insertions(+), 31 deletions(-)
+commit 4f722ed10fdb8174f2ed5eef9488f0595d5f69aa
+vidi-agent  Sat Oct 10 15:49:29 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)
 commit e02037160a48e00ce39acc22066020971f449907
 agent  Sat Oct 10 14:42:30 2026 +0000
 
