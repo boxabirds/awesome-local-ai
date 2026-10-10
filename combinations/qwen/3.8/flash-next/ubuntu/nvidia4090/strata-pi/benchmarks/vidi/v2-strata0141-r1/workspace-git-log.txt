@@ -1,3 +1,53 @@
+commit 7780dc4b3cf589632e1f30847e462f68c6beb1e2
+agent  Sat Oct 10 08:37:02 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                  | 229 ++++++++++++++++
+ PROGRESS.md                               |  37 ++-
+ playwright.config.ts                      |   9 +
+ src/client/board/BoardView.tsx            | 208 ++++++++------
+ src/client/board/Marquee.tsx              | 143 ++++++++++
+ src/client/board/SelectionBar.tsx         |  48 ++++
+ src/client/board/SelectionOverlay.tsx     | 117 ++++++++
+ src/client/board/useBoardDoc.ts           |  53 +++-
+ src/client/board/useBoardKeys.ts          | 140 ++++++++++
+ src/client/board/useSelection.ts          | 197 +++++++++++---
+ src/client/board/useTransformGesture.ts   | 385 ++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx       |  50 +++-
+ src/client/objects/StickyNote.tsx         | 249 ++++-------------
+ src/client/objects/registry.tsx           | 172 ++++++++++++
+ src/client/styles.css                     | 118 ++++++++
+ src/shared/board-model.ts                 | 387 +++++++++++++++++++++++---
+ src/shared/config.ts                      |  22 ++
+ src/shared/geometry.ts                    | 346 ++++++++++++++++++++++++
+ tests/component/BoardKeys.test.tsx        | 357 ++++++++++++++++++++++++
+ tests/component/Marquee.test.tsx          | 198 ++++++++++++++
+ tests/component/SelectionBar.test.tsx     | 162 +++++++++++
+ tests/component/TransformGesture.test.tsx | 359 ++++++++++++++++++++++++
+ tests/component/harness.tsx               | 110 +++++++-
+ tests/e2e/full-capacity.spec.ts           | 135 +++++++++
+ tests/e2e/helpers/selection.ts            | 281 +++++++++++++++++++
+ tests/e2e/reorganise.spec.ts              | 204 ++++++++++++++
+ tests/e2e/selection-live.spec.ts          | 117 ++++++++
+ tests/fixtures/fakeProvider.ts            |  58 ++++
+ tests/fixtures/selection-board.ts         |  62 +++++
+ tests/fixtures/testbox.tsx                | 125 +++++++++
+ tests/fixtures/testlabel.tsx              | 118 ++++++++
+ tests/unit/board-model-group.test.ts      | 436 ++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts               | 335 +++++++++++++++++++++++
+ tests/unit/registry.test.ts               | 135 +++++++++
+ tests/unit/selection.test.ts              | 199 ++++++++++++++
+ 35 files changed, 5920 insertions(+), 381 deletions(-)
+commit 9878c5bd231665b6474ba7e8673cf5d8aa8f160a
+vidi-agent  Sat Oct 10 05:07:47 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit b06b4febbe805ac52b0d6d25bec9de2b3e196951
 agent  Sat Oct 10 05:04:18 2026 +0100
 

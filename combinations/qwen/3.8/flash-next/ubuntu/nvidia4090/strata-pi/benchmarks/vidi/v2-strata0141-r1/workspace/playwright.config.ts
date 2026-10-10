@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import { chromium, firefox, webkit } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
+import { cpus } from 'node:os';
 
 /**
  * E2E runs against `wrangler dev` serving the test build of the client
@@ -67,6 +68,14 @@ const browsers = (process.env.VIDI6_E2E_BROWSERS ?? info.browsers.join(','))
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
+  /**
+   * A worker is not cheap here: several tests start their own `wrangler dev`, and
+   * every worker talks to the one dev server this config starts. Playwright's
+   * default (half the cores) is 16 on a 32-core box, and at that many the server
+   * and the `wrangler` children starve each other until unrelated tests time out
+   * waiting for a page that was never served. Six keeps the suite green here.
+   */
+  workers: Math.min(6, Math.max(1, cpus().length)),
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,

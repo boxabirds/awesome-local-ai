@@ -1,15 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type * as Y from 'yjs';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
-  bringToFront,
   deleteObject,
   getStickyText,
-  moveObject,
+  objectBounds,
   setStickyColor,
   type StickySnapshot,
 } from '../../shared/board-model';
 import {
-  DRAG_THRESHOLD_PX,
   STICKY_COLORS,
   STICKY_FONT_MAX_PX,
   STICKY_PADDING_WORLD,
@@ -19,217 +16,88 @@ import {
 import { fitFontSize, type FontFit } from './StickyText';
 import { NoteToolbar } from './NoteToolbar';
 import { StickyTextEditor } from './StickyTextEditor';
+import type { ObjectProps, PointerEventLike } from './registry';
 
 /**
- * One sticky note (anchor `sticky.interaction`).
+ * One sticky note (anchor `sticky.interaction`), drawn and wired through the
+ * object type registry.
  *
- * Lifecycle of the interaction states:
+ * Story 7 took its drag code out: a note no longer decides what a press, a
+ * threshold or a group move means. It forwards `pointerdown` to the board's
+ * transform gesture (`sel.transform`) and renders whatever the document says,
+ * including the `width`/`height` a resize stored - a note that never had one
+ * still draws at STICKY_SIZE_WORLD, the size it always had (Key decision 5).
  *
  * ```mermaid
  * stateDiagram-v2
  *     [*] --> Unselected
- *     Unselected --> Pressed : pointerdown
+ *     Unselected --> Pressed : pointerdown (delegated to the gesture)
  *     Pressed --> Selected : pointerup within DRAG_THRESHOLD_PX
- *     Pressed --> Dragging : move beyond DRAG_THRESHOLD_PX
+ *     Pressed --> Dragging : gesture move beyond DRAG_THRESHOLD_PX
  *     Dragging --> Selected : pointerup or pointercancel
  *     Selected --> Editing : dblclick or Enter
  *     Editing --> Selected : Escape
  *     Editing --> Unselected : click outside
- *     Selected --> Unselected : click empty board
+ *     Selected --> Unselected : click empty board or Escape
  *     Selected --> [*] : Delete key or bin button
  * ```
  */
-export interface StickyNoteProps {
-  note: StickySnapshot;
-  doc: Y.Doc;
-  zoom: number;
-  selected: boolean;
-  editing: boolean;
-  /** False while the room could not load this board: nothing here mutates it. */
-  editable?: boolean;
-  onSelect(id: string): void;
-  onStartEdit(id: string): void;
-  onEndEdit(next: 'selected' | 'unselected'): void;
-}
-
-type Phase = 'idle' | 'pressed' | 'dragging';
-
-interface Drag {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  originX: number;
-  originY: number;
-  dragging: boolean;
-  /** Latest pointer offset, applied once per animation frame. */
-  pending: { dx: number; dy: number } | null;
-}
+export type StickyNoteProps = ObjectProps<StickySnapshot>;
 
 /** The text box inside the note's padding, in board units. */
-const TEXT_BOX = STICKY_SIZE_WORLD - 2 * STICKY_PADDING_WORLD;
+const textBoxOf = (width: number, height: number): number =>
+  Math.min(width, height) - 2 * STICKY_PADDING_WORLD;
 
 export function StickyNote(props: StickyNoteProps) {
-  const { note, doc, zoom, selected, editing, editable = true, onSelect, onStartEdit, onEndEdit } = props;
+  const {
+    obj: note,
+    doc,
+    zoom,
+    selected,
+    editing,
+    dragging,
+    editable = true,
+    onSelect,
+    onStartEdit,
+    onEndEdit,
+    onObjectPointerDown,
+  } = props;
 
-  const [phase, setPhase] = useState<Phase>('idle');
   const [fit, setFit] = useState<FontFit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
 
   const noteRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<Drag | null>(null);
-  const frameRef = useRef<number | null>(null);
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
+
+  const bounds = objectBounds(note);
+  const width = bounds.width;
+  const height = bounds.height;
 
   /**
-   * Auto-fit: measured only when the text changes, never on pointer or zoom
-   * events. `fitFontSize` sets the font size on the element while searching.
+   * Auto-fit: measured when the text changes or the note is resized, never on
+   * pointer or zoom events. `fitFontSize` sets the font size on the element
+   * while it searches.
    */
   useLayoutEffect(() => {
     const el = textRef.current;
     if (!el) {
       return;
     }
-    setFit(fitFontSize(el, TEXT_BOX));
-  }, [note.text]);
-
-  const releaseCapture = useCallback((pointerId: number) => {
-    const el = noteRef.current;
-    try {
-      if (el?.hasPointerCapture?.(pointerId)) {
-        el.releasePointerCapture(pointerId);
-      }
-    } catch {
-      // jsdom implements neither method.
-    }
-  }, []);
-
-  const finishInteraction = useCallback(() => {
-    if (frameRef.current !== null && typeof cancelAnimationFrame === 'function') {
-      cancelAnimationFrame(frameRef.current);
-    }
-    frameRef.current = null;
-    dragRef.current = null;
-    setPhase('idle');
-  }, []);
-
-  /** The note vanished (deleted elsewhere) while the interaction was running. */
-  const noteStillExists = useCallback((): boolean => getStickyText(doc, note.id) !== undefined, [doc, note.id]);
-
-  const applyDrag = useCallback(() => {
-    frameRef.current = null;
-    const drag = dragRef.current;
-    if (!drag || !drag.pending) {
-      return;
-    }
-    const cameraZoom = zoomRef.current || 1;
-    const x = drag.originX + drag.pending.dx / cameraZoom;
-    const y = drag.originY + drag.pending.dy / cameraZoom;
-    if (!moveObject(doc, note.id, x, y) && !noteStillExists()) {
-      finishInteraction(); // TC-37: end silently
-    }
-  }, [doc, finishInteraction, note.id, noteStillExists]);
-
-  const scheduleDrag = useCallback(() => {
-    if (frameRef.current !== null) {
-      return;
-    }
-    if (typeof requestAnimationFrame === 'function') {
-      frameRef.current = requestAnimationFrame(applyDrag);
-    } else {
-      applyDrag();
-    }
-  }, [applyDrag]);
+    setFit(fitFontSize(el, textBoxOf(width, height)));
+  }, [note.text, width, height]);
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      // The viewport must neither pan nor create a note (TC-20).
+      // The board must neither pan nor create a note (TC-20).
       event.stopPropagation();
       if (editing || event.button !== 0) {
         return;
       }
-      // A press is allowed even when the board is locked, so the note can still
-      // be selected and inspected; `handlePointerMove` is where a drag would
-      // have mutated the document, and that is where the lock bites.
-      dragRef.current = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        originX: note.x,
-        originY: note.y,
-        dragging: false,
-        pending: null,
-      };
-      try {
-        noteRef.current?.setPointerCapture(event.pointerId);
-      } catch {
-        // jsdom: no pointer capture, events still bubble to this element.
-      }
-      setPhase('pressed');
+      // Selection, the drag threshold and the group move all belong to the
+      // gesture; a press is allowed even when the board is locked, so the note
+      // can still be selected and inspected (`sel.transform` refuses the writes).
+      onObjectPointerDown(event as unknown as PointerEventLike, note.id);
     },
-    [editing, note.x, note.y],
-  );
-
-  const handlePointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const drag = dragRef.current;
-      if (!drag || drag.pointerId !== event.pointerId || !editable) {
-        return;
-      }
-      event.stopPropagation();
-      const dx = event.clientX - drag.startX;
-      const dy = event.clientY - drag.startY;
-      if (!drag.dragging) {
-        if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) {
-          return; // below the threshold: still a possible click (TC-19)
-        }
-        drag.dragging = true;
-        bringToFront(doc, note.id); // drawn above everything it overlaps
-        setPhase('dragging');
-      }
-      drag.pending = { dx, dy };
-      scheduleDrag();
-    },
-    [doc, editable, note.id, scheduleDrag],
-  );
-
-  const handlePointerUp = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const drag = dragRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) {
-        return;
-      }
-      event.stopPropagation();
-      if (drag.dragging) {
-        if (frameRef.current !== null && typeof cancelAnimationFrame === 'function') {
-          cancelAnimationFrame(frameRef.current);
-        }
-        applyDrag(); // land exactly under the pointer
-      }
-      releaseCapture(event.pointerId);
-      finishInteraction();
-      if (noteStillExists()) {
-        onSelect(note.id);
-      }
-    },
-    [applyDrag, finishInteraction, note.id, noteStillExists, onSelect, releaseCapture],
-  );
-
-  const handlePointerCancel = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const drag = dragRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) {
-        return;
-      }
-      event.stopPropagation();
-      // A cancelled drag keeps the last applied position (TC-21).
-      releaseCapture(event.pointerId);
-      finishInteraction();
-      if (noteStillExists()) {
-        onSelect(note.id);
-      }
-    },
-    [finishInteraction, note.id, noteStillExists, onSelect, releaseCapture],
+    [editing, note.id, onObjectPointerDown],
   );
 
   const handleDoubleClick = useCallback(
@@ -240,20 +108,12 @@ export function StickyNote(props: StickyNoteProps) {
       if (!editable) {
         return;
       }
-      onSelect(note.id);
+      onSelect(note.id, false);
       onStartEdit(note.id);
     },
-    [editable, note.id, onSelect, onStartEdit],
+    [editable, note.id, onStartEdit, onSelect],
   );
 
-  // The note was deleted while it was being dragged or edited (TC-37).
-  useEffect(() => {
-    if (!noteStillExists() && dragRef.current) {
-      finishInteraction();
-    }
-  }, [finishInteraction, noteStillExists, note.id]);
-
-  const dragging = phase === 'dragging';
   const showToolbar = selected && !editing && !dragging && editable;
 
   const handleColor = useCallback(
@@ -283,26 +143,22 @@ export function StickyNote(props: StickyNoteProps) {
       data-dragging={dragging ? 'true' : 'false'}
       data-editable={editable ? 'true' : 'false'}
       data-overflow={fit.overflow ? 'true' : 'false'}
+      data-width={width}
+      data-height={height}
       role="group"
       aria-label="Sticky note"
       tabIndex={0}
       style={{
-        width: `${STICKY_SIZE_WORLD}px`,
-        height: `${STICKY_SIZE_WORLD}px`,
+        width: `${width}px`,
+        height: `${height}px`,
         background: STICKY_COLORS[note.color] ?? STICKY_COLORS.yellow,
         transform: `translate(${note.x}px, ${note.y}px)`,
         zIndex: note.z,
       }}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
       onDoubleClick={handleDoubleClick}
     >
-      <div
-        className="sticky-note__clip"
-        style={{ padding: `${STICKY_PADDING_WORLD}px` }}
-      >
+      <div className="sticky-note__clip" style={{ padding: `${STICKY_PADDING_WORLD}px` }}>
         <div
           ref={textRef}
           className="sticky-note__text"
@@ -332,3 +188,6 @@ export function StickyNote(props: StickyNoteProps) {
     </div>
   );
 }
+
+/** The size a note that was never resized draws at, shared with the tests. */
+export const STICKY_DEFAULT_SIZE = STICKY_SIZE_WORLD;

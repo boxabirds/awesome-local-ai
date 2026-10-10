@@ -27,6 +27,9 @@ export function renderBoard(
     boardId?: string;
     connect?: boolean;
     providerFactory?: (url: string, boardId: string, doc: Y.Doc) => BoardProvider;
+    /** Gesture boundary spies (`sel.transform`, and story 8's undo boundary). */
+    onTransformStart?: () => void;
+    onTransformEnd?: () => void;
   } = {},
 ) {
   return render(
@@ -35,6 +38,8 @@ export function renderBoard(
       boardId={options.boardId ?? COMPONENT_BOARD_ID}
       connect={options.connect ?? false}
       providerFactory={options.providerFactory}
+      onTransformStart={options.onTransformStart}
+      onTransformEnd={options.onTransformEnd}
     />,
   );
 }
@@ -70,6 +75,42 @@ export function readCamera(): Camera {
     throw new Error(`unexpected world layer transform: ${JSON.stringify(transform)}`);
   }
   return { x: -Number(match[2]), y: -Number(match[3]), zoom: Number(match[1]) };
+}
+
+/** A world point as the screen shows it, with the camera the board is using. */
+export function screenOf(point: { x: number; y: number }): { x: number; y: number } {
+  const cam = readCamera();
+  return { x: (point.x - cam.x) * cam.zoom, y: (point.y - cam.y) * cam.zoom };
+}
+
+/** A screen point as the board reads it. */
+export function worldOf(point: { x: number; y: number }): { x: number; y: number } {
+  const cam = readCamera();
+  return { x: point.x / cam.zoom + cam.x, y: point.y / cam.zoom + cam.y };
+}
+
+export interface ScreenRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The screen rectangle a world rectangle occupies on the rendered board. */
+export function screenRectOf(rect: { x: number; y: number; width: number; height: number }): ScreenRect {
+  const a = screenOf({ x: rect.x, y: rect.y });
+  const b = screenOf({ x: rect.x + rect.width, y: rect.y + rect.height });
+  return {
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    width: Math.abs(b.x - a.x),
+    height: Math.abs(b.y - a.y),
+  };
+}
+
+/** The centre of a world rectangle, in screen coordinates: where to press it. */
+export function screenCentre(rect: { x: number; y: number; width: number; height: number }): { x: number; y: number } {
+  return screenOf({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 });
 }
 
 export function zoomLabel(): string {
@@ -191,20 +232,27 @@ export function pressKeys(key: string, modifiers: { ctrl?: boolean; meta?: boole
  * that has focus (and bubbles to the window, where the board's own handler
  * listens).
  */
-export function pressKey(key: string, modifiers: { ctrl?: boolean; meta?: boolean } = {}): KeyboardEvent {
+export function pressKey(
+  key: string,
+  modifiers: { ctrl?: boolean; meta?: boolean; shift?: boolean } = {},
+): KeyboardEvent {
   const event = new KeyboardEvent('keydown', {
     bubbles: true,
     cancelable: true,
     key,
     ctrlKey: modifiers.ctrl ?? false,
     metaKey: modifiers.meta ?? false,
+    shiftKey: modifiers.shift ?? false,
   });
   const target = document.activeElement;
   act(() => {
     if (target instanceof HTMLElement && target !== document.body) {
       target.dispatchEvent(event);
     } else {
-      window.dispatchEvent(event);
+      // Nothing is focused: a browser delivers the key to the body, and it
+      // bubbles through the document to the window, which is where the board's
+      // own listeners sit (and where a marquee's Escape sits on `document`).
+      document.body.dispatchEvent(event);
     }
   });
   return event;
@@ -263,6 +311,8 @@ export interface PointerOptions {
   pointerId?: number;
   button?: number;
   pointerType?: string;
+  /** Story 7: Shift+drag selects with a marquee, Shift+click toggles. */
+  shiftKey?: boolean;
 }
 
 /**
@@ -282,6 +332,7 @@ export function pointerAt(
     clientX: x,
     clientY: y,
     pointerId: options.pointerId ?? 1,
+    shiftKey: options.shiftKey ?? false,
   };
   if (typeof PointerEvent === 'function') {
     fireEvent(
@@ -334,12 +385,19 @@ export function dragElement(
   from: { x: number; y: number },
   to: { x: number; y: number },
   steps = 4,
+  options: PointerOptions = {},
 ): void {
-  pointerAt(element, 'pointerdown', from.x, from.y);
+  pointerAt(element, 'pointerdown', from.x, from.y, options);
   for (let step = 1; step <= steps; step += 1) {
-    pointerAt(element, 'pointermove', from.x + ((to.x - from.x) * step) / steps, from.y + ((to.y - from.y) * step) / steps);
+    pointerAt(
+      element,
+      'pointermove',
+      from.x + ((to.x - from.x) * step) / steps,
+      from.y + ((to.y - from.y) * step) / steps,
+      options,
+    );
   }
-  pointerAt(element, 'pointerup', to.x, to.y);
+  pointerAt(element, 'pointerup', to.x, to.y, options);
 }
 
 export function noteElement(id: string): HTMLElement {
@@ -404,6 +462,48 @@ export function pasteIntoEditor(text: string): void {
     throw new Error('the note is not being edited');
   }
   fireEvent.change(editor as HTMLTextAreaElement, { target: { value: text } });
+}
+
+/* ------------------------------------------------------------------------- */
+/* Selection helpers (story 7)                                               */
+/* ------------------------------------------------------------------------- */
+
+/** What the board says it has selected, read off the rendered board. */
+export function selectionCount(): number {
+  const value = screen.getByTestId('app').getAttribute('data-selection-count');
+  return value === null ? -1 : Number(value);
+}
+
+export function selectionBarElement(): HTMLElement | null {
+  return screen.queryByTestId('selection-bar');
+}
+
+export function selectionCountText(): string {
+  return screen.getByTestId('selection-count').textContent ?? '';
+}
+
+export function resizeHandleElement(handle: string): HTMLElement {
+  return screen.getByTestId(`resize-handle-${handle}`);
+}
+
+export function resizeHandles(): HTMLElement[] {
+  return screen.queryAllByTestId(/^resize-handle-/u);
+}
+
+export function marqueeElement(): HTMLElement | null {
+  return screen.queryByTestId('marquee-rect');
+}
+
+/** A rendered object of a type the tests registered (see `tests/fixtures`). */
+export function objectElement(id: string): HTMLElement {
+  return screen.getByTestId(`object-${id}`);
+}
+
+/** Run a document mutation and let the board re-render before continuing. */
+export function changeDoc(mutation: () => void): void {
+  act(() => {
+    mutation();
+  });
 }
 
 /** The position a note is drawn at, read from its CSS transform. */

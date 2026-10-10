@@ -488,3 +488,121 @@ main[data-board-editable='false'] .sticky-note {
   margin: 0;
   color: #7c2d12;
 }
+
+/* story 7: selection - outlines, marquee rectangle, group bar, resize handles */
+
+.board__object[data-selected='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.marquee-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5000;
+}
+
+.marquee-rect {
+  position: absolute;
+  border: 1px solid #2563eb;
+  background: rgb(37 99 235 / 12%);
+  box-sizing: border-box;
+}
+
+.selection-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5001;
+}
+
+.selection-overlay__box {
+  position: absolute;
+  border: 1px dashed #2563eb;
+  box-sizing: border-box;
+}
+
+.selection-overlay__handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 1px solid #1d4ed8;
+  border-radius: 2px;
+  background: #fff;
+  pointer-events: auto;
+  cursor: nwse-resize;
+}
+
+.selection-overlay__handle--n,
+.selection-overlay__handle--s {
+  cursor: ns-resize;
+}
+
+.selection-overlay__handle--e,
+.selection-overlay__handle--w {
+  cursor: ew-resize;
+}
+
+.selection-overlay__handle--nw,
+.selection-overlay__handle--se {
+  cursor: nwse-resize;
+}
+
+.selection-overlay__handle--ne,
+.selection-overlay__handle--sw {
+  cursor: nesw-resize;
+}
+
+.selection-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 6000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 12%);
+}
+
+.selection-bar__count {
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.selection-bar__delete {
+  padding: 6px 12px;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  background: #fee2e2;
+  color: #7f1d1d;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/*
+ * A board is dragged, not selected. Pressing an object and moving must not paint
+ * a text selection or start a native drag on top of the gesture: browsers give
+ * a native drag the pointer, which leaves a group gesture half finished.
+ * Text editing keeps selection, because there selecting text is the point.
+ */
+.board,
+.board__world {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+.board textarea,
+.board input,
+.board [contenteditable='true'],
+.sticky-note__editor {
+  user-select: text;
+  -webkit-user-select: text;
+}

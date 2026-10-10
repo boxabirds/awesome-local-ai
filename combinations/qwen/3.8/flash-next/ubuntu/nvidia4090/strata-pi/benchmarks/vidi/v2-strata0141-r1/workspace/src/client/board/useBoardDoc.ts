@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import {
+  initDoc,
+  isStickySnapshot,
+  objectSnapshots,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../../shared/board-model';
 import {
   connectBoard,
   type BoardProvider,
@@ -34,11 +40,27 @@ export interface BoardDocOptions {
 
 export interface BoardDoc {
   readonly doc: Y.Doc;
+  /** Sticky notes only - what stories 1-5 render and what the e2e hooks report. */
   readonly notes: readonly StickySnapshot[];
+  /**
+   * Every object on the board that has a registered type, in `(z, id)` order:
+   * what story 7 selects, moves and resizes, whatever the object turns out to be
+   * (`sel.all_types`).
+   */
+  readonly objects: readonly ObjectSnapshot[];
   readonly connectionState: ConnectionState;
 }
 
-const EMPTY: readonly StickySnapshot[] = Object.freeze([] as StickySnapshot[]);
+/** The render model of one document, computed in one pass per change. */
+interface BoardView {
+  readonly notes: readonly StickySnapshot[];
+  readonly objects: readonly ObjectSnapshot[];
+}
+
+const EMPTY: BoardView = Object.freeze({
+  notes: Object.freeze([] as StickySnapshot[]),
+  objects: Object.freeze([] as ObjectSnapshot[]),
+});
 
 export function useBoardDoc({
   doc: providedDoc,
@@ -75,8 +97,8 @@ export function useBoardDoc({
     };
   }, [boardId, connect, doc, providerFactory]);
 
-  // `null` means "dirty": the next read recomputes the snapshot.
-  const cacheRef = useRef<readonly StickySnapshot[] | null>(null);
+  // `null` means "dirty": the next read recomputes both views.
+  const cacheRef = useRef<BoardView | null>(null);
 
   const subscribe = useCallback(
     (listener: () => void) => {
@@ -94,15 +116,22 @@ export function useBoardDoc({
     [doc],
   );
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
-    let notes = cacheRef.current;
-    if (notes === null) {
-      notes = snapshot(doc);
-      cacheRef.current = notes;
+  const getSnapshot = useCallback((): BoardView => {
+    let view = cacheRef.current;
+    if (view === null) {
+      // One pass over the document for both views: `objectSnapshots` reads every
+      // object through its type's reader, and a sticky note's snapshot is one of
+      // those, so `notes` is the sticky ones picked out of it.
+      const objects = objectSnapshots(doc);
+      view = Object.freeze({
+        notes: objects.filter(isStickySnapshot),
+        objects,
+      });
+      cacheRef.current = view;
     }
-    return notes;
+    return view;
   }, [doc]);
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
-  return { doc, notes, connectionState };
+  const view = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
+  return { doc, notes: view.notes, objects: view.objects, connectionState };
 }

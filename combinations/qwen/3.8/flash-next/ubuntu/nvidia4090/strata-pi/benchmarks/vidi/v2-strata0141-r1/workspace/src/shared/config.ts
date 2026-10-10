@@ -162,3 +162,25 @@ export const LINK_COPIED_MS = 2000;
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
 /** Every board API call goes under this path prefix. */
 export const BOARD_API_PREFIX = '/api/boards';
+
+/* ---------------------------------------------------------------------------
+ * Story 7: selecting, moving and resizing objects. Every selection setting
+ * lives here (anchor `sel.size_limits`, `sel.nudge`).
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The side of one resize handle, in **screen** pixels: handles stay this big at
+ * any zoom (`sel.resize`).
+ */
+export const HANDLE_SIZE_PX = 8;
+/** The smallest a sticky note can be resized to, in board units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/**
+ * The largest any object of any type can be resized to, in board units - one
+ * global maximum for every object type (`sel.size_limits`).
+ */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** One arrow-key nudge, in board units. */
+export const NUDGE_STEP_WORLD = 1;
+/** One Shift+arrow nudge, in board units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

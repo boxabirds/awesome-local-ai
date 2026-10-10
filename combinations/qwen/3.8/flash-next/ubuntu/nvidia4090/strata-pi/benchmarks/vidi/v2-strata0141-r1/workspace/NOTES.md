@@ -321,3 +321,232 @@ finish, and workerd prints `Application called abortAllDurableObjects()` (or
 `deleteAllDurableObjects()`) at suite teardown. `tests/integration/board-api.test.ts` calls
 `abortAllDurableObjects()` before `reset()` in `afterEach` to keep the output readable. The message
 is sim bookkeeping, not an assertion: the suite exits 0 either way.
+
+---
+
+## Story 7 - selecting, moving, resizing and deleting several objects at once
+
+### The board model keeps two snapshot views, on purpose
+
+`snapshot(doc)` still returns `readonly StickySnapshot[]`, because stories 1-5 (and their tests)
+read notes through it. Story 7 added `objectSnapshots(doc)` next to it, returning generic
+`ObjectSnapshot[]` for the registry renderer, the selection and the marquee. `StickySnapshot extends
+ObjectSnapshot`, and `useBoardDoc` now reads **one** snapshot pass and derives `notes` from
+`objects`, so the two views can never disagree.
+
+Generic snapshots turned out to be too thin to render with: a position-only sticky has no `color`
+and no `text`, which broke the note toolbar. `board-model.ts` therefore has a per-type snapshot
+reader table (`registerSnapshotReader`, `SnapshotReader`), `sticky` registers `stickyFrom`, and
+`objectFrom` dispatches known types to their reader. Future types add a reader; nothing in the
+board changes.
+
+`SELECTABLE_TYPES` lives in `src/shared/board-model.ts` (seeded with `sticky`) and is filled by the
+client registry through `registerSelectableType`. `allObjectIds`, `objectsInRect` and
+`objectSnapshots` filter on it, which is what makes an unknown type unselectable (TC-12) without the
+shared layer knowing anything about client components.
+
+### Geometry is its own module, and clamping is per object
+
+`src/shared/geometry.ts` defines its own `Point`/`Rect` (structurally identical to the camera types,
+so no shared → client import) and holds `normalizeRect`, `rectContains`, `unionRects`, `resizeRect`,
+`clampScale` and `scaleWithin`.
+
+- `resizeRect` anchors the opposite edge/corner of the handle being dragged, and for
+  `aspectLocked` it follows the axis that moved proportionally **more**, so a corner drag that is
+  more vertical than horizontal scales by the vertical ratio.
+- `clampScale` asks each selected object what it can tolerate (its type `minSize`, and
+  `MAX_OBJECT_SIZE_WORLD`) and returns a factor no object would exceed. When the request was
+  uniform it stays uniform - that is what keeps an aspect-locked group resize aspect-locked after
+  clamping - and when min and max conflict it prefers the minimum, so a group can always be dragged
+  somewhere legal rather than freezing.
+- `scaleWithin(rect, box, to)` maps one object from the old bounding box into the new one, which is
+  how gaps scale with the objects (TC-04: two notes 100 apart, box width ×2 → 400 wide, gap 200).
+- `resizeRectFromScale` converts the clamped factor back into a box around the handle that was
+  dragged, so the handle stays under the pointer as far as clamping allows.
+
+### Group operations skip transactions that would write nothing
+
+`moveObjects`, `resizeObjects`, `deleteObjects` and `bringObjectsToFront` count only the writes they
+actually make. That matters for stories 2 and 3's expectations about update counts: `moveObjects` to
+where the notes already are, or `bringObjectsToFront` on a selection that is already contiguous on
+top, returns 0 and fires no `update` event. `moveObjects` also returns the number of objects it
+found, so a selection that partly vanished is visible to the caller (TC-05).
+
+### Selection is a pure reducer, and presence is handled by pruning
+
+`src/client/board/useSelection.ts` exports `selectionReducer` (pure, unit-tested TC-13 to TC-15) and
+the hook `useSelection(snapshot)`. Actions are `click`, `toggle`, `setMany`, `clear`, `prune`, `edit`.
+`edit(id)` selects and starts editing; `edit(null)` ends editing and keeps the selection - which is
+what makes Enter-on-a-selected-group edit one note and leave the group selected (TC-30).
+
+The first version filtered action ids against the snapshot at dispatch time. That is wrong: a note
+created by the toolbar is not in the snapshot of the render that asked for it, and story 2's
+select-after-create (its TC-23) needs it selected immediately. Ids are now pruned **when the
+snapshot changes** instead, which also implements TC-17/TC-18 - a remote delete, or a local delete,
+leaves the selection without that id and the bar count follows.
+
+### The registry, and how a `StickyNote` fits it
+
+`src/client/objects/registry.tsx` holds `ObjectTypeSpec { Component, resizable, aspectLocked,
+minSize, editableText, hitTest }`, `registerObjectType` (throws on a duplicate type, TC-11) and
+`getObjectType`. `sticky` registers itself when the module is imported - importing the registry from
+`BoardView` is what registers the board's types, and the story 2 tests keep working because the
+sticky component is still `StickyNote`.
+
+`Component: ComponentType<ObjectProps<never>>` is the trick that lets a component with the narrower
+`ObjectProps<StickySnapshot>` be registered; `BoardView` casts to `ComponentType<ObjectProps>` when
+it renders. `ObjectProps` carries `onObjectPointerDown(event, id)` typed against a structural
+`PointerEventLike`, so a React synthetic event and a DOM `PointerEvent` are both acceptable.
+
+`hitTest` is per type and `hitTestBounds` (the shared implementation behind it) treats `x`/`y` as the
+**top-left**, with the type's default size used when width/height are absent - a unit test that
+assumed centres had to be corrected for this.
+
+### The transform gesture: window listeners, absolute start rects, one write per frame
+
+`useTransformGesture` returns `onObjectPointerDown`, `onHandlePointerDown` and `activeIds` (the
+latter is `data-dragging`, which story 2's tests already asserted). After the pointerdown it listens
+on `window` for `pointermove`/`pointerup`/`pointercancel`, so components only have to forward one
+event and the gesture survives the pointer leaving the object.
+
+Three things that were wrong until they were tested:
+
+1. **Stale closure.** The listeners are attached once, so they must not close over the mount
+   render's `doc` or options. All of them now read `inputs.current`, refreshed every render.
+2. **Absolute positions.** At threshold crossing the gesture captures each selected object's rect
+   and the union bounding box. A move writes `startRect + pointerDelta / zoom` (never
+   `current + delta`), which is what makes the e2e assertion "300 board units and nothing snapped
+   back" true.
+3. **A release between two frames.** Writes are coalesced to one animation frame, and the gesture is
+   retired on pointerup, so the guard `gesture !== gestureRef.current` dropped the final apply.
+   `applyGesture(gesture, final = false)` now applies the pending delta exactly once on release
+   (`applyGesture(gesture, true)`) and `pointercancel` drops the pending delta while keeping the last
+   applied state (TC-26's cancellation rule).
+
+`onGestureStart` / `onGestureEnd` are exposed through `BoardView` props. That is the seam story 8
+needs for "one transaction per continuous gesture", and the component tests use it to count gesture
+boundaries.
+
+### Marquee, outlines and the bar
+
+- `BoardViewport` decides *gesture by modifier on empty space*: Shift+drag is a marquee, plain drag
+  is still story 1's pan. Marquee cancel does not dispatch `onEmptyClick`, so a cancelled marquee
+  does not also clear the selection.
+- `useMarquee` keeps the rectangle in world units and selects objects **fully inside** it
+  (`objectsInRect`); Escape during an active marquee cancels it and leaves the selection alone.
+  The Escape listener is on `document`, not `window`: the marquee has to cancel before
+  `useBoardKeys`'s window-level Escape clears the selection.
+- `SelectionBar` renders nothing below two selected objects (TC-19), announces `aria-live="polite"`
+  and has one action: delete the whole selection in one model call (TC-16).
+- `SelectionOverlay` draws the bounding box and the eight handles, handles staying `HANDLE_SIZE_PX`
+  on screen at any zoom, and renders no handles at all when the selection has no resizable type
+  (TC-17, proved with the `testlabel` fixture).
+- `useBoardKeys` ignores keys while focus is in a field (`Ctrl+A` stays a text select inside a note,
+  TC-28) and while an object is being edited (TC-29). Escape clears selection, arrows nudge by
+  `NUDGE_STEP_WORLD` (`NUDGE_LARGE_STEP_WORLD` with Shift), Delete removes the selection, and each of
+  them calls `preventDefault` so the page does not scroll and the board does not pan (TC-34).
+
+### Test-only object types
+
+`tests/fixtures/testbox.tsx` (resizable, **not** aspect-locked, `TESTBOX_MIN_SIZE_WORLD = 10`) and
+`tests/fixtures/testlabel.tsx` (not resizable, not editable) are registered only by tests, which is
+how "generic for every type" is proven before stories 9-12 add real types: non-uniform group resize
+with per-type minimums, hidden handles, Enter not editing a non-text type.
+
+### Component-test harness truths that cost time to find
+
+- `pressKey` dispatches on `document.body` when nothing has focus (dispatching on `window` never
+  reaches a `document`-level listener such as the marquee's Escape).
+- `renderBoard` forwards `onTransformStart`/`onTransformEnd`; without that the gesture-boundary spies
+  see nothing.
+- Camera writes are coalesced in `useCamera`, so `readCamera()` after a pan or a move needs
+  `await flushFrame()` first.
+- jsdom does not do text editing: an editor's value changes with
+  `fireEvent.change(editor, { target: { value } })`, not with a keydown.
+- There is no `data-editing` attribute; editing is detected by the editor element existing inside the
+  note (`editorElement()` / `editorFor(id)`).
+- `createNote`/`createSticky` take the note's **centre** and store `centre - STICKY_SIZE_WORLD / 2` as
+  `x`/`y`; marquee and hit-test expectations have to be computed as `centre ± 100`.
+
+### E2E notes
+
+- Every story 7 e2e test parks the camera at the world origin (`setCamera({ x: 0, y: 0, zoom: 1 })`,
+  or `zoom: 0.5` for the 20-note fixture) so a board unit and a screen pixel are the same number and
+  a drag can be stated in board units. `tests/e2e/helpers/selection.ts` measures selection through
+  `data-selected` and the bar's announced text - never through client state.
+- `tests/e2e/reorganise.spec.ts` is the design's workflow 1 (TC-32 → TC-33 → TC-34): box-select,
+  group move 250 units, corner resize (sizes and gaps ×1.2, notes still square, the unselected note
+  untouched), min-size clamping, arrow nudge with no page scroll and no pan, then the selection bar's
+  Delete. TC-33 also asserts the moved group is painted **above** the note it was dragged over.
+- `tests/e2e/selection-live.spec.ts` (TC-35) uses the 20-note fixture in two clusters
+  (`tests/fixtures/selection-board.ts`): Lee box-selects four, Sam deletes one, Lee's bar goes from
+  "4 selected" to "3 selected", the remaining three stay outlined, and Lee's Delete removes exactly
+  those three. Measured prune latency on this machine: **109 ms** against the 1000 ms budget.
+- `tests/e2e/full-capacity.spec.ts` (TC-36) runs MAX_CONCURRENT_EDITORS contexts, each box-selecting
+  and dragging its own column at the same time; every editor ends with the same board, holding the
+  positions each of them intended. Convergence logged at ~1.2 s for the whole five-editor run.
+- `npm run test:e2e` on 12 workers made story 4's TC-31 (which starts and restarts its own
+  `wrangler dev` next to Playwright's server) time out in `waitForSelector`; on this machine the full
+  e2e suite is stable at `--workers=6`. Nothing about the assertion changed. Playwright's default is
+  half the cores - 16 on this 32-core box - and at 16 the shared dev server was reported dead
+  (`[WebServer] Uncaught Error: Network connection lost.`) mid-run, so `playwright.config.ts` now caps
+  workers at `Math.min(6, cpus().length)`.
+
+### Cross-browser: what this machine can run, and what the failures taught
+
+Task 15 asks for TC-32 in Firefox and WebKit too. Installed Playwright's Firefox and WebKit to try.
+
+- **WebKit cannot launch here**: `browserType.launch: Host system is missing dependencies to run
+  browsers` naming `libavif13`; installing it needs `sudo`, and this default container sets the
+  "no new privileges" flag, so `sudo` is refused. Marked blocked in PROGRESS.md rather than pretended.
+- **Firefox passes story 7's own board tests**: TC-32, TC-33, TC-34 and TC-35 all green there
+  (`VIDI6_E2E_BROWSERS=firefox npx playwright test reorganise selection-live`).
+- **TC-36 (five simultaneous editors) fails in Firefox only.** With five contexts each driving a
+  marquee and a drag, Playwright's synthesized mouse input for one page arrives on another: a page
+  logged `pointerdown` at coordinates belonging to a different window - some of them negative - and
+  marquees selected nothing. Run one page at a time in the same build, the very same drags select
+  correctly. It is Playwright's Firefox input dispatch under load, not the app: the identical test is
+  green in Chromium, and Chromium is the browser `npm run test:e2e` uses here.
+- **Story 1 to 5's e2e tests have the same kind of Firefox-only failures on this machine** (TC-26 in
+  `share.spec.ts`, TC-27 in `live-collaboration.spec.ts`, the panned-board toolbar test in
+  `sticky-notes.spec.ts`). Fixing other stories' tests is out of this story's scope, so the Firefox
+  binary was removed again after the checks: the checked-in `.e2e/browser.json` detection resolves
+  back to Chromium alone, which is the configuration this suite is green in.
+
+**A synthesized pointer must stay inside the viewport.** The first version of TC-33 grabbed a handle
+whose release point was off the right edge of the 1280x800 viewport. Chromium reported the off-screen
+move as given; Firefox reported a whole stretch of the drag as `pointermove` at `x=0, y=-86` targeting
+`#document` - negative coordinates, which the gesture then faithfully applied and the group collapsed
+to its minimum size. That looked exactly like "resizing breaks in Firefox", and it was the test.
+Now: TC-33's cluster sits at 150/450/750 so every marquee, move and handle drag releases on screen,
+and `insideViewport()` in `tests/e2e/helpers/selection.ts` throws before a drag starts if its start or
+end would put the pointer off the viewport - a broken test should say so immediately rather than let
+the app absorb it. `dragScreen` is one continuous `mouse.move(from -> to, { steps })`; two consecutive
+`mouse.move` calls produced garbled Firefox events (a `pointermove` reported as `pointerdown`).
+
+**Two real product fixes came out of Firefox**, both found because Firefox reported the browser's own
+behaviour where Chromium quietly hid it:
+
+- *The release carries the final position.* Browsers legitimately coalesce or drop trailing
+  `pointermove`s, and an inertial scroll on the release lands the pointer somewhere other than the
+  last reported move. TC-33 moved a group 250 units and it landed 200 away - the release position was
+  never read. `useTransformGesture.finish` now takes `pending` from the `pointerup`'s own coordinates:
+  an object ends up exactly where the pointer was released, which is what the PRD's "move what I
+  selected as one" actually promises. (Chromium's `user-select` text drag, below, was what made this
+  visible as a 200-unit error rather than a rare one.)
+- *Dragging the board is not dragging text or a button.* Pressing on a note's text, or on its toolbar
+  buttons, let the browser start its own drag; Firefox then handed the pointer to that drag, mid-gesture,
+  and applied a garbage offset. `BoardViewport` now prevents `dragstart` on the board surface, and the
+  board and world layers are `user-select: none` with text editors opting back in to `user-select: text`.
+  Selecting text inside a note still works; starting a drag off a note can no longer hijack a transform.
+- `setPointerCapture` is gone. Window-level listeners already receive every move and release, and
+  capture is fragile against a re-render that swaps the captured element - which group drag-and-raise
+  can do, because the raised objects are rendered later in the list.
+
+### Flakes seen, and what was not done about them
+
+Two suites each failed once while other suites were running beside them - one component test, and
+`tests/integration/board-room.test.ts`'s "query ok" (a 45 s wait for a delayed D1 write) - and each
+passed in isolation and on every re-run. Both are timing-sensitive under load rather than wrong. No
+test was loosened, skipped or deleted to get the suite green; the changes made were the product fixes
+above, the viewport rule for synthesized pointers, and the worker cap.

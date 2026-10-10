@@ -91,6 +91,13 @@ export interface BoardViewportProps {
   onEmptyDoubleClick?: (world: Point) => void;
   /** Empty board clicked without panning: the world point under the pointer. */
   onEmptyClick?: (world: Point) => void;
+  /**
+   * Shift+drag on empty board space (`sel.marquee_ui`): the board selects with a
+   * rectangle instead of panning. The phase is the marquee's own lifecycle -
+   * `begin` on the press, `move` while it grows, `end` on release (select),
+   * `cancel` on pointercancel (selection unchanged).
+   */
+  onEmptyDrag?: (phase: 'begin' | 'move' | 'end' | 'cancel', screen: Point, world: Point) => void;
   /** Called whenever the camera or the surface size changes. */
   onSurfaceChange?: (surface: BoardSurface) => void;
 }
@@ -105,7 +112,7 @@ export interface BoardViewportProps {
  * world layer, so they pan and zoom with the board.
  */
 export function BoardViewport(props: BoardViewportProps) {
-  const { children, onEmptyDoubleClick, onEmptyClick, onSurfaceChange } = props;
+  const { children, onEmptyDoubleClick, onEmptyClick, onEmptyDrag, onSurfaceChange } = props;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(surfaceRef);
   const api = useCamera(viewport);
@@ -116,6 +123,8 @@ export function BoardViewport(props: BoardViewportProps) {
   const gestureScaleRef = useRef(1);
   /** A pointerdown on empty board space that has not moved yet: a click. */
   const pendingClickRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  /** What the current empty-space press is doing: story 1's pan, or a marquee. */
+  const dragModeRef = useRef<'pan' | 'marquee' | null>(null);
 
   const screenPointFromEvent = useCallback(
     (e: { clientX: number; clientY: number }) => {
@@ -132,12 +141,25 @@ export function BoardViewport(props: BoardViewportProps) {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const target = e.target;
     if (!(target instanceof Element) || target.getAttribute('data-board-surface') !== 'true') {
-      return; // only empty board space starts a pan
+      return; // only empty board space starts a pan or a marquee
     }
     if (e.button !== 0 && e.pointerType === 'mouse') {
       return;
     }
     const point = screenPointFromEvent(e);
+    if (e.shiftKey && onEmptyDrag) {
+      // Story 7: with Shift held, empty space is selected with a rectangle
+      // instead of panned (TC-21: without Shift this stays story 1's pan).
+      dragModeRef.current = 'marquee';
+      onEmptyDrag('begin', point, screenToWorld(api.camera, point));
+      try {
+        surfaceRef.current?.setPointerCapture(e.pointerId);
+      } catch {
+        // jsdom (and browsers that reject capture) still track the drag.
+      }
+      return;
+    }
+    dragModeRef.current = 'pan';
     pendingClickRef.current = { x: point.x, y: point.y, moved: false };
     beginPan(point);
     try {
@@ -149,6 +171,10 @@ export function BoardViewport(props: BoardViewportProps) {
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const point = screenPointFromEvent(e);
+    if (dragModeRef.current === 'marquee') {
+      onEmptyDrag?.('move', point, screenToWorld(api.camera, point));
+      return;
+    }
     const pending = pendingClickRef.current;
     if (pending && !pending.moved) {
       const dx = point.x - pending.x;
@@ -164,6 +190,15 @@ export function BoardViewport(props: BoardViewportProps) {
   };
 
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const mode = dragModeRef.current;
+    dragModeRef.current = null;
+    if (mode === 'marquee') {
+      // Release selects what the rectangle holds; a cancel discards the
+      // rectangle and leaves the selection as it was (TC-22).
+      const point = screenPointFromEvent(e);
+      onEmptyDrag?.(e.type === 'pointerup' ? 'end' : 'cancel', point, screenToWorld(api.camera, point));
+      return;
+    }
     const pending = pendingClickRef.current;
     pendingClickRef.current = null;
     if (pending && !pending.moved && onEmptyClick && e.type === 'pointerup') {
@@ -306,6 +341,17 @@ export function BoardViewport(props: BoardViewportProps) {
       onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
       onDoubleClick={onDoubleClick}
+      onDragStart={(event) => {
+        // Board objects are moved by the app's own gestures. Letting the browser
+        // start a native drag (or a text-selection drag) on top of a pointer drag
+        // hijacks the pointer events mid-gesture, so only text editing keeps the
+        // browser's drag behaviour.
+        const source = event.target;
+        if (source instanceof Element && source.closest('textarea, input, [contenteditable="true"]')) {
+          return;
+        }
+        event.preventDefault();
+      }}
     >
       <div className="board__grid" data-board-surface="true" aria-hidden="true" />
       <div
