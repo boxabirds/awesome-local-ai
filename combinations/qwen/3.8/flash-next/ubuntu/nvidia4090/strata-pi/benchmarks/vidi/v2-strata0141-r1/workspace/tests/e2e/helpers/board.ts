@@ -33,9 +33,18 @@ export function boardIdOfPage(page: Page): string {
  * Open a board. With no `boardId` the page starts its own board (the app turns
  * `/` into `/b/<new address>`); with one it joins that board.
  * Returns the board address the page ended up on.
+ *
+ * `origin` sends the page to a server other than Playwright's `baseURL`, which
+ * the restart tests need because each of them runs its own `wrangler dev`.
  */
-export async function openBoard(page: Page, options: { boardId?: string } = {}): Promise<string> {
-  await page.goto(options.boardId ? `${BOARD_PATH_PREFIX}${options.boardId}` : '/');
+export async function openBoard(
+  page: Page,
+  options: { boardId?: string; origin?: string } = {},
+): Promise<string> {
+  const origin = options.origin ?? '';
+  await page.goto(
+    options.boardId ? `${origin}${BOARD_PATH_PREFIX}${options.boardId}` : `${origin}/`,
+  );
   await page.waitForSelector('[data-testid="board"]');
   await page.waitForSelector('[data-testid="world-layer"]');
   // Wait for the first camera render so measurements are stable.

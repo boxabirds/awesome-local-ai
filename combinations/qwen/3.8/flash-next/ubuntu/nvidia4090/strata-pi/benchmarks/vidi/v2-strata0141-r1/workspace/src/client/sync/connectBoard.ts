@@ -8,6 +8,8 @@
  *   connected    the room has answered and the link is up (nothing to show)
  *   reconnecting the link that once worked is down, and the board keeps working
  *   confirmed    a lost link came back: a short "Connected" confirmation
+ *   load_failed  the room said it could not load this board: retrying, and the
+ *                board cannot be edited
  *
  * Design decisions this encodes:
  *
@@ -22,18 +24,33 @@
  *   Story 6 puts real presence in the same state.
  * - The local Y.Doc is never blocked: edits made while `reconnecting` stay local
  *   and are sent by the provider as soon as the link is back.
+ * - A close with `CLOSE_BOARD_LOAD_FAILED` (4500) is the room saying the board
+ *   itself could not be read. That is not a link problem: the state becomes
+ *   `load_failed`, which the UI shows honestly and refuses to edit. Every other
+ *   close code (1011 after a storage failure, 1003 after a bad frame, 1006 when
+ *   a socket died) stays `reconnecting`, because the board is still there and
+ *   still editable. 4500 is outside `y-websocket`'s "do not reconnect" range, so
+ *   retries continue by themselves and no page reload is needed.
  */
 
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS, ROOM_ROUTE_PREFIX } from '../../shared/config';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 
 /** The provider events `connectBoard` uses; a test can supply a fake. */
 export interface BoardProvider {
   on(name: 'status', handler: (event: { status: ProviderStatus }) => void): void;
   on(name: 'sync', handler: (synced: boolean) => void): void;
+  /** `null` when the close was ours (a disconnect or the watchdog). */
+  on(name: 'connection-close', handler: (event: { code: number } | null) => void): void;
   destroy(): void;
 }
 
@@ -137,6 +154,19 @@ export function connectBoard(
     // still "Connecting…": the room has not confirmed anything.
   });
 
+  provider.on('connection-close', (event) => {
+    if (event !== null && event.code === CLOSE_BOARD_LOAD_FAILED) {
+      // The room refused the board, not the connection. Everything else -
+      // 1011 after a storage failure, 1003 after a bad frame, a socket that
+      // died - is a link problem and leaves the board editable.
+      setState('load_failed');
+      return;
+    }
+    if (answered) {
+      setState('reconnecting');
+    }
+  });
+
   provider.on('sync', (synced) => {
     if (!synced) {
       if (answered) {
@@ -144,9 +174,9 @@ export function connectBoard(
       }
       return;
     }
-    const reconnecting = state === 'reconnecting';
+    const wasAway = state === 'reconnecting' || state === 'load_failed';
     answered = true;
-    if (reconnecting) {
+    if (wasAway) {
       // The gap was bridged: confirm it, then hide the badge.
       state = 'confirmed';
       onState('confirmed');

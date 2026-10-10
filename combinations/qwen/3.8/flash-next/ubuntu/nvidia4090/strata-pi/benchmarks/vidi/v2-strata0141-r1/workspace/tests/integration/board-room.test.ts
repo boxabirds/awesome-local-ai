@@ -48,7 +48,10 @@ afterEach(async () => {
       // Already gone.
     }
   }
-  await abortAllDurableObjects();
+  // `reset()` already discards every board object created by this test, and each
+  // test uses its own board address. Aborting them as well used to race with a
+  // room still inside its own constructor, which workerd reports as
+  // "Application called deleteAllDurableObjects()".
   await reset();
 });
 
@@ -394,6 +397,9 @@ describe('room restart (live.catch_up, sequence "room restart")', () => {
     });
 
     // Abrupt loss of the object: its in-memory board is gone, its sockets die.
+    // (Settled first: aborting while the room is still inside `webSocketMessage`
+    // makes workerd complain about deleting a running object.)
+    await settle(150);
     await abortAllDurableObjects();
 
     // The client reconnects, exactly as the browser provider's automatic retry

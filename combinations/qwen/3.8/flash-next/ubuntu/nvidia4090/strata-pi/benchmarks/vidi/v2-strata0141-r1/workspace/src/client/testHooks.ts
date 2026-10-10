@@ -6,6 +6,14 @@ import type { StickySnapshot } from '../shared/board-model';
 export interface TestStickyParams {
   at: { x: number; y: number };
   color?: StickyColor;
+  /** Typed-in text, written straight into the note's `Y.Text`. */
+  text?: string;
+}
+
+/** Test-only bulk seeding: `count` notes spread over a rectangle. */
+export interface TestSeedParams {
+  count: number;
+  area: { x: number; y: number; width: number; height: number };
 }
 
 export interface Vidi6TestHooks {
@@ -17,6 +25,8 @@ export interface Vidi6TestHooks {
   notes(): StickySnapshot[];
   /** Put a note on the board through the model, for test setup. */
   createNote(params: TestStickyParams): string;
+  /** Seed many notes in one transaction, for test setup (large-board tests). */
+  createNotes(params: TestSeedParams): number;
   /** The connection state the status badge is rendering (story 3). */
   connectionState(): string;
 }
@@ -32,11 +42,21 @@ type CameraApi = {
   get: () => Camera;
 };
 
+export interface SeedApi {
+  seed: (params: TestSeedParams) => number;
+}
+
 let cameraApi: CameraApi | null = null;
+let seedApi: SeedApi | null = null;
 
 /** Called by useCamera while mounted; pass null on unmount. */
 export function registerCameraApi(api: CameraApi | null): void {
   cameraApi = api;
+}
+
+/** Called by App while mounted; pass null on unmount. */
+export function registerSeedApi(api: SeedApi | null): void {
+  seedApi = api;
 }
 
 export interface BoardApi {
@@ -62,6 +82,7 @@ export function installTestHooks(): void {
     getCamera: () => cameraApi?.get() ?? null,
     notes: () => boardApi?.notes() ?? [],
     createNote: (params) => boardApi?.createNote(params) ?? '',
+    createNotes: (params) => seedApi?.seed(params) ?? 0,
     connectionState: () => boardApi?.connectionState() ?? 'connecting',
   };
 }

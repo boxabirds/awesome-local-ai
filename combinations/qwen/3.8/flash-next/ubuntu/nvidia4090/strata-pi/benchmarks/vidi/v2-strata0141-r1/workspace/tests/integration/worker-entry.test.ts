@@ -32,6 +32,9 @@ afterEach(async () => {
   for (const socket of OPEN_SOCKETS.splice(0)) {
     socket.close();
   }
+  // Let any room handler finish first: `reset()` deletes every board object, and
+  // workerd complains when one is deleted while it is still inside a handler.
+  await new Promise((resolve) => setTimeout(resolve, 100));
   await reset();
 });
 
@@ -44,6 +47,29 @@ const roomState = async (boardId: string) => {
   const ns = bindings().BOARD_ROOM;
   const stub = ns.get(ns.idFromName(boardId));
   return runInDurableObject(stub, (instance) => instance.inspectDoc());
+};
+
+/**
+ * Wait until the room has stored at least `rows` updates for `boardId`.
+ *
+ * A frame a client sends is not yet a frame the room has processed, and from
+ * story 4 on a processed frame is a stored frame, so the stored row count is the
+ * honest way to know the room has had the change.
+ */
+const waitForStoredRows = async (boardId: string, rows: number, timeoutMs = 5_000): Promise<void> => {
+  const ns = bindings().BOARD_ROOM;
+  const stub = ns.get(ns.idFromName(boardId));
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const stats = await runInDurableObject(stub, (instance) => instance.testStats());
+    if (stats.updateRows >= rows) {
+      return;
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`timed out waiting for ${rows} stored row(s); got ${stats.updateRows}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
 };
 
 describe('room routing', () => {
@@ -135,10 +161,12 @@ describe('room routing', () => {
     const close = await offender.closed();
     expect(close.code).toBe(CLOSE_UNSUPPORTED_DATA);
 
-    // The room is intact: the other participant still edits normally.
+    // The room is intact: the other participant still edits normally, and the
+    // edit is stored like any other.
     witness.edit((doc) => {
       addSticky(doc, 40, 40, 'still here');
     });
+    await waitForStoredRows(board, 1);
     const notes = await roomState(board);
     expect(notes.map((note) => note.text)).toContain('still here');
   });

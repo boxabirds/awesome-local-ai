@@ -162,3 +162,103 @@ bundle for `__vidi6`).
   `data-panning` / `data-dragging` are checked synchronously.
 - Only Chromium is available on this machine (see the Playwright section above), so
   story 2's E2E suite runs there; it covers TC-30 to TC-34 plus the golden path.
+
+## Story 4 — persistence and load failure
+
+### Storage layout (`persist.board_store`)
+
+`BoardStore` owns four tables inside the board's own Durable Object SQLite
+(`new_sqlite_classes: ["BoardRoom"]` in `wrangler.jsonc`, so no external database):
+
+- `storage_meta (key, value)` — `storage_schema_version`, `snapshot_through_seq`.
+- `updates (seq AUTOINCREMENT, data BLOB, bytes)` — the write log, one row per Yjs update.
+- `snapshot_chunks (idx, data)` — `Y.encodeStateAsUpdate(doc)` split at
+  `SNAPSHOT_CHUNK_BYTES` (512 KB), because a single statement argument has a size limit and a
+  single row is harder to grow.
+- `quarantined_updates (seq, data, error, quarantined_at)` — log rows that could not be
+  decoded, moved out of `updates` so a load does not re-read them forever.
+
+`shouldCompact` is `rows >= COMPACTION_UPDATE_COUNT (500) || bytes >= COMPACTION_BYTES (4 MB)`.
+Row count and byte total are kept **in memory** (incremented on append, reset on compaction,
+seeded by a load) so the hot write path never runs `COUNT(*)`.
+
+`BoardStore` is written against a **structural** storage interface
+(`BoardStorage { sql, transactionSync }`) rather than `DurableObjectStorage` from
+`@cloudflare/workers-types`: the app tsconfig has no Workers types, the worker tsconfig does, and
+this keeps the store testable from both. Blobs are bound as `ArrayBuffer` and read back as
+`ArrayBuffer`, so `asBlob` / `asBytes` copy between that and the `Uint8Array` Yjs wants.
+
+### Load: quarantine a row, never half a board
+
+`load(doc)` decodes before applying: `Y.decodeUpdate` first, then `Y.applyUpdate` with the
+`LOAD_ORIGIN` symbol (a load must not be re-stored or re-broadcast).
+
+- A snapshot that will not decode is **fatal** (`{ ok: false, reason: 'snapshot-unreadable' }`):
+  nothing is deleted and nothing is quarantined, because a truncated snapshot says nothing
+  trustworthy about the rest of the board.
+- A log row that will not decode is moved to `quarantined_updates` inside a `transactionSync`,
+  counted, and the load continues with the remaining rows.
+- `LoadResult` carries `applied`, `quarantined`, `snapshotBytes`, `logBytes`. Cross-isolate symbol
+  identity makes `LOAD_ORIGIN` useless to a test (the DO and the test import separate module
+  graphs), so a test reads these numbers instead.
+
+Why damage is measured as "the rest of that writer's rows are missing": a Yjs transaction update
+chains with the same writer's earlier items. Skipping a damaged **middle** row costs that writer's
+later rows while other writers apply normally. Two consequences built into the design:
+a board's log must begin with the writer's first transaction (the fixtures log their `initDoc`
+row), and the room itself **never** runs `initDoc` — the client's own schema write arrives as an
+ordinary update, which keeps every writer's row sequence contiguous and keeps an untouched board
+empty in storage (TC-25).
+
+### Room lifecycle (`persist.room`)
+
+`src/worker/room-state.ts` is a pure transition table (`nextRoomState(state, event, clock)`) with
+one timed edge: `load-failed → loading` only when `clock.sinceFailedMs >= LOAD_RETRY_MIN_INTERVAL_MS`,
+otherwise the room stays `load-failed` and closes the newcomer with 4500.
+
+- The constructor loads the board inside `ctx.blockConcurrencyWhile`.
+- Sockets use the hibernation API (`ctx.acceptWebSocket`), so `webSocketClose` / `webSocketError`
+  exist and **`webSocketClose` must echo the close** with `this.close(ws, code, reason)`. Unlike
+  story 3's `server.accept()`, `acceptWebSocket` does not echo a close frame, and without the
+  echo a client's `socket.closed()` hangs forever.
+- `storeThenBroadcast(update)`: append first, then broadcast. A failed append discards the
+  document, closes every socket with 1011 and moves to `storage-failed`; nothing half-stored is
+  ever shown to anyone. Recovery is the next connection, which reloads from storage.
+- Compaction runs inside the Yjs `update` handler (the document is complete at that point) and
+  inside one `transactionSync`, so a failed compaction rolls back and the log is untouched;
+  `compactIfNeeded` never throws.
+- Frames are not wrapped in an outer transaction: each `append` is its own transaction. If a
+  multi-frame message fails halfway, the document is discarded and clients re-sync their full
+  history, which is recoverable in a way a half-written board is not.
+
+### Client (`persist.client_status`)
+
+`ConnectionState` gained `load_failed`. `connectBoard` listens to the provider's
+`connection-close`: `CLOSE_BOARD_LOAD_FAILED` (4500) → `load_failed`; `CLOSE_STORAGE_FAILURE`
+(1011) and every other code → `reconnecting`, because a board that was readable stays readable
+and the client re-sends what it has. `load_failed` is the only state that locks editing
+(`main[data-board-editable]` drives the cursor rules and `App` passes `editable` to the note
+layer and the toolbar), and it clears itself on the next successful sync with **no reload** —
+y-websocket keeps retrying because 4500 is outside its "do not reconnect" band (4400-4499).
+
+### Server-side test hooks
+
+`src/worker/test-hooks.ts` serves `POST /__test/boards/:id/corrupt-snapshot`, `POST .../repair`,
+`POST .../compact` and `GET .../stats`, and only when `env.TEST_HOOKS === '1'`. `TEST_HOOKS` is
+passed on the `wrangler dev` command line that Playwright and the persistence tests start; it is
+**not** in `wrangler.jsonc`, so a deployed Worker has no branch here at all and the address falls
+through to the client build — asserted by an integration test. `testCorruptSnapshot` also makes
+the room let go of the board it was holding, so a test that damages a snapshot meets the damage on
+the next visit instead of being served the good copy from memory.
+
+### E2E with real restarts
+
+`tests/e2e/helpers/wrangler-process.ts` starts a `wrangler dev` per test
+(`--persist-to <tmp>`, a port from 24070-24079, its own inspector port) and `restart()`s it —
+SIGTERM for an ordinary restart, SIGKILL for TC-20's abrupt one. Only the persistence specs do
+this; everything else shares Playwright's `webServer`. They run in Chromium only: what they prove
+is server-side durability, and a restart cycle costs more than a browser round-trip.
+
+Environment note for these tests: `--var 'TEST_HOOKS:1'` is **not** re-added by a plain
+`restart()` — the flag is stored on the process object so a restarted server keeps the same
+shape as the one that died.

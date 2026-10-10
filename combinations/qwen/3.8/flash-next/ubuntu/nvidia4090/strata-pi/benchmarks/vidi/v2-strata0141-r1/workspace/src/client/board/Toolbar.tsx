@@ -6,10 +6,12 @@ import { useCallback } from 'react';
  */
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** True while the room could not load the board (`persist.client_status`). */
+  disabled?: boolean;
 }
 
 export function Toolbar(props: ToolbarProps) {
-  const { onCreateSticky } = props;
+  const { onCreateSticky, disabled = false } = props;
 
   const stop = useCallback((event: React.SyntheticEvent) => {
     event.stopPropagation();
@@ -32,7 +34,11 @@ export function Toolbar(props: ToolbarProps) {
         data-testid="create-sticky"
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
+        disabled={disabled}
         onClick={() => {
+          if (disabled) {
+            return;
+          }
           onCreateSticky();
         }}
       >

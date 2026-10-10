@@ -116,3 +116,28 @@ export const CAPACITY_SOAK_MS = 60_000;
 export const ROOM_ROUTE_PREFIX = '/api/rooms/';
 /** A board someone is on is addressed as `/b/<boardId>`. */
 export const BOARD_PATH_PREFIX = '/b/';
+
+/* ---------------------------------------------------------------------------
+ * Story 4: boards are kept. Every persistence setting lives here.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The update log is compacted into a chunked snapshot once it holds this many
+ * rows, so loading a long-lived board never replays every keystroke ever made.
+ */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ... or once the log reaches this many bytes (whichever comes first). */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/**
+ * Snapshot chunks are cut to this size, which keeps every row well below the
+ * per-row limit of SQLite-backed Durable Objects.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A board that failed to load retries its load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** The board size the "large boards open quickly" requirement is verified with. */
+export const PERSIST_TESTED_NOTES = 2000;
+/** How long opening that board is allowed to take. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Versions the storage tables, independent of the board document schema. */
+export const STORAGE_SCHEMA_VERSION = 1;

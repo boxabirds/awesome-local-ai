@@ -220,6 +220,19 @@ test.describe('live collaboration', () => {
       await Promise.all([dragNote(alex, id, 120, 60), dragNote(sam, id, -90, -140)]);
       report('concurrent move', Date.now() - started);
 
+      // Convergence is waited for functionally (the harness convention): under a
+      // loaded machine the two documents can lag each other by a frame.
+      await expect
+        .poll(
+          async () => {
+            const a = positionOf(await getNotes(alex), id);
+            const s = positionOf(await getNotes(sam), id);
+            return a !== null && s !== null && JSON.stringify(a) === JSON.stringify(s);
+          },
+          { timeout: E2E_EVENTUAL_TIMEOUT_MS, message: 'the two boards never agreed on the note' },
+        )
+        .toBe(true);
+
       const alexPosition = positionOf(await getNotes(alex), id);
       const samPosition = positionOf(await getNotes(sam), id);
       expect(samPosition).toEqual(alexPosition);

@@ -1,48 +1,42 @@
-# Story 3: See other people's edits appear live on the same board
+# Story 4: Return to a board and find everything as it was left
 
 Your progress on this story's tasks. Keep the Status column up to date as you work.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Write board id and protocol decode unit tests first (TC-01 to TC-03) | done |
-| 2 | Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback | done |
-| 3 | Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling | done |
-| 4 | Implement client connection: y-websocket provider, /b/:boardId route, connection status badge | done |
-| 5 | Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17) | done |
-| 6 | Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31) | done |
-| 7 | Component tests for connection status badge (TC-19 to TC-21) | done |
-| 8 | E2E live collaboration with multiple browser contexts (TC-22 to TC-28) | done |
-| 9 | Nightly e2e: idle connection stability and capacity soak with latency report (TC-29, TC-30) | done |
+| 1 | Write storage and room-state unit tests first (TC-01, TC-02, TC-27) | done |
+| 2 | Implement BoardStore: SQLite schema, append, load with quarantine, chunked compaction | done |
+| 3 | Integration tests for BoardStore against real Durable Object SQLite (TC-03 to TC-11, TC-25) | done |
+| 4 | Make BoardRoom persistent: load on wake, store before broadcast, hibernation API, load/storage failure handling | done |
+| 5 | Integration tests for persistent room: durability, failures, hibernation (TC-12 to TC-18, TC-26) | done |
+| 6 | E2E persistence across real process restarts and large-board load time (TC-19 to TC-21) | done |
+| 7 | Implement client load-failure state: red message and editing disabled | done |
+| 8 | Component tests for load-failure badge, edit lock and close-code mapping (TC-22, TC-23, TC-28) | done |
+| 9 | E2E broken board: honest failure, edit lock, recovery without reload (TC-24) | done |
 
 Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
 
-## Evidence
+## Where each case runs
 
-| Task | Where it lives | Result |
+| Suite | File | Cases |
 |---|---|---|
-| 1 | `tests/unit/board-id.test.ts`, `tests/unit/protocol.test.ts` | TC-01, TC-02, TC-03 pass |
-| 2 | `src/worker/index.ts` | `/api/rooms/:boardId` -> BoardRoom, invalid id 400, no Upgrade 426, everything else to `env.ASSETS` |
-| 3 | `src/worker/board-room.ts` | non-hibernating `server.accept`, per-board `Y.Doc`, SyncStep1 on join, broadcast with sender excluded, awareness relayed, invalid frame -> close 1003 |
-| 4 | `src/client/sync/connectBoard.ts`, `src/client/sync/ConnectionStatus.tsx`, `src/client/board/boardRoute.ts`, `src/client/board/useBoardDoc.ts`, `tests/unit/room-url.test.ts` | state machine (`connecting` / `connected` / `reconnecting` / `confirmed`), `/` -> `/b/<new id>`, badge with `role=status`, room address unit tested |
-| 5 | `tests/integration/worker-entry.test.ts` | TC-04, TC-05, TC-06, TC-13, TC-17 pass (7 tests) |
-| 6 | `tests/integration/board-room.test.ts` | TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31 pass (15 tests) |
-| 7 | `tests/component/ConnectionStatus.test.tsx` | TC-19, TC-20, TC-21 plus the CONNECTED_CONFIRMATION_MS boundary, the re-drop during confirmation, and the "board stays editable" negative |
-| 8 | `tests/e2e/live-collaboration.spec.ts` | TC-22 to TC-28 pass against `wrangler dev`, one browser context per person |
-| 9 | `tests/e2e/live-nightly.spec.ts` (`@nightly`, excluded from `test:e2e`) | TC-29: two idle boards stay `connected` for `IDLE_STABILITY_TEST_MS`. TC-30: `MAX_CONCURRENT_EDITORS` people, 204 seeded edits in `CAPACITY_SOAK_MS`, every change arrived, final snapshots identical, latency reported p50=14 ms p95=30 ms max=77 ms against `LIVE_UPDATE_LATENCY_BUDGET_MS` (1000 ms), reported not asserted |
+| unit | `tests/unit/board-store-chunks.test.ts` | TC-01 (chunk boundaries, `joinChunks` round-trip), TC-02 (compaction threshold on count and bytes) |
+| unit | `tests/unit/room-state.test.ts` | TC-27: every edge of the room lifecycle diagram, plus invalid events leaving the state unchanged |
+| integration | `tests/integration/board-store.test.ts` | TC-03 to TC-11, TC-25 plus TC-09b/TC-09c (damage at a writer boundary, damage mid-run) against real DO SQLite |
+| integration | `tests/integration/board-persistence.test.ts` | TC-12 (store before broadcast), TC-13 (reopen after everyone left), TC-14 (storage failure: 1011, nothing broadcast, recovery), TC-15 (damaged snapshot: nothing quarantined), TC-16 (retry rate limit), TC-17 (garbage frame: 1003, nothing stored), TC-18 (hibernation wake), TC-26 (SQL error on load) |
+| integration | `tests/integration/test-hooks.test.ts` | hooks absent without `TEST_HOOKS` (the production case), hooks answer with it, hooks drive a board from damaged to loadable |
+| component | `tests/component/ConnectionStatus.test.tsx` | TC-22 (the load-failure message, through a real 4500 close), TC-28 (1011 and 1003 stay "reconnecting", the board stays editable) |
+| component | `tests/component/LoadFailedBoard.test.tsx` | TC-23 (double-click, toolbar, Delete, editing and dragging all do nothing; the document is byte-identical), plus recovery to editable with no reload |
+| e2e | `tests/e2e/board-persistence.spec.ts` | TC-19, TC-20, TC-21 (each runs its own `wrangler dev --persist-to` and restarts it) |
+| e2e | `tests/e2e/board-broken.spec.ts` | TC-24 (damaged snapshot: red message, editing locked, repair, recovery on the same page) |
 
-## Notes on what story 3 changed outside its own files
+## Measurements reported, not asserted
 
-- `src/client/objects/StickyText.ts` gained `applyTextDelta` and `StickyTextEditor.tsx` now writes the
-  writer's own change instead of the whole value they remember. The old whole-value write overwrote text
-  that arrived while someone was typing, which lost characters (TC-23). Covered by unit tests in
-  `tests/unit/sticky-text.test.ts`.
-- `vite.config.ts` proxies `/api/rooms` to the Worker for `npm run dev`, because a board reaches its room
-  through the page's own origin.
-- `package.json`: `concurrently` is used by `npm run dev` (Worker on 24064, client on 24066), and
-  `@sparticuz/chromium` is pinned to a version that exists in the registry.
-
-## Not implemented in this story (other stories' work)
-
-No presence or cursors (story 6), no offline copies (story 13), no sign-in (story 14), no board dashboard
-(story 15), no comments (story 16), no export (story 17). WebSocket hibernation and room persistence are
-story 4: this story keeps the room awake while anyone is connected.
+- TC-21 (big board open): 2000 notes, stored as one 352 KB snapshot, reopened after a real
+  process restart - **6992 ms** from navigation start to all 2000 notes rendered, against
+  `BOARD_LOAD_BUDGET_MS` = 3000 ms. Reported, because the model, the browser and the server
+  share this machine (32 vCPU, one Chromium). The functional assertions (all 2000 notes present,
+  identical text) are what is asserted.
+- TC-20 (leave immediately): the window from "the note is visible to the second person" to
+  "the process is gone (SIGKILL)" measured 938-1158 ms across runs; the note was there after
+  the restart every time.

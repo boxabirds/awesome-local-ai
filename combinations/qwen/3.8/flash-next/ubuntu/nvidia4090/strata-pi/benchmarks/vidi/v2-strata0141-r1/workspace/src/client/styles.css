@@ -357,3 +357,15 @@ body {
   color: transparent;
   background: transparent;
 }
+
+/* Story 4: the room could not load this board - the message is red. */
+.connection-status--load_failed {
+  color: #b91c1c;
+  background: rgb(254 202 202 / 96%);
+}
+
+/* While the board is not editable the pointer says so. */
+main[data-board-editable='false'] .board-viewport,
+main[data-board-editable='false'] .sticky-note {
+  cursor: not-allowed;
+}

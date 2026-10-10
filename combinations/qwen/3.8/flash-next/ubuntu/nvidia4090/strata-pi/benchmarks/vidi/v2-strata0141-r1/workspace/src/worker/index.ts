@@ -17,12 +17,20 @@
 import { isValidBoardId } from '../shared/board-id';
 import { ROOM_ROUTE_PREFIX } from '../shared/config';
 import { BoardRoom } from './board-room';
+import { handleTestHook, TEST_HOOK_PREFIX } from './test-hooks';
 
 export interface Env {
   /** One BoardRoom instance per board id. */
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client (single-page application). */
   ASSETS: Fetcher;
+  /**
+   * `1` only on the `wrangler dev` command an e2e run starts. It is the single
+   * switch for the storage test hooks (`src/worker/test-hooks.ts`) and it is
+   * deliberately absent from `wrangler.jsonc`, so a deployed Worker has no hook
+   * branch and serves the client build for those addresses.
+   */
+  TEST_HOOKS?: string;
 }
 
 // The route prefix is a named setting in shared config, imported rather than
@@ -46,6 +54,17 @@ export default {
         return new Response('Upgrade Required', { status: 426 });
       }
       return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).fetch(req);
+    }
+
+    // Test-only storage hooks (src/worker/test-hooks.ts). With `TEST_HOOKS`
+    // unset `handleTestHook` returns `null` for every address, so a deployed
+    // Worker serves the client build for these paths just as it does for any
+    // other unknown one.
+    if (path.startsWith(TEST_HOOK_PREFIX)) {
+      const hooked = await handleTestHook(req, env);
+      if (hooked !== null) {
+        return hooked;
+      }
     }
 
     return env.ASSETS.fetch(req);

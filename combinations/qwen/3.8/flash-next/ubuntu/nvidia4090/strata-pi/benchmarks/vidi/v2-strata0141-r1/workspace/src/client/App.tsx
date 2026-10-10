@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type * as Y from 'yjs';
-import { createSticky, deleteObject, snapshot } from '../shared/board-model';
-import { registerBoardApi } from './testHooks';
+import { createSticky, deleteObject, getStickyText, snapshot } from '../shared/board-model';
+import { registerBoardApi, registerSeedApi } from './testHooks';
+import { STICKY_COLOR_NAMES } from '../shared/config';
 import { BoardViewport, viewportCentre, type BoardSurface } from './canvas/BoardViewport';
 import { screenToWorld } from './canvas/camera';
 import { Toolbar } from './board/Toolbar';
@@ -46,15 +47,27 @@ export function App({
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const [surface, setSurface] = useState<BoardSurface | null>(null);
 
+  /**
+   * A board the room could not load is not editable (`persist.client_status`).
+   * Editing a copy of a board we have not been given would put changes somewhere
+   * they cannot be saved and cannot be seen, so every mutation entry point is
+   * closed while `connectionState` is `load_failed`. Reconnecting needs no page
+   * reload: the same page edits again as soon as the room serves the board.
+   */
+  const editable = connectionState !== 'load_failed';
+
   /** Create a note centred on a world point and start editing it right away. */
   const createAt = useCallback(
     (world: { x: number; y: number }) => {
+      if (!editable) {
+        return;
+      }
       const id = createSticky(doc, world);
       if (id !== '') {
         startEdit(id);
       }
     },
-    [doc, startEdit],
+    [doc, editable, startEdit],
   );
 
   /** Toolbar creation: the centre of the visible board, wherever it is panned. */
@@ -68,14 +81,59 @@ export function App({
 
   const clearSelection = useCallback(() => select(null), [select]);
 
+  /** Starting to edit is a mutation too: a note's text is the document. */
+  const editNote = useCallback(
+    (id: string) => {
+      if (!editable) {
+        return;
+      }
+      startEdit(id);
+    },
+    [editable, startEdit],
+  );
+
   // e2e hooks: read and create notes through the model (test build only).
   useEffect(() => {
     registerBoardApi({
       notes: () => [...snapshot(doc)],
-      createNote: (params) => createSticky(doc, params.at, params.color),
+      createNote: (params) => {
+        const id = createSticky(doc, params.at, params.color);
+        if (id !== '' && params.text !== undefined) {
+          getStickyText(doc, id)?.insert(0, params.text);
+        }
+        return id;
+      },
       connectionState: () => connectionState,
     });
-    return () => registerBoardApi(null);
+    // Seeding a big board is one transaction, so a test sets up a board the size
+    // of a real one without spending one update per note.
+    registerSeedApi({
+      seed: (params) => {
+        const columns = Math.max(
+          1,
+          Math.ceil(Math.sqrt(params.count * (params.area.width / Math.max(1, params.area.height)))),
+        );
+        doc.transact(() => {
+          for (let index = 0; index < params.count; index += 1) {
+            const column = index % columns;
+            const row = Math.floor(index / columns);
+            createSticky(
+              doc,
+              {
+                x: params.area.x + (column + 0.5) * (params.area.width / columns),
+                y: params.area.y + (row + 0.5) * (params.area.height / Math.max(1, Math.ceil(params.count / columns))),
+              },
+              STICKY_COLOR_NAMES[index % STICKY_COLOR_NAMES.length],
+            );
+          }
+        });
+        return params.count;
+      },
+    });
+    return () => {
+      registerBoardApi(null);
+      registerSeedApi(null);
+    };
   }, [doc, connectionState]);
 
   // A selected or edited note that no longer exists (deleted elsewhere).
@@ -98,6 +156,9 @@ export function App({
       if (isTextEntry(event.target) || isTextEntry(document.activeElement)) {
         return; // typing in a note (or any field) is not a board command
       }
+      if (!editable) {
+        return; // a board that could not be loaded is not edited (TC-23)
+      }
       if (event.key === 'Enter') {
         if (editingId !== null || selectedId === null) {
           return; // TC-36: nothing selected, nothing happens
@@ -119,12 +180,12 @@ export function App({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, editingId, select, selectedId, startEdit]);
+  }, [doc, editable, editingId, select, selectedId, startEdit]);
 
   const zoom = surface?.camera.zoom ?? 1;
 
   return (
-    <main className="app" data-app="vidi6">
+    <main className="app" data-app="vidi6" data-testid="app" data-board-editable={editable ? 'true' : 'false'}>
       <BoardViewport
         onSurfaceChange={setSurface}
         onEmptyDoubleClick={createAt}
@@ -138,13 +199,14 @@ export function App({
             zoom={zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            editable={editable}
             onSelect={select}
-            onStartEdit={startEdit}
+            onStartEdit={editNote}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtViewportCentre} />
+      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
       <ConnectionStatus state={connectionState} />
     </main>
   );

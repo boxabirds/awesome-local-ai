@@ -45,6 +45,8 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** False while the room could not load this board: nothing here mutates it. */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -67,7 +69,7 @@ interface Drag {
 const TEXT_BOX = STICKY_SIZE_WORLD - 2 * STICKY_PADDING_WORLD;
 
 export function StickyNote(props: StickyNoteProps) {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, zoom, selected, editing, editable = true, onSelect, onStartEdit, onEndEdit } = props;
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [fit, setFit] = useState<FontFit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
@@ -146,6 +148,9 @@ export function StickyNote(props: StickyNoteProps) {
       if (editing || event.button !== 0) {
         return;
       }
+      // A press is allowed even when the board is locked, so the note can still
+      // be selected and inspected; `handlePointerMove` is where a drag would
+      // have mutated the document, and that is where the lock bites.
       dragRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -168,7 +173,7 @@ export function StickyNote(props: StickyNoteProps) {
   const handlePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) {
+      if (!drag || drag.pointerId !== event.pointerId || !editable) {
         return;
       }
       event.stopPropagation();
@@ -185,7 +190,7 @@ export function StickyNote(props: StickyNoteProps) {
       drag.pending = { dx, dy };
       scheduleDrag();
     },
-    [doc, note.id, scheduleDrag],
+    [doc, editable, note.id, scheduleDrag],
   );
 
   const handlePointerUp = useCallback(
@@ -232,10 +237,13 @@ export function StickyNote(props: StickyNoteProps) {
       // A double-click on a note edits it instead of creating one (TC-35).
       event.stopPropagation();
       event.preventDefault();
+      if (!editable) {
+        return;
+      }
       onSelect(note.id);
       onStartEdit(note.id);
     },
-    [note.id, onSelect, onStartEdit],
+    [editable, note.id, onSelect, onStartEdit],
   );
 
   // The note was deleted while it was being dragged or edited (TC-37).
@@ -246,18 +254,24 @@ export function StickyNote(props: StickyNoteProps) {
   }, [finishInteraction, noteStillExists, note.id]);
 
   const dragging = phase === 'dragging';
-  const showToolbar = selected && !editing && !dragging;
+  const showToolbar = selected && !editing && !dragging && editable;
 
   const handleColor = useCallback(
     (color: StickyColor) => {
+      if (!editable) {
+        return;
+      }
       setStickyColor(doc, note.id, color);
     },
-    [doc, note.id],
+    [doc, editable, note.id],
   );
 
   const handleDelete = useCallback(() => {
+    if (!editable) {
+      return;
+    }
     deleteObject(doc, note.id);
-  }, [doc, note.id]);
+  }, [doc, editable, note.id]);
 
   return (
     <div
@@ -267,6 +281,7 @@ export function StickyNote(props: StickyNoteProps) {
       data-testid={`sticky-note-${note.id}`}
       data-selected={selected ? 'true' : 'false'}
       data-dragging={dragging ? 'true' : 'false'}
+      data-editable={editable ? 'true' : 'false'}
       data-overflow={fit.overflow ? 'true' : 'false'}
       role="group"
       aria-label="Sticky note"
@@ -296,7 +311,7 @@ export function StickyNote(props: StickyNoteProps) {
         >
           {note.text}
         </div>
-        {editing ? (
+        {editing && editable ? (
           <StickyTextEditor
             ytext={getStickyText(doc, note.id)!}
             fontPx={fit.fontPx}

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE, CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import { snapshot } from '../../src/shared/board-model';
 import {
   connectBoard,
@@ -15,30 +16,38 @@ import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { COMPONENT_BOARD_ID, flushFrame, renderBoard } from './harness';
 
 /**
- * TC-19 to TC-21 (anchor `sync.client`, requirement `live.status`).
+ * TC-19 to TC-21, TC-22, TC-28 (anchor `sync.client`, requirements `live.status`
+ * and `persist.client_status`).
  *
  * The room is replaced by a fake provider that replays only the events
- * `y-websocket` really emits (`status` and `sync`), and timers are fake, so the
- * status mapping and the badge are tested exactly - including the
- * CONNECTED_CONFIRMATION_MS boundary.
+ * `y-websocket` really emits (`status`, `sync` and `connection-close`), and
+ * timers are fake, so the status mapping and the badge are tested exactly -
+ * including the CONNECTED_CONFIRMATION_MS boundary and the close codes.
  */
 
 /** Replays provider events on demand. */
 class FakeProvider implements BoardProvider {
   private statusHandlers: ((event: { status: ProviderStatus }) => void)[] = [];
   private syncHandlers: ((synced: boolean) => void)[] = [];
+  private closeHandlers: ((event: { code: number } | null) => void)[] = [];
   destroyed = false;
 
   on(name: 'status', handler: (event: { status: ProviderStatus }) => void): void;
   on(name: 'sync', handler: (synced: boolean) => void): void;
+  on(name: 'connection-close', handler: (event: { code: number } | null) => void): void;
   on(
-    name: 'status' | 'sync',
-    handler: ((event: { status: ProviderStatus }) => void) | ((synced: boolean) => void),
+    name: 'status' | 'sync' | 'connection-close',
+    handler:
+      | ((event: { status: ProviderStatus }) => void)
+      | ((synced: boolean) => void)
+      | ((event: { code: number } | null) => void),
   ): void {
     if (name === 'status') {
       this.statusHandlers.push(handler as (event: { status: ProviderStatus }) => void);
-    } else {
+    } else if (name === 'sync') {
       this.syncHandlers.push(handler as (synced: boolean) => void);
+    } else {
+      this.closeHandlers.push(handler as (event: { code: number } | null) => void);
     }
   }
 
@@ -65,6 +74,23 @@ class FakeProvider implements BoardProvider {
   drop(): void {
     this.sync(false);
     this.status('disconnected');
+  }
+
+  /**
+   * A close the room sent, with the code it used. `y-websocket` reports the
+   * `CloseEvent` for a server close and `null` for one we asked for.
+   */
+  closeWith(code: number): void {
+    for (const handler of this.closeHandlers) {
+      handler({ code });
+    }
+  }
+
+  /** A close caused by our own disconnect or by the watchdog. */
+  closeByUs(): void {
+    for (const handler of this.closeHandlers) {
+      handler(null);
+    }
   }
 
   destroy(): void {
@@ -240,4 +266,69 @@ describe('connection status badge (live.status)', () => {
     drive([() => provider.open()]);
     expect(statusText()).toBe('Connected');
   });
+
+  it('TC-22: a board the room could not load is named in red, with role status', () => {
+    // Rendered straight from the state, the way the connection drives it.
+    const view = render(<ConnectionStatus state="load_failed" />);
+    const element = screen.getByTestId('connection-status');
+    expect(element.textContent).toBe("This board couldn't be loaded. Retrying…");
+    expect(element.getAttribute('role')).toBe('status');
+    expect(element.getAttribute('aria-live')).toBe('polite');
+    expect(element.dataset.connectionState).toBe('load_failed');
+    // "danger" is the tone styles.css paints in red.
+    expect(element.dataset.tone).toBe('danger');
+    expect(element.className).toContain('connection-status--load_failed');
+    view.unmount();
+
+    // And reached through the real mapping: a 4500 close from the room.
+    const provider = new FakeProvider();
+    const { states } = renderStatus(provider);
+    drive([() => provider.open()]);
+    expect(mappedState()).toBe('connected');
+
+    drive([() => provider.closeWith(CLOSE_BOARD_LOAD_FAILED)]);
+    expect(mappedState()).toBe('load_failed');
+    expect(statusText()).toBe("This board couldn't be loaded. Retrying…");
+    expect(states).toEqual(['connected', 'load_failed']);
+  });
+
+  it('TC-28: a storage failure or a rejected frame is "Reconnecting…", never a load failure', async () => {
+    vi.useRealTimers();
+    const provider = new FakeProvider();
+    const doc = new Y.Doc();
+    renderBoard({ doc, connect: true, providerFactory: () => provider });
+    await flushFrame();
+
+    drive([() => provider.open()]);
+    expect(mappedState()).toBe('connected');
+
+    // 1011: the room could not save, so it dropped everyone.
+    drive([() => provider.closeWith(CLOSE_STORAGE_FAILURE)]);
+    expect(mappedState()).toBe('reconnecting');
+    expect(statusText()).toBe('Reconnecting…');
+    expect(screen.getByTestId('connection-status').dataset.tone).toBe('warning');
+
+    // Editing stays open: the board is still the board.
+    const create = screen.getByTestId('create-sticky') as HTMLButtonElement;
+    expect(create.disabled).toBe(false);
+    fireEvent.click(create);
+    await flushFrame();
+    expect(snapshot(doc)).toHaveLength(1);
+
+    // 1003: a frame this client sent was rejected. Still only a link problem.
+    drive([() => provider.closeWith(CLOSE_UNSUPPORTED_DATA)]);
+    expect(mappedState()).toBe('reconnecting');
+    expect(statusText()).toBe('Reconnecting…');
+
+    fireEvent.click(screen.getByTestId('create-sticky'));
+    await flushFrame();
+    expect(snapshot(doc)).toHaveLength(2);
+
+    expect(mainElement().dataset.boardEditable).toBe('true');
+  });
 });
+
+/** The board's editability, which only `load_failed` takes away. */
+function mainElement(): HTMLElement {
+  return screen.getByTestId('app');
+}

@@ -87,9 +87,12 @@ export default defineConfig({
     },
   })),
   webServer: {
+    // TEST_HOOKS is on here and nowhere else: the storage test hooks only ever
+    // answer in a test build, and an integration test asserts they are absent
+    // from a build without it.
     command:
       `npm run build:test && npx wrangler dev --ip 127.0.0.1 --port ${PORT} ` +
-      `--inspector-port ${INSPECT_PORT} --show-interactive-dev-session=false`,
+      `--inspector-port ${INSPECT_PORT} --show-interactive-dev-session=false --var 'TEST_HOOKS:1'`,
     port: PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

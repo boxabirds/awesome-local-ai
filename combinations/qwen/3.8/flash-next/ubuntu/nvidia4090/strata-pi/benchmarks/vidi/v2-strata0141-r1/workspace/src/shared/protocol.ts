@@ -25,6 +25,19 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code sent to a socket that sent something undecodable (RFC 6455 1003). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * Close code sent to every socket of a board whose saved state could not be
+ * loaded (story 4). It sits in the 4500-4599 range, the y-websocket convention
+ * for "the server refused, but trying again can help", so the provider keeps
+ * retrying while the client shows "This board couldn't be loaded. Retrying…".
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/**
+ * Close code sent to every socket when the room could not write to its own
+ * storage (story 4): the change was not saved and was not broadcast, so each
+ * client keeps its own copy and re-sends it when the room is back.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /** y-protocols/sync sub-message types (the first varUint after MESSAGE_SYNC). */
 export const SYNC_STEP_1 = 0;
