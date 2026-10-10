@@ -1,3 +1,110 @@
+commit 51d30b40d8e559761075180561bceeb4b06cbcbb
+agent  Sat Oct 10 06:42:25 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ PROGRESS.md | 3 +++
+ 1 file changed, 3 insertions(+)
+commit 683f679e460af932890daf5186c5887835a3129d
+agent  Sat Oct 10 06:42:08 2026 +0000
+
+    story 2: e2e sticky note tests + drag test for long text; render notes in stable creation order
+
+
+ PROGRESS.md                    |  13 +-
+ src/client/App.tsx             |  28 ++++-
+ tests/e2e/helpers/notes.ts     | 138 +++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts | 276 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 452 insertions(+), 3 deletions(-)
+commit d454d9061e070c8122e7b792a76d237612fd8c8b
+agent  Sat Oct 10 06:18:12 2026 +0000
+
+    story 2 task 7: component tests for sticky interaction, text editor and toolbars (TC-18..TC-29 + TC-34..TC-38 component-level)
+
+
+ tests/component/StickyCreation.test.tsx   | 123 +++++++++++++
+ tests/component/StickyNote.test.tsx       | 276 ++++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 198 +++++++++++++++++++++
+ tests/component/helpers/board.tsx         |  69 +++++++-
+ 4 files changed, 664 insertions(+), 2 deletions(-)
+commit 835298aa2138e7967b1d2b731faedbb45c4eb7af
+agent  Sat Oct 10 06:00:22 2026 +0000
+
+    story 2 task 6: left toolbar with Sticky note button (creates at viewport centre, selected + edit mode)
+
+
+ PROGRESS.md                  |  4 ++--
+ src/client/App.tsx           | 14 +++++++++++++-
+ src/client/board/Toolbar.tsx | 46 ++++++++++++++++++++++++++++++++++++++++++++
+ src/client/styles.css        | 38 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 99 insertions(+), 3 deletions(-)
+commit 3ea66f2d42ec4c61bc09799c0cf03fde1d9db81f
+agent  Sat Oct 10 05:59:03 2026 +0000
+
+    story 2 task 5: sticky note interaction (select, threshold drag with rAF frames + final sync write, dbl-click create/edit, keyboard delete); BoardViewport empty-click/dbl-click hooks
+
+
+ PROGRESS.md                         |   8 +-
+ src/client/App.tsx                  |  91 ++++++++++-
+ src/client/board/useSelection.ts    |  41 +++++
+ src/client/canvas/BoardViewport.tsx |  66 +++++++-
+ src/client/objects/NoteToolbar.tsx  |  87 +++++++++++
+ src/client/objects/StickyNote.tsx   | 299 ++++++++++++++++++++++++++++++++++++
+ src/client/styles.css               | 153 ++++++++++++++++++
+ 7 files changed, 733 insertions(+), 12 deletions(-)
+commit 7c77ca42583783b0864fee7c9c565cd0c6aa9b12
+agent  Sat Oct 10 05:44:09 2026 +0000
+
+    story 2 task 4: sticky text logic (clamp, minimal diff, counter, font fit) + StickyTextEditor (unit tests green)
+
+
+ src/client/objects/StickyText.ts        | 113 ++++++++++++++++++++-----
+ src/client/objects/StickyTextEditor.tsx | 144 ++++++++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts          |  16 +++-
+ 3 files changed, 250 insertions(+), 23 deletions(-)
+commit fe9b0a8e056e5faa753fb3073c031ab76249c8d9
+agent  Sat Oct 10 05:38:54 2026 +0000
+
+    story 2 task 3: sticky text unit tests (TC-13..TC-17) + StickyText stubs (red)
+
+
+ src/client/objects/StickyText.ts |  48 +++++++++++
+ tests/fixtures/texts.ts          |  44 ++++++++++
+ tests/unit/sticky-text.test.ts   | 168 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 260 insertions(+)
+commit f0fdf1a91b7bf8cccb3e319e17faea3a9852d669
+agent  Sat Oct 10 05:35:35 2026 +0000
+
+    story 2 task 2: Yjs board model + useBoardDoc snapshot hook (unit tests green)
+
+
+ PROGRESS.md                     |   4 +-
+ src/client/board/useBoardDoc.ts |  51 +++++++++++
+ src/shared/board-model.ts       | 193 ++++++++++++++++++++++++++++++++++++----
+ tests/unit/board-model.test.ts  |   5 +-
+ 4 files changed, 232 insertions(+), 21 deletions(-)
+commit c465a4d46e40eeaed46da7f69b1a5521e7de99db
+agent  Sat Oct 10 05:33:04 2026 +0000
+
+    story 2 task 1: board model unit tests (TC-01..TC-12, TC-39) against real Y.Doc; sticky settings; model stubs (red)
+
+
+ PROGRESS.md                    |   2 +-
+ package-lock.json              |  51 +++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  88 +++++++++++
+ src/shared/config.ts           |  35 +++++
+ tests/unit/board-model.test.ts | 341 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 517 insertions(+), 3 deletions(-)
+commit eb10b4d6148dd594534e0e838f564247b48dc3e3
+vidi-agent  Sat Oct 10 06:08:49 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 35 +++++++++--------------------------
+ 1 file changed, 9 insertions(+), 26 deletions(-)
 commit 4ed0fd19a4356ec2ac3658adb9a9ceaf5d1322d9
 agent  Sat Oct 10 05:07:24 2026 +0000
 
