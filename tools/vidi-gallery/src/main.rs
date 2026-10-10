@@ -7,6 +7,7 @@ mod record;
 mod reviews;
 mod runs;
 mod stories;
+mod sync;
 mod trace;
 
 use std::net::SocketAddr;
@@ -259,13 +260,18 @@ fn newly_reviewable(have: &[runs::Run], now: Vec<runs::Run>) -> Vec<runs::Run> {
     now.into_iter().filter(|r| !have.iter().any(|h| h.slug == r.slug)).collect()
 }
 
-/// Every RESCAN_EVERY, add runs that have become reviewable (finished, scored, with their bundle) to the
+/// Every RESCAN_EVERY, bring the checkout level with origin, then add runs that have become reviewable (finished, scored, with their bundle) to the
 /// end of the list, so a run judged from the benchmarker's link appears without restarting the gallery,
 /// and prepare them like the rest.
 async fn rescan(app: Arc<App>) {
     loop {
         tokio::time::sleep(RESCAN_EVERY).await;
         let (repo, family) = (app.repo.clone(), app.family.clone());
+        let pulled = repo.clone();
+        // Take what the benchmark machines have pushed first, so the scan below sees it.
+        if let Ok(Err(e)) = tokio::task::spawn_blocking(move || sync::sync_repo(&pulled)).await {
+            eprintln!("sync: {e}");
+        }
         let Ok(now) = tokio::task::spawn_blocking(move || reviewable(&repo, &family)).await else { continue };
         let added = {
             let mut list = app.review_builds.write().expect("review builds lock");
