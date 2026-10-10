@@ -1,0 +1,11 @@
+{
+  // Worker `main` and Durable Objects arrive in story 3; this story serves
+  // the client build as static assets via `wrangler dev`.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application"
+  }
+}
