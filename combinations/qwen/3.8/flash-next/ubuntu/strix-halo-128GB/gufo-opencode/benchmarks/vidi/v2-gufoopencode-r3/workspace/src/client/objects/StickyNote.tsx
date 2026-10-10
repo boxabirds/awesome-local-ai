@@ -24,6 +24,8 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  // When false (load_failed board) the note ignores drag and edit (TC-23).
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditNext): void;
@@ -43,7 +45,8 @@ interface DragState {
 }
 
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, zoom, selected, editing, editable = true, onSelect, onStartEdit, onEndEdit } =
+    props;
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -99,6 +102,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Never let the viewport see this: dragging a note must not pan (TC-20).
     e.stopPropagation();
+    if (!editable) return; // load-failed board: no drag (TC-23)
     if (editing) return; // the textarea owns interaction while editing
     if (e.button !== 0) return;
     try {
@@ -158,6 +162,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Editing an existing note instead of creating a new one (TC-35).
     e.stopPropagation();
+    if (!editable) return; // load-failed board: no edit (TC-23)
     if (!editing) onStartEdit(note.id);
   };
 

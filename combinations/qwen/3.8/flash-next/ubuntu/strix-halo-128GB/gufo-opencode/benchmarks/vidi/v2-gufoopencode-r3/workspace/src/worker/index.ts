@@ -1,21 +1,28 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { handleTestHook } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  // Enables the /__test/boards/:id/* corruption hooks. Set only in the e2e
+  // wrangler environment, never in production config.
+  TEST_HOOKS?: string;
 }
 
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)$/;
 
 // /api/rooms/:boardId upgrades to the board's BoardRoom Durable Object;
-// everything else is served from static assets (SPA fallback).
+// /__test/* routes exist only when TEST_HOOKS=1 (e2e); everything else is
+// served from static assets (SPA fallback).
 // idFromName(boardId) gives every board its own object, so boards stay
 // separate (live.isolation). No participant counting: the capacity setting
 // is soft, over-capacity joiners are never refused (live.over_capacity).
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const testHook = await handleTestHook(request, env, url);
+    if (testHook !== null) return testHook;
     const match = ROOM_PATH.exec(url.pathname);
     if (match !== null) {
       const boardId = match[1];

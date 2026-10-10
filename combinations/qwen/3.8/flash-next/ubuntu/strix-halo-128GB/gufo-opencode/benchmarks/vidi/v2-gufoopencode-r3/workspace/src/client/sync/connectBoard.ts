@@ -4,16 +4,30 @@ import {
   CONNECTED_CONFIRMATION_MS,
   RECONNECT_MAX_BACKOFF_MS
 } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
 // Connection state machine from the story design: Connecting → Connected,
 // and after any outage Reconnecting → Confirmed (green badge) → Connected.
-export type SyncStatus = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+// A room that refuses to load (close 4500) is a distinct LoadFailed state:
+// the board must never be shown as an empty editable board (persist.load_failure).
+export type SyncStatus =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
+
+// Design-facing alias.
+export type ConnectionState = SyncStatus;
 
 export interface SyncStatusMachine {
   status(): SyncStatus;
   subscribe(listener: (status: SyncStatus) => void): () => void;
   // Feed provider lifecycle events into the machine.
   providerStatus(status: 'connecting' | 'connected' | 'disconnected'): void;
+  // A provider close event: 4500 marks the board load-failed; every other
+  // code (1011 storage failure, 1003 bad data, network) is a retry.
+  close(code: number): void;
   synced(isSynced: boolean): void;
   dispose(): void;
 }
@@ -47,6 +61,9 @@ export function createSyncStatusMachine(): SyncStatusMachine {
       };
     },
     providerStatus(status) {
+      // A load-failed board stays red and disabled through the provider's
+      // backoff retries; only a successful sync (below) leaves the state.
+      if (current === 'load_failed') return;
       if (status === 'disconnected') {
         clearConfirmation();
         // First connection attempt still reads as "Connecting…".
@@ -56,18 +73,27 @@ export function createSyncStatusMachine(): SyncStatusMachine {
       }
       // 'connected' waits for the synced event: open socket is not synced.
     },
+    close(code) {
+      if (code === CLOSE_BOARD_LOAD_FAILED) {
+        clearConfirmation();
+        setStatus('load_failed');
+      }
+      // Other close codes surface as reconnecting via providerStatus.
+    },
     synced(isSynced) {
       if (!isSynced) {
         clearConfirmation();
-        if (everSynced) setStatus('reconnecting');
+        if (current !== 'load_failed' && everSynced) setStatus('reconnecting');
         return;
       }
+      // First successful sync proves the board loaded: leave any load-failed
+      // state and re-enable editing without a page reload.
       if (!everSynced) {
         everSynced = true;
         setStatus('connected');
         return;
       }
-      if (current === 'reconnecting' || current === 'connecting') {
+      if (current === 'reconnecting' || current === 'connecting' || current === 'load_failed') {
         setStatus('confirmed');
         clearConfirmation();
         confirmationTimer = setTimeout(() => {
@@ -102,6 +128,9 @@ export function connectBoard(doc: Y.Doc, boardId: string): BoardConnection {
   const machine = createSyncStatusMachine();
   provider.on('status', (event: { status: 'connecting' | 'connected' | 'disconnected' }) => {
     machine.providerStatus(event.status);
+  });
+  provider.on('connection-close', (event: CloseEvent | null) => {
+    if (event !== null) machine.close(event.code);
   });
   provider.on('sync', (isSynced: boolean) => {
     machine.synced(isSynced);

@@ -13,6 +13,18 @@ export const CONNECTED_CONFIRMATION_MS = 2000; // green badge duration after rec
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000; // PRD live.catch_up verification outage
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000; // functional wait in e2e; latency is logged, not asserted
 
+// Story 4: persistence.
+export const COMPACTION_UPDATE_COUNT = 500; // compact when this many log rows exist
+export const COMPACTION_BYTES = 4 * 1024 * 1024; // or when log bytes reach this
+// Keeps every row well under the platform per-row size limit (checked during
+// implementation: the SQLite-backed DO per-BLOB limit is 1 MiB, so 512 KiB
+// chunks leave a comfortable margin).
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000; // LoadFailed room retries load at most this often
+export const PERSIST_TESTED_NOTES = 2000; // PRD persist.large_board
+export const BOARD_LOAD_BUDGET_MS = 3000; // PRD persist.large_board
+export const STORAGE_SCHEMA_VERSION = 1;
+
 export const STICKY_SIZE_WORLD = 200;
 export const STICKY_TEXT_MAX_CHARS = 1000;
 export const STICKY_COUNTER_THRESHOLD_CHARS = 50; // counter shows when remaining <= this

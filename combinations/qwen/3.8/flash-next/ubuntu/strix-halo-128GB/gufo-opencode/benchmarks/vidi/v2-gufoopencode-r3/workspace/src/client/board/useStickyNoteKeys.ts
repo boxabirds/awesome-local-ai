@@ -14,10 +14,16 @@ function isTextEntry(target: EventTarget | null): boolean {
 
 // Window-level keys: Enter edits the selected note; Delete/Backspace delete
 // it — both ignored while editing text or when focus is in a text field.
-export function useStickyNoteKeys(doc: Y.Doc, selection: SelectionState): void {
+// When `enabled` is false (load_failed board) the keys are inert (TC-23).
+export function useStickyNoteKeys(
+  doc: Y.Doc,
+  selection: SelectionState,
+  enabled = true
+): void {
   const { selectedId, editingId, select, startEdit } = selection;
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!enabled) return;
       if (isTextEntry(e.target)) return;
       if (editingId !== null) return;
       if (selectedId === null) return;
@@ -32,5 +38,5 @@ export function useStickyNoteKeys(doc: Y.Doc, selection: SelectionState): void {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selectedId, editingId, select, startEdit]);
+  }, [doc, selectedId, editingId, select, startEdit, enabled]);
 }

@@ -24,7 +24,7 @@ export class RoomClient {
   readonly frames: ReceivedFrame[] = [];
   private ws!: WebSocket;
   private closedResolve!: (code: number) => void;
-  private readonly closedPromise = new Promise<number>((resolve) => {
+  private closedPromise = new Promise<number>((resolve) => {
     this.closedResolve = resolve;
   });
   private paused = false;
@@ -34,25 +34,8 @@ export class RoomClient {
   static async connect(fetcher: RoomFetcher, url: string): Promise<RoomClient> {
     const client = new RoomClient();
     initDoc(client.doc);
-    const response = await fetcher(url, { headers: { Upgrade: 'websocket' } });
-    const ws = response.webSocket;
-    if (ws == null) {
-      throw new Error(`no WebSocket in upgrade response (status ${response.status})`);
-    }
-    ws.accept();
-    client.ws = ws;
-    ws.addEventListener('message', (event) => {
-      client.handleFrame(event.data as ArrayBuffer);
-    });
-    ws.addEventListener('close', (event) => {
-      if (client.ws !== ws) return; // stale socket after reconnect
-      client.closeCode = event.code;
-      client.closedResolve(event.code);
-    });
-    ws.addEventListener('error', () => {
-      if (client.ws !== ws) return;
-      client.closedResolve(1006);
-    });
+    const ws = await RoomClient.openSocket(fetcher, url);
+    client.bindSocket(ws);
     client.doc.on('update', (update: Uint8Array, origin: unknown) => {
       if (origin === 'remote' || client.paused) return;
       const encoder = createEncoder();
@@ -62,6 +45,32 @@ export class RoomClient {
     });
     client.sendSyncStep1();
     return client;
+  }
+
+  private static async openSocket(fetcher: RoomFetcher, url: string): Promise<WebSocket> {
+    const response = await fetcher(url, { headers: { Upgrade: 'websocket' } });
+    const ws = response.webSocket;
+    if (ws == null) {
+      throw new Error(`no WebSocket in upgrade response (status ${response.status})`);
+    }
+    return ws;
+  }
+
+  private bindSocket(ws: WebSocket): void {
+    ws.accept();
+    this.ws = ws;
+    ws.addEventListener('message', (event) => {
+      this.handleFrame(event.data as ArrayBuffer);
+    });
+    ws.addEventListener('close', (event) => {
+      if (this.ws !== ws) return; // stale socket after reconnect
+      this.closeCode = event.code;
+      this.closedResolve(event.code);
+    });
+    ws.addEventListener('error', () => {
+      if (this.ws !== ws) return;
+      this.closedResolve(1006);
+    });
   }
 
   private handleFrame(data: ArrayBuffer): void {
@@ -84,28 +93,20 @@ export class RoomClient {
   }
 
   // Re-open a socket to another url with the same doc (used to simulate a
-  // reconnect after a room restart). The old socket is closed first.
+  // reconnect after a room restart). The old socket is closed first and close
+  // tracking is reset so waitForClosed reflects the new socket only.
   async reconnect(fetcher: RoomFetcher, url: string): Promise<void> {
+    // Detach first so the old socket's close listener short-circuits, then
+    // start a fresh close promise for the replacement socket.
+    this.ws = undefined as unknown as WebSocket;
     this.closeNow();
-    const response = await fetcher(url, { headers: { Upgrade: 'websocket' } });
-    const ws = response.webSocket;
-    if (ws == null) {
-      throw new Error(`no WebSocket in upgrade response (status ${response.status})`);
-    }
-    ws.accept();
-    this.ws = ws;
-    ws.addEventListener('message', (event) => {
-      this.handleFrame(event.data as ArrayBuffer);
+    this.closeCode = null;
+    this.closedPromise = new Promise<number>((resolve) => {
+      this.closedResolve = resolve;
     });
-    ws.addEventListener('close', (event) => {
-      if (this.ws !== ws) return; // stale socket after another reconnect
-      this.closeCode = event.code;
-      this.closedResolve(event.code);
-    });
-    ws.addEventListener('error', () => {
-      if (this.ws !== ws) return;
-      this.closedResolve(1006);
-    });
+    const ws = await RoomClient.openSocket(fetcher, url);
+    this.bindSocket(ws);
+    this.sendSyncStep1();
   }
 
   sendSyncStep1(): void {

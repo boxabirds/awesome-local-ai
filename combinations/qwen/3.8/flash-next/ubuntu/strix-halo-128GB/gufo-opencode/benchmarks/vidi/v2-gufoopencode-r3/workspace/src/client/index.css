@@ -137,6 +137,12 @@ body {
   color: #ffffff;
 }
 
+.connection-status--load_failed {
+  background: #ffe3e3;
+  border: 1px solid #e03131;
+  color: #a3171b;
+}
+
 .board-toolbar {
   position: fixed;
   left: 16px;

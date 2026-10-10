@@ -18,5 +18,5 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"]
   },
-  "include": ["src/worker", "tests/integration"]
+  "include": ["src/worker", "tests/integration", "tests/unit/board-store.test.ts"]
 }

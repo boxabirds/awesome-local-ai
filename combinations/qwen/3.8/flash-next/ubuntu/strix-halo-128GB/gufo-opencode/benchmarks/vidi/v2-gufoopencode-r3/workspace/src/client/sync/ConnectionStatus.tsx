@@ -4,15 +4,20 @@ import type { BoardConnection, SyncStatus } from './connectBoard';
 const LABELS: Record<Exclude<SyncStatus, 'connected'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
-  confirmed: 'Connected'
+  confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…"
 };
 
 // Top-centre badge. Hidden while the connection is healthy so it never
-// competes with the board for attention.
+// competes with the board for attention; red while the board will not load.
 export function ConnectionStatus({ status }: { status: SyncStatus }) {
   if (status === 'connected') return null;
   return (
-    <div className={`connection-status connection-status--${status}`} role="status">
+    <div
+      className={`connection-status connection-status--${status}`}
+      role="status"
+      data-testid="connection-status"
+    >
       {LABELS[status]}
     </div>
   );

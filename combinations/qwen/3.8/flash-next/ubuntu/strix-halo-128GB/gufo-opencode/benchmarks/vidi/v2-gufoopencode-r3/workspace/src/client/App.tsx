@@ -24,8 +24,15 @@ import { BoardCameraContext, useCamera } from './canvas/useCamera';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote, STICKY_PADDING_WORLD } from './objects/StickyNote';
 import { ConnectionStatus, useConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 
 const NOTE_TOOLBAR_GAP_PX = 12;
+
+// Editing is disabled only while the board cannot be loaded, so a transient
+// storage failure ("Reconnecting…") never locks a readable board (TC-28).
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export interface AppProps {
   // Tests inject their own Y.Doc; production supplies none.
@@ -77,6 +84,7 @@ export function App({ doc: providedDoc }: AppProps = {}) {
     providedDoc === undefined ? boardId : undefined
   );
   const connectionStatus = useConnectionStatus(connection);
+  const editable = canEdit(connectionStatus);
   const selection = useSelection();
   const { selectedId, editingId, draggingId, select, startEdit, endEdit, setDragging } =
     selection;
@@ -94,7 +102,7 @@ export function App({ doc: providedDoc }: AppProps = {}) {
     installTestHooks(board.setCamera, doc, connection);
   }, [board.setCamera, doc, connection]);
 
-  useStickyNoteKeys(doc, selection);
+  useStickyNoteKeys(doc, selection, editable);
 
   const createAtWorldPoint = useCallback(
     (world: Point) => {
@@ -106,17 +114,19 @@ export function App({ doc: providedDoc }: AppProps = {}) {
 
   const onDoubleClickEmpty = useCallback(
     (screenPoint: Point) => {
+      if (!editable) return; // load-failed board is never editable (TC-23)
       createAtWorldPoint(screenToWorld(board.camera, screenPoint));
     },
-    [board.camera, createAtWorldPoint]
+    [board.camera, createAtWorldPoint, editable]
   );
 
   const onCreateSticky = useCallback(() => {
+    if (!editable) return; // load-failed board is never editable (TC-23)
     // Centre of the visible board area, wherever the board has been panned.
     createAtWorldPoint(
       screenToWorld(board.camera, { x: viewport.width / 2, y: viewport.height / 2 })
     );
-  }, [board.camera, createAtWorldPoint, viewport]);
+  }, [board.camera, createAtWorldPoint, viewport, editable]);
 
   const { camera, hasNavigated } = board;
   const selectedNote = selectedId === null ? undefined : notes.find((n) => n.id === selectedId);
@@ -143,6 +153,7 @@ export function App({ doc: providedDoc }: AppProps = {}) {
               zoom={camera.zoom}
               selected={note.id === selectedId}
               editing={note.id === editingId}
+              editable={editable}
               onSelect={select}
               onStartEdit={startEdit}
               onEndEdit={endEdit}
@@ -150,8 +161,11 @@ export function App({ doc: providedDoc }: AppProps = {}) {
             />
           ))}
         </BoardViewport>
-        <Toolbar onCreateSticky={onCreateSticky} />
-        {selectedNote !== undefined && editingId === null && draggingId === null && (
+        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
+        {editable &&
+          selectedNote !== undefined &&
+          editingId === null &&
+          draggingId === null && (
           <div
             className="note-toolbar-anchor"
             style={{

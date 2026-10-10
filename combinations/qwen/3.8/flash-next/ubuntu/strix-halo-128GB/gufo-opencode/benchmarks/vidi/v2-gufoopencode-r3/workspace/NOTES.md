@@ -175,3 +175,78 @@ Decisions and deviations for story 1 (Pan and zoom around an infinite board).
   drag may grab an overlapping note; convergence is the contract).
 - Observed latency on this machine: p50 ≈ 6–18 ms, p95 ≈ 9–53 ms,
   worst single sample 114 ms — far under the 1 s budget.
+
+# Story 4: Return to a board and find everything as it was left
+
+## Architecture
+- Persistence lives in `BoardStore` (`src/worker/board-store.ts`): a
+  `updates` log (one raw Yjs update per row), a chunked `snapshot_chunks`
+  table (512 KiB chunks so no row exceeds the DO per-row BLOB limit), a
+  `quarantined_updates` table, and `storage_meta` for the schema version and
+  `snapshot_through_seq`. Compaction encodes the room doc
+  (`Y.encodeStateAsUpdate`), rewrites the chunks, deletes rows
+  `seq <= maxSeq` and bumps the meta key — all inside one
+  `transactionSync`, so a failure rolls back to the previous snapshot+log.
+- `BoardRoom` loads in `state.blockConcurrencyWhile` before accepting
+  sockets, stores every update synchronously before broadcasting (the DO
+  output gate keeps ordering durable), and uses the Hibernation API
+  (`ctx.acceptWebSocket` / `getWebSockets(tag)`) so idle rooms release
+  memory. Room lifecycle is a pure function in `src/worker/room-state.ts`
+  (`nextRoomState`); the room exposes it via `debugState()`.
+- Failure model: log-row damage → quarantine + clock-gap GC fill → board
+  loads minus the damaged change (`persist.partial_damage`). Damaged
+  snapshot or SQL failure → close 4500 (`CLOSE_BOARD_LOAD_FAILED`) and do
+  not serve an empty board; a retry is throttled to
+  `LOAD_RETRY_MIN_INTERVAL_MS`. Any storage write failure → close 1011
+  (`CLOSE_STORAGE_FAILURE`), state `storage-failed`.
+- Test hooks (`TEST_HOOKS=1` env, never set in wrangler.jsonc):
+  `POST /__test/boards/:id/(corrupt-snapshot|repair|compact)` plus DO RPC
+  `testCompact/testCorruptSnapshot/testRepairSnapshot`, and the always-on
+  `debugState/debugStore/debugSetStore/debugReload` seams.
+
+## Gotchas (cost hours)
+- `@cloudflare/workers-types` `SqlStorageCursor` has `next()`/`toArray()`,
+  NOT `all()`/`first()`; use a `firstRow(cursor)` helper.
+- Yjs defers every update that starts past the stored clock of a client
+  into `store.pendingStructs.missing` — silently, with no throw. So after
+  quarantining a damaged row, later rows from the same writer are applied
+  as no-ops ("applied" without error but content missing). The fix is
+  `fillClockGaps`: read the V1 header `[numClients][numStructs][client]
+  [startClock]...` (no state-vector prefix!) of the next row, and before
+  each `applyUpdate` hand-insert GC structs (`info` byte 0, empty delete
+  set) covering `[storedClock, startClock)` per client. On intact streams
+  start === stored clock, so this is a no-op; on a damaged log it closes
+  the hole so everything after the damage still applies. Do not trust
+  `Y.encodeStateVectorFromUpdate` for partial updates — it parses the
+  whole update and throws on truncation.
+- `lib0/encoding` exports `writeUint8` (not `writeVarUint8`).
+- Y.Text is `insert(index, text)`, there is no `insertText`.
+- `TEST_HOOKS` must be passed to `wrangler dev` via `--var TEST_HOOKS:1` on
+  the command line; wrangler does NOT forward arbitrary process env vars to
+  the worker. The e2e `startWrangler({ testHooks })` helper adds the flag.
+- A hand-rolled sync client (the e2e `seed-client.ts`) must prefix every
+  reply produced by `syncProtocol.readSyncMessage` with the `MESSAGE_SYNC`
+  (0) frame byte before sending. That encoder holds only the bare sync
+  sub-message; without the prefix the room's `decodeMessage` reads the
+  sub-message type (e.g. SyncStep2=1) as the protocol byte and treats it as
+  awareness, silently dropping it. Symptom: the room's `Y.Doc` gets child
+  Item structs whose `initDoc` parent it never received, so they pile up in
+  `store.pendingStructs` and never integrate (no `update` event, nothing
+  stored). The working `ws-client.ts` re-prefixes; mirror it.
+- "Seen is saved" is per-PEER. The creating browser's local `Y.Doc` updates
+  instantly on `createSticky`, long before the room has received and
+  appended it over the socket. TC-19/TC-24 therefore poll the ROOM
+  (`readNoteCount`, a fresh client reconstructing from the room) to 25
+  before any hard process kill; polling only the creator's own view races
+  and loses in-flight notes.
+- Client `load_failed` is driven by the provider's `connection-close` event
+  (close code 4500), NOT by `status:disconnected`; the machine latches
+  `load_failed` and ignores subsequent `connecting`/`disconnected` until a
+  successful `sync` (no page reload). Codes 1011/1003 map to `reconnecting`
+  so a readable board is never locked. Editing is gated by `canEdit` in
+  `App.tsx` (false only for `load_failed`): double-click, the Sticky note
+  button (`disabled`), note drag/edit, and the Delete key are all inert.
+  For TC-23 component tests, `App` is mounted with an injected doc (offline,
+  `connection: null`) and `useConnectionStatus` is `vi.mock`-stubbed to a
+  mutable holder; the mutation-free assertions check the real `Y.Doc` object
+  count, not spies.
