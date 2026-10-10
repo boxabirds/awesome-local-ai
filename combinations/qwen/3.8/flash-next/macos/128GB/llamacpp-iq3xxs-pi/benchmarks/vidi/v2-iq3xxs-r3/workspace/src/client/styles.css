@@ -366,3 +366,35 @@ body {
   border-radius: 999px;
   pointer-events: none;
 }
+
+/* Connection badge (live.status): top centre, never over a control, and never
+   a lock — it reports, the board stays usable. Amber means "the edits you make
+   now may not have arrived", green means "they have". */
+.connection-status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(15, 19, 26, 0.08);
+  pointer-events: none;
+}
+
+.connection-status--connecting {
+  color: var(--chrome-muted);
+}
+
+.connection-status--reconnecting {
+  color: #8a4b00;
+  background: #fff7e6;
+  border-color: #f0c36d;
+}
+
+.connection-status--confirmed {
+  color: #14683b;
+  background: #ecfdf3;
+  border-color: #a6e7c6;
+}

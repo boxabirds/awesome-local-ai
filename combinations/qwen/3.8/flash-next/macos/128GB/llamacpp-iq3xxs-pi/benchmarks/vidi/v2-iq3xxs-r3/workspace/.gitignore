@@ -4,3 +4,6 @@ dist
 playwright-report
 test-results
 *.log
+
+# local scratch experiments (never committed)
+.scratch/

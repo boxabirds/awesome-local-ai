@@ -1,10 +1,24 @@
 {
-  // Static client build served by `wrangler dev`. Worker code (main) and
-  // Durable Objects arrive in story 3.
+  // One BoardRoom Durable Object per board (story 3). The migration is
+  // SQLite-backed already, so story 4 can persist the document without
+  // changing the class's storage backend under a live deployment.
   "$schema": "https://esm.sh/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  // The workerd bundled by @cloudflare/vitest-pool-workers (for the integration
+  // project) understands compatibility dates up to 2026-08-22; stay at or below
+  // it so `wrangler dev` and `vitest --project integration` agree.
+  "compatibility_date": "2026-08-22",
+  "main": "src/worker/index.ts",
   "assets": {
-    "directory": "./dist/client"
-  }
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    // /b/<boardId> is a client-side route: it must serve index.html.
+    "not_found_handling": "single-page-application",
+    // The Worker owns /api/rooms/*; assets are one of its bindings.
+    "run_worker_first": true
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

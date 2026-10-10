@@ -1,0 +1,23 @@
+{
+  // The Cloudflare side of the app: the Worker, the BoardRoom Durable Object
+  // and the integration tests that run inside workerd. Type-checked with the
+  // Workers types instead of the DOM types, because that is the runtime they
+  // run in (`npm run typecheck` checks both projects).
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"]
+  },
+  "include": ["src/worker", "src/shared", "tests/integration"]
+}

@@ -16,11 +16,17 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["vite/client", "node"]
   },
+  "exclude": [
+    "src/worker",
+    "tests/integration"
+  ],
   "include": [
     "src",
     "tests",
     "vite.config.ts",
     "vitest.config.ts",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "playwright.nightly.config.ts",
+    "playwright.browsers.ts"
   ]
 }

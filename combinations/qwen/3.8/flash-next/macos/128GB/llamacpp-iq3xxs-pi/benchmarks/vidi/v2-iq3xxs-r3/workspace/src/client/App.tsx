@@ -1,15 +1,18 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { JSX } from 'react';
 
 import { BoardViewport } from './canvas/BoardViewport';
 import { CameraProvider, useBoard } from './canvas/CameraProvider';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
 import { NavigationHint } from './canvas/NavigationHint';
+import { publishConnection, publishConnectionState } from './canvas/testHooks';
 import { ZoomControls } from './canvas/ZoomControls';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import type { Point } from './canvas/camera';
 import { StickyNote } from './objects/StickyNote';
 
@@ -52,6 +55,8 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export interface BoardContentsProps {
+  /** Board to sync with (`/api/rooms/<boardId>`); `null` stays offline. */
+  boardId?: string | null;
   /** Use an existing document instead of owning one (component tests). */
   doc?: import('yjs').Doc;
 }
@@ -62,10 +67,10 @@ export interface BoardContentsProps {
  * (Enter starts editing, Delete/Backspace delete the selected note — never
  * while its text is being edited).
  */
-export function BoardContents({ doc }: BoardContentsProps = {}): JSX.Element {
+export function BoardContents({ boardId = null, doc }: BoardContentsProps = {}): JSX.Element {
   const board = useBoard();
-  const { doc: document, notes } = useBoardDoc(doc);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const { doc: document, notes, connection, live } = useBoardDoc(boardId, { doc });
+  const { selectedId, editingId, select, startEdit, endEdit } = useSelection(document);
 
   /** Create a note centred on a world point, selected and in edit mode. */
   const createAndEdit = useCallback(
@@ -90,6 +95,23 @@ export function BoardContents({ doc }: BoardContentsProps = {}): JSX.Element {
       delete window.__vidi6Board;
     };
   }, [document]);
+
+  // Test-only: the badge hides when things are normal, which is indistinguishable
+  // from "has never connected" by looking at the DOM (TC-29 watches the state
+  // itself while two boards sit idle).
+  useEffect(() => {
+    if (import.meta.env.MODE !== 'test') return;
+    publishConnectionState(connection);
+  }, [connection]);
+
+  // Test-only: hand a test the means to cut this board's wire (TC-27). An
+  // outage is more than the network being off: an established socket survives
+  // that emulation, so the socket goes too and the retry then fails.
+  useEffect(() => {
+    if (import.meta.env.MODE !== 'test') return;
+    publishConnection(live);
+    return () => publishConnection(null);
+  }, [live]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -139,6 +161,9 @@ export function BoardContents({ doc }: BoardContentsProps = {}): JSX.Element {
           />
         ))}
       </BoardViewport>
+      {/* Top centre, above every state of the board (live.status). It never
+          covers a control and never disables one. */}
+      <ConnectionStatus state={connection} />
       <Toolbar
         onCreateSticky={() => {
           // Centre of the visible board area, wherever the board is panned
@@ -154,11 +179,50 @@ export function BoardContents({ doc }: BoardContentsProps = {}): JSX.Element {
   );
 }
 
+/** The board route of story 3: `/b/:boardId` (a board id, nothing else). */
+const BOARD_PATH = /^\/b\/([^/]+)$/;
+
+/** The board id the current URL asks for, or `null` when it does not. */
+function pathBoardId(): string | null {
+  const id = BOARD_PATH.exec(window.location.pathname)?.[1] ?? null;
+  return id !== null && isValidBoardId(id) ? id : null;
+}
+
+/**
+ * The router, which is deliberately this small: read `/b/:boardId` back on
+ * every history change, and when the URL is not a board (`/`, or an id that
+ * could not be a board id) open a fresh board in its place.
+ *
+ * A client-side redirect is a placeholder: story 5 moves board creation and
+ * `/b/:boardId` to the Worker, and this becomes a navigation away instead of a
+ * rewrite. A malformed id never reaches the Worker as `/api/rooms/<id>` from
+ * this app — the server still answers such a request with 400 (TC-04).
+ */
+function useBoardRoute(): string | null {
+  const [boardId, setBoardId] = useState<string | null>(pathBoardId);
+
+  useEffect(() => {
+    if (boardId !== null) return;
+    const fresh = newBoardId();
+    window.history.replaceState(null, '', `/b/${fresh}`);
+    setBoardId(fresh);
+  }, [boardId]);
+
+  useEffect(() => {
+    const onPopState = (): void => setBoardId(pathBoardId());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  return boardId;
+}
+
 export function App(): JSX.Element {
+  const boardId = useBoardRoute();
   return (
     <div className="board-app" data-testid="board-app">
       <CameraProvider>
-        <BoardContents />
+        <BoardContents boardId={boardId} />
         <BoardZoomControls />
         <BoardNavigationHint />
       </CameraProvider>

@@ -1,9 +1,12 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import * as Y from 'yjs';
+
+import { OBJECTS_KEY } from '../../shared/board-model';
 
 /**
  * Which note is selected and which is being edited — per-client interaction
  * state, never written to the Y.Doc (another user's cursor must not change
- * what you have selected).
+ * what you have selected, live.local_selection).
  */
 export interface SelectionController {
   readonly selectedId: string | null;
@@ -16,7 +19,13 @@ export interface SelectionController {
   endEdit(next: 'selected' | 'unselected'): void;
 }
 
-export function useSelection(): SelectionController {
+/**
+ * Selection of one screen. Pass the board document so a note that disappears
+ * *because somebody else deleted it* also stops being selected or edited here
+ * (live.delete_during_edit): the editor unmounts, an in-progress drag ends with
+ * the element, and nothing is reported to the user as an error.
+ */
+export function useSelection(doc: Y.Doc): SelectionController {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -36,6 +45,18 @@ export function useSelection(): SelectionController {
     setEditingId(null);
     if (next === 'unselected') setSelectedId(null);
   }, []);
+
+  useEffect(() => {
+    const objects = doc.getMap<Y.Map<unknown>>(OBJECTS_KEY);
+    const prune = (): void => {
+      const drop = (id: string | null): string | null => (id !== null && objects.has(id) ? id : null);
+      setSelectedId((current) => drop(current));
+      setEditingId((current) => drop(current));
+    };
+    prune();
+    objects.observeDeep(prune);
+    return () => objects.unobserveDeep(prune);
+  }, [doc]);
 
   return { selectedId, editingId, select, startEdit, endEdit };
 }

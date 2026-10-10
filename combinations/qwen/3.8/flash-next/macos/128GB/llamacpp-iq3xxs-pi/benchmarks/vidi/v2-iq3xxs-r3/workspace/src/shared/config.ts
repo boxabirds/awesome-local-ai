@@ -74,3 +74,43 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour of a freshly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* --- Story 3: live collaboration ------------------------------------------ */
+
+/**
+ * Simultaneous-editor capacity (live.capacity): the single named setting the
+ * design and the tests use. It is *soft* — the server never refuses a
+ * connection and never restricts editing over it (live.over_capacity).
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/** live.propagate: how long a change may take to reach every other screen. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1_000;
+
+/** Reconnect backoff ceiling handed to the y-websocket provider. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2_000;
+
+/** Outage length used when verifying live.catch_up. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * Functional wait in the e2e suites (all stories). Latency is measured and
+ * reported against LIVE_UPDATE_LATENCY_BUDGET_MS there, never asserted: the
+ * model, the browsers and the server share one machine.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/** How long the nightly soak keeps five people on one board (TC-30). */
+export const NIGHTLY_SOAK_MINUTES = 1;
+
+/** The soak's pace: one edit per person every 5 seconds (TC-30). */
+export const NIGHTLY_EDIT_SPACING_MS = 5_000;
+
+/**
+ * The nightly idle watch (TC-29): the PRD's 90 idle minutes at one second per
+ * minute — waiting to see nothing happen is scaled, unlike a real outage.
+ */
+export const NIGHTLY_IDLE_WATCH_MS = 5_000;

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { JSX, ChangeEvent, CompositionEvent, KeyboardEvent } from 'react';
 import type * as Y from 'yjs';
 
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { mapCaret, type TextDeltaOp } from './remote-text';
 
 export interface StickyTextEditorProps {
   /** The note's text; every input event is diffed into it. */
@@ -24,6 +25,11 @@ export interface StickyTextEditorProps {
  * can get lost. Input is skipped while an IME is composing and applied on
  * `compositionend` so composed input never duplicates characters. On mount the
  * caret is placed at the end of the existing text.
+ *
+ * While somebody else is typing in the same note (story 3), the doc is the
+ * truth: their characters are copied in as they arrive and the caret moves with
+ * the text. Without that, the next keystroke would be diffed against a stale
+ * copy of the string and would delete what just arrived.
  */
 export function StickyTextEditor({
   ytext,
@@ -33,6 +39,8 @@ export function StickyTextEditor({
   const ref = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState(() => ytext.toString());
   const composingRef = useRef(false);
+  /** Where the caret belongs after the remote change being applied now. */
+  const caretRef = useRef<{ start: number; end: number } | null>(null);
   /** Latest onEnd, so the document listener is attached only once. */
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
@@ -63,6 +71,38 @@ export function StickyTextEditor({
     document.addEventListener('pointerdown', onPointerDown, true);
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
   }, []);
+
+  // live.merge: somebody else's characters land in this textarea as they come
+  // from the room, and the caret keeps its place next to them. Only changes
+  // that did not start here count — our own typing is already in the value.
+  useEffect(() => {
+    const onRemote = (event: Y.YTextEvent): void => {
+      if (event.transaction.origin === LOCAL_ORIGIN) return;
+      const next = ytext.toString();
+      const el = ref.current;
+      if (el) {
+        const caret = mapCaret(
+          { start: el.selectionStart ?? next.length, end: el.selectionEnd ?? next.length },
+          event.delta as unknown as TextDeltaOp[],
+        );
+        caretRef.current = { start: keep(caret.start, next), end: keep(caret.end, next) };
+      }
+      setValue(next);
+    };
+    ytext.observe(onRemote);
+    return () => ytext.unobserve(onRemote);
+  }, [ytext]);
+
+  // React writes the value, and the browser drops the caret at the end of it.
+  // This runs after that write and before the paint, so the caret is back in
+  // place before anybody could see it move.
+  useLayoutEffect(() => {
+    const caret = caretRef.current;
+    const el = ref.current;
+    if (!caret || !el) return;
+    caretRef.current = null;
+    el.setSelectionRange(caret.start, caret.end);
+  });
 
   const commit = (raw: string): void => {
     const next = clampToLimit(raw);
@@ -141,4 +181,9 @@ export function StickyTextEditor({
       ) : null}
     </>
   );
+}
+
+/** Never point outside the text: a stale caret would throw in the browser. */
+function keep(index: number, text: string): number {
+  return Math.max(0, Math.min(index, text.length));
 }

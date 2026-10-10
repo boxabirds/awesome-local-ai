@@ -71,6 +71,60 @@ export class ResizeObserverStub {
   }
 }
 
+/**
+ * A `WebSocket` that never opens.
+ *
+ * Story 3 starts a connection as soon as a board mounts, and the component
+ * tests render whole boards; jsdom would open a real socket to a server that is
+ * not there. This fake stays in `CONNECTING` forever instead, which is exactly
+ * what a board in front of an unreachable server looks like — the state the
+ * connection badge starts in (and the reason the component tests can assert on
+ * it: see `tests/component/ConnectionStatus.test.tsx`).
+ */
+export class FakeSocket {
+  static instances: FakeSocket[] = [];
+
+  readonly CONNECTING = 0;
+  readonly OPEN = 1;
+  readonly CLOSING = 2;
+  readonly CLOSED = 3;
+
+  readyState = 0;
+  binaryType: string = 'arraybuffer';
+  onopen: (() => void) | null = null;
+  onclose: ((event: { code: number; reason: string }) => void) | null = null;
+  onerror: ((event: unknown) => void) | null = null;
+  onmessage: ((event: { data: ArrayBuffer }) => void) | null = null;
+
+  /** Frames the app tried to send, in order. */
+  readonly sent: Uint8Array[] = [];
+
+  constructor(readonly url: string) {
+    FakeSocket.instances.push(this);
+  }
+
+  send(data: Uint8Array): void {
+    this.sent.push(data);
+  }
+
+  close(): void {
+    this.readyState = this.CLOSED;
+  }
+
+  addEventListener(): void {}
+
+  removeEventListener(): void {}
+
+  static reset(): void {
+    FakeSocket.instances = [];
+  }
+
+  /** The socket story 3's provider opened first, if any. */
+  static first(): FakeSocket | undefined {
+    return FakeSocket.instances[0];
+  }
+}
+
 /** Records `setPointerCapture` calls so tests can assert the drag captured. */
 export const pointerCaptureRecorder = {
   capturedPointerIds: [] as number[],
@@ -84,9 +138,16 @@ export const pointerCaptureRecorder = {
 export function installComponentTestShims(): void {
   ResizeObserverStub.reset();
   pointerCaptureRecorder.reset();
+  FakeSocket.reset();
 
   Object.defineProperty(globalThis, 'ResizeObserver', {
     value: ResizeObserverStub,
+    configurable: true,
+    writable: true,
+  });
+
+  Object.defineProperty(globalThis, 'WebSocket', {
+    value: FakeSocket,
     configurable: true,
     writable: true,
   });

@@ -35,6 +35,21 @@ export function readNotes(page: Page): Promise<NoteData[]> {
   );
 }
 
+/**
+ * The text of every note, in render order. While a note is being edited its
+ * text is in the editor, so that is read too: two screens of one board show the
+ * same characters whatever each of them is doing.
+ */
+export function noteTexts(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>('.sticky-note')).map((element) => {
+      const editor = element.querySelector<HTMLTextAreaElement>('[data-testid="sticky-textarea"]');
+      if (editor) return editor.value;
+      return element.querySelector('.sticky-text')?.textContent ?? '';
+    }),
+  );
+}
+
 export async function expectNoteCount(page: Page, count: number): Promise<void> {
   await expect(notes(page)).toHaveCount(count);
 }
