@@ -431,6 +431,71 @@ sequenceDiagram
 - **Read by** the insight scripts in `benchmarks/docs/insights/thinking/`, and a dbench test.
   Neither the benchmarker nor the gallery reads it.
 
+## Conversations and token counts
+
+Checked on 10 Oct 2026 against the code (`harness/clients.py`, `harness/accounting.py`, `harness/drive.py`,
+`tools/dbench/src/ingest/`), against the live `conversations.db`, and against Anthropic's documentation for Claude Code.
+
+### How each client is driven and what it logs
+
+The harness starts one agent process per attempt (`drive.run_agent`) and reads its standard output line by line,
+stamping each line with its arrival time (`_rx`) as it appends it to `stories/NN/agent-events.jsonl`. A story can need
+several attempts: a fresh one, a resume after an error, a resume after a stop that is not a verified finish, a resume
+after a harness restart (`drive.run_story_agent`).
+
+| Client | Process | What the log holds | Output tokens per call | Output tokens per story |
+|---|---|---|---|---|
+| pi | one per attempt | token-by-token deltas, then the finished message | `message.usage.output` from the model server | sum of the calls |
+| OpenCode | one per attempt | step events | `tokens.output` plus `tokens.reasoning` | sum of the steps |
+| Claude Code | `claude -p <prompt> --model <id> --output-format stream-json --verbose --dangerously-skip-permissions`, with `--resume <session> --fork-session` on a retry | whole events (message blocks, tool calls, tool results, system notices), no deltas: the harness does not pass `--include-partial-messages` | none usable: the number on each assistant line is the API's count at the start of the response | the `result` line each process ends with: `usage.output_tokens`, with `thinking_tokens` |
+
+For Claude Code, Anthropic's documentation says the per-message `output_tokens` "is only the count the API had reported at
+`message_start`", and that the real count is added to the `result` message. In the opus-5.5 `v2-r1` story 4 log, the
+assistant lines show 8, 8 and 16 and the `result` line shows 89,419 (28,534 thinking). `total_cost_usd` in the same line is
+a client-side estimate from a bundled price table, not billing.
+
+Each Claude Code process writes its own `result`, so a story that took several attempts has several. In `result`,
+`usage` covers that process and `modelUsage` and `total_cost_usd` are cumulative for the session. The harness adds the
+`usage` of every `result`.
+
+### What the warehouse keeps of a conversation, and what it does not
+
+`conversations.db` keeps the logical conversation: every turn's full thinking and reply text (`calls`), every tool call
+with its arguments and full result (`tools`), the user messages (`msgs`), the compactions, and the order and call-level
+times. It does not keep the stream. For a pi story, the raw file has 140,822 lines, of which 138,875 are deltas (38 of its
+41.8 MB). The ingest skips them, along with `tool_execution_update`, `turn_start`, `turn_end`, `agent_end` and the like.
+So it cannot rebuild:
+
+- where the model's output was split into chunks, or when each chunk arrived (it keeps `sent`, `first` and the end per call);
+- partial tool output while a command ran;
+- the message envelope: `responseId`, `provider`, `api`, `rawStopReason`, `thinkingSignature`;
+- the exact bytes: `clean()` in `ingest/flags.rs` rewrites `/home/<user>` and `/Users/<user>` to `~`.
+
+The raw file stays in the lake and is the real archive. A Claude Code log has no deltas, so for Claude the warehouse is
+closer to a full copy of the log than it is for pi.
+
+### How far the token counts are verified
+
+| Clients | Check | Result |
+|---|---|---|
+| pi on llama.cpp | the client's count per call against the model server's log, matched by **time** | 36,942 calls, zero differing |
+| pi on gufo, mlx-serve, Strata; OpenCode on gufo | the same, but matched by **token counts**, so equality is by construction | 100% of calls found a server request with the same count, in order |
+| pi on MTPLX | no server log | client count only (1,406 calls) |
+| Claude Code, 55 stories with a raw log | the harness's recorded output tokens against the sum of the `result` events | 55 of 55 equal |
+| Claude Code, the 6 stories with several `result` events | the sum of per-process `usage` against the last cumulative `modelUsage` | equal in all 6 |
+| Claude Code, subagents | `usage` against `modelUsage` in the 49 single-result stories | equal, so no subagent tokens missing |
+
+**Not done:** the Claude totals have not been compared with Anthropic's billing (the Console Usage page or the Usage and
+Cost API). They show the harness read Claude Code's report correctly, not that the report matches the bill.
+
+### Where tok/s comes from
+
+- **Local models:** the model server's generated tokens over the server's decode seconds (`gen_n` over `gen_ms` for
+  llama.cpp). Per story, the sum of tokens over the sum of those seconds (`accounting.py`).
+- **Claude Code:** none. No per-call counts and no first-token time, so `decode_tokens`, `decode_tok_s` and
+  `prefill_tok_s` are null in `time_split`. The benchmarker's "effective story tok/s" is the story's output tokens over its
+  whole agent time, tool runs and waits included, and the page hides the engine speed for cloud rows.
+
 ## The three readers and how old their data can be
 
 | Reader | Reads | Refresh | Reads the working copy? |
@@ -453,5 +518,6 @@ left as it was and the reason goes to the gallery's stderr.
   The lake and the warehouse exclude reference runs; git does not.
 - Whether the Mac's `state/` folder, which holds the lake and both databases, is itself
   private.
+- Whether the Claude Code token totals match Anthropic's billing.
 - Harness-side details beyond the two functions named above: how `finalize.json` and rescore
   records are produced and pushed.
