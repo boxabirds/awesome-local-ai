@@ -13,6 +13,7 @@ import type { TextSnapshot } from '../shared/objects/text';
 import type { ShapeSnapshot } from '../shared/objects/shape';
 import type { ConnectorSnapshot, EndpointInput } from '../shared/objects/connector';
 import type { StrokeSnap } from '../shared/objects/stroke';
+import type { ImageSnap } from '../shared/objects/image';
 
 /** Test-only note creation arguments, mirroring `createSticky`. */
 export interface TestStickyParams {
@@ -88,6 +89,8 @@ export interface Vidi6TestHooks {
   strokes(): StrokeSnap[];
   /** Put a stroke on the board through the model, for test setup (story 11). */
   createStroke(params: TestStrokeParams): string;
+  /** Every image on the board, topmost last (story 12 e2e). */
+  images(): ImageSnap[];
   /** Seed many notes in one transaction, for test setup (large-board tests). */
   createNotes(params: TestSeedParams): number;
   /** The connection state the status badge is rendering (story 3). */
@@ -133,6 +136,7 @@ export interface BoardApi {
   createConnector: (params: TestConnectorParams) => string;
   strokes: () => StrokeSnap[];
   createStroke: (params: TestStrokeParams) => string;
+  images: () => ImageSnap[];
   connectionState: () => string;
 }
 
@@ -161,6 +165,7 @@ export function installTestHooks(): void {
     createConnector: (params) => boardApi?.createConnector(params) ?? '',
     strokes: () => boardApi?.strokes() ?? [],
     createStroke: (params) => boardApi?.createStroke(params) ?? '',
+    images: () => boardApi?.images() ?? [],
     createNotes: (params) => seedApi?.seed(params) ?? 0,
     connectionState: () => boardApi?.connectionState() ?? 'connecting',
   };

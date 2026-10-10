@@ -55,4 +55,15 @@ export class FakeBoardProvider implements BoardProvider {
   }
 
   destroy(): void {}
+
+  /**
+   * The link that once answered is down. `connectBoard` turns this into
+   * `reconnecting`: the board stays open and editable, and the provider is already
+   * retrying with exponential backoff (story 3, TC-20).
+   */
+  drops(): void {
+    for (const handler of this.statusHandlers) {
+      handler({ status: 'disconnected' });
+    }
+  }
 }

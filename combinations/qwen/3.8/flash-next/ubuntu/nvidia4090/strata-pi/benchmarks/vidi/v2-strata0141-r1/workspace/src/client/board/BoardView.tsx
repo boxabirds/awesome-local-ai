@@ -15,6 +15,7 @@ import { createText, getTextContent, setTextSize } from '../../shared/objects/te
 import { createShape, getShapeLabel, setShapeStyle } from '../../shared/objects/shape';
 import { createConnector } from '../../shared/objects/connector';
 import { createStroke } from '../../shared/objects/stroke';
+import { isImageSnapshot } from '../../shared/objects/image';
 import { registerBoardApi, registerSeedApi } from '../testHooks';
 import {
   DEFAULT_PEN_COLOR,
@@ -42,6 +43,9 @@ import { ConnectorTool } from '../tools/ConnectorTool';
 import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
+import { ImageAdditionsProvider, useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { ImageToasts } from '../images/ImageToasts';
 import { UndoControllerContext, useUndo, useUndoController } from './useUndo';
 import type { UndoController } from './undo';
 // Importing the registry is what registers the board's object types; every
@@ -175,6 +179,36 @@ export function BoardView({
 
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
 
+  /**
+   * Story 12 (`image.insert`): the board's image adding - drop, paste and the file
+   * picker - and everything the image objects need to be drawn with: how far this
+   * client has sent each file, whether it can send it again, and where a finished
+   * one is fetched from.
+   *
+   * It is held here rather than in a toolbar or in `ImageObject`, because one add is
+   * one action that touches the document, the upload, the selection and the undo
+   * history at the same time, and this is the only place all four are in reach. The
+   * listeners are on `window`, so a file released over the toolbar or the zoom
+   * control is an add to this board and not a browser navigation (`image.drop`).
+   */
+  const images = useImageInsert({
+    doc,
+    boardId,
+    identityId: clientId,
+    connection: connectionState,
+    canEdit: editable,
+    editing: selection.editingId !== null,
+    camera,
+    surfaceOrigin: surface?.origin ?? null,
+    viewCentre: surface ? screenToWorld(camera, viewportCentre(surface)) : null,
+    select: (ids) => selection.setMany(ids, false),
+    undoBoundary: undoController.boundary,
+    // `image.pick`: the picker is not a tool the board holds, so there is nothing to
+    // return from - going back to Select is what makes an Image click leave the
+    // board in its normal state whatever happened to the choice.
+    onToolReturn: () => setTool('select'),
+  });
+
   /** Create a note centred on a world point and start editing it right away. */
   const createAt = useCallback(
     (world: { x: number; y: number }) => {
@@ -248,6 +282,21 @@ export function BoardView({
     [activeTool, createTextAt, objects, selection, zoom],
   );
 
+  const deleteSelection = useCallback(() => {
+    if (!editable) {
+      return;
+    }
+    // Story 12 (`image.remove`): a deleted image stops being sent as well as being
+    // deleted. For every other type this is a no-op - there is no upload to stop.
+    for (const id of selection.ids) {
+      images.abandon(id);
+    }
+    undoController.boundary();
+    deleteObjects(doc, [...selection.ids]);
+    undoController.boundary();
+    selection.clear();
+  }, [doc, editable, images.abandon, selection, undoController.boundary]);
+
   useBoardKeys({
     doc,
     selection,
@@ -263,6 +312,11 @@ export function BoardView({
     selectTool: () => setTool('select'),
     textTool: () => setTool('text'),
     createSticky: createAtViewportCentre,
+    // `image.pick`: I opens the file picker, exactly as the Image button does.
+    insertImage: images.openPicker,
+    // Delete and Backspace delete through the same path, so an upload a selected
+    // image still has open is stopped there too (`image.remove`).
+    deleteSelection,
   });
 
   /** Starting to edit is a mutation too: a note's text is the document. */
@@ -275,16 +329,6 @@ export function BoardView({
     },
     [editable, selection],
   );
-
-  const deleteSelection = useCallback(() => {
-    if (!editable) {
-      return;
-    }
-    undoController.boundary();
-    deleteObjects(doc, [...selection.ids]);
-    undoController.boundary();
-    selection.clear();
-  }, [doc, editable, selection, undoController.boundary]);
 
   /**
    * A size chosen from the text toolbar (`text.object`, TC-21): the letters change,
@@ -387,6 +431,9 @@ export function BoardView({
           },
           'test-hook',
         ) ?? '',
+      // Story 12's images: the e2e tests read what a real drop or picker choice put
+      // on the board, and what a real resize left it at.
+      images: () => objectSnapshots(doc).filter(isImageSnapshot),
       connectionState: () => connectionState,
     });
     // Seeding a big board is one transaction, so a test sets up a board the size
@@ -437,14 +484,15 @@ export function BoardView({
       data-editing-id={selection.editingId ?? ''}
       data-selection-count={selection.ids.size}
     >
-      <BoardViewport
-        onSurfaceChange={setSurface}
-        onEmptyDoubleClick={createAt}
-        onEmptyClick={onBoardClick}
-        onEmptyDrag={onEmptyDrag}
-        tool={activeTool}
-        onTextClick={createTextAt}
-      >
+      <ImageAdditionsProvider additions={images.additions}>
+        <BoardViewport
+          onSurfaceChange={setSurface}
+          onEmptyDoubleClick={createAt}
+          onEmptyClick={onBoardClick}
+          onEmptyDrag={onEmptyDrag}
+          tool={activeTool}
+          onTextClick={createTextAt}
+        >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
           if (!spec) {
@@ -469,7 +517,8 @@ export function BoardView({
             />
           );
         })}
-      </BoardViewport>
+        </BoardViewport>
+      </ImageAdditionsProvider>
       <MarqueeRect rect={marquee.rect} camera={camera} />
       <SelectionOverlay
         ids={selection.ids}
@@ -493,6 +542,7 @@ export function BoardView({
         onShapeKind={active.setShapeKind}
         disabled={!editable}
         undo={undoState}
+        onInsertImage={images.openPicker}
       />
       {/* Story 10's two tools. Each draws only while it is the tool the board is
           holding, and each reports the object it made through `toolCreated`
@@ -535,6 +585,16 @@ export function BoardView({
         surface={surface}
         createdBy={clientId}
       />
+      {/* Story 12's two pieces of adding feedback: the dashed outline that says a
+          released file lands on this board (`image.drop`), and the messages a batch
+          that was refused produced (`image.feedback`). Both are chrome, like the
+          connection status beside them: neither is an object and neither is in the
+          document. */}
+      {/* The file list the Image button and `I` open (`image.pick`): one hidden input,
+          reused, never left behind. */}
+      {images.pickerInput}
+      <DropHighlight />
+      <ImageToasts toasts={images.toasts} onDismiss={images.dismissToast} />
       <ConnectionStatus state={connectionState} />
     </main>
   );

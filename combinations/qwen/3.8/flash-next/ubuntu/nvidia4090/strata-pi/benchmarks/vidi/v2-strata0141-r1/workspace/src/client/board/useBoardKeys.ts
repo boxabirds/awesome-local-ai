@@ -51,6 +51,18 @@ export interface BoardKeyOptions {
   selectTool?(): void;
   textTool?(): void;
   createSticky?(): void;
+  /**
+   * Story 12 (`image.pick`): I opens the file picker. Like N it creates something
+   * rather than choosing a tool the board holds, so it is answered here and not in
+   * the tool hook.
+   */
+  insertImage?(): void;
+  /**
+   * Story 12 (`image.remove`): Delete and Backspace go through the board's own
+   * delete, which also stops the upload an image in the selection still has on
+   * its way. Left out, this hook deletes the objects itself.
+   */
+  deleteSelection?(): void;
 }
 
 /** The part of `UndoController` the keyboard needs. */
@@ -77,8 +89,18 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, history, selectTool, textTool, createSticky } =
-        inputs.current;
+      const {
+        doc,
+        selection,
+        snapshot,
+        canEdit,
+        history,
+        selectTool,
+        textTool,
+        createSticky,
+        insertImage,
+        deleteSelection,
+      } = inputs.current;
 
       if (isTextEntry(event.target) || isTextEntry(document.activeElement)) {
         return; // typing in a note (or any field) is not a board command
@@ -151,6 +173,11 @@ export function useBoardKeys(options: BoardKeyOptions): void {
           createSticky?.();
           return;
         }
+        if (key === 'i' || key === 'I') {
+          event.preventDefault();
+          insertImage?.();
+          return;
+        }
       }
 
       const ids = [...selection.ids];
@@ -204,6 +231,12 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         event.preventDefault();
         event.stopPropagation();
         if (!canEdit) {
+          return;
+        }
+        if (deleteSelection) {
+          // The board's own delete: the same change, and the aborting of any
+          // upload a selected image still has on its way (`image.remove`).
+          deleteSelection();
           return;
         }
         history?.boundary();

@@ -382,3 +382,60 @@ export const TOOL_SHORTCUTS = {
   i: 'image',
   c: 'comment',
 } as const;
+
+/* ------------------------------------------------------------------ story 12 - images */
+
+/**
+ * The image types this product accepts, as MIME types (`images.validation`,
+ * `images.types`): the value of the picker's `accept` attribute and the set a
+ * sniffed format must map into. No SVG - an SVG is a document that can carry a
+ * script, and this board serves board-owned bytes inline.
+ *
+ * A file gets in only when its **content** sniffs to one of these
+ * (`src/shared/image-format.ts`): an extension, a filename and the MIME type a
+ * browser puts on a `File` can all lie, the bytes cannot.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Largest image asset the asset API will store (`assets.api`). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Files accepted in one drop, paste or picker add (`images.count_limit`). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** Longest side a newly placed image may take, in board units (`images.place`). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Smallest image a resize may leave, in board units (`sel.size_limits`). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Space between images laid out in a row (`images.place`). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * How long an `uploading` image stays `uploading` before both sides call it
+ * unfinished (`image.status`): the uploader's page can be gone, so this is a
+ * clock rule rather than a state the uploader publishes.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** `max-age` of a served asset (`assets.api`): an asset key is never rewritten. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/**
+ * Bytes read from the front of a file to identify it (`assets.api`).
+ *
+ * Twelve is the longest magic number of the accepted set: `RIFF????WEBP`.
+ */
+export const IMAGE_SNIFF_BYTES = 12;
+
+/** Where an image asset is read back from: `GET /api/assets/<boardId>/<assetId>`. */
+export const ASSET_API_PREFIX = '/api/assets';
+/**
+ * The tail of the upload route: `POST /api/boards/<boardId>/assets`.
+ *
+ * It lives under the board API prefix on purpose - the board id in the path is
+ * what the asset API authorises against, so an upload is a board-scoped action
+ * like every other board API call.
+ */
+export const ASSET_UPLOAD_SUFFIX = '/assets';

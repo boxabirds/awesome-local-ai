@@ -8,6 +8,7 @@ import {
 } from '../../shared/board-model';
 import { rectContainsPoint, type Point } from '../../shared/geometry';
 import {
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STROKE_MIN_SIZE_WORLD,
@@ -18,6 +19,7 @@ import { TextObject } from './TextObject';
 import { ConnectorObject, hitTestConnector } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StrokeObject, hitTestStroke } from './StrokeObject';
+import { ImageObject } from './ImageObject';
 import type { ConnectorSnapshot } from '../../shared/objects/connector';
 import type { StrokeSnap } from '../../shared/objects/stroke';
 import type { BoardSurface } from '../canvas/BoardViewport';
@@ -338,6 +340,30 @@ registerObjectType('stroke', {
   // through to the objects below and to the board.
   hitTest: (obj, worldPoint, zoom = 1) =>
     hitTestStroke(obj as StrokeSnap, worldPoint, zoom),
+});
+
+/* -------------------------------------------------------------------------- */
+/* Images (`image.*`): proportional, never typed into, hit by its box.        */
+/* -------------------------------------------------------------------------- */
+
+registerObjectType('image', {
+  Component: ImageObject as ComponentType<ObjectProps<never>>,
+  // An image moves and resizes like every other object once it is on the board
+  // (`image.aspect_resize`): the bytes are stored once and whatever size a person
+  // gives the object is what the browser scales them to.
+  resizable: true,
+  // A picture has a shape. Stretching one in only one direction squashes the thing
+  // it was photographed of, so both sides always move by the same factor.
+  aspectLocked: true,
+  // As small as a board lets anything go: an image resized below this is a smudge
+  // that cannot be recognised, so the gesture stops before it (`sel.size_limits`).
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  // Nothing to type into: an image has no text, and a double-click on it must not
+  // create any (`image.registry`).
+  editableText: false,
+  // The box is the picture, so the box is what a click finds - including while it is
+  // still a placeholder, which is the same size it will be (`image.drop`).
+  hitTest: hitTestBounds,
 });
 
 /**

@@ -5,12 +5,17 @@
  *
  *   POST /api/boards                create a board: 201 {"id": "..."}
  *   GET  /api/boards/:boardId       does this board exist? 200 or 404
+ *   POST /api/boards/:boardId/assets  store one image asset (`assets.api`)
+ *   GET  /api/assets/:boardId/:assetId  read one stored asset back (`assets.api`)
  *   GET  /api/rooms/:boardId  (Upgrade: websocket)  -> that board's BoardRoom
  *   everything else                 -> the static client
  *
  * Board existence is explicit from story 5 on (`share.not_found`): a bad or
  * unknown address is answered with 404 without touching a room, and connecting
- * to a board that has never been created no longer makes one.
+ * to a board that has never been created no longer makes one. Story 12 applies
+ * the same rule to assets: an upload for a board that does not exist is refused
+ * before anything is written (`TC-11`), and an asset whose board id is not a
+ * real one is never read out of the bucket.
  *
  * Boards stay separate (`live.isolation`) because `idFromName(boardId)` sends
  * every connection for a board to that board's own object, which holds only
@@ -21,8 +26,14 @@
  */
 
 import { isValidBoardId } from '../shared/board-id';
-import { BOARD_API_PREFIX, ROOM_ROUTE_PREFIX } from '../shared/config';
+import {
+  ASSET_API_PREFIX,
+  ASSET_UPLOAD_SUFFIX,
+  BOARD_API_PREFIX,
+  ROOM_ROUTE_PREFIX,
+} from '../shared/config';
 import { BoardRoom } from './board-room';
+import { handleServe as handleAssetServe, handleUpload } from './assets';
 import { createBoard } from './create-board';
 import { handleTestHook, TEST_HOOK_PREFIX } from './test-hooks';
 
@@ -31,6 +42,12 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client (single-page application). */
   ASSETS: Fetcher;
+  /**
+   * Image assets (`assets.api`). Every key is `<boardId>/<assetId>`, so one
+   * board's assets are a prefix of the bucket nothing else writes to, and an
+   * asset is read back by key rather than by listing.
+   */
+  ASSETS_BUCKET: R2Bucket;
   /**
    * `1` only on the `wrangler dev` command an e2e run starts. It is the single
    * switch for the storage test hooks (`src/worker/test-hooks.ts`) and it is
@@ -75,6 +92,20 @@ async function handleBoardApi(req: Request, path: string, env: Env): Promise<Res
       : json({ error: 'create_failed' }, 500);
   }
 
+  // `POST /api/boards/:boardId/assets` (`assets.api`): an upload is a
+  // board-scoped action, so it lives under the board API prefix and is checked
+  // against the board id in the path before a single byte is stored.
+  if (path.endsWith(ASSET_UPLOAD_SUFFIX)) {
+    const boardId = path.slice(
+      BOARD_API_PREFIX.length + 1,
+      path.length - ASSET_UPLOAD_SUFFIX.length,
+    );
+    if (req.method !== 'POST') {
+      return json({ error: 'method_not_allowed' }, 405);
+    }
+    return handleUpload(req, env, boardId);
+  }
+
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return json({ error: 'method_not_allowed' }, 405);
   }
@@ -113,6 +144,16 @@ export default {
         return new Response('Upgrade Required', { status: 426 });
       }
       return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).fetch(req);
+    }
+
+    // `GET /api/assets/:boardId/:assetId` (`assets.api`): the bytes of a stored
+    // asset, with immutable-cache headers. The key is validated before the
+    // bucket is asked for anything.
+    if (path === ASSET_API_PREFIX || path.startsWith(`${ASSET_API_PREFIX}/`)) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      return handleAssetServe(req, env, path.slice(ASSET_API_PREFIX.length + 1));
     }
 
     // Test-only storage hooks (src/worker/test-hooks.ts). With `TEST_HOOKS`

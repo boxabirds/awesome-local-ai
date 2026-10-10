@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD } from '../../src/shared/config';
+import {
+  IMAGE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  STICKY_SIZE_WORLD,
+} from '../../src/shared/config';
 import type { ObjectSnapshot } from '../../src/shared/board-model';
 import {
   getObjectType,
+  handlesOf,
   hitTestBounds,
   registerObjectType,
+  selectionHandlesMode,
+  selectionIsAspectLocked,
+  selectionIsResizable,
+  selectionMinSizes,
   type ObjectTypeSpec,
 } from '../../src/client/objects/registry';
 // Importing the fixture is what registers the test-only type (module side effect).
@@ -133,5 +142,66 @@ describe('sel.registry - the test-only type component tests rely on', () => {
     expect(spec.minSize).toBe(TESTBOX_MIN_SIZE_WORLD);
     expect(spec.minSize).toBeLessThan(STICKY_MIN_SIZE_WORLD);
     expect(spec.editableText).toBe(false);
+  });
+});
+
+/**
+ * Story 12 (`image.resize`, TC-14): an image declares itself to the registry and
+ * is then resized by story 7's generic machinery, with nothing of its own about
+ * selection or gestures.
+ */
+describe('sel.registry - images (TC-14)', () => {
+  // TC-14
+  it('TC-14 the image spec declares exactly the knobs story 12 allows', () => {
+    const spec = specOf('image');
+    expect(spec.resizable).toBe(true);
+    expect(spec.aspectLocked).toBe(true);
+    expect(spec.minSize).toBe(IMAGE_MIN_SIZE_WORLD);
+    expect(spec.editableText).toBe(false);
+    // The 8 bounding-box handles: an image is resized from a corner or an edge.
+    expect(handlesOf(spec)).toBe('all');
+    expect(typeof spec.Component).toBe('function');
+    expect(Object.keys(spec).sort()).toEqual([
+      'Component',
+      'aspectLocked',
+      'editableText',
+      'hitTest',
+      'minSize',
+      'resizable',
+    ]);
+  });
+
+  // TC-14: the image's minimum side, read the way the gesture reads it.
+  it('TC-14 an image is aspect-locked with a 16-unit floor', () => {
+    const typeOf = (id: string): string => (id === 'img-1' ? 'image' : 'sticky');
+    expect(selectionIsAspectLocked(['img-1'], typeOf)).toBe(true);
+    expect(selectionIsResizable(['img-1'], typeOf)).toBe(true);
+    expect(selectionHandlesMode(['img-1'], typeOf)).toBe('all');
+    expect(selectionMinSizes(['img-1'], typeOf)).toEqual([IMAGE_MIN_SIZE_WORLD]);
+    expect(IMAGE_MIN_SIZE_WORLD).toBe(16);
+    // Selected with a sticky note, the image's rules still apply to it.
+    expect(selectionIsAspectLocked(['img-1', 'note-1'], typeOf)).toBe(true);
+    expect(selectionMinSizes(['img-1', 'note-1'], typeOf)).toEqual([
+      IMAGE_MIN_SIZE_WORLD,
+      STICKY_MIN_SIZE_WORLD,
+    ]);
+  });
+
+  it('TC-14 an image fills its box, so the plain rectangle hit test finds it', () => {
+    const spec = specOf('image');
+    const image: ObjectSnapshot = {
+      id: 'img-1',
+      type: 'image',
+      x: 100,
+      y: 50,
+      width: 200,
+      height: 100,
+      z: 1,
+      createdAt: 0,
+    };
+    expect(spec.hitTest(image, { x: 101, y: 51 })).toBe(true);
+    expect(spec.hitTest(image, { x: 299, y: 149 })).toBe(true);
+    expect(spec.hitTest(image, { x: 301, y: 149 })).toBe(false);
+    expect(spec.hitTest(image, { x: 99, y: 51 })).toBe(false);
   });
 });

@@ -289,8 +289,11 @@ body {
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px;
+  /* The column is centerved, so its height decides where it sits: six tools and the
+   * history controls fit the same footprint as five did, which keeps the board area
+   * the tests and the pointer gestures use free of chrome. */
+  gap: 4px;
+  padding: 6px;
   background: rgb(255 255 255 / 96%);
   border: 1px solid #d5dbe3;
   border-radius: 10px;
@@ -303,7 +306,7 @@ body {
   align-items: center;
   gap: 4px;
   width: 64px;
-  padding: 8px 6px;
+  padding: 5px 6px;
   border: 1px solid #d5dbe3;
   border-radius: 8px;
   background: #fff;
@@ -326,7 +329,7 @@ body {
 .undo-controls {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 /* A button that can do nothing looks like it can do nothing, and says so. */
@@ -1140,4 +1143,187 @@ main[data-board-editable='false'] .sticky-note {
 /* A selected stroke keeps its own colour and gains the band it can be clicked on. */
 .stroke-object[data-selected='true'] .stroke-object__hit {
   stroke: rgb(29 78 216 / 14%);
+}
+
+/*
+ * Story 12 (`image.object`): one box, in whichever state its document says it is
+ * in. The box is the object's own rectangle - the same rectangle a placeholder is
+ * created at and the same one a resize changes - so an image never changes size on
+ * screen when its upload finishes, and an "Image unavailable" box is the size of the
+ * image it stands for (`image.unavailable`).
+ */
+.image-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(0 0 0 / 4%);
+  /* The object layer passes pointer events through; the picture itself is the target
+   (`image.object`), whatever state it is in. */
+  pointer-events: auto;
+}
+
+.image-object[data-selected='true'] {
+  outline: 2px solid var(--selection-blue, #1d4ed8);
+  outline-offset: 1px;
+}
+
+.image-object__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Every state that is not a picture: a grey box, its message in the middle. */
+.image-object__state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  color: #4b4b4b;
+  background: repeating-linear-gradient(135deg, rgb(0 0 0 / 5%) 0 8px, rgb(0 0 0 / 9%) 8px 16px);
+  text-align: center;
+}
+
+.image-object__message {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.image-object__percent {
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* A failed upload is the one state that is this client's problem to fix, so it is
+   the one state drawn in red (`image.failed`). */
+.image-object__state--failed {
+  color: #a3171d;
+  border: 2px solid #d3303a;
+  background: rgb(211 48 58 / 8%);
+}
+
+.image-object__state--unavailable {
+  color: #5a5a5a;
+}
+
+/*
+ * The buttons an image offers (`image.failed`, `image.unfinished`). They are scaled
+ * by 1/zoom, like every other object's toolbar, so Remove is the same size on the
+ * screen whether the image is a thumbnail or fills the board.
+ */
+.image-object__buttons {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: flex;
+  gap: 6px;
+}
+
+.image-object__button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgb(0 0 0 / 25%);
+  background: #fff;
+  color: #1f1f1f;
+  cursor: pointer;
+}
+
+.image-object__button:hover {
+  background: #f2f2f2;
+}
+
+.image-object__button--remove {
+  border-color: #d3303a;
+  color: #a3171d;
+}
+
+/*
+ * `image.drop`: the outline that says a released file lands on this board. It is
+ * chrome over the board rather than a border on the surface, because the drop is
+ * accepted anywhere in the board's window - toolbar included.
+ */
+.drop-highlight {
+  position: fixed;
+  inset: 8px;
+  border: 3px dashed var(--selection-blue, #1d4ed8);
+  border-radius: 10px;
+  background: rgb(29 78 216 / 6%);
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 40;
+}
+
+.drop-highlight__label {
+  margin: 0 0 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #fff;
+  color: #1d4ed8;
+  font-size: 14px;
+}
+
+/*
+ * `image.feedback`: the messages an add produced, at the bottom of the screen, one
+ * line per reason a batch was refused. Bottom-centre because a person looking at a
+ * board is looking at the middle of it, and a message they have to look away from
+ * the board to read is a message they miss.
+ */
+.image-toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 50;
+  max-width: min(92vw, 480px);
+}
+
+.image-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #232323;
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 25%);
+}
+
+.image-toast--offline {
+  background: #6b4a00;
+}
+
+.image-toast__dismiss {
+  font: inherit;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+/* The file list the Image button and `I` open: never shown, only clicked (`image.pick`). */
+.image-picker {
+  display: none;
 }

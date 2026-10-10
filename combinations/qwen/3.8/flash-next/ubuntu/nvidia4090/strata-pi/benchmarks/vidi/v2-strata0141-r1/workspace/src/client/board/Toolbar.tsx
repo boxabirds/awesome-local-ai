@@ -35,6 +35,12 @@ export interface ToolbarProps {
   disabled?: boolean;
   /** Undo and redo for this board (`undo.controls`). */
   undo?: UndoState;
+  /**
+   * Story 12 (`image.pick`): the Image button asks for files. It is not a tool the
+   * board holds - there is nothing to arm, no cursor to change and nothing to go
+   * back to - so it is a button beside the tools rather than one of them.
+   */
+  onInsertImage?(): void;
 }
 
 export function Toolbar(props: ToolbarProps) {
@@ -46,6 +52,7 @@ export function Toolbar(props: ToolbarProps) {
     onShapeKind,
     disabled = false,
     undo,
+    onInsertImage,
   } = props;
 
   const stop = useCallback((event: React.SyntheticEvent) => {
@@ -189,6 +196,28 @@ export function Toolbar(props: ToolbarProps) {
           <path d="M7 9h10M7 13h7" fill="none" stroke="#3d3d28" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
         <span className="toolbar__label">Sticky note (N)</span>
+      </button>
+      {/* Story 12 (`image.pick`): the same thing the I key does. */}
+      <button
+        type="button"
+        className="toolbar__button"
+        data-testid="image-tool"
+        aria-label="Image (I)"
+        title="Image (I) – PNG, JPEG, GIF or WebP"
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) {
+            return;
+          }
+          onInsertImage?.();
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+          <rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+          <circle cx="9" cy="10" r="1.8" fill="currentColor" />
+          <path d="M4.5 17l5-5 4 4 3-2.5 3.5 3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="toolbar__label">Image (I)</span>
       </button>
       {undo ? (
         <UndoButtons
