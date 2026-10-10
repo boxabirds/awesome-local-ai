@@ -39,3 +39,38 @@ export const WHEEL_LINE_DELTA_PX = 16;
 
 /** Pixels added to a wheel `deltaY`/`deltaX` for `deltaMode === PAGE`. */
 export const WHEEL_PAGE_DELTA_PX = 800;
+
+/* --- Story 2: sticky notes ------------------------------------------------ */
+
+/** Sticky note size in world units (square: width = height). */
+export const STICKY_SIZE_WORLD = 200;
+
+/** Hard limit on the characters in one sticky note. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+
+/** The character counter shows when remaining <= this many characters. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+
+/** Largest note font size (CSS pixels at 100% zoom; scales with zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+
+/** Smallest note font size; below this the overflow is hidden with a fade. */
+export const STICKY_FONT_MIN_PX = 10;
+
+/** Pointer movement that turns a press on a note into a drag (screen px). */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** The six note colours. Keys are the names stored in the document. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+
+export type StickyColor = keyof typeof STICKY_COLORS;
+
+/** Colour of a freshly created note. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

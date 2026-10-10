@@ -1,13 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import type { JSX, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import type {
+  JSX,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from 'react';
 
 import {
+  DRAG_THRESHOLD_PX,
   GRID_SPACING_WORLD,
   UNBOUNDED_PAN_TESTED_EXTENT,
   WHEEL_LINE_DELTA_PX,
   WHEEL_PAGE_DELTA_PX,
 } from '../../shared/config';
 import type { Point } from './camera';
+import { screenToWorld } from './camera';
 import { useBoard } from './CameraProvider';
 import type { BoardController } from './CameraProvider';
 
@@ -62,6 +69,15 @@ function boardPoint(element: HTMLElement, clientX: number, clientY: number): Poi
   return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
+export interface BoardViewportProps {
+  children?: ReactNode;
+  /** A press-release on empty board space without panning (sticky.select). */
+  onEmptySpaceClick?(): void;
+  /** A double-click on empty board space, point in world coordinates
+   *  (sticky.create_dblclick; a double-click on an object never gets here). */
+  onEmptySpaceDoubleClick?(world: Point): void;
+}
+
 /**
  * The board's input surface: dot grid, world layer and the pointer/wheel/
  * gesture/keyboard handling that navigates it.
@@ -70,14 +86,25 @@ function boardPoint(element: HTMLElement, clientX: number, clientY: number): Poi
  * `pointer-events: none` so a drag always starts on empty board space; object
  * stories re-enable pointer events on their own elements and stop propagation.
  */
-export function BoardViewport({ children }: { children?: ReactNode }): JSX.Element {
+export function BoardViewport({
+  children,
+  onEmptySpaceClick,
+  onEmptySpaceDoubleClick,
+}: BoardViewportProps): JSX.Element {
   const board = useBoard();
   const surfaceRef = useRef<HTMLDivElement>(null);
   /** Latest handlers, so the native listeners are attached only once. */
   const boardRef = useRef<BoardController>(board);
   const panPointerIdRef = useRef<number | null>(null);
   const gestureScaleRef = useRef<number | null>(null);
+  /** Screen distance travelled by the current press, to tell pan from click. */
+  const panDistanceRef = useRef(0);
+  const panLastRef = useRef<Point | null>(null);
   const [panning, setPanning] = useState(false);
+
+  /** Latest callbacks, so nothing needs re-attaching when they change. */
+  const callbacksRef = useRef({ onEmptySpaceClick, onEmptySpaceDoubleClick });
+  callbacksRef.current = { onEmptySpaceClick, onEmptySpaceDoubleClick };
 
   useEffect(() => {
     boardRef.current = board;
@@ -161,6 +188,8 @@ export function BoardViewport({ children }: { children?: ReactNode }): JSX.Eleme
     if (event.button !== 0) return;
     if (!isPanSurface(event.target)) return;
     panPointerIdRef.current = event.pointerId;
+    panDistanceRef.current = 0;
+    panLastRef.current = boardPoint(surface, event.clientX, event.clientY);
     if (typeof surface.setPointerCapture === 'function') {
       surface.setPointerCapture(event.pointerId);
     }
@@ -172,18 +201,40 @@ export function BoardViewport({ children }: { children?: ReactNode }): JSX.Eleme
     const surface = surfaceRef.current;
     if (!surface) return;
     if (panPointerIdRef.current !== event.pointerId) return;
-    boardRef.current.panMove(boardPoint(surface, event.clientX, event.clientY));
+    const point = boardPoint(surface, event.clientX, event.clientY);
+    const last = panLastRef.current;
+    if (last) panDistanceRef.current += Math.abs(point.x - last.x) + Math.abs(point.y - last.y);
+    panLastRef.current = point;
+    boardRef.current.panMove(point);
   };
 
-  const endPan = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const endPan = (event: ReactPointerEvent<HTMLDivElement>, released: boolean): void => {
     if (panPointerIdRef.current !== event.pointerId) return;
     panPointerIdRef.current = null;
+    panLastRef.current = null;
     const surface = surfaceRef.current;
     if (surface && typeof surface.releasePointerCapture === 'function' && surface.hasPointerCapture?.(event.pointerId)) {
       surface.releasePointerCapture(event.pointerId);
     }
     boardRef.current.endPan();
     setPanning(false);
+    // A press on empty space that never became a pan is a click: it clears
+    // the selection (sticky.select); a pan keeps it.
+    if (released && panDistanceRef.current < DRAG_THRESHOLD_PX) {
+      callbacksRef.current.onEmptySpaceClick?.();
+    }
+    panDistanceRef.current = 0;
+  };
+
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const surface = surfaceRef.current;
+    if (!surface) return;
+    // Only empty board space creates notes; objects stop propagation.
+    if (!isPanSurface(event.target)) return;
+    const point = boardPoint(surface, event.clientX, event.clientY);
+    callbacksRef.current.onEmptySpaceDoubleClick?.(
+      screenToWorld(boardRef.current.camera, point),
+    );
   };
 
   const { camera } = board;
@@ -202,9 +253,10 @@ export function BoardViewport({ children }: { children?: ReactNode }): JSX.Eleme
       data-panning={panning ? 'true' : 'false'}
       onPointerDown={startPan}
       onPointerMove={movePan}
-      onPointerUp={endPan}
-      onPointerCancel={endPan}
-      onLostPointerCapture={endPan}
+      onPointerUp={(event) => endPan(event, true)}
+      onPointerCancel={(event) => endPan(event, false)}
+      onLostPointerCapture={(event) => endPan(event, false)}
+      onDoubleClick={onDoubleClick}
     >
       <div
         className="board-grid"

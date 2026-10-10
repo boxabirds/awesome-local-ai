@@ -1,6 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import type * as Y from 'yjs';
 
-import { App } from '../../../src/client/App';
+import { App, BoardContents } from '../../../src/client/App';
+import { CameraProvider } from '../../../src/client/canvas/CameraProvider';
+import { createSticky, getStickyText, setStickyColor, snapshot } from '../../../src/shared/board-model';
+import type { StickySnapshot } from '../../../src/shared/board-model';
+import { STICKY_SIZE_WORLD } from '../../../src/shared/config';
+import type { StickyColor } from '../../../src/shared/config';
 import type { Camera } from '../../../src/client/canvas/camera';
 import type { Point } from '../../../src/client/canvas/camera';
 
@@ -9,6 +15,65 @@ export const VIEWPORT_SIZE = { width: 1200, height: 800 };
 
 export function renderBoard(): void {
   render(<App />);
+}
+
+/**
+ * The story 2 board with an injected document: the same tree `App` renders,
+ * so tests can seed and inspect the `Y.Doc` directly (as another client
+ * would) around the interaction under test.
+ */
+export function renderStickyBoard(doc: Y.Doc): void {
+  render(
+    <CameraProvider>
+      <BoardContents doc={doc} />
+    </CameraProvider>,
+  );
+}
+
+/**
+ * Create a note through the model; returns its id. `x`/`y` are the top-left
+ * (the model centres a note on the point it gets, so it is offset here).
+ */
+export function seedSticky(
+  doc: Y.Doc,
+  opts: { x?: number; y?: number; text?: string; color?: StickyColor } = {},
+): string {
+  return doc.transact(() => {
+    const created = createSticky(doc, {
+      x: (opts.x ?? 400) + STICKY_SIZE_WORLD / 2,
+      y: (opts.y ?? 300) + STICKY_SIZE_WORLD / 2,
+    });
+    if (typeof created !== 'string') throw new Error('seedSticky: non-finite point');
+    if (opts.text !== undefined) getStickyText(doc, created)?.insert(0, opts.text);
+    if (opts.color !== undefined) setStickyColor(doc, created, opts.color);
+    return created;
+  });
+}
+
+export function readNotes(doc: Y.Doc): StickySnapshot[] {
+  return [...snapshot(doc)];
+}
+
+export function readNote(doc: Y.Doc, id: string): StickySnapshot | undefined {
+  return snapshot(doc).find((note) => note.id === id);
+}
+
+export function textOf(doc: Y.Doc, id: string): string {
+  return getStickyText(doc, id)?.toString() ?? '';
+}
+
+/** The rendered note element for a model id. */
+export function noteById(id: string): HTMLElement {
+  const element = document.querySelector(`[data-note-id="${id}"]`);
+  if (!(element instanceof HTMLElement)) throw new Error(`no note element for ${id}`);
+  return element;
+}
+
+/** Jump the camera through the test hooks `useCamera` installs. */
+export function setCamera(camera: Camera): void {
+  const api = window.__vidi6;
+  if (!api) throw new Error('test hooks are not installed');
+  act(() => api.setCamera(camera));
 }
 
 export function viewportElement(): HTMLElement {
