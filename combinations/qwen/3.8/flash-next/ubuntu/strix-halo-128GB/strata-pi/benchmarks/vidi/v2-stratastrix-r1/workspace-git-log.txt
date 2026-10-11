@@ -1,3 +1,52 @@
+commit d11ac834c3478fe72264ed987fbb2544b561d232
+agent  Sun Oct 11 07:53:24 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                             |  55 +++++++-
+ PROGRESS.md                          |  14 +-
+ index.html                           |   1 +
+ playwright.config.ts                 |  13 ++
+ src/client/Root.tsx                  |  21 +++
+ src/client/api.ts                    |  42 ++++++
+ src/client/main.tsx                  |  19 +--
+ src/client/pages/BoardPage.tsx       |  83 ++++++++++++
+ src/client/pages/HomePage.tsx        |  43 ++++++
+ src/client/pages/NotFoundPage.tsx    |  51 ++++++++
+ src/client/pages/state.ts            |  54 ++++++++
+ src/client/router.ts                 |  31 +++++
+ src/client/share/SharePanel.tsx      | 149 +++++++++++++++++++++
+ src/client/styles.css                | 178 +++++++++++++++++++++++++
+ src/shared/config.ts                 |  11 ++
+ src/worker/board-room.ts             | 128 +++++++++++++++++-
+ src/worker/board-store.ts            | 107 +++++++++++++++
+ src/worker/create-board.ts           |  24 ++++
+ src/worker/index.ts                  |  61 ++++++++-
+ tests/component/SharePanel.test.tsx  | 163 +++++++++++++++++++++++
+ tests/component/pages.test.tsx       | 152 ++++++++++++++++++++++
+ tests/e2e/broken-board.spec.ts       |   4 +
+ tests/e2e/helpers/board.ts           |  26 +++-
+ tests/e2e/live-collaboration.spec.ts |   4 +
+ tests/e2e/navigation.spec.ts         |  17 +--
+ tests/e2e/nightly.spec.ts            |   4 +
+ tests/e2e/persistence.spec.ts        |   5 +
+ tests/e2e/share-persistence.spec.ts  |  80 ++++++++++++
+ tests/e2e/share-workflows.spec.ts    | 164 +++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts       |  14 +-
+ tests/integration/board-api.test.ts  | 246 +++++++++++++++++++++++++++++++++++
+ tests/integration/worker.test.ts     |   6 +-
+ tests/integration/ws-client.ts       |  20 ++-
+ tests/unit/create-board.test.ts      |  33 +++++
+ 34 files changed, 1970 insertions(+), 53 deletions(-)
+commit f3dae20e5f55e620359390d3cde3032d1d093218
+vidi-agent  Sun Oct 11 07:03:46 2026 +0000
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 68 +++++++++++--------------------------------------------------
+ 1 file changed, 12 insertions(+), 56 deletions(-)
 commit f5e38ae4325f7b726eeb2083e727dc204ae46148
 agent  Sun Oct 11 07:00:12 2026 +0000
 
