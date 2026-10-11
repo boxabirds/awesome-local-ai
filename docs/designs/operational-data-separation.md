@@ -76,8 +76,11 @@ because data lives in a working tree.
 10. **Judge packages go out and results come back through the engine's API** (owner, 10 Oct 2026), not through a
     repository and not through a node.
 11. **Reference-model runs (Opus, Sonnet) live in the data root under `reference/`** (owner, 10 Oct 2026). Their
-    records are collected there; the standing exclusion of their conversations from the warehouse and analytics is
-    kept (it was a decision about analysis, 3 Oct 2026, not about storage).
+    records are collected there. **They are also loaded into the warehouse and analytics** (owner, 11 Oct 2026,
+    replacing the exclusion of 3 Oct 2026), kept apart from combination runs by `kind`, which the run id already
+    carries (section A), so the schema does not change. Every ranking or summary figure (best score, medians,
+    comparisons between stacks, figures for local stacks) excludes reference runs unless a request asks for them,
+    and wherever they are shown they are set apart and labelled as reference.
 12. **Nothing is published by default.** An export is a gated artifact in `exports/`; putting one somewhere public is
     a separate act each time, by the owner.
 13. **Roadmap: the system locations.** `/usr/local/bin`, `/var/lib/awesome-local-ai/`, `/var/log/awesome-local-ai/`
@@ -100,7 +103,8 @@ OPERATIONAL DATA (the data root: ~/.local/share/awesome-local-ai/data on every m
          reference/<pack>/<stack>/<run>/    reference-model runs (Opus, Sonnet): records, compact logs, bundles
          warehouse/conversations.db
          analytics/analytics.db
-         recordings/ judging/ annotate/ keys/ recording-secret/     (today: the private repo's state/)
+         recordings/ judging/ annotate/ keys/                       (today: the private repo's state/)
+                            (the recording secret is in the secrets folder, section H, not here)
          gradings/<package>/{package/, results/<judge>/}           (today: the private repo's gradings/)
          exports/<date>/                    publication staging, written only by the export step
 
@@ -175,13 +179,15 @@ drops its "records are pushed here" and "git identity" checks and keeps the priv
 
 **The collector allow-list (decision 4).** `COLLECTABLE` grows from 13 entries to the full record: add
 `finalize.json`, `summary.md`, `server-health.json`, `workspace.bundle`, `workspace-git-log.txt`, `run-history.jsonl`,
-`rescore/<version>/**`, `stories/<n>/{prompt.md, accept.json, accept-summary.json, accept-report.json,
-accept-final.json, heldout-detail.json, summary-detail.md, agent-events.compact.jsonl.gz}`, `stories/<n>/artifacts/**`,
+`rescore/<version>/**`, `heldout-detail.json`, `summary-detail.md` (both written at run level),
+`stories/<n>/{prompt.md, accept.json, accept-summary.json, accept-report.json, accept-final.json,
+accept-final-summary.json, agent-events.compact.jsonl.gz}`, `stories/<n>/artifacts/**`,
 `stories/<n>/screenshots/**`, `audit.jsonl`, `AUDIT.md`, `publish-refused.json` (if still written), `superseded/**`,
-`base/**`. Explicitly not collected: `workspace/` (from the bundle), `control/`, `current_story`, `work_dir.txt`. A test
+`base/**`. Explicitly not collected: `workspace/` (from the bundle), `control/`, `current_story`, `work_dir.txt`, and
+the run's `.gitignore` (git-only; the harness stops writing it). A test
 holds the two lists MECE against every file name the harness can write (every `Path(...)` the harness writes under a
 run dir appears in exactly one list; new names fail the build until classified). The `wanted()` rule that skips
-reference-model runs stays as the owner's standing decision; it is a filter on the lake, not a reason to keep git.
+reference-model runs goes (decision 11): they are collected under `reference/`.
 
 ## C. Host side
 
@@ -190,7 +196,9 @@ is deleted; `TreeSource` stays for tests only if `LakeSource` cannot serve them 
 `cmd_ingest --repo` and `--rev` go; `[collect] repo` in `nodes.toml` goes. `archived_runs` reads an `archived.json`
 marker in the lake (the benchmarker already recognises one, `domain.ts:230`), written by an explicit
 `dbench archive <run id>`. The digest keyed by git blob ids (`inputs.rs:358-406`) is keyed by the lake file's length
-and mtime, which `collection.json` already records.
+and mtime, which `collection.json` already records. The ingest reads `reference/` as well as `lake/`: reference runs
+are loaded with `kind = reference` taken from the run id, and every statistic computed from the warehouse or
+analytics leaves them out unless asked (decision 11).
 
 **Benchmarker.** Replaced by the engine and web split in section G. What `sources.ts` does with git goes entirely;
 the engine lists the lake (`lake/*/<run id>/run.json` and `reference/**/run.json`) and reads the same files from it.
@@ -200,7 +208,7 @@ from a `flow-counts.json` the harness writes into each run, so the host needs no
 
 **Gallery.** `runs::discover`, `load`, `run_or_private`, `scope_size`, `judges`, `private_repo`, `private_version` read
 the lake and `$BENCH_DATA/gradings`; `sync.rs` (added 10 Oct 2026) is deleted with its tests. Recordings, judging,
-keys and the recording secret move from the private `state/` to the data root; the gallery's `--repo` becomes
+keys move from the private `state/` to the data root, and the recording secret to the secrets folder (section H); the gallery's `--repo` becomes
 `--data-root` plus `--pack-dir` for the scope files.
 
 **Monitor.** `collect_repo` (`monitor.py:498-522`) reads the lake, not `origin/main`. `triage.py`'s commit of
@@ -276,7 +284,7 @@ default; nothing is served that is not allow-listed.
 
 **`benchmarker-web`** (`tools/benchmarker-web`, the present React page): a static bundle and a thin server that
 holds the engine's address and token and forwards `/api/*` to it. No git, no dbench, no ssh, no data processing.
-`shared/` (views, glossary, stats, 11,871 lines) stays with the web: it shapes the presentation of state the engine
+`shared/` (views, glossary, stats, 8,381 lines) stays with the web: it shapes the presentation of state the engine
 sends. The engine's `GET /v1/state` has the exact shape of today's `/api/state`, so the page changes only its
 address.
 
@@ -422,8 +430,9 @@ C and E (`docs/dataflow.md` and the sweep behind this design list them by file a
 ## Verification
 
 - **Lake completeness:** for every run in the public repository at step 3, every tracked file under the run directory
-  has a byte-identical copy in the lake (`git ls-files` against the store, hash by hash). Zero differences before any
-  reader switches.
+  has a byte-identical copy in the lake (`git ls-files` against the store, hash by hash), except the names the
+  allow-list deliberately leaves out: `workspace/` (rebuilt from the bundle) and the run's `.gitignore`. Zero
+  differences before any reader switches.
 - **Readers:** the engine's `GET /v1/state` equal to the old `/api/state` for every run (ignoring `web` links) and
   its `/v1/faults` equal to the old feed; old and new warehouse equal in row counts per table per story and in
   `stories.rel`; old and new gallery build lists equal; the web page rendered from the engine equal to the page
