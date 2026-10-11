@@ -1,3 +1,78 @@
+commit 73f56aee66534e74399cee01f43c2c18f9edd58d
+agent  Sun Oct 11 18:59:27 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                             |  59 ++++++++++++
+ PROGRESS.md                          |   6 +-
+ playwright.config.ts                 |   8 +-
+ playwright.persistence.config.ts     |   6 +-
+ src/client/App.tsx                   |  23 ++++-
+ src/client/app.css                   |   5 ++
+ src/client/board/Toolbar.tsx         |   7 +-
+ src/client/objects/StickyNote.tsx    |  19 +++-
+ src/client/sync/ConnectionStatus.tsx |   8 +-
+ src/client/sync/connectBoard.ts      |  33 ++++++-
+ src/worker/board-room.ts             |  18 ++++
+ src/worker/test-hooks.ts             |  47 ++++++++++
+ tests/component/LoadFailure.test.tsx | 168 +++++++++++++++++++++++++++++++++++
+ tests/e2e/broken-board.spec.ts       | 118 ++++++++++++++++++++++++
+ tests/e2e/test-hooks-off.spec.ts     |  24 +++++
+ 15 files changed, 526 insertions(+), 23 deletions(-)
+commit f7d9f83483eeecd823b2053a7cd1567224694a8c
+agent  Sun Oct 11 18:37:15 2026 +0100
+
+    story 4 tasks 3+5+6: BoardStore + persistent-room integration tests, and E2E persistence across real wrangler process restarts (TC-19 to TC-21)
+
+
+ NOTES.md                                         |  89 +++++
+ PROGRESS.md                                      |   8 +-
+ package.json                                     |   1 +
+ playwright.config.ts                             |   4 +
+ playwright.persistence.config.ts                 |  59 ++++
+ src/worker/board-store.ts                        |  25 +-
+ tests/e2e/helpers/wrangler-process.ts            | 185 +++++++++++
+ tests/e2e/persistence.spec.ts                    | 194 +++++++++++
+ tests/fixtures/boards.ts                         | 108 ++++++
+ tests/integration/board-room-persistence.test.ts | 344 +++++++++++++++++++
+ tests/integration/board-store.test.ts            | 405 +++++++++++++++++++++++
+ tests/integration/yclient.ts                     |   8 +-
+ 12 files changed, 1413 insertions(+), 17 deletions(-)
+commit 504bad5c4e34bb67b311722a8066d33fadbc57fc
+agent  Sun Oct 11 17:34:47 2026 +0100
+
+    story 4 tasks 2+4: BoardStore (append/load/quarantine/chunked compaction) and persistent BoardRoom (load-on-wake, persist-before-broadcast, hibernation, failure handling, test hooks)
+
+
+ PROGRESS.md               |   6 +-
+ src/worker/board-room.ts  | 541 ++++++++++++++++++++++++++++++++++++++++------
+ src/worker/board-store.ts | 287 +++++++++++++++++++++++-
+ src/worker/index.ts       |  21 ++
+ src/worker/room-state.ts  |  41 +++-
+ 5 files changed, 825 insertions(+), 71 deletions(-)
+commit ce3e178c807828705616a92115c28942c5d09170
+agent  Sun Oct 11 17:09:13 2026 +0100
+
+    story 4 task 1: story-4 settings, close codes, chunk/room-state stubs and failing unit tests (TC-01, TC-02, TC-27)
+
+
+ PROGRESS.md                           |  2 +-
+ src/shared/config.ts                  | 17 +++++++
+ src/shared/protocol.ts                |  8 +++
+ src/worker/board-store.ts             | 36 ++++++++++++++
+ src/worker/room-state.ts              | 48 ++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts | 60 ++++++++++++++++++++++
+ tests/unit/room-state.test.ts         | 93 +++++++++++++++++++++++++++++++++++
+ 7 files changed, 263 insertions(+), 1 deletion(-)
+commit ab4a3d96ce14a5a4cb8f63e164101b2a4fe9c7c7
+vidi-agent  Sun Oct 11 16:52:12 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit 8ef133a0088b9fd8cd052d484c57e6c2e9ca69ce
 agent  Sun Oct 11 16:49:30 2026 +0100
 
