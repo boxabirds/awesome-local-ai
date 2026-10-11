@@ -1,3 +1,61 @@
+commit 750b9ab150fa7dd2153bea6240340488c53ba4fc
+agent  Sun Oct 11 20:06:15 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                         |  61 ++++++
+ PROGRESS.md                                      |  24 ++-
+ index.html                                       |   2 +
+ playwright.config.ts                             |   4 +-
+ playwright.persistence.config.ts                 |   2 +-
+ src/client/App.tsx                               | 218 ++------------------
+ src/client/api.ts                                |  53 +++++
+ src/client/app.css                               | 206 +++++++++++++++++++
+ src/client/board/Board.tsx                       | 179 +++++++++++++++++
+ src/client/pages/BoardPage.tsx                   |  73 +++++++
+ src/client/pages/HomePage.tsx                    |  64 ++++++
+ src/client/pages/NotFoundPage.tsx                |  27 +++
+ src/client/pages/state.ts                        |  46 +++++
+ src/client/router.ts                             |  45 +++++
+ src/client/share/SharePanel.tsx                  | 156 +++++++++++++++
+ src/shared/config.ts                             |   9 +
+ src/worker/board-room.ts                         |  83 +++++++-
+ src/worker/board-store.ts                        |  98 +++++++--
+ src/worker/create-board.ts                       |  28 +++
+ src/worker/index.ts                              |  84 ++++++--
+ src/worker/test-hooks.ts                         |   7 +
+ tests/component/BoardViewport.test.tsx           |  18 +-
+ tests/component/LoadFailure.test.tsx             |   4 +-
+ tests/component/NavigationHint.test.tsx          |   4 +-
+ tests/component/SharePanel.test.tsx              | 139 +++++++++++++
+ tests/component/pages.test.tsx                   | 189 ++++++++++++++++++
+ tests/component/stickyHelpers.tsx                |  16 +-
+ tests/e2e/helpers/board.ts                       |  10 +
+ tests/e2e/helpers/collab.ts                      |  16 +-
+ tests/e2e/live-collaboration.spec.ts             |  20 +-
+ tests/e2e/navigation.spec.ts                     |   4 +-
+ tests/e2e/persistence.spec.ts                    |   8 +-
+ tests/e2e/share-legacy.spec.ts                   |  73 +++++++
+ tests/e2e/share.spec.ts                          | 173 ++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts                   |   4 +-
+ tests/integration/board-api.test.ts              | 242 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  35 ++--
+ tests/integration/board-store.test.ts            |  53 +++--
+ tests/integration/helpers.ts                     |  17 ++
+ tests/integration/room.test.ts                   |  31 ++-
+ tests/integration/routing.test.ts                |  12 +-
+ tests/integration/yclient.ts                     |   3 +
+ tests/unit/create-board.test.ts                  |  45 +++++
+ 43 files changed, 2262 insertions(+), 323 deletions(-)
+commit 1f1991fd28c56d60affac08757690c59daa5953e
+vidi-agent  Sun Oct 11 19:02:49 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 73f56aee66534e74399cee01f43c2c18f9edd58d
 agent  Sun Oct 11 18:59:27 2026 +0100
 
