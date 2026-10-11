@@ -1,0 +1,8 @@
+# name|ctx|min_vram_mib|need_vram_mib|need_ram_mib|basis|summary
+#
+# On this machine the GPU's memory is the RAM (one pool), so the "VRAM" columns are the GPU's share of it.
+# ESTIMATED from UD-Q4_K_XL, measured 2026-10-11 on the Strix Halo box (Strata 0.1.42, 131,072 context, int8 KV): 39,489 to
+# 40,255 MiB of VRAM + GTT in use during a 2k-to-120k-token throughput test. UD-IQ4_XS itself has not been started here;
+# these become MEASURED once it has been. The floor is below the peak: it gates the launcher, the peak does not (A-045).
+agent|131072|30000|40300|90000|ESTIMATED|default; the benchmark's full context; MTP drafts on; KV cache int8
+short|65536|30000|40300|90000|ESTIMATED|half the context: the same weights; for a quick interactive session

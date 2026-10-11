@@ -106,10 +106,15 @@ assert_eq "a Mac is never offered an Ubuntu combination" \
 echo
 echo "Strix Halo: unified memory on Linux, its own accelerator family"
 STRIX="qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi"
-assert_eq "a 128GB Strix Halo (RAM + 512M carve-out) takes Flash-Next" \
-  "$STRIX" "$(pick ubuntu x86_64 strix-halo 128512 qwen)"
+# Every Strix Halo row opts out of automatic selection and sits in one memory tier, so they tie, and the tie goes to the
+# last in sort order: that is an accident of names (llamacpp-pi until strata-pi was added), not a choice. What a Strix Halo is
+# promised is a 128GB Strix Halo row, and that the measured llama.cpp baseline stays among the candidates.
+STRIX_TIER="qwen/3.8/flash-next/ubuntu/strix-halo-128GB/"
+in_strix_tier() { [[ "$1" == "$STRIX_TIER"* ]] && echo yes || echo no; }
+assert_eq "a 128GB Strix Halo (RAM + 512M carve-out) takes a Flash-Next Strix Halo row" \
+  yes "$(in_strix_tier "$(pick ubuntu x86_64 strix-halo 128512 qwen)")"
 assert_eq "...across all families too" \
-  "$STRIX" "$(pick ubuntu x86_64 strix-halo 128512 '')"
+  yes "$(in_strix_tier "$(pick ubuntu x86_64 strix-halo 128512 '')")"
 assert_eq "a 64GB Strix Halo cannot reach the 128GB tier" \
   "" "$(pick ubuntu x86_64 strix-halo 65024 qwen)"
 assert_eq "a 24GB CUDA card is never offered the Strix Halo row" \
@@ -120,11 +125,13 @@ assert_fails "even a (hypothetical) 128GB CUDA device is not" \
 HOST_ACCEL=strix-halo; HOST_MEM_MIB=128512
 assert_fails "a Strix Halo is not offered the 24GB NVIDIA rows" \
   grep -q nvidia <<< "$(candidates_for_host qwen | cut -d'|' -f2)"
-assert_eq "an unmeasured row is still what a Strix Halo is offered, as the only one" \
-  "$STRIX" "$(best_for_host qwen)"
+assert_eq "an unmeasured row is still what a Strix Halo is offered" \
+  yes "$(in_strix_tier "$(best_for_host qwen)")"
+assert_ok "...and the llama.cpp baseline is among the candidates" \
+  grep -qxF "$STRIX" <<< "$(candidates_for_host qwen | cut -d'|' -f2)"
 # the real one: a 128GB Strix Halo (Minisforum MS-S1 MAX) reports 126155 MiB, inside selection's 5% slack
 HOST_OS=ubuntu; HOST_ACCEL=strix-halo; HOST_MEM_MIB=126155
-assert_eq "a real 128GB Strix Halo (126155 MiB) is offered the 128GB row" "$STRIX" "$(best_for_host qwen)"
+assert_eq "a real 128GB Strix Halo (126155 MiB) is offered a 128GB row" yes "$(in_strix_tier "$(best_for_host qwen)")"
 why="$(explain_no_match pi 2>&1)"
 assert_fails "...so a miss on another selector does not blame its memory" \
   grep -q "strix-halo-128GB/llamacpp-pi.*needs 131072 MiB" <<< "$why"

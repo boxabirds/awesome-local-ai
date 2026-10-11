@@ -53,7 +53,7 @@ backend_manifest_extra() {
   local v
   echo
   echo "# strata backend (lib/strata.sh)"
-  for v in STRATA_VERSION STRATA_COMMIT STRATA_CONTEXT STRATA_VRAM_RESERVE_MIB STRATA_MIN_RAM_MIB STRATA_FAMILY STRATA_QUANT OUTPUT_LIMIT; do
+  for v in STRATA_VERSION STRATA_COMMIT STRATA_CONTEXT STRATA_VRAM_RESERVE_MIB STRATA_MIN_RAM_MIB STRATA_FAMILY STRATA_QUANT STRATA_SETUP_CONFIG STRATA_ENV OUTPUT_LIMIT; do
     printf '%s=%q\n' "$v" "${!v:-}"
   done
   # The checkout, relative to HOME so no username is baked in.
@@ -218,9 +218,14 @@ _strata_require_disk() {
 _strata_run_setup() {
   info "Running Strata's setup (builds its engine; a few minutes)..."
   local py_dir; py_dir="$(dirname "$STRATA_PYTHON_BIN")"
+  # The Strix Halo case differs in two ways: setup is told to build for the HIP backend (it would otherwise look for an
+  # NVIDIA card first), and to use the GGUF files already fetched here rather than fetch them again under its own names.
+  local extra=()
+  [[ -n "${STRATA_SETUP_BACKEND:-}" ]] && extra+=(--backend "$STRATA_SETUP_BACKEND")
+  [[ "${STRATA_GGUF_IN_PLACE:-0}" == "1" ]] && extra+=(--gguf-dir "${STRATA_DATA_DIR}/models/${STRATA_QUANT}")
   ( cd "$STRATA_DIR" && PATH="${STRATA_DIR}/.venv/bin:${py_dir}:${PATH}" \
       ./setup.sh --yes --family "$STRATA_FAMILY" --model "$STRATA_QUANT" --context "$STRATA_CONTEXT" \
-                 --data-dir "$STRATA_DATA_DIR" --no-start ) \
+                 --data-dir "$STRATA_DATA_DIR" ${extra[@]+"${extra[@]}"} --no-start ) \
     || err "Strata's setup failed. Re-run to retry; it keeps what it has built."
   [[ -x "${STRATA_DIR}/engine/strata" ]] || err "Strata's setup finished but ${STRATA_DIR}/engine/strata is not there."
 }
@@ -233,9 +238,9 @@ _strata_run_setup() {
 # leaves them out. Safe to run again: the reserve is never added twice.
 strata_run_config() {
   local src="$1" dst="$2" ctx="$3" reserve="$4" log="$5" name="$6"
-  python3 - "$src" "$dst" "$ctx" "$reserve" "$log" "$name" "${SAMPLING_THINKING:-$STRATA_DEFAULT_SAMPLING}" <<'PY'
+  python3 - "$src" "$dst" "$ctx" "$reserve" "$log" "$name" "${SAMPLING_THINKING:-$STRATA_DEFAULT_SAMPLING}" "${STRATA_ENV:-}" <<'PY'
 import json, sys
-src, dst, ctx, reserve, log, name, sampling = sys.argv[1:8]
+src, dst, ctx, reserve, log, name, sampling, env = sys.argv[1:9]
 cfg = json.load(open(src))
 args = list(cfg["args"])
 def drop(flag):
@@ -243,13 +248,21 @@ def drop(flag):
         i = args.index(flag)
         del args[i:i + 2]
 drop("--max-context"); drop("--vram-reserve-mib")
-args += ["--max-context", ctx, "--vram-reserve-mib", reserve]
+args += ["--max-context", ctx]
+# Unified memory has no VRAM to reserve: an empty or zero reserve adds nothing.
+if reserve not in ("", "0"):
+    args += ["--vram-reserve-mib", reserve]
 cfg["args"] = args
 cfg["model_name"] = name
 cfg["log"] = log
 words = sampling.split()
 want = {"--temperature": ("temperature", float), "--top-p": ("top_p", float), "--top-k": ("top_k", int)}
 cfg["sampling"] = {key: cast(words[words.index(flag) + 1]) for flag, (key, cast) in want.items() if flag in words}
+# The combination's engine switches, beside what setup put in the environment (the hipBLASLt table on a Strix Halo).
+merged = dict(cfg.get("env") or {})
+merged.update(pair.split("=", 1) for pair in env.split() if "=" in pair)
+if merged:
+    cfg["env"] = merged
 json.dump(cfg, open(dst, "w"), indent=1)
 PY
 }
