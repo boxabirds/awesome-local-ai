@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 9c36ab742 (harness-v2026.10.09.4), client pi, model strata-flash-next-iq3xxs",
-  "at": "2026-10-10T22:26:22Z",
+  "state": "failed",
+  "reason": "exit 75: [story 7] stopped by the memory guard: swap 2.0 -> 2.0 GB, free memory at least 7.86910944389532%. Not checkpointed; the run resumes once the machine has recovered (machine_fit.py).",
+  "at": "2026-10-11T12:19:03Z",
   "host": "13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB"
 }
