@@ -2729,6 +2729,19 @@
           "fixed": 0,
           "regressed": 0
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/strata-pi/benchmarks/vidi/v2-stratastrix-r1/server.log"
+        ],
+        "private": {
+          "copied": 25,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "fc083cd3c"
       }
     }
   },
