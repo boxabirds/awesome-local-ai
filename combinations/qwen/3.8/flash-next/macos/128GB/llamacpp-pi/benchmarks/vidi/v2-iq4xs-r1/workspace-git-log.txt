@@ -1,3 +1,64 @@
+commit 9eae66253308fc812a8456f053f4b8ec193e50ac
+agent  Sun Oct 11 17:06:49 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                         | 187 +++++++++
+ PROGRESS.md                                      |  27 +-
+ package-lock.json                                | 267 +++++++++++--
+ package.json                                     |   3 +
+ src/client/App.tsx                               |  51 ++-
+ src/client/board/BoardScreen.tsx                 | 108 ++++++
+ src/client/board/BoardToolbar.tsx                |  63 +++
+ src/client/board/boardRoute.ts                   |  28 ++
+ src/client/board/seedNotes.ts                    | 103 +++++
+ src/client/board/useBoardConnection.ts           |  28 ++
+ src/client/board/useBoardDoc.ts                  |  14 +-
+ src/client/board/useBoardEditing.ts              | 176 +++++++++
+ src/client/canvas/BoardViewport.tsx              |  22 +-
+ src/client/canvas/testHooks.ts                   |  45 ++-
+ src/client/objects/StickyNote.tsx                | 184 +++++++++
+ src/client/styles.css                            | 140 +++++++
+ src/client/sync/ConnectionStatus.tsx             |  76 ++++
+ src/client/sync/connectBoard.ts                  | 189 +++++++++
+ src/shared/config.ts                             |  30 ++
+ src/shared/protocol.ts                           |  14 +
+ src/worker/board-room.ts                         | 404 ++++++++++++++++++++
+ src/worker/board-store.ts                        | 354 +++++++++++++++++
+ src/worker/env.ts                                |  22 ++
+ src/worker/index.ts                              |  80 ++++
+ src/worker/room-state.ts                         | 163 ++++++++
+ src/worker/test-hooks.ts                         | 102 +++++
+ tests/component/ConnectionStatus.test.tsx        | 247 ++++++++++++
+ tests/component/fake-provider.ts                 |  57 +++
+ tests/component/load-failed.test.tsx             | 246 ++++++++++++
+ tests/component/setup.ts                         |  52 ++-
+ tests/e2e/broken-board.spec.ts                   | 162 ++++++++
+ tests/e2e/helpers/board.ts                       |  63 ++-
+ tests/e2e/helpers/wrangler-process.ts            | 314 +++++++++++++++
+ tests/e2e/persistence.spec.ts                    | 203 ++++++++++
+ tests/fixtures/boards.ts                         |  55 +++
+ tests/integration/board-room-persistence.test.ts | 464 +++++++++++++++++++++++
+ tests/integration/board-store.test.ts            | 387 +++++++++++++++++++
+ tests/integration/cloudflare-test.d.ts           |  11 +
+ tests/integration/helpers/room-client.ts         | 307 +++++++++++++++
+ tests/unit/board-store-chunks.test.ts            |  86 +++++
+ tests/unit/room-state.test.ts                    | 144 +++++++
+ tests/unit/sticky-text.test.ts                   |   4 +-
+ tsconfig.json                                    |   7 +-
+ vitest.config.ts                                 |  60 ++-
+ wrangler.e2e.jsonc                               |  33 +-
+ wrangler.jsonc                                   |  33 +-
+ 46 files changed, 5751 insertions(+), 64 deletions(-)
+commit ab9293da14c354a47f5c7b28920e62e46f388836
+vidi-agent  Sun Oct 11 14:38:14 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit c7d5e4dd8600495a4ff87a63a186cbf48cae9f00
 vidi-agent  Sun Oct 11 14:38:00 2026 +0100
 
