@@ -1,3 +1,89 @@
+commit f240a35a50b6c225df31027688eb5bf1c048602d
+agent  Sun Oct 11 21:52:27 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md    | 65 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md | 24 +++++++++++------------
+ 2 files changed, 77 insertions(+), 12 deletions(-)
+commit 1e2ec183fd60b6e7ab254390f161bf2e925abd18
+agent  Sun Oct 11 21:50:24 2026 +0100
+
+    story 7: e2e multi-select, group transform, prune and capacity scenarios (task 15)
+
+
+ tests/e2e/multi-select.spec.ts | 371 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 371 insertions(+)
+commit baa50fb89bb1a357f00ebfa563088da87ba2b3fb
+agent  Sun Oct 11 21:50:24 2026 +0100
+
+    story 7: selection, marquee, group transform, keyboard and registry rendering (tasks 8-13)
+
+
+ src/client/app.css                      |   7 +
+ src/client/board/Board.tsx              | 312 +++++++++++++++++++----------
+ src/client/board/Marquee.tsx            |  25 +++
+ src/client/board/SelectionBar.tsx       |  80 ++++++++
+ src/client/board/SelectionOverlay.tsx   |  73 +++++++
+ src/client/board/useBoardDoc.ts         |  57 ++++--
+ src/client/board/useBoardKeys.ts        |  98 +++++++++
+ src/client/board/useSelection.ts        | 127 +++++++++---
+ src/client/board/useTransformGesture.ts | 345 ++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     | 140 ++++++++++++-
+ src/client/objects/StickyNote.tsx       | 224 +++++----------------
+ src/client/objects/StickyTextEditor.tsx |  19 +-
+ tests/component/keyboard.test.tsx       | 105 ++++++++++
+ tests/component/marquee.test.tsx        |  97 +++++++++
+ tests/component/selection.test.tsx      |  84 ++++++++
+ tests/component/stickyHelpers.tsx       |  26 +++
+ tests/component/transform.test.tsx      | 243 ++++++++++++++++++++++
+ tests/e2e/helpers/board.ts              |   2 +
+ tests/fixtures/testbox.tsx              |  15 +-
+ tests/unit/selection.test.ts            |  60 ++++++
+ 20 files changed, 1801 insertions(+), 338 deletions(-)
+commit 346403826aea89f22054958b1f4e4cda039e4b5d
+agent  Sun Oct 11 20:52:17 2026 +0100
+
+    story 7 task 7: object-type registry (register/get, one owner per type) + testbox fixture + registry unit tests
+
+
+ src/client/objects/registry.tsx | 25 +++++++++++++++------
+ tests/fixtures/testbox.tsx      | 48 +++++++++++++++++++++++++++++++++++++++++
+ tests/unit/registry.test.ts     | 48 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 114 insertions(+), 7 deletions(-)
+commit 852c24f9cc1b4a9903ab3db5e6d8eae3d6941a92
+agent  Sun Oct 11 20:50:34 2026 +0100
+
+    story 7 task 2: pure geometry ops and generic group board ops (move/resize/bringToFront/delete) in one transact; single-object fns become wrappers; unit passing
+
+
+ src/shared/board-model.ts            | 216 +++++++++++++++++++++++++----------
+ src/shared/geometry.ts               | 143 ++++++++++++++++++++---
+ tests/unit/board-model-group.test.ts |  11 +-
+ tests/unit/geometry.test.ts          |  20 ++--
+ 4 files changed, 301 insertions(+), 89 deletions(-)
+commit 98856155fc277f7ffdfc4194bd734f7b141ca288
+agent  Sun Oct 11 20:43:45 2026 +0100
+
+    story 7 task 6: geometry and group-op unit tests first (TC-01..TC-10), with config constants and stubs that fail with 'not implemented'
+
+
+ src/client/objects/registry.tsx      |  44 +++++++
+ src/shared/board-model.ts            |  90 ++++++++++++-
+ src/shared/config.ts                 |  12 ++
+ src/shared/geometry.ts               |  45 +++++++
+ tests/unit/board-model-group.test.ts | 245 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 150 +++++++++++++++++++++
+ 6 files changed, 579 insertions(+), 7 deletions(-)
+commit 5146e41f1f32925e1111cdb44bab61fda75a8c2f
+vidi-agent  Sun Oct 11 20:09:43 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 31 +++++++++++++------------------
+ 1 file changed, 13 insertions(+), 18 deletions(-)
 commit 750b9ab150fa7dd2153bea6240340488c53ba4fc
 agent  Sun Oct 11 20:06:15 2026 +0100
 
