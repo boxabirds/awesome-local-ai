@@ -1,3 +1,88 @@
+commit b78c7b9d5d37f52e3c908753b27903aa7a718322
+agent  Sun Oct 11 08:53:50 2026 +0100
+
+    story 4: persistence e2e — restart, immediate leave, big board open (TC-19, TC-20, TC-21)
+
+
+ playwright.config.ts                  |  30 +++-
+ scratch/seed-probe.mjs                |  77 +++++++++
+ tests/e2e/helpers/e2e-ports.ts        |  24 +++
+ tests/e2e/helpers/participants.ts     |  42 ++---
+ tests/e2e/helpers/room-client.ts      | 288 ++++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/wrangler-process.ts | 227 +++++++++++++++++++++++++++
+ tests/e2e/persistence.spec.ts         | 257 ++++++++++++++++++++++++++++++
+ 7 files changed, 914 insertions(+), 31 deletions(-)
+commit 4983e7d88f3b165dc5e5bc91a5fd03f2441a902f
+agent  Sun Oct 11 07:53:33 2026 +0100
+
+    story 4: room persistence integration tests (TC-12..TC-18, TC-26)
+
+
+ tests/integration/board-persistence.test.ts | 410 ++++++++++++++++++++++++++++
+ tests/integration/board-store.test.ts       |  12 +-
+ 2 files changed, 417 insertions(+), 5 deletions(-)
+commit 0d34f7214cf067b11b60431b8830179a7cbf0e7e
+agent  Sun Oct 11 07:39:50 2026 +0100
+
+    story 4: persistent room — load on wake, save before broadcast, hibernation, load/storage failure close codes
+
+
+ src/worker/board-room.ts                 | 293 +++++++++++++++++++++++--------
+ src/worker/board-store.ts                |  13 ++
+ tests/integration/board-room.test.ts     |  92 +++++-----
+ tests/integration/helpers/sync-client.ts |  52 ++++--
+ 4 files changed, 329 insertions(+), 121 deletions(-)
+commit f1f3485e6e1205003e1509f00c0137a1d6ce5b31
+agent  Sun Oct 11 07:30:29 2026 +0100
+
+    story 4: BoardStore integration tests green (TC-03..TC-11, TC-25) + fixture boards
+
+
+ src/shared/config.ts                  |   4 +-
+ src/worker/board-store.ts             | 227 +++++---
+ tests/fixtures/boards.ts              | 240 +++++++++
+ tests/integration/board-store.test.ts | 940 ++++++++++++++++++----------------
+ 4 files changed, 919 insertions(+), 492 deletions(-)
+commit 492568c7eaa1b8fddc28e63332b02cd78bf25b8e
+agent  Sun Oct 11 06:45:51 2026 +0100
+
+    story 4: board store against real DO storage (TC-03..TC-20 integration tests green)
+
+
+ scratch/damage-semantics.ts           |  30 ++
+ scratch/node-replay.mjs               |   2 +
+ scratch/node-replay.ts                |  15 +
+ scratch/node-replay2.ts               |  89 +++++
+ scratch/node-replay3.ts               |  44 +++
+ scratch/node-replay4.ts               |  41 +++
+ scratch/node-replay5.ts               |  24 ++
+ src/worker/board-store.ts             | 559 ++++++++++++++++++++++++++--
+ src/worker/room-state.ts              |  41 ++-
+ tests/integration/board-store.test.ts | 674 ++++++++++++++++++++++++++++++++++
+ 10 files changed, 1486 insertions(+), 33 deletions(-)
+commit f8cf6248edf6fdb2fe9a7b4e89dc0829d449815a
+agent  Sun Oct 11 06:03:42 2026 +0100
+
+    story 4: room state and storage chunk unit tests (red phase)
+
+
+ PROGRESS.md                           |  34 ++++++----
+ scratch/yjs-damage.mjs                |  43 ++++++++++++
+ src/shared/config.ts                  |  19 ++++++
+ src/shared/protocol.ts                |   7 ++
+ src/worker/board-store.ts             |  73 +++++++++++++++++++++
+ src/worker/room-state.ts              |  48 ++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  92 ++++++++++++++++++++++++++
+ tests/unit/room-state.test.ts         | 119 ++++++++++++++++++++++++++++++++++
+ 8 files changed, 421 insertions(+), 14 deletions(-)
+commit 03894597dad8c7decc98177d4ef149f423338fa8
+vidi-agent  Sun Oct 11 05:47:18 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 62 ++++++++++---------------------------------------------------
+ 1 file changed, 10 insertions(+), 52 deletions(-)
 commit e3f1fa2c579e79de739056cb7c5dfa7fc4423822
 vidi-agent  Sun Oct 11 05:47:05 2026 +0100
 
