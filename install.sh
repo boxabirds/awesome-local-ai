@@ -61,7 +61,8 @@ HELP
 }
 
 # Interactive menu for a bare `./install.sh` (no selector, a TTY, not --yes).
-# Lists every combination, annotates each against this machine, and lets the
+# Lists every combination, annotates each against this machine and says whether it can be
+# launched here now (launchable / installed but incomplete / not installed), and lets the
 # user pick one by number. The best fit is line 1 and the default; 'q' cancels.
 # Sets PICKED_COMBO and returns 0 on a pick, 1 on cancel. Picking something
 # that won't fit is allowed -- the combination's own installer then refuses
@@ -97,7 +98,7 @@ pick_combination_interactive() {
     fi
     local note="$fit"
     if [[ "$combo" == "$default" ]]; then note="$fit, default"; fi
-    printf '  %2d) %-58s [%s]\n' "$i" "$combo" "$note"
+    printf '  %2d) %-58s [%s | %s]\n' "$i" "$combo" "$note" "$(combo_launch_status "$combo")"
     i=$((i+1))
   done
   printf '\n'
@@ -185,6 +186,21 @@ else
   esac
   CHOSEN="$(best_for_host "$FAMILY")"
   REASON="best fit for this machine"
+fi
+
+# An option picked from the menu that is already installed and launchable: lead the way to starting it, instead of
+# running its installer again. Declining falls through to the installer, which is idempotent.
+if (( PICKED_VIA_MENU )) && [[ "$(combo_launch_status "$CHOSEN")" == "launchable" ]]; then
+  READY_ID="$(combo_install_id "$CHOSEN")"
+  echo
+  echo "${CHOSEN} is installed and launchable."
+  echo "  ./run.sh ${READY_ID} --server                       start it"
+  echo "  ./run.sh ${READY_ID} --context 192k --server        ...with a larger window (128k, 192k or 256k)"
+  read -r -p "Start it now? [Y/n] " reply
+  case "${reply:-y}" in
+    [Nn]*) ;;
+    *) exec "${REPO_ROOT}/run.sh" "$READY_ID" --server ;;
+  esac
 fi
 
 if [[ "$ACTION" == "list" ]]; then

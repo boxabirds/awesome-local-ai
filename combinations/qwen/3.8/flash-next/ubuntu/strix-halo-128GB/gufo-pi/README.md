@@ -100,3 +100,11 @@ qwen38-flash-next-strix-gufo-server           # serve on :8080
 qwen38-flash-next-strix-gufo-pi               # pi against it, started on demand
 dbench submit <node> --install-id qwen38-flash-next-strix-gufo --pack benchmarks/vidi --client pi --record …
 ```
+
+### Another context size
+
+```bash
+./run.sh qwen3.8-flash-next-gufo --context 192k --server   # 128k, 192k or 256k; add --host 0.0.0.0 for other machines
+```
+
+Each size has its own port (128k on 8080, 192k on 8192, 256k on 8256), so a client set up for one size cannot quietly talk to another. Starting a size stops the server you left running on any of those ports first; it never stops a benchmark's server (a run uses port 18010 and up). Only 128k has been measured (GPU memory above); 192k and 256k add key-value cache that nobody has measured on this machine.

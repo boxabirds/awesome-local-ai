@@ -129,6 +129,25 @@ PREFILL_CHUNK="${PREFILL_CHUNK:-$D_PREFILL_CHUNK}"
 MODEL_ALIAS="${MODEL_ALIAS:-$MODEL_ALIAS_DEFAULT}"
 CONTAINER_NAME="${INSTALL_ID}-${PORT}"
 
+# ---- replacing the server a person left running ---------------------------
+# run.sh --context passes LOCAL_AI_REPLACE_PORTS: the ports a person's server is run on. A server of this image on
+# one of them is stopped so the new size can take its place, which is what asking for another size means. A
+# benchmark's server is never on those ports (a run uses 18010 and up), so it is never touched; if one is running,
+# the guard below still refuses to start beside it. Without the variable nothing is stopped.
+replace_interactive_servers() {
+  local name port
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    for port in $LOCAL_AI_REPLACE_PORTS; do
+      if [[ "$name" == *"-${port}" ]]; then
+        echo "${SERVER_CMD}: stopping ${name} (this start replaces it)..." >&2
+        podman stop -t "${STOP_TIMEOUT:-20}" "$name" >/dev/null 2>&1 || true
+      fi
+    done
+  done < <(podman ps --filter "ancestor=${GUFO_IMAGE}" --format '{{.Names}}' 2>/dev/null)
+}
+if [[ -n "${LOCAL_AI_REPLACE_PORTS:-}" ]]; then replace_interactive_servers; fi
+
 # ---- pre-flight: already running ------------------------------------------
 if command -v curl >/dev/null 2>&1 \
    && curl -sf --max-time 2 "http://127.0.0.1:${PORT}/v1/models" >/dev/null 2>&1; then

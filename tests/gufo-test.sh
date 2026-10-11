@@ -124,6 +124,7 @@ cat > "$FAKE_HOME/bin/podman" <<'STUB'
 echo "CALL $*" >> "$PODMAN_LOG"
 case "$1" in
   inspect) exit 1 ;;
+  ps)      printf '%s\n' "${PODMAN_PS:-}"; exit 0 ;;
   stop)    kill "$(cat "$PODMAN_LOG.pid" 2>/dev/null)" 2>/dev/null; exit 0 ;;
   run)     shift; printf '%s\n' "$@" > "$PODMAN_ARGV"
            if [[ "${PODMAN_IDLE:-0}" == "1" ]]; then echo $$ > "$PODMAN_LOG.pid"; exec sleep 30; fi
@@ -238,5 +239,43 @@ assert_ok "podman stop was called for the named container" \
   grep -qE '^CALL stop -t [0-9]+ qwen38-flash-next-strix-gufo-39996$' "$WORK/podman.log"
 assert_fails "the launcher exited" kill -0 "$lpid"
 kill "$(cat "$WORK/podman.log.pid" 2>/dev/null)" 2>/dev/null || true
+
+echo
+echo "launcher: starting at another size replaces the interactive server, and only that one"
+# run.sh passes the ports a person's server may be on (LOCAL_AI_REPLACE_PORTS). A benchmark's server is on 18010,
+# never one of them, so replacing cannot take a run's server away. podman ps is the stub's PODMAN_PS.
+INTERACTIVE_PORTS="8080 8192 8256"
+RUNNING_128K="qwen38-flash-next-strix-gufo-8080"
+RUNNING_BENCH="qwen38-flash-next-strix-gufo-oc-18010"
+stops() { grep -E '^CALL stop ' "$WORK/podman.log" | sed -E 's/^CALL stop (-t [0-9]+ )?//'; }
+
+: > "$WORK/podman.log"; rm -f "$ARGV"
+launch LOCAL_AI_REPLACE_PORTS="$INTERACTIVE_PORTS" PODMAN_PS="$RUNNING_128K"
+assert_eq "the running interactive server is stopped"          "$RUNNING_128K" "$(stops | grep -v 39997)"
+assert_ok "...and the new server then starts"                  test -f "$ARGV"
+assert_ok "...and it says what it stopped"                     grep -q "stopping $RUNNING_128K" "$WORK/launch.out"
+
+: > "$WORK/podman.log"; rm -f "$ARGV"
+launch LOCAL_AI_REPLACE_PORTS="$INTERACTIVE_PORTS" PODMAN_PS="$RUNNING_BENCH"
+assert_eq "a benchmark's server (port 18010) is left alone"    "" "$(stops | grep -v 39997)"
+
+: > "$WORK/podman.log"; rm -f "$ARGV"
+launch LOCAL_AI_REPLACE_PORTS="$INTERACTIVE_PORTS" PODMAN_PS="$(printf '%s\n%s' "$RUNNING_128K" "$RUNNING_BENCH")"
+assert_eq "...even when both are running: only the interactive one stops" "$RUNNING_128K" "$(stops | grep -v 39997)"
+
+: > "$WORK/podman.log"; rm -f "$ARGV"
+launch PODMAN_PS="$RUNNING_128K"
+assert_eq "without the ports run.sh passes, nothing is stopped"   "" "$(stops | grep -v 39997)"
+
+: > "$WORK/podman.log"; rm -f "$ARGV"
+launch LOCAL_AI_REPLACE_PORTS="$INTERACTIVE_PORTS" PODMAN_PS=""
+assert_ok "nothing running: it just starts"                    test -f "$ARGV"
+assert_eq "...and stops nothing"                               "" "$(stops | grep -v 39997)"
+
+: > "$WORK/podman.log"; rm -f "$ARGV"
+launch LOCAL_AI_REPLACE_PORTS="$INTERACTIVE_PORTS" PODMAN_PS="$RUNNING_128K" \
+       PS_OUT="  4242 /opt/llama.cpp/llama-server -m m.gguf --port 8010"
+assert_fails "a different engine still running blocks the start (replace is not a way past the guard)" test -f "$ARGV"
+
 
 finish

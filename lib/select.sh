@@ -305,3 +305,25 @@ explain_no_match() {
   echo >&2
   echo "  To add one for this machine: docs/adding-a-combination.md" >&2
 }
+
+# ---- can it be launched here, now? ----------------------------------------
+# For the install menu. The installer leaves a manifest per install at $HOME/.local/share/<install-id>/install.env;
+# the one whose COMBINATION is this path is this combination's install. Whether it is complete is run.sh's own
+# --health, so the menu and the launcher cannot disagree about what "launchable" means.
+combo_install_id() { # combination path -> its install id (empty when not installed)
+  local combo="$1" f id
+  for f in "${HOME}/.local/share"/*/install.env; do
+    [[ -f "$f" ]] || continue
+    id="$( set +u; . "$f" 2>/dev/null; [[ "${COMBINATION:-}" == "$combo" ]] && printf '%s' "${INSTALL_ID:-}" || true )"
+    if [[ -n "$id" ]]; then printf '%s' "$id"; return 0; fi
+  done
+  return 0
+}
+
+combo_launch_status() { # launchable | installed, <what is missing> | not installed
+  local id health
+  id="$(combo_install_id "$1")"
+  if [[ -z "$id" ]]; then echo "not installed"; return 0; fi
+  health="$("${REPO_ROOT}/run.sh" "$id" --health 2>/dev/null || true)"
+  if [[ "$health" == "ok" ]]; then echo "launchable"; else echo "installed, ${health:-unreadable}"; fi
+}

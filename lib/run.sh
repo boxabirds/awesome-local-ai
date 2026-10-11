@@ -15,6 +15,30 @@ set -euo pipefail
 BIN_DIR="${HOME}/.local/bin"
 SHARE_DIR="${HOME}/.local/share"
 
+# --context: the window sizes on offer, and the port each is served on. Each size has its own port so that a client
+# configured for 192k cannot silently talk to a 128k server: the wrong size is a refused connection, not a quiet
+# truncation. These are the ports a person's server runs on; a benchmark's server is on 18010 and up, which is
+# why the launcher may replace a server on any of these and never one of a run's.
+TOKENS_PER_K=1024
+CONTEXT_SIZES="128k 192k 256k"
+context_tokens() { echo $(( ${1%k} * TOKENS_PER_K )); }
+context_port() {
+  case "$1" in
+    128k) echo 8080 ;;
+    192k) echo 8192 ;;
+    256k) echo 8256 ;;
+  esac
+}
+interactive_ports() {
+  local size out=""
+  for size in $CONTEXT_SIZES; do out="${out:+$out }$(context_port "$size")"; done
+  echo "$out"
+}
+
+# The model name an install serves under (qwen3.8-flash-next-gufo), so it can be picked by what it is called to
+# a client, not only by its install id.
+alias_of() { ( set +u; . "$1/install.env" 2>/dev/null; printf '%s' "${MODEL_ALIAS_DEFAULT:-}" ); }
+
 # ---- discovery ------------------------------------------------------------
 # One record per installed combination:
 #   install_id|combination|display_name|server_cmd|session_cmd|client|root
@@ -134,6 +158,7 @@ COMMANDS
    --status        server, watcher, clients, idle timer
    --stop          stop the watcher and the server it started
    --list          what is installed on this machine
+   --health        say whether the selected install can be launched (ok, or what is missing)
    --help          this text
 
 SERVER   (where the server listens, plus generation tuning; each also works as
@@ -142,6 +167,11 @@ SERVER   (where the server listens, plus generation tuning; each also works as
                     machine can reach it; 0.0.0.0 = every interface, so other
                     machines on your network or tailnet can reach the server
     --port <port>   listen on this port (default 8080)
+    --context <size>  the context window: 128k, 192k or 256k. Each size is served
+                    on its own port (128k on 8080, 192k on 8192, 256k on 8256) unless
+                    --port says otherwise, and starting one replaces the server you
+                    left running on any of those ports. It never touches a
+                    benchmark's server.
     --max <n>       max MTP draft tokens per step. Defaults to the combo's
                     SPEC_DRAFT_N_MAX (3 for both the baseline and Swift combos
                     today). Raise it while draft acceptance stays high for more
@@ -153,6 +183,7 @@ EXAMPLES
    ./run.sh --opencode                  # launch OpenCode instead
    ./run.sh --host 0.0.0.0              # or HOST=0.0.0.0 ./run.sh: reachable from
                                         # other machines on your network
+   ./run.sh qwen3.8-flash-next-gufo --context 192k --server   # pick by model name
    ./run.sh qwen38-27b --pi             # pick an install, then a client
    ./run.sh --status
    PROFILE=vision ./run.sh              # env passes through to the server
@@ -173,6 +204,8 @@ HELP
 SELECTOR=""
 ACTION="server"
 RUN_CLIENT=""
+CONTEXT=""
+CONTEXT_GIVEN=0
 PASSTHRU=()
 
 while (( $# )); do
@@ -183,12 +216,15 @@ while (( $# )); do
     --pi)          ACTION="session"; RUN_CLIENT="pi"; shift ;;
     --opencode)    ACTION="session"; RUN_CLIENT="opencode"; shift ;;
     --server-only) ACTION="server-only"; shift ;;
+    --health)      ACTION="health"; shift ;;
     --status)      ACTION="status"; shift ;;
     --stop)        ACTION="stop"; shift ;;
     --host)        [[ $# -ge 2 ]] || { echo "run.sh: --host needs an address (e.g. 0.0.0.0)" >&2; exit 2; }
                    HOST="$2"; shift 2 ;;
     --port)        [[ $# -ge 2 ]] || { echo "run.sh: --port needs a number (e.g. 8080)" >&2; exit 2; }
                     PORT="$2"; shift 2 ;;
+    --context)     [[ $# -ge 2 ]] || { echo "run.sh: --context needs a size (see --help)" >&2; exit 2; }
+                    CONTEXT="$2"; CONTEXT_GIVEN=1; shift 2 ;;
     --max)         [[ $# -ge 2 ]] || { echo "run.sh: --max needs a number (e.g. 3)" >&2; exit 2; }
                     [[ "$2" =~ ^[1-9][0-9]*$ ]] || { echo "run.sh: --max must be a positive whole number, got '$2'" >&2; exit 2; }
                     SPEC_DRAFT_N_MAX="$2"; shift 2 ;;
@@ -215,6 +251,26 @@ if [[ -n "${HOST:-}" ]]; then export HOST; fi
 if [[ -n "${PORT:-}" ]]; then export PORT; fi
 if [[ -n "${SPEC_DRAFT_N_MAX:-}" ]]; then export SPEC_DRAFT_N_MAX; fi
 
+# --context becomes the CTX the launchers read, the size's own port (unless --port or PORT chose one), and the list
+# of ports the launcher may replace a server on. A flag wins over an inherited CTX, as the other flags do.
+HAVE_CONTEXT=0
+for _size in $CONTEXT_SIZES; do [[ "$CONTEXT" == "$_size" ]] && HAVE_CONTEXT=1; done
+if (( CONTEXT_GIVEN )) && (( ! HAVE_CONTEXT )); then
+  _sizes="${CONTEXT_SIZES// /, }"
+  echo "run.sh: --context must be ${_sizes%, *} or ${_sizes##*, }, got '${CONTEXT}'" >&2
+  exit 2
+fi
+if (( HAVE_CONTEXT )); then
+  export CTX="$(context_tokens "$CONTEXT")"
+  [[ -n "${PORT:-}" ]] || PORT="$(context_port "$CONTEXT")"
+  export PORT
+  export LOCAL_AI_REPLACE_PORTS="$(interactive_ports)"
+  case "${HOST:-127.0.0.1}" in
+    127.0.0.1|localhost|::1)
+      echo "note: serving on ${HOST:-127.0.0.1}: only this machine can reach it. Add --host 0.0.0.0 for other machines." >&2 ;;
+  esac
+fi
+
 # ---- select ---------------------------------------------------------------
 # Not `mapfile`: that is bash 4+, and stock macOS still ships bash 3.2.
 INSTALLS=()
@@ -234,23 +290,49 @@ fi
 # on llama.cpp as readily as a Llama one.
 #
 #   1. exact install id            2. exact combination path
-#   3. install id prefix           4. substring of either
+#   3. install id prefix           4. the model name it serves (qwen3.8-flash-next-gufo)
+#   5. substring of id or combination
 MATCHES=()
+MATCH_TIER=""
 if [[ -z "$SELECTOR" ]]; then
   MATCHES=("${INSTALLS[@]}")
 else
-  for tier in exact-id exact-combo prefix-id substring; do
+  for tier in exact-id exact-combo prefix-id model-name substring; do
     for rec in "${INSTALLS[@]}"; do
-      IFS='|' read -r id combo _ <<< "$rec"
+      IFS='|' read -r id combo _ _ _ _ root <<< "$rec"
       case "$tier" in
         exact-id)    [[ "$id" == "$SELECTOR" ]] && MATCHES+=("$rec") ;;
         exact-combo) [[ "$combo" == "$SELECTOR" ]] && MATCHES+=("$rec") ;;
         prefix-id)   [[ "$id" == "$SELECTOR"* ]] && MATCHES+=("$rec") ;;
+        model-name)  [[ "$(alias_of "$root")" == "$SELECTOR" ]] && MATCHES+=("$rec") ;;
         substring)   [[ "$id" == *"$SELECTOR"* || "$combo" == *"$SELECTOR"* ]] && MATCHES+=("$rec") ;;
       esac
     done
-    (( ${#MATCHES[@]} )) && break
+    if (( ${#MATCHES[@]} )); then MATCH_TIER="$tier"; break; fi
   done
+fi
+
+# Installs that serve one model name differ only in the client they launch (pi, OpenCode); the server is the same
+# one. Asked for a client, take the install that has it. Asked only for the server, any of them will do: take the one
+# with the smallest install id (the plain one, before its -oc variant), so "which one?" is never the answer to a
+# request that has one, and the answer does not depend on how the shell happens to order the directories.
+if [[ "$MATCH_TIER" == "model-name" ]] && (( ${#MATCHES[@]} > 1 )); then
+  if [[ -n "$RUN_CLIENT" ]]; then
+    NARROWED=()
+    for rec in "${MATCHES[@]}"; do
+      IFS='|' read -r _ _ _ _ _ rec_client _ <<< "$rec"
+      [[ "$rec_client" == "$RUN_CLIENT" ]] && NARROWED+=("$rec")
+    done
+    if (( ${#NARROWED[@]} )); then MATCHES=("${NARROWED[@]}"); fi
+  fi
+  if [[ "$ACTION" != "session" ]]; then
+    PICK="${MATCHES[0]}"
+    for rec in "${MATCHES[@]}"; do
+      IFS='|' read -r id _ <<< "$rec"; IFS='|' read -r pick_id _ <<< "$PICK"
+      [[ "$id" < "$pick_id" ]] && PICK="$rec"
+    done
+    MATCHES=("$PICK")
+  fi
 fi
 
 if (( ${#MATCHES[@]} == 0 )); then
@@ -277,6 +359,7 @@ IFS='|' read -r ID COMBO DISPLAY SERVER_CMD SESSION_CMD CLIENT ROOT <<< "${MATCH
 
 # ---- qualify --------------------------------------------------------------
 HEALTH="$(health_of "$ROOT" "$SERVER_CMD" "$SESSION_CMD")"
+if [[ "$ACTION" == "health" ]]; then echo "$HEALTH"; exit 0; fi
 if [[ "$HEALTH" != "ok" ]]; then
   echo "run.sh: the '${ID}' install is incomplete -- ${HEALTH}." >&2
   echo >&2
