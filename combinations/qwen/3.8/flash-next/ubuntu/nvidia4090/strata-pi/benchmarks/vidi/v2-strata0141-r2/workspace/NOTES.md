@@ -52,19 +52,20 @@
 
 ## Blocked
 
-- **WebKit e2e project.** The WebKit binary installs, but it cannot launch on this machine:
-  `libavif.so.13`, `libsoup-3.0.so.0`, `libjxl.so.0.8` and `libbacktrace.so.0` are missing
-  (`ldd` reports "not found"). Installing them needs `sudo npx playwright install-deps` /
-  `apt-get install libavif13`, and this machine has neither sudo nor apt access (package mirrors are
-  blocked by the proxy, HTTP 403). `playwright.config.ts` detects missing host libraries and drops the
-  WebKit project instead of failing the suite, so `npm run test:e2e` stays green.
+- ~~**WebKit e2e project.**~~ **Resolved in story 2.** WebKit looked unusable because a plain
+  `ldd` on `libWPEWebKit-2.0.so.1` / `libwebkitgtk-6.0.so.4` reports `libsoup-3.0.so.0`,
+  `libjxl.so.0.8`, `libavif.so.13` and `libbacktrace.so.0` as "not found" — those libraries are
+  shipped inside the Playwright build under `minibrowser-*/sys/lib` and are only on the loader path
+  when Playwright launches the browser. `librariesResolve()` in `playwright.config.ts` now runs
+  `ldd` with those directories on `LD_LIBRARY_PATH`, so the WebKit project is enabled and runs.
+  The detection still drops a project whose libraries are genuinely missing instead of failing the
+  whole suite.
 - **Chromium had to be located, not installed.** `npx playwright install chromium` fails here: the
   Chrome for Testing download returns HTTP 403 from `cdn.playwright.dev` through the proxy. A Chrome
   for Testing build already on the machine is used instead
   (`~/.cache/vidi-agent-ms-playwright/chromium-1243/chrome-linux64/chrome`), selected by
   `chromiumExecutable()` in `playwright.config.ts` (override with `VIDI6_CHROMIUM_PATH`).
-- **Result:** e2e runs in Chromium and Firefox (18 tests, all passing). Design asked for Chromium,
-  Firefox and WebKit.
+- **Result:** e2e runs in Chromium, Firefox and WebKit (story 1: 18 tests, all passing).
 
 ## Not covered (by design or by environment)
 
@@ -90,3 +91,82 @@
 - Sticky notes (story 2) should be rendered as children of `BoardViewport` — they land in the world
   layer, which is already `pointer-events: none` for gestures; if notes need their own pointer
   handling, that exclusion logic (board gesture vs object interaction) is where story 2 will hook in.
+
+---
+
+# Story 2 notes: sticky notes
+
+## Deviations from `design.md` (and why)
+
+1. **Notes are rendered in a stable DOM order; `z-index` carries the stacking order.**
+   The design has `bringToFront` run at drag start so the dragged note is drawn above everything it
+   overlaps. If the notes were painted in `z` order, `bringToFront` mid-drag would re-insert the
+   dragged element, and Chromium/Firefox end a pointer capture when the capturing node leaves the
+   document: the drag stopped silently at the threshold (found by the e2e drag tests). DOM order is
+   now creation order (`createdAt`, then `id`) and each note sets `style.zIndex = note.z`, which
+   gives exactly the same painting. `snapshot()` still returns notes sorted by `z` as specified, and
+   TC-32 asserts the stacking with `document.elementFromPoint` in a real browser.
+2. **A live drag re-takes pointer capture when it loses it.**
+   `StickyNote` calls `setPointerCapture` again if `lostpointercapture` fires while a drag is in
+   flight and the note is still in the document (it can also happen from a remote `z` change in
+   story 3). A capture the browser drops for real still ends the drag and keeps the last applied
+   position (TC-21).
+3. **`STICKY_TEXT_PADDING_WORLD = 12` was added to `src/shared/config.ts`.**
+   The design fixes the note's size and font bounds but not the text inset; the same number has to
+   drive both the CSS inset and the fit measurement, so it is a named setting passed to CSS as
+   `--sticky-text-padding` instead of being hard-coded twice.
+4. **`fitFontSize` leaves the measure element at the size it settled on.**
+   The design describes the search but not the restore; restoring the previous font size left the
+   hidden measure element disagreeing with the inline style React renders, so the next measurement
+   started from the wrong size.
+5. **The measure element is `height: auto`, `visibility: hidden`.**
+   A fixed-height element reports its own height as `scrollHeight`, which hides the overflow the fit
+   search exists to find.
+6. **The editor writes on React `onChange` and guards IME composition.**
+   React's `onChange` is the native `input` event the design asks for (a controlled `value` with only
+   `onInput` warns). `isComposing` / `compositionend` guard IME text, and `onBlur` flushes a pending
+   value. During composition nothing is written, so a composing string is committed as one diff.
+7. **An open editor also adopts remote text (`ytext.observe` with a `LOCAL_ORIGIN` guard).**
+   Not in story 2's spec (there is a single writer), but without it the editor would overwrite any
+   incoming change to the note it is editing. Harmless now, needed unchanged in story 3.
+8. **e2e reaches 50% and 200% zoom through the story 1 test hook.**
+   UI zoom steps are ×1.25, so 0.5× and 2.0× (the design's drag geometry values, TC-31/TC-32) are
+   unreachable by clicking. `window.__vidi6.setCamera` only sets up the zoom; the drags,
+   double-clicks, typing, clicks and keyboard shortcuts under test are all real user input.
+9. **Component harness wraps every interaction in `await act(async …)` and drains rAF.**
+   Drags coalesce into `requestAnimationFrame`, and raw `fireEvent.pointer` dispatch is not
+   React-wrapped, so without a wrapper React commits land after the assertions. `flushFrames()` drains
+   three animation frames plus the scheduler queue. `@testing-library/user-event` is not used for
+   drags because jsdom implements neither pointer capture nor layout, so `getBoundingClientRect`
+   returns zeros — component tests assert model writes, attributes and rendered structure, and
+   geometry is asserted in e2e instead.
+10. **Extra `data-*` attributes for tests:** `data-note-id`, `data-selected`, `data-editing`,
+    `data-dragging`, `data-color`, `data-z`, `data-overflow` on the note, `data-testid` on the
+    toolbar buttons (`swatch-<name>`, `delete-note`, `create-sticky`) and on the text/counter/editor
+    nodes. e2e identifies notes by `data-note-id`, never by index, because stacking changes during a
+    drag.
+
+## Not covered (by design or by environment)
+
+- **TC-10 (`bringToFront` on the topmost note emits no update)** is covered as a unit test only, as
+  the design's negative-scenario table specifies.
+- **Real IME composition** cannot be synthesised in jsdom or Playwright; the composition guard is
+  covered by unit tests over `applyTextDiff`/`clampToLimit` and by the fact that plain typing works
+  in e2e.
+- **Touch and stylus input** — the PRD's pointer handling is exercised with mouse-driven pointer
+  events only.
+- **Note rotation, resizing, shapes, connectors and multi-user presence** belong to later stories.
+
+## Useful facts for the next story
+
+- `src/shared/board-model.ts` is the only place that touches the Yjs schema: `objects` (a `Y.Map` of
+  `Y.Map`s), text in a per-note `Y.Text`, `LOCAL_ORIGIN` as the transaction origin. Story 3 can pass
+  a doc with a provider attached to `App` (`AppProps.doc`) and needs no model changes.
+- `useBoardDoc(providedDoc?)` already accepts an external `Y.Doc`; `App` uses it for both local and
+  injected docs.
+- `useSelection` is deliberately local-only state; awareness/presence (story 5) is a separate hook.
+- The `Y.Doc` a component test creates is also what a story 3 test can pair with a second doc through
+  `Y.applyUpdate`, which is how "remote" edits are already simulated (`mutate` in
+  `tests/component/appHarness.tsx`).
+- Note drag geometry divides the screen delta by `camera.zoom` and positions absolutely, so a camera
+  change mid-drag (story 3 remote camera, story 6 shared view) is the place to re-check.

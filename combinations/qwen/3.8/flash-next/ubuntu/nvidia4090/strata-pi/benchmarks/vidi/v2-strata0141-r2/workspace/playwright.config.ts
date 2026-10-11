@@ -19,10 +19,21 @@ function hasBinary(browser: BrowserWithPath): boolean {
   }
 }
 
-/** True when every shared library the binary needs is present on this host. */
-function librariesResolve(binary: string): boolean {
+/**
+ * True when every shared library the binary needs is present on this host.
+ * Playwright's own builds ship private libraries (webkit keeps them in a
+ * sys/lib folder next to the main library), so `ldd` is run with those
+ * directories on `LD_LIBRARY_PATH` — otherwise a perfectly runnable browser
+ * looks missing.
+ */
+function librariesResolve(binary: string, extraLibraryDirs: readonly string[] = []): boolean {
   try {
-    return !execSync(`ldd ${JSON.stringify(binary)} 2>/dev/null`, { encoding: 'utf8' }).includes('not found');
+    const libraryPath = [...extraLibraryDirs, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':');
+    const out = execSync(`ldd ${JSON.stringify(binary)} 2>/dev/null`, {
+      encoding: 'utf8',
+      env: { ...process.env, LD_LIBRARY_PATH: libraryPath },
+    });
+    return !out.includes('not found');
   } catch {
     // No `ldd` available: assume the host is fine and let Playwright report it.
     return true;
@@ -83,11 +94,18 @@ function webkitRunsOnThisHost(): boolean {
     return false;
   }
   const webkitRoot = path.dirname(webkit.executablePath());
-  const candidates = [
-    path.join(webkitRoot, 'minibrowser-wpe', 'lib', 'libWPEWebKit-2.0.so.1'),
-    path.join(webkitRoot, 'minibrowser-gtk', 'lib', 'libwebkitgtk-6.0.so.4'),
-  ].filter((candidate) => existsSync(candidate));
-  return candidates.length === 0 || candidates.some((candidate) => librariesResolve(candidate));
+  const bundles = [
+    { name: 'minibrowser-wpe', library: 'libWPEWebKit-2.0.so.1' },
+    { name: 'minibrowser-gtk', library: 'libwebkitgtk-6.0.so.4' },
+  ].map((bundle) => {
+    const lib = path.join(webkitRoot, bundle.name, 'lib');
+    return { library: path.join(lib, bundle.library), search: [lib, path.join(webkitRoot, bundle.name, 'sys', 'lib')] };
+  });
+  const candidates = bundles.filter((bundle) => existsSync(bundle.library));
+  return (
+    candidates.length === 0 ||
+    candidates.some((candidate) => librariesResolve(candidate.library, candidate.search))
+  );
 }
 
 const chromiumPath = chromiumExecutable();

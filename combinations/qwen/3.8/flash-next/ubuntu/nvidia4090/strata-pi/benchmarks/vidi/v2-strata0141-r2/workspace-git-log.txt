@@ -1,3 +1,53 @@
+commit 6d48b7193596998be727ee7bde6a1e5be11292b1
+agent  Sun Oct 11 01:44:05 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  96 +++-
+ PROGRESS.md                               |  26 +-
+ playwright.config.ts                      |  34 +-
+ src/client/App.tsx                        | 110 +++-
+ src/client/board/Toolbar.tsx              |  40 ++
+ src/client/board/useBoardDoc.ts           |  66 +++
+ src/client/board/useSelection.ts          |  48 ++
+ src/client/canvas/BoardViewport.tsx       |  48 +-
+ src/client/objects/NoteToolbar.tsx        |  76 +++
+ src/client/objects/StickyNote.tsx         | 412 ++++++++++++++
+ src/client/objects/StickyText.ts          | 150 +++++
+ src/client/objects/StickyTextEditor.tsx   | 183 +++++++
+ src/client/styles.css                     | 232 ++++++++
+ src/shared/board-model.ts                 | 274 +++++++++-
+ src/shared/config.ts                      |   2 +
+ tests/component/StickyNote.test.tsx       | 300 ++++++++++
+ tests/component/StickyTextEditor.test.tsx | 282 ++++++++++
+ tests/component/Toolbars.test.tsx         | 236 ++++++++
+ tests/component/appHarness.tsx            | 211 ++++++++
+ tests/e2e/sticky-notes.spec.ts            | 873 ++++++++++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |  64 +++
+ tests/unit/board-model.test.ts            |   7 +-
+ tests/unit/sticky-text.test.ts            | 339 ++++++++++++
+ 23 files changed, 4058 insertions(+), 51 deletions(-)
+commit ba935a237c2910e53554de40c4ede7677b508c0a
+agent  Sun Oct 11 00:21:32 2026 +0100
+
+    story 2: board model unit tests (red phase)
+
+
+ package-lock.json              |  51 +++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  71 ++++++++
+ src/shared/config.ts           |  31 ++++
+ tests/unit/board-model.test.ts | 401 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 555 insertions(+), 2 deletions(-)
+commit 8e9f57b9a18f067d063147bda2bb75a820e16696
+vidi-agent  Sun Oct 11 00:17:19 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 31 +++++++++----------------------
+ 1 file changed, 9 insertions(+), 22 deletions(-)
 commit f4bcc4188b4e6c21ee32345df97f6b172e43bee7
 agent  Sun Oct 11 00:15:37 2026 +0100
 

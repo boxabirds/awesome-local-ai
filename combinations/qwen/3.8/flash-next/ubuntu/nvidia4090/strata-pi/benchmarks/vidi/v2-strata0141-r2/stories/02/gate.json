@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\nadded 138 packages, and audited 139 packages in 2s\n\n31 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 67 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.42 kB \u2502 gzip:  0.29 kB\ndist/client/assets/index-JJiiDhK7.css    5.50 kB \u2502 gzip:  1.58 kB\ndist/client/assets/index-BiOQLWGR.js   303.72 kB \u2502 gzip: 94.61 kB\n\n\u001b[32m\u2713 built in 106ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.2,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.4,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/62862176b6/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 23\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 16\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m26 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 15\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m60 passed\u001b[39m\u001b[22m\u001b[90m (60)\u001b[39m\n\u001b[2m   Start at \u001b[22m 01:44:27\n\u001b[2m   Duration \u001b[22m 145ms\u001b[2m (transform 43%, import 29%, tests 24%, worker 4%)\u001b[22m\n\n",
+      "passed": 60,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/62862176b6/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 80\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 166\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 323\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 431\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 410\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 612\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m65 passed\u001b[39m\u001b[22m\u001b[90m (65)\u001b[39m\n\u001b[2m   Start at \u001b[22m 01:44:27\n\u001b[2m   Duration \u001b[22m 1.11s\u001b[2m (tests 45%, environment 40%, import 8%, transform 6%)\u001b[22m\n\n",
+      "passed": 65,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 8.7,
+      "tail": "-20: a press under the drag threshold selects without moving (850ms)\n  \u2713  16 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:267:3 \u203a sticky notes \u203a TC-30: double-clicking empty board space creates a note centred on that point (741ms)\n  \u2713  15 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:289:3 \u203a sticky notes \u203a TC-31: one note per double-click, notes land apart, and panning creates none (771ms)\n  \u2713   2 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:404:3 \u203a sticky notes \u203a TC-31: at 50% zoom a 100 x 50 drag moves the note 200 x 100 world units under the pointer (1.2s)\n  \u2713  19 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:486:3 \u203a sticky notes \u203a TC-35: double-clicking a note opens the editor with the caret at the end (535ms)\n  \u2713  21 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:525:3 \u203a sticky notes \u203a TC-13, TC-14: every keystroke lands in the note text as it is typed (541ms)\n  \u2713  18 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:452:3 \u203a sticky notes \u203a TC-27, TC-29, TC-36: the note toolbar recolours and deletes the selected note (585ms)\n  \u2713  13 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:318:3 \u203a sticky notes \u203a TC-18, TC-19, TC-32, TC-34: a dragged note follows the pointer, keeps its selection and leaves the others alone (1.2s)\n  \u2713  22 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:542:3 \u203a sticky notes \u203a TC-24, TC-25, TC-26: Escape keeps the note; Delete and Backspace only delete when not editing (635ms)\n  \u2713  24 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:592:3 \u203a sticky notes \u203a TC-38: typing then clicking outside saves the text and clears the selection (525ms)\n  \u2713  20 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:506:3 \u203a sticky notes \u203a Enter opens the editor on a selected note; Enter while editing types a newline (704ms)\n  \u2713  26 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:641:3 \u203a sticky notes \u203a short text keeps the largest board font and shows no counter (503ms)\n  \u2713  25 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:606:3 \u203a sticky notes \u203a TC-39: long text is fitted inside the square at any zoom and never overflows (583ms)\n  \u2713  27 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:658:3 \u203a sticky notes \u203a TC-15, TC-16: text pasted or typed past the limit is clamped to exactly the limit (563ms)\n  \u2713  23 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:571:3 \u203a sticky notes \u203a TC-28: clicking empty board space clears the selection, panning the board does not (745ms)\n  \u2713  28 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:683:3 \u203a sticky notes \u203a TC-39: the counter appears only when little of the limit is left (542ms)\n  \u2713  17 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:422:3 \u203a sticky notes \u203a TC-32: at 200% zoom a 100 x 50 drag moves 50 x 25 world units and draws the note on top (990ms)\n  \u2713  30 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:738:3 \u203a sticky notes \u203a the note toolbar counter-scales so zoom does not grow it (462ms)\n  \u2713  32 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:774:3 \u203a sticky notes \u203a TC-33: a full 1,000 character note stops at the smallest readable size and fades the clipped edge (496ms)\n  \u2713   7 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:370:3 \u203a sticky notes \u203a TC-33: notes dragged to the board bounds stay fully rendered, at 100% and when zoomed out (1.8s)\n  \u2713  29 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:708:3 \u203a sticky notes \u203a TC-40: dragging a note full of text moves it without touching its text or fit (733ms)\n  \u2713  33 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:809:3 \u203a sticky notes \u203a TC-34: created from the toolbar after panning far away, the note lands in the middle of the screen (699ms)\n  \u2713  31 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:753:3 \u203a sticky notes \u203a the camera, the grid and the notes agree after sticky note work (858ms)\n  \u2713  34 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:828:3 \u203a sticky notes \u203a golden path: capture, arrange, recolour and discard a set of ideas (1.1s)\n  \u2713   6 [chromium] \u203a tests/e2e/navigation.spec.ts:126:3 \u203a workflow 2: limits and recovery \u203a TC-25 zooming in with the + button stops at 400% and disables the button (5.7s)\n\n  34 passed (8.2s)\n",
+      "passed": 34,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

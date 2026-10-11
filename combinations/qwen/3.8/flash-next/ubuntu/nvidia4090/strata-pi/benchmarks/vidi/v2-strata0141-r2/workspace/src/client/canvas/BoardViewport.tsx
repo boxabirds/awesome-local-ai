@@ -2,16 +2,24 @@ import {
   useEffect,
   useRef,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { GRID_DOT_RADIUS_PX, GRID_SPACING_WORLD } from '../../shared/config';
-import { worldToScreen } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_DOT_RADIUS_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { screenToWorld, worldToScreen } from './camera';
 import { useBoardController, wheelDeltaToPixels, type CameraController, type Point } from './useCamera';
 
 export interface BoardViewportProps {
-  /** Board content in world coordinates (sticky notes arrive in story 2). */
+  /** Board content in world coordinates (sticky notes and later objects). */
   children?: ReactNode;
+  /**
+   * Double-click on empty board space: the world point that was clicked.
+   * The caller creates the object there and starts interacting with it.
+   */
+  onCreateAt?: (world: Point) => void;
+  /** A click on empty board space that did not become a pan. */
+  onEmptyClick?: () => void;
 }
 
 interface SafariGestureEvent extends Event {
@@ -56,13 +64,20 @@ function isBoardSurface(target: EventTarget | null): boolean {
  * The wheel listener is attached `passive: false` so board gestures never zoom
  * or scroll the page.
  */
-export function BoardViewport({ children }: BoardViewportProps) {
+export function BoardViewport({ children, onCreateAt, onEmptyClick }: BoardViewportProps) {
   const controller = useBoardController();
   const controllerRef = useRef<CameraController>(controller);
   controllerRef.current = controller;
+  const callbacksRef = useRef({ onCreateAt, onEmptyClick });
+  callbacksRef.current = { onCreateAt, onEmptyClick };
 
   const surfaceRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ pointerId: number; last: Point } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    last: Point;
+    start: Point;
+    moved: boolean;
+  } | null>(null);
 
   const localPoint = (clientX: number, clientY: number): Point => {
     const el = surfaceRef.current;
@@ -157,7 +172,7 @@ export function BoardViewport({ children }: BoardViewportProps) {
       return;
     }
     const point = localPoint(event.clientX, event.clientY);
-    dragRef.current = { pointerId: event.pointerId, last: point };
+    dragRef.current = { pointerId: event.pointerId, last: point, start: point, moved: false };
     const el = event.currentTarget;
     if (typeof el.setPointerCapture === 'function') {
       try {
@@ -174,7 +189,11 @@ export function BoardViewport({ children }: BoardViewportProps) {
     if (!drag || drag.pointerId !== event.pointerId) {
       return;
     }
-    controllerRef.current.panMove(localPoint(event.clientX, event.clientY));
+    const point = localPoint(event.clientX, event.clientY);
+    if (!drag.moved && Math.hypot(point.x - drag.start.x, point.y - drag.start.y) >= DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+    }
+    controllerRef.current.panMove(point);
   };
 
   const endDrag = (event: ReactPointerEvent<HTMLDivElement>): void => {
@@ -184,6 +203,20 @@ export function BoardViewport({ children }: BoardViewportProps) {
     }
     dragRef.current = null;
     controllerRef.current.endPan();
+    if (!drag.moved) {
+      // A click on empty board space deselects whatever was selected.
+      callbacksRef.current.onEmptyClick?.();
+    }
+  };
+
+  const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    // Only empty board space creates objects; notes handle their own double-click.
+    if (!isBoardSurface(event.target) || !callbacksRef.current.onCreateAt) {
+      return;
+    }
+    event.stopPropagation();
+    const camera = controllerRef.current.camera;
+    callbacksRef.current.onCreateAt(screenToWorld(camera, localPoint(event.clientX, event.clientY)));
   };
 
   const camera = controller.camera;
@@ -218,6 +251,7 @@ export function BoardViewport({ children }: BoardViewportProps) {
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         className="board-grid"
