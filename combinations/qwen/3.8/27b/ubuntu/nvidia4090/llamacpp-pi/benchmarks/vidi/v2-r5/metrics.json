@@ -506,6 +506,538 @@
           "6": "done",
           "7": "done (Chromium only; Firefox/WebKit not installable on this machine \u2014 see NOTES."
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "copied": 7,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "0e4a8f753"
+      }
+    },
+    "2": {
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1791723684.5632343,
+      "engine_settings": {
+        "server_started_at": "2026-10-11T12:27:59Z",
+        "engine": "llama.cpp",
+        "engine_version": "version: 0.6.0-dev (build 1, commit 08246a2)",
+        "thinking_mode": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "no --reasoning flag or enable_thinking kwarg: the chat template's own default applies, which the command line doesn't show"
+        },
+        "thinking_budget": {
+          "value": "not set",
+          "source": "not set",
+          "evidence": "no --reasoning-budget: thinking is bounded only by the output limit"
+        },
+        "context_size": {
+          "value": 131072,
+          "source": "command line",
+          "evidence": "-c 131072"
+        },
+        "kv_cache_type": {
+          "value": {
+            "k": "q4_0",
+            "v": "q4_0"
+          },
+          "source": "command line",
+          "evidence": "--cache-type-k q4_0 --cache-type-v q4_0"
+        },
+        "speculative": {
+          "value": {
+            "method": "draft-mtp",
+            "draft_max": 3,
+            "draft_quantisation": "Q4_0"
+          },
+          "source": "command line",
+          "evidence": "--spec-type draft-mtp -md ~/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf --spec-draft-n-max 3"
+        },
+        "temperature": {
+          "value": 1.0,
+          "source": "command line",
+          "evidence": "--temp 1.0"
+        },
+        "top_p": {
+          "value": 0.95,
+          "source": "command line",
+          "evidence": "--top-p 0.95"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "command line",
+          "evidence": "--top-k 20"
+        },
+        "min_p": {
+          "value": 0.0,
+          "source": "command line",
+          "evidence": "--min-p 0.0"
+        },
+        "quantisation": {
+          "value": "UD-Q4_K_XL",
+          "source": "model file name",
+          "evidence": "Qwen3.8-27B-UD-Q4_K_XL.gguf"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "low",
+            "source": "command line",
+            "evidence": "--reasoning-effort low"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "effective": {
+            "value": "low",
+            "source": "command line",
+            "evidence": "--reasoning-effort low"
+          },
+          "matches_request": true
+        },
+        "gaps": []
+      },
+      "memory_start": {
+        "at": 1791723684.67693,
+        "resident_mib": 13315.2,
+        "model_bytes": 20531273760,
+        "process_split_mib": {
+          "anon_mib": 11592.5,
+          "file_mib": 1526.5
+        },
+        "engine": "llama.cpp",
+        "prompt_cache": {
+          "evictions": 0,
+          "evicted_mib": 0.0,
+          "last_evicted_mib": null,
+          "checkpoints_erased": 0
+        }
+      },
+      "agent": {
+        "seconds": 3014.8,
+        "steps": 160,
+        "tool_calls": 175,
+        "compactions": 2,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 169106,
+          "output": 168162,
+          "reasoning": 0,
+          "cache_read": 11208860,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a12b0d-c3e2-7269-9a5b-2da8e800f544"
+        ],
+        "finished": true,
+        "interventions": {
+          "total": 0,
+          "stop_message": 0,
+          "toolcall_text_resumes": 0,
+          "error_resumes": 0
+        }
+      },
+      "agent_finished": 1791726699.9201016,
+      "conditions": {
+        "samples": 100,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 1.63,
+        "swap_max_gb": 1.63,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 68.5197233342309,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 16.391841888427734,
+        "server_footprint_peak_gb": 17.0010986328125,
+        "gpu": {
+          "samples": 100,
+          "busy_mean_pct": 93.5,
+          "sclk_min_busy_mhz": 2625,
+          "sclk_max_mhz": 2760,
+          "power_mean_w": 373.1,
+          "power_max_w": 400.35,
+          "temp_max_c": 74.0,
+          "vram_max_gb": 22.15,
+          "throttled_samples": 4
+        },
+        "host": {
+          "samples": 100,
+          "cpu_busy_pct": {
+            "median": 3.44,
+            "max": 6.32
+          },
+          "load1_max": 4.06,
+          "psi_cpu_some_pct_max": 0.41,
+          "psi_memory_some_pct_max": 0.0,
+          "psi_memory_full_pct_max": 0.0,
+          "psi_io_some_pct_max": 0.57,
+          "psi_io_full_pct_max": 0.56,
+          "major_faults_per_s_max": 85.93,
+          "cache_gb": {
+            "min": 23.373,
+            "median": 23.45
+          },
+          "top_comm": "llama-server"
+        }
+      },
+      "containment": {
+        "enabled": true,
+        "units": [
+          "spec-bench-v2-r5-s02-1"
+        ],
+        "memory_max_gb": 42.7,
+        "memory_peak_gb": null,
+        "left_at_story_end": 0,
+        "reaped": []
+      },
+      "agent_commits": 1,
+      "provenance": {
+        "harness_commit": "9c36ab742",
+        "harness_dirty": null,
+        "harness_release": "harness-v2026.10.09.4",
+        "pack_version": "vidi-v2.0-pre2",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 1.8,
+            "tail": "\nadded 247 packages, and audited 248 packages in 2s\n\n41 packages are looking for funding\n  run `npm fund` for details\n\n10 vulnerabilities (3 moderate, 5 high, 2 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm warn deprecated rollup-plugin-inject@3.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-inject.\nnpm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v6.4.4 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 80 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.26 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-RHzB13rs.css  \u001b[39m\u001b[1m\u001b[2m  2.62 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.83 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-E-Y6Wv3g.js   \u001b[39m\u001b[1m\u001b[2m306.98 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 95.77 kB\u001b[22m\n\u001b[32m\u2713 built in 619ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 0.5,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project=unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/5b83622aed/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 28\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m38 passed\u001b[39m\u001b[22m\u001b[90m (38)\u001b[39m\n\u001b[2m   Start at \u001b[22m 14:51:43\n\u001b[2m   Duration \u001b[22m 237ms\u001b[2m (transform 101ms, setup 0ms, collect 144ms, tests 44ms, environment 0ms, prepare 162ms)\u001b[22m\n\n",
+            "passed": 38,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project=component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/5b83622aed/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 64\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 90\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 100\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 109\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 155\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 228\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m32 passed\u001b[39m\u001b[22m\u001b[90m (32)\u001b[39m\n\u001b[2m   Start at \u001b[22m 14:51:44\n\u001b[2m   Duration \u001b[22m 719ms\u001b[2m (transform 133ms, setup 245ms, collect 551ms, tests 745ms, environment 1.08s, prepare 348ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mBoardViewport input (viewport.input)\u001b[2m > \u001b[22m\u001b[2mTC-15: a plain wheel pans and is defaultPrevented\n\u001b[22m\u001b[39mAn update to CameraProvider inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mBoardViewport input (viewport.input)\u001b[2m > \u001b[22m\u001b[2mTC-16: Ctrl+wheel zooms and is defaultPrevented\n\u001b[22m\u001b[39mAn update to CameraProvider inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mBoardViewport input (viewport.input)\u001b[2m > \u001b[22m\u001b[2mTC-17: a Safari gesturechange doubles the zoom (clamped) and is defaultPrevented\n\u001b[22m\u001b[39mAn update to CameraProvider inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mBoardViewport input (viewport.input)\u001b[2m > \u001b[22m\u001b[2mTC-18: Ctrl+=, Ctrl+- and Ctrl+0 step zoom in, out and reset; all prevented\n\u001b[22m\u001b[39mAn update to CameraProvider inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n",
+            "passed": 32,
+            "failed": 0
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 3.3,
+            "tail": "\n> vidi6@0.1.0 test:e2e\n> playwright test --project=chromium\n\n\nRunning 13 tests using 13 workers\n\n  \u2713   5 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:45:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-30 double-click empty board creates a note centred on the click; typing fills it (240ms)\n  \u2713   2 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:190:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-34 the Sticky note button creates a note at the visible centre, far away (318ms)\n  \u2713   4 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:255:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a delete via the note toolbar bin removes the selected note (290ms)\n  \u2713   3 [chromium] \u203a tests/e2e/navigation.spec.ts:131:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-27: at 1,000,000 units the board still pans exactly and the grid stays even (364ms)\n  \u2713  11 [chromium] \u203a tests/e2e/navigation.spec.ts:162:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-31: zoom gestures never change the browser page zoom (271ms)\n  \u2713   9 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:151:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-33 short text uses the max font; 1,000 chars shrink to the min and fade (323ms)\n  \u2713  12 [chromium] \u203a tests/e2e/navigation.spec.ts:71:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-24: Ctrl+wheel zooms around the pointer; the dot stays under the pointer, page zoom unchanged (223ms)\n  \u2713  13 [chromium] \u203a tests/e2e/navigation.spec.ts:114:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-26: Reset view from far away at max zoom returns to 100% centred on the origin (221ms)\n  \u2713  10 [chromium] \u203a tests/e2e/navigation.spec.ts:45:3 \u203a story 1: pan and zoom around an infinite board \u203a workflow 1: hint shows, drag moves the board exactly, hint disappears (TC-28, TC-23) (374ms)\n  \u2713   6 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:115:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-32 at 200% zoom a drag moves the note half the pointer and stacks it on top (454ms)\n  \u2713   1 [chromium] \u203a tests/e2e/navigation.spec.ts:94:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-25: clicking + until the limit: label ends at 400%, + is disabled, zooming out re-enables it (517ms)\n  \u2713   7 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:71:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a TC-31 at 50% zoom a drag moves the note 2x the pointer, recolour and delete (496ms)\n  \u2713   8 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:211:3 \u203a story 2: capture ideas on sticky notes and rearrange them \u203a golden path: brainstorm \u2014 create, write, rearrange, recolour, prune (515ms)\n\n  13 passed (2.9s)\n[WebServer] \u25b2 [WARNING] The version of Wrangler you are using is now out-of-date.\n[WebServer] \n[WebServer]   Please update to the latest version to prevent critical errors.\n[WebServer]   Run `npm install --save-dev wrangler@4` to update to the latest version.\n[WebServer]   After installation, run Wrangler with `npx wrangler`.\n[WebServer] \n[WebServer] \n",
+            "passed": 13,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 0,
+        "passed": 20,
+        "total": 20,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "f09badf21cba5a8735075ab530ed544d054de9b8",
+      "requests": {},
+      "time_split": {
+        "wall_s": 3015.4,
+        "model": {
+          "source": "llama-log",
+          "requests": 160,
+          "prefill_s": 171.4,
+          "prefill_tokens": 169106,
+          "prefill_tok_s": 974.7,
+          "decode_s": 2563.4,
+          "decode_tokens": 168162,
+          "decode_tok_s": 65.6,
+          "cached_tokens": 0,
+          "draft_acceptance": 0.633,
+          "mean_accepted_len": 2.95
+        },
+        "tools_s": 71.6,
+        "tools_by_kind": {
+          "unit": 33.2,
+          "e2e": 29.2,
+          "build": 8.0,
+          "bash": 1.1,
+          "edit": 0.0,
+          "read": 0.0,
+          "write": 0.0
+        },
+        "compaction_s": 186.7,
+        "compactions": 2,
+        "between_sessions_s": 0.0,
+        "other_s": 22.3,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 160,
+        "tool_calls": 175,
+        "thinking_visible": true,
+        "thinking_chars": 399579,
+        "thinking_median": 408,
+        "thinking_median_before": 83,
+        "thinking_median_after": 451,
+        "largest_thinking": {
+          "chars": 117244,
+          "call": 8,
+          "at_s": 514.7
+        },
+        "text_chars": 8645,
+        "tool_arg_chars": 169455,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2181,
+        "context_end": 70742,
+        "largest_context_jump": {
+          "tokens": 31998,
+          "call": 9
+        },
+        "tools_by_name": {
+          "bash": 103,
+          "write": 23,
+          "edit": 30,
+          "read": 19
+        },
+        "tool_errors": 11,
+        "longest_tool": {
+          "seconds": 6.7,
+          "name": "bash",
+          "gist": "cd /w/workspace && set -e\necho \"=== typecheck ===\" && npm run typecheck 2>&1 | tail -1\necho \"=== unit ===\" && npm run te"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 33,
+        "lines": 3881
+      },
+      "finished": 1791726729.2134814,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39)",
+          "type": "test:unit",
+          "implements": [
+            "board.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-39"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 2,
+          "title": "Implement Yjs board model and useBoardDoc snapshot hook",
+          "type": "implementation",
+          "implements": [
+            "board.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Write sticky text logic unit tests first (TC-13 to TC-17)",
+          "type": "test:unit",
+          "implements": [
+            "sticky.text"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 4,
+          "title": "Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font",
+          "type": "implementation",
+          "implements": [
+            "sticky.text"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement sticky note interaction: select, drag to move, double-click create, keyboard delete",
+          "type": "implementation",
+          "implements": [
+            "sticky.interaction"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement toolbars: Sticky note button, colour swatches and delete button",
+          "type": "implementation",
+          "implements": [
+            "sticky.toolbar"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Component tests for sticky interaction, text editor and toolbars",
+          "type": "test:ui-component",
+          "implements": [
+            "sticky.interaction",
+            "sticky.text",
+            "sticky.toolbar"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-35",
+            "TC-36",
+            "TC-37",
+            "TC-38"
+          ],
+          "status": "written",
+          "found": 15,
+          "total": 16
+        },
+        {
+          "n": 8,
+          "title": "E2E sticky note workflows (create, move at zoom, recolour, delete, long text)",
+          "type": "test:e2e",
+          "implements": [
+            "sticky.interaction",
+            "sticky.text",
+            "sticky.toolbar"
+          ],
+          "tcs": [
+            "TC-30",
+            "TC-31",
+            "TC-32",
+            "TC-33",
+            "TC-34"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        }
+      ],
+      "end_reason": "agent-finished",
+      "tasks_claimed": {
+        "file": "unparseable",
+        "tasks": {}
       }
     }
   },
@@ -1254,6 +1786,767 @@
           "accept": {
             "passed": 6,
             "total": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1791723684.5632343,
+      "ended_at": 1791726699.9201016,
+      "agent_minutes": 50.2,
+      "calls": 160,
+      "output_tokens": 168162,
+      "compactions": 2,
+      "last_commit_at": 1791726690.0,
+      "accept": {
+        "passed": 10,
+        "total": 10
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39)",
+          "type": "test:unit",
+          "implements": [
+            "board.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-39"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 2,
+          "title": "Implement Yjs board model and useBoardDoc snapshot hook",
+          "type": "implementation",
+          "implements": [
+            "board.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Write sticky text logic unit tests first (TC-13 to TC-17)",
+          "type": "test:unit",
+          "implements": [
+            "sticky.text"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 4,
+          "title": "Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font",
+          "type": "implementation",
+          "implements": [
+            "sticky.text"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement sticky note interaction: select, drag to move, double-click create, keyboard delete",
+          "type": "implementation",
+          "implements": [
+            "sticky.interaction"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement toolbars: Sticky note button, colour swatches and delete button",
+          "type": "implementation",
+          "implements": [
+            "sticky.toolbar"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Component tests for sticky interaction, text editor and toolbars",
+          "type": "test:ui-component",
+          "implements": [
+            "sticky.interaction",
+            "sticky.text",
+            "sticky.toolbar"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-35",
+            "TC-36",
+            "TC-37",
+            "TC-38"
+          ],
+          "status": "written",
+          "found": 15,
+          "total": 16
+        },
+        {
+          "n": 8,
+          "title": "E2E sticky note workflows (create, move at zoom, recolour, delete, long text)",
+          "type": "test:e2e",
+          "implements": [
+            "sticky.interaction",
+            "sticky.text",
+            "sticky.toolbar"
+          ],
+          "tcs": [
+            "TC-30",
+            "TC-31",
+            "TC-32",
+            "TC-33",
+            "TC-34"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 13.9,
+          "calls": 42,
+          "output_tokens": 84946,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi v2-q36fork-b-r1",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 14.1,
+          "calls": 72,
+          "output_tokens": 48124,
+          "accept": {
+            "passed": 2,
+            "total": 10,
+            "on_partial_total": 10,
+            "on_partial_passed": 2
+          }
+        },
+        {
+          "source": "qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi v2-q36fork-b-r2",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 33.2,
+          "calls": 194,
+          "output_tokens": 79487,
+          "accept": {
+            "passed": 2,
+            "total": 10,
+            "on_partial_total": 10,
+            "on_partial_passed": 2
+          }
+        },
+        {
+          "source": "qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi v2-q36fork-b-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 52.8,
+          "calls": 254,
+          "output_tokens": 92098,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 90.5,
+          "calls": 191,
+          "output_tokens": 188187,
+          "accept": {
+            "passed": 0,
+            "total": 10,
+            "on_partial_total": 10,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 48.3,
+          "calls": 124,
+          "output_tokens": 157340,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "PARTIAL",
+          "gate_green": null,
+          "agent_minutes": 18.3,
+          "calls": 11,
+          "output_tokens": 69703,
+          "accept": {
+            "passed": 0,
+            "total": 10,
+            "on_partial_total": 10,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 47.8,
+          "calls": 111,
+          "output_tokens": 160287,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-iq3xxs-pi v2-iq3xxs-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 99.8,
+          "calls": 184,
+          "output_tokens": 164104,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-iq3xxs-pi v2-iq3xxs-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 96.9,
+          "calls": 177,
+          "output_tokens": 165238,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-iq3xxs-pi v2-iq3xxs-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 94.7,
+          "calls": 148,
+          "output_tokens": 144376,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-pi v2-iq4xs-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 15.9,
+          "calls": 54,
+          "output_tokens": 29150,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 37.4,
+          "calls": 143,
+          "output_tokens": 111027,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 62.0,
+          "calls": 167,
+          "output_tokens": 166072,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 82.0,
+          "calls": 243,
+          "output_tokens": 250431,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 79.9,
+          "calls": 320,
+          "output_tokens": 225692,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-mlx26101-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 69.3,
+          "calls": 235,
+          "output_tokens": 207010,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 49.4,
+          "calls": 114,
+          "output_tokens": 120732,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 73.7,
+          "calls": 180,
+          "output_tokens": 180222,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 62.8,
+          "calls": 136,
+          "output_tokens": 134365,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 72.8,
+          "calls": 172,
+          "output_tokens": 201092,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi v2-mtplx2122-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 66.9,
+          "calls": 185,
+          "output_tokens": 193134,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi v2-strata0139-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 116.5,
+          "calls": 237,
+          "output_tokens": 198100,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi v2-strata0141-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 80.9,
+          "calls": 236,
+          "output_tokens": 186551,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi v2-strata0141-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 87.1,
+          "calls": 235,
+          "output_tokens": 213450,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-opencode v2-gufoopencode-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 52.9,
+          "calls": 125,
+          "output_tokens": 110545,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-opencode v2-gufoopencode-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 45.0,
+          "calls": 111,
+          "output_tokens": 100356,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-opencode v2-gufoopencode-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 50.4,
+          "calls": 144,
+          "output_tokens": 111819,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 82.1,
+          "calls": 239,
+          "output_tokens": 175220,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 54.6,
+          "calls": 156,
+          "output_tokens": 119088,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 80.0,
+          "calls": 230,
+          "output_tokens": 174153,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 84.2,
+          "calls": 256,
+          "output_tokens": 181545,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-gufo05-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 52.7,
+          "calls": 169,
+          "output_tokens": 119185,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 80.2,
+          "calls": 207,
+          "output_tokens": 174827,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 17.8,
+          "calls": 101,
+          "output_tokens": 51019,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 95.8,
+          "calls": 179,
+          "output_tokens": 174348,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 51.7,
+          "calls": 150,
+          "output_tokens": 114912,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 41.7,
+          "calls": 119,
+          "output_tokens": 97312,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/strata-pi v2-stratastrix-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 20.6,
+          "calls": 109,
+          "output_tokens": 59283,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 14.5,
+          "calls": 103,
+          "output_tokens": 68248,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 24.0,
+          "calls": 92,
+          "output_tokens": 49352,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 27.0,
+          "calls": 123,
+          "output_tokens": 108891,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 24.9,
+          "calls": 98,
+          "output_tokens": 62733,
+          "accept": {
+            "passed": 5,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-fresh-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 25.5,
+          "calls": 157,
+          "output_tokens": 92339,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 12.7,
+          "calls": 104,
+          "output_tokens": 55968,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.7,
+          "calls": 143,
+          "output_tokens": 135388,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 47.6,
+          "calls": 151,
+          "output_tokens": 147278,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 20.0,
+          "calls": 102,
+          "output_tokens": 102552,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 36.0,
+          "calls": 119,
+          "output_tokens": 94482,
+          "accept": {
+            "passed": 7,
+            "total": 10
           }
         }
       ]

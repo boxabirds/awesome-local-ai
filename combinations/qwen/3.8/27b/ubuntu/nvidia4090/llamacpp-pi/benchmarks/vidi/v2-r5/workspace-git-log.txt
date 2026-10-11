@@ -1,3 +1,45 @@
+commit f09badf21cba5a8735075ab530ed544d054de9b8
+agent  Sun Oct 11 14:51:30 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  30 ++++
+ PROGRESS.md                               |  24 ++-
+ package-lock.json                         |  51 +++++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        | 130 +++++++++++++-
+ src/client/app.css                        | 104 +++++++++++
+ src/client/board/Toolbar.tsx              |  31 ++++
+ src/client/board/useBoardDoc.ts           |  61 +++++++
+ src/client/board/useSelection.ts          |  38 ++++
+ src/client/canvas/BoardViewport.tsx       |  36 +++-
+ src/client/canvas/testHooks.ts            |  24 ++-
+ src/client/objects/NoteToolbar.tsx        |  61 +++++++
+ src/client/objects/StickyNote.tsx         | 283 ++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          |  80 +++++++++
+ src/client/objects/StickyTextEditor.tsx   | 140 +++++++++++++++
+ src/shared/board-model.ts                 | 197 +++++++++++++++++++++
+ src/shared/config.ts                      |  26 +++
+ tests/component/StickyNote.test.tsx       | 152 ++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 109 ++++++++++++
+ tests/component/Toolbars.test.tsx         |  98 +++++++++++
+ tests/component/setup.ts                  |   5 +
+ tests/component/stickyHelpers.tsx         |  99 +++++++++++
+ tests/e2e/helpers/board.ts                |  51 ++++++
+ tests/e2e/sticky-notes.spec.ts            | 262 +++++++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |  34 ++++
+ tests/unit/board-model.test.ts            | 246 ++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            | 124 +++++++++++++
+ 27 files changed, 2478 insertions(+), 21 deletions(-)
+commit d5aeb887bb2c95cec48903aa1a5cefd475dd9f52
+vidi-agent  Sun Oct 11 14:01:24 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit ea0bc7c5114778af2910d3ab14289e42b72bc112
 agent  Sun Oct 11 14:00:32 2026 +0100
 
