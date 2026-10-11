@@ -1,3 +1,50 @@
+commit 06d636976ae4bcdf88dc21b6eb49671a872f2551
+agent  Sun Oct 11 11:14:39 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                | 120 ++++++++
+ PROGRESS.md                             |  18 +-
+ scripts/generate-image-fixtures.mjs     | 111 ++++++++
+ src/client/board/BoardContents.tsx      |  58 +++-
+ src/client/board/Toolbar.tsx            |  55 +++-
+ src/client/canvas/BoardViewport.tsx     |  24 ++
+ src/client/images/DropHighlight.tsx     |  41 +++
+ src/client/images/uploadImage.ts        | 109 ++++++++
+ src/client/images/useImageInsert.ts     | 471 ++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  60 ++++
+ src/client/objects/ImageObject.tsx      | 404 +++++++++++++++++++++++++++
+ src/client/objects/registry.tsx         |  48 ++++
+ src/client/styles.css                   | 199 ++++++++++++++
+ src/client/tools/useActiveTool.ts       |  35 ++-
+ src/client/ui/Toast.tsx                 | 119 ++++++++
+ src/shared/board-model.ts               |  42 +++
+ src/shared/config.ts                    |  49 ++++
+ src/shared/image-format.ts              | 108 ++++++++
+ src/shared/objects/image.ts             | 306 +++++++++++++++++++++
+ src/worker/assets.ts                    | 108 ++++++++
+ src/worker/env.d.ts                     |   7 +
+ src/worker/index.ts                     |  32 +++
+ tests/component/ImageObject.test.tsx    | 351 ++++++++++++++++++++++++
+ tests/component/useImageInsert.test.tsx | 441 ++++++++++++++++++++++++++++++
+ tests/e2e/helpers/drop-files.ts         | 325 ++++++++++++++++++++++
+ tests/e2e/images.spec.ts                | 423 ++++++++++++++++++++++++++++
+ tests/fixtures/image-fixtures.ts        | 421 ++++++++++++++++++++++++++++
+ tests/integration/assets.test.ts        | 284 +++++++++++++++++++
+ tests/unit/image-format.test.ts         | 155 +++++++++++
+ tests/unit/image-model.test.ts          | 317 +++++++++++++++++++++
+ tests/unit/validate-files.test.ts       | 182 ++++++++++++
+ wrangler.jsonc                          |   7 +-
+ 32 files changed, 5413 insertions(+), 17 deletions(-)
+commit 567a910d433c18ccf73057e7624d51a246f57f77
+vidi-agent  Sun Oct 11 09:29:21 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 28 ++++++++++------------------
+ 1 file changed, 10 insertions(+), 18 deletions(-)
 commit 6a9bf7d4dddad572f6c2499a929bf4df9f126232
 agent  Sun Oct 11 08:25:56 2026 +0000
 

@@ -18,8 +18,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | 5/6 | 0 | 0 | 53/57 |
 | 10 | 8/8 | 0 | 1 | 62/65 |
 | 11 | 5/5 | 0 | 0 | 67/70 |
+| 12 | 5/5 | 1 | 0 | 71/75 |
 
-**New work** 62/66, **regressions** 0, **repairs** 1, **cumulative** 67/70.
+**New work** 67/71, **regressions** 1, **repairs** 1, **cumulative** 71/75.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -33,8 +34,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | Write free text anywhere on the board | PARTIAL (amber), on partial 3, 4 | 240.0 | None | None | None | — | — | green | 53/57 |  | 0 / 0 | 7 | — | throttled 95%, server peak 76 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | PARTIAL (green), on partial 3, 4, 9 | 167.1 | None | None | None | — | — | green | 62/65 |  | 0 / 1 | 4 | — | throttled 98%, server peak 76 GB |
 | 11 | Sketch freehand with a pen | DONE, on partial 3, 4, 9, 10 | 128.5 | None | None | None | — | — | green | 67/70 |  | 0 / 1 | 4 | — | throttled 98%, server peak 76 GB |
+| 12 | Drop images onto the board | DONE, on partial 3, 4, 9, 10 | 165.6 | None | None | None | — | — | green | 71/75 |  | 0 / 0 | 5 | — | throttled 98%, server peak 76 GB |
 
-**Totals:** 10 stories, 1710 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/10, final acceptance 67/70, stalled 0, partial 4, 36410 lines in src+tests.
+**Totals:** 11 stories, 1876 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 10/11, final acceptance 71/75, stalled 0, partial 4, 41570 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -49,6 +51,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - **Story 10 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **green**: gate green, tasks not verified none (implementation: none), held-out 8/8 (floor 0.625).
 - Story 10, built on partial 3, 4, 9: held-out tests on the partial base 42/45; partial story's tests fixed 1, regressed 0; 0 stub-like lines added to src/.
 - Story 11, built on partial 3, 4, 9, 10: held-out tests on the partial base 47/50; partial story's tests fixed 1, regressed 0; 0 stub-like lines added to src/.
+- Story 12, built on partial 3, 4, 9, 10: held-out tests on the partial base 51/55; partial story's tests fixed 0, regressed 0; 33 stub-like lines added to src/.
 
 ## How it happened
 
@@ -66,11 +69,14 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 5 by the agent, + harness snapshot | 4592 / 440 | `text.ts` (296), `TextEditor.tsx` (275), `StickyTextEditor.tsx` (209), `textLayout.ts` (179), `TextObject.tsx` (147), `styles.css` (136), +20 more |
 | 10 | 9 by the agent | 6337 / 245 | `connector.ts` (409), `shape.ts` (303), `ConnectorTool.tsx` (294), `ConnectorObject.tsx` (282), `styles.css` (272), `connector-geometry.ts` (263), +16 more |
 | 11 | 1 by the agent | 3901 / 10 | `PenTool.tsx` (354), `stroke.ts` (238), `simplify.ts` (182), `StrokeObject.tsx` (147), `styles.css` (142), `PenToolbar.tsx` (123), +10 more |
+| 12 | 1 by the agent | 5413 / 17 | `useImageInsert.ts` (471), `ImageObject.tsx` (404), `image.ts` (306), `styles.css` (199), `NOTES.md` (120), `Toast.tsx` (119), +17 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 10 broke 0, fixed 1** earlier held-out tests (story 10: Draw shapes and connect them with arrows that follow when moved; story 10 task 15: e2e shapes + connectors (TC-23 to TC-27), checkout-flow fixture, shape/arrow seeding; story 10 task 13: ConnectorTool hover dots, ConnectorObject arrowhead + re-attach handles, zoom-aware hitTest; story 10 task 12: ShapeTool, ShapeObject, ShapeToolbar, shape registry entry, toolbar buttons; story 10 task 11: useActiveTool — tool ids, TOOL_SHORTCUTS, shape kind, return to select; story 10 task 10: connector model + geometry, detach-on-delete, derived arrow boxes; story 10 task 9: connector model + geometry unit tests (TC-07 to TC-14, TC-29) against stubs; story 10 task 8: shape model (create/click/Shift square, style palette, label Y.Text) + tests; story 10 task 7: shape model unit tests (TC-01 to TC-06) against stubs). Source files it changed most: `connector.ts` (409), `shape.ts` (303), `ConnectorTool.tsx` (294), `ConnectorObject.tsx` (282), `styles.css` (272), `connector-geometry.ts` (263), +16 more.
   - story 3: 6/7 → 7/7; fixed 1
+- **Story 12 broke 1, fixed 0** earlier held-out tests (story 12: Drop images onto the board). Source files it changed most: `useImageInsert.ts` (471), `ImageObject.tsx` (404), `image.ts` (306), `styles.css` (199), `NOTES.md` (120), `Toast.tsx` (119), +17 more.
+  - story 3: 7/7 → 6/7; broke 1.
 
 ### Interruptions and dead time
 
