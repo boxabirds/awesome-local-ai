@@ -1,0 +1,11 @@
+{
+  "$schema": "https://examples.wrangler.dev/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/client",
+    // The client is a single page app: any path (/, /app, ...) serves its
+    // index.html and the app decides what to show.
+    "not_found_handling": "single-page-application"
+  }
+}

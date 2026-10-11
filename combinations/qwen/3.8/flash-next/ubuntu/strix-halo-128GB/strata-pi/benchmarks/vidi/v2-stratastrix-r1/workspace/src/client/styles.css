@@ -1,0 +1,160 @@
+:root {
+  --vidi6-bg: #fdfdfb;
+  --vidi6-fg: #1a1a2e;
+  --vidi6-grid-color: rgba(26, 26, 46, 0.28);
+  --vidi6-chrome-bg: #ffffff;
+  --vidi6-chrome-border: #d8d8e0;
+  --vidi6-chrome-shadow: 0 2px 10px rgba(20, 20, 40, 0.12);
+  --vidi6-accent: #2f5cf7;
+  --vidi6-muted: #5c5c70;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  background: var(--vidi6-bg);
+  color: var(--vidi6-fg);
+}
+
+/* ---- Board ------------------------------------------------------------- */
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  background-color: var(--vidi6-bg);
+  /* The dot grid itself is set inline from the camera (see BoardViewport). */
+  background-repeat: repeat;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  /* Empty board space must receive the pointer, so the layer itself is
+     transparent to it; board objects re-enable pointer events. */
+  pointer-events: none;
+}
+
+/* The board's starting point: a small crosshair centred on world (0, 0). */
+.origin-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: "";
+  position: absolute;
+  background: var(--vidi6-accent);
+  opacity: 0.5;
+}
+
+.origin-marker::before {
+  left: -12px;
+  top: -1px;
+  width: 24px;
+  height: 2px;
+}
+
+.origin-marker::after {
+  left: -1px;
+  top: -12px;
+  width: 2px;
+  height: 24px;
+}
+
+/* ---- Zoom control ------------------------------------------------------ */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--vidi6-chrome-border);
+  border-radius: 10px;
+  background: var(--vidi6-chrome-bg);
+  box-shadow: var(--vidi6-chrome-shadow);
+}
+
+.zoom-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--vidi6-fg);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: rgba(47, 92, 247, 0.1);
+}
+
+.zoom-controls button:disabled {
+  color: var(--vidi6-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.zoom-controls__value {
+  min-width: 52px;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vidi6-fg);
+}
+
+.zoom-controls__reset {
+  font-size: 13px;
+}
+
+/* ---- First-use hint ---------------------------------------------------- */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border: 1px solid var(--vidi6-chrome-border);
+  border-radius: 999px;
+  background: var(--vidi6-chrome-bg);
+  box-shadow: var(--vidi6-chrome-shadow);
+  color: var(--vidi6-muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* ---- Focus ------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--vidi6-accent);
+  outline-offset: 2px;
+}
