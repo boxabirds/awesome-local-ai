@@ -1,3 +1,48 @@
+commit 11bcfd9715e362e09fb1768567af6617abeb6914
+agent  Sun Oct 11 06:10:54 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  | 183 +++---------
+ PROGRESS.md                               |  18 +-
+ package-lock.json                         |  81 +++++
+ package.json                              |   9 +-
+ playwright.config.ts                      |   7 +-
+ src/client/App.tsx                        |  10 +-
+ src/client/board/useBoardDoc.ts           |  21 +-
+ src/client/main.tsx                       |  17 +-
+ src/client/styles.css                     |  30 ++
+ src/client/sync/ConnectionStatus.tsx      |  39 +++
+ src/client/sync/connectBoard.ts           |  97 ++++++
+ src/shared/board-id.ts                    |  35 +++
+ src/shared/config.ts                      |  20 ++
+ src/shared/protocol.ts                    |  66 ++++
+ src/worker/board-room.ts                  | 189 ++++++++++++
+ src/worker/index.ts                       |  41 +++
+ src/worker/types.d.ts                     | 106 +++++++
+ tests/component/ConnectionStatus.test.tsx |  68 +++++
+ tests/component/helpers.tsx               |   2 +-
+ tests/component/setup.ts                  |  16 +
+ tests/e2e/live-collaboration.spec.ts      | 102 +++++++
+ tests/e2e/nightly.spec.ts                 | 116 ++++++++
+ tests/integration/board-room.test.ts      | 480 ++++++++++++++++++++++++++++++
+ tests/integration/env.d.ts                |  10 +
+ tests/integration/worker.test.ts          |  94 ++++++
+ tests/integration/ws-client.ts            | 197 ++++++++++++
+ tests/unit/board-id.test.ts               |  83 ++++++
+ tests/unit/protocol.test.ts               | 104 +++++++
+ vitest.config.ts                          |   9 +
+ wrangler.jsonc                            |  22 +-
+ 30 files changed, 2096 insertions(+), 176 deletions(-)
+commit d5f14bb95217d695435308d8f55baafa41d62f1f
+vidi-agent  Sun Oct 11 05:07:33 2026 +0000
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit efae8664d15441ffa23bae9df0235621ee18a796
 agent  Sun Oct 11 05:06:25 2026 +0000
 

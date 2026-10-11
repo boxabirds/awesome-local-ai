@@ -10,15 +10,17 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 7/10 | 0 | 0 | 17/20 |
+| 3 | 5/7 | 0 | 0 | 22/27 |
 
-**New work** 13/16, **regressions** 0, **repairs** 0, **cumulative** 17/20.
+**New work** 18/23, **regressions** 0, **repairs** 0, **cumulative** 22/27.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 51.0 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 20.6 | None | None | None | — | — | green | 17/20 |  | 0 / 0 | 0 | — | throttled 0%, server peak 0 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 64.9 | None | None | None | — | — | green | 22/27 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 2 stories, 72 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 17/20, stalled 0, partial 0, 4916 lines in src+tests.
+**Totals:** 3 stories, 137 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 22/27, stalled 0, partial 0, 6837 lines in src+tests.
 
 ## How it happened
 
@@ -28,6 +30,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 1 by the agent | 6265 / 7 | `BoardViewport.tsx` (224), `useCamera.ts` (164), `styles.css` (160), `camera.ts` (133), `NOTES.md` (124), `Board.tsx` (82), +15 more |
 | 2 | 1 by the agent | 2651 / 25 | `StickyNote.tsx` (261), `StickyTextEditor.tsx` (180), `App.tsx` (168), `styles.css` (155), `board-model.ts` (152), `StickyText.ts` (124), +10 more |
+| 3 | 1 by the agent | 2096 / 176 | `board-room.ts` (189), `NOTES.md` (183), `types.d.ts` (106), `connectBoard.ts` (97), `protocol.ts` (66), `index.ts` (41), +12 more |
 
 ### Earlier stories broken or fixed
 
