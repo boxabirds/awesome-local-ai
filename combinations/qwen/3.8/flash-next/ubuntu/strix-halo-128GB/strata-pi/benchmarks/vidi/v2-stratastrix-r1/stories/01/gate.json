@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.0,
+      "tail": "\nadded 139 packages, and audited 140 packages in 2s\n\n31 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/css-color@7.1.4',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/dom-selector@9.2.4',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'jsdom@30.1.2',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'w3c-xmlserializer@6.0.0',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.5,
+      "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 24 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.48 kB \u2502 gzip:  0.30 kB\ndist/client/assets/index-CC4jF7y_.css    2.12 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-DvgqmjMu.js   227.25 kB \u2502 gzip: 71.29 kB \u2502 map: 1,084.69 kB\n\n\u001b[32m\u2713 built in 93ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.4,
+      "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit -p tsconfig.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.6,
+      "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/ed44fe92af/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m28 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 25\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m28 passed\u001b[39m\u001b[22m\u001b[90m (28)\u001b[39m\n\u001b[2m   Start at \u001b[22m 04:45:21\n\u001b[2m   Duration \u001b[22m 187ms\u001b[2m (transform 50%, tests 33%, import 14%, worker 3%)\u001b[22m\n\n",
+      "passed": 28,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 2.5,
+      "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.w/ed44fe92af/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 38\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 80\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1532\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m\u2713\u001b[39m BoardViewport: pan and zoom with the wheel \u001b[2m(3)\u001b[22m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m clamps a Ctrl+wheel zoom to ZOOM_MAX and leaves the camera alone at the limit\u001b[33m 785\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m27 passed\u001b[39m\u001b[22m\u001b[90m (27)\u001b[39m\n\u001b[2m   Start at \u001b[22m 04:45:21\n\u001b[2m   Duration \u001b[22m 2.09s\u001b[2m (tests 56%, environment 32%, transform 5%, setup 5%, import 1%)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mBoardViewport: Safari pinch gestures\u001b[2m > \u001b[22m\u001b[2mTC-17: gesturechange doubles the zoom and is not passed to the browser\n\u001b[22m\u001b[39mAn update to BoardProvider inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mBoardViewport: Safari pinch gestures\u001b[2m > \u001b[22m\u001b[2mtracks a gesture relative to where it started\n\u001b[22m\u001b[39mAn update to BoardProvider inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n",
+      "passed": 27,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 6.1,
+      "tail": "\n> vidi6@0.0.1 test:e2e\n> playwright test --project=chromium\n\n\nRunning 8 tests using 1 worker\n\n  \u2713  1 [chromium] \u203a tests/e2e/navigation.spec.ts:57:3 \u203a workflow 1: first visit navigation \u203a TC-28 / TC-23 / TC-24: hint, exact drag, zoom that keeps the pointer still (658ms)\n  \u2713  2 [chromium] \u203a tests/e2e/navigation.spec.ts:129:3 \u203a workflow 2: limits and recovery \u203a TC-25: zooming in stops at 400% and disables the Zoom in button (625ms)\n  \u2713  3 [chromium] \u203a tests/e2e/navigation.spec.ts:149:3 \u203a workflow 2: limits and recovery \u203a zooming out stops at 10% and disables the Zoom out button (135ms)\n  \u2713  4 [chromium] \u203a tests/e2e/navigation.spec.ts:157:3 \u203a workflow 2: limits and recovery \u203a TC-26: Reset view returns to a centred 100% from far away at 400% (191ms)\n  \u2713  5 [chromium] \u203a tests/e2e/navigation.spec.ts:184:3 \u203a workflow 3: far travel \u203a TC-27: a million board units out the grid is even and drags stay exact (523ms)\n  \u2713  6 [chromium] \u203a tests/e2e/navigation.spec.ts:219:3 \u203a board gestures never zoom the page \u203a TC-31: Ctrl/Cmd gestures and shortcuts leave the page zoom untouched (294ms)\n  \u2713  7 [chromium] \u203a tests/e2e/navigation.spec.ts:242:3 \u203a board gestures never zoom the page \u203a keyboard zoom and reset shortcuts drive the board (351ms)\n  \u2713  8 [chromium] \u203a tests/e2e/navigation.spec.ts:268:3 \u203a empty board \u203a the board is empty apart from the grid and its starting point (83ms)\n\n  8 passed (5.3s)\n",
+      "passed": 8,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
