@@ -1,3 +1,37 @@
+commit ce66709c93724d12c78f541ca90c4278354c6741
+vidi-agent  Sun Oct 11 13:52:17 2026 +0100
+
+    harness: snapshot after story 2 (uncommitted agent work)
+
+
+ src/client/board/useBoardDoc.ts  |  75 +++++++++++
+ src/client/objects/StickyText.ts |  28 ++++
+ src/shared/board-model.ts        | 277 +++++++++++++++++++++++++++++++++++----
+ tests/fixtures/texts.ts          |  37 ++++++
+ tests/unit/board-model.test.ts   |  25 +++-
+ tests/unit/sticky-text.test.ts   | 220 +++++++++++++++++++++++++++++++
+ 6 files changed, 635 insertions(+), 27 deletions(-)
+commit da158b508aad4690f30568689b53d2080f1151be
+agent  Sun Oct 11 12:36:43 2026 +0000
+
+    story 2: board model unit tests (TC-01..TC-12, TC-39) against a real Y.Doc
+
+
+ PROGRESS.md                    |   2 +-
+ package-lock.json              |  51 ++++-
+ package.json                   |   5 +-
+ src/shared/board-model.ts      |  72 +++++++
+ src/shared/config.ts           |  37 ++++
+ tests/unit/board-model.test.ts | 438 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 601 insertions(+), 4 deletions(-)
+commit 409dda122a0a3aba65d1f7071b77b25929537949
+vidi-agent  Sun Oct 11 13:31:28 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit 57da75f1a831c416ad21078213c0f1bad170fe56
 agent  Sun Oct 11 12:29:48 2026 +0000
 
