@@ -1,3 +1,72 @@
+commit 6ce12a3ed0ecb7baad919512e083c60d376c25c5
+agent  Sun Oct 11 23:04:44 2026 +0000
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                                | 122 ++++++++++
+ PROGRESS.md                             |  29 ++-
+ src/client/board/BoardScreen.tsx        |  13 +-
+ src/client/board/BoardWorkspace.tsx     |   6 +-
+ src/client/board/useBoardKeys.ts        |  15 +-
+ src/client/board/useUndo.ts             |  44 ++--
+ tests/component/UndoBoundaries.test.tsx | 284 +++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 237 +++++++++++++++++++
+ tests/e2e/undo.spec.ts                  | 388 ++++++++++++++++++++++++++++++++
+ tests/unit/helpers/clock.ts             |  76 ++++---
+ tests/unit/setup.ts                     |  13 ++
+ tests/unit/undo-boundaries.test.ts      | 254 +++++++++++++--------
+ vitest.config.ts                        |   3 +
+ 13 files changed, 1318 insertions(+), 166 deletions(-)
+commit fb6f7a2e1266db7dd5748b420f765990771e0959
+agent  Sun Oct 11 21:49:20 2026 +0000
+
+    story 8: wire the undo controller into the board (boundaries, shortcuts, buttons, editor)
+
+
+ src/client/board/BoardScreen.tsx        |  49 ++++++++++++---
+ src/client/board/BoardToolbar.tsx       |  12 +++-
+ src/client/board/BoardWorkspace.tsx     |   6 +-
+ src/client/board/UndoButtons.tsx        |  47 ++++++++++++++
+ src/client/board/undo.ts                |   4 +-
+ src/client/board/useBoardKeys.ts        |  45 ++++++++++++-
+ src/client/board/useUndo.ts             | 108 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyNote.tsx       |  26 ++++----
+ src/client/objects/StickyTextEditor.tsx |  99 +++++++++++++++++++++++++++++
+ tests/unit/undo-boundaries.test.ts      |  10 +--
+ tests/unit/undo-history.test.ts         |   4 +-
+ 11 files changed, 372 insertions(+), 38 deletions(-)
+commit 65cfdeb06ce5033bbc55ebb7d99ea860e5fecaf9
+agent  Sun Oct 11 21:39:12 2026 +0000
+
+    story 8: undo controller, capture window unit tests (TC-01 to TC-13)
+
+
+ src/client/board/undo.ts           |  79 ++++++++++++++++++--
+ tests/unit/helpers/clock.ts        |  50 +++++++++++++
+ tests/unit/undo-boundaries.test.ts | 149 +++++++++++++++++++++++++++++++++++++
+ tests/unit/undo-history.test.ts    |   5 +-
+ 4 files changed, 276 insertions(+), 7 deletions(-)
+commit 99c18b2b41345e174353606e2dcaa75dfcc676ef
+agent  Sun Oct 11 21:20:26 2026 +0000
+
+    story 8: undo history unit tests, UndoController stub, undo config
+
+
+ PROGRESS.md                     |   2 +-
+ src/client/board/undo.ts        |  67 +++++++
+ src/shared/config.ts            |  19 ++
+ tests/unit/helpers/peer.ts      |  65 +++++++
+ tests/unit/undo-history.test.ts | 418 ++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 570 insertions(+), 1 deletion(-)
+commit a0666cd9822e10766091d57a071f00b85bc7b8da
+vidi-agent  Sun Oct 11 21:39:32 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 45 +++++++++------------------------------------
+ 1 file changed, 9 insertions(+), 36 deletions(-)
 commit 8f4f672fff7e3ba7f7a1afc4a8d2d2a979582172
 agent  Sun Oct 11 20:33:44 2026 +0000
 
