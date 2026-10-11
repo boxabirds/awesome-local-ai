@@ -170,3 +170,53 @@
   `tests/component/appHarness.tsx`).
 - Note drag geometry divides the screen delta by `camera.zoom` and positions absolutely, so a camera
   change mid-drag (story 3 remote camera, story 6 shared view) is the place to re-check.
+
+## Story 3 notes
+
+### `@cloudflare/vitest-plugin` instead of `@cloudflare/vitest-pool-workers`
+
+The design names `@cloudflare/vitest-pool-workers`, which is deprecated and peer-pinned to
+vitest 4; this repo pins vitest 5.0.3. `@cloudflare/vitest-plugin@1.4.0` is its successor,
+runs integration tests in workerd against `wrangler.jsonc`, and works with vitest 5. The
+integration project is separate (`vitest.integration.config.ts`, `npm run test:integration`)
+because it needs the Workers runtime while unit/component tests stay in jsdom.
+
+### Capacity is soft, and stays unimplemented as a rule
+
+`MAX_CONCURRENT_EDITORS = 5` is a test participant count. Nothing in the room or the client
+turns a sixth joiner away — TC-13 asserts the opposite, and the spec repeats it ("no
+participant counting", "over-capacity joiners are never refused"). An earlier draft of the
+room closed the sixth socket; that was wrong and was removed.
+
+### Text editor anchoring (why `StickyTextEditor` looks the way it does)
+
+Insertions are anchored with `assoc: 1` at the DOM caret index: `caretIndex` then reads back as
+that exact index, so typing "red", " green", " blue" from one caret lands as typed instead of
+interleaved ("r ge cbluedeen"). The anchored path is only taken for a keystroke that changed the
+value the component itself last rendered and did it at the caret (`Math.abs(delta.prefix -
+before.caret) <= 1`); paste, cut and select-all replace come out of `applyTextDiff` as a block.
+The caret anchor is re-created on keyup/click/select whenever the DOM value is in sync with the
+shared text, which is what lets remote edits shift the anchor under the caret. `applyChange`
+bails out when the value it is given is already the value it wrote or the value the shared text
+already holds, which is what stops a blur after an interrupted keystroke writing the text twice
+(that duplication was a firefox-only regression before the guard).
+
+### Firefox facts measured on this machine
+
+- `context.setOffline(true)` does not disturb an established websocket in firefox: a probe
+  measured the board's connection still 'connected' 90 seconds into an outage. Chromium drops
+  it, so TC-27 runs in chromium only, and the spec says so in a `test.skip` message.
+- Firefox fires the blur-triggered change handler with a value the component had not yet
+  rendered, which is the case the idempotency guard above handles.
+- WebKit is not installed on this machine, so the third Playwright project never runs.
+
+### E2E helper geometry that the soak needed
+
+- `moveNoteBy` drags the note's *centre* by (dx, dy): the note ends up exactly that far away.
+  Dragging to "box corner + delta" moved the note half a note size off, which only became
+  visible when drags accumulated.
+- `createNote` identifies the new note by which `data-note-id` appeared, not by DOM order: the
+  board paints in z order and drags and selections rearrange it.
+- The soak keeps its notes in a slot grid whose rows are 160px apart at 50% zoom, because a
+  note's colour toolbar lives in the gap above it and the note in the next row used to cover it
+  (Playwright then reports "intercepts pointer events").

@@ -14,14 +14,18 @@ import { BoardControllerContext, useCamera, useViewportSize } from './canvas/use
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 
 export interface AppProps {
-  /** Use an existing document (component tests; story 3 supplies a synced one). */
+  /** Use an existing document (component tests; no connection is attached). */
   doc?: Y.Doc;
   /** Override the measured board area (component tests run without layout). */
   viewportSize?: Size;
+  /** Board to connect to. Defaults to the `/b/:boardId` in the address. */
+  boardId?: string;
 }
 
 /** Keys must reach a focused input or textarea instead of the board shortcuts. */
@@ -33,7 +37,32 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }
 
-export default function App({ doc: providedDoc, viewportSize }: AppProps = {}): JSX.Element {
+/**
+ * The board this page is for, from the address: `/b/:boardId`.
+ *
+ * `/` opens a new board (temporary until story 5 creates boards on the server),
+ * and an address that is not a board id becomes a new board rather than a page
+ * that looks fine but saves nothing.
+ */
+export function resolveBoardId(): string | null {
+  const pathname = window.location.pathname;
+  const match = /^\/b\/([^/?#]+)/.exec(pathname);
+  if (match?.[1] !== undefined) {
+    const fromPath = decodeURIComponent(match[1]);
+    if (isValidBoardId(fromPath)) {
+      return fromPath;
+    }
+  } else if (pathname !== '/' && pathname !== '/index.html') {
+    // Some other path: a local board, no connection (this is how component
+    // tests render the app without a server).
+    return null;
+  }
+  const id = newBoardId();
+  window.history.replaceState(null, '', `/b/${id}`);
+  return id;
+}
+
+export default function App({ doc: providedDoc, viewportSize, boardId: boardIdProp }: AppProps = {}): JSX.Element {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const measured = useViewportSize(boardRef);
   const viewport = viewportSize ?? measured;
@@ -44,12 +73,26 @@ export default function App({ doc: providedDoc, viewportSize }: AppProps = {}): 
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
 
-  const { doc, notes } = useBoardDoc(providedDoc);
+  // A supplied document belongs to its caller (tests): no room connection.
+  const boardId = providedDoc !== undefined ? undefined : (boardIdProp ?? resolveBoardId() ?? undefined);
+  const { doc, notes, connectionState } = useBoardDoc(providedDoc, { boardId });
   const selection = useSelection();
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
   const docRef = useRef(doc);
   docRef.current = doc;
+
+  // Someone else may delete the note this page has selected or is typing in.
+  // Selection is local, so only this page notices, and it notices immediately.
+  useEffect(() => {
+    const present = new Set(notes.map((note) => note.id));
+    const active = selectionRef.current;
+    if (active.editingId !== null && !present.has(active.editingId)) {
+      active.endEdit('unselected');
+    } else if (active.selectedId !== null && !present.has(active.selectedId)) {
+      active.select(null);
+    }
+  }, [notes]);
 
   useEffect(() => {
     if (import.meta.env.MODE === 'test') {
@@ -125,6 +168,7 @@ export default function App({ doc: providedDoc, viewportSize }: AppProps = {}): 
           ))}
         </BoardViewport>
         <Toolbar onCreateSticky={createAtViewportCentre} />
+        <ConnectionStatus state={connectionState} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}

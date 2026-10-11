@@ -4,15 +4,18 @@
   "description": "A shared board for thinking together.",
   "main": "index.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run build:test && wrangler dev --ip 127.0.0.1 --port ${VIDI6_E2E_PORT:-20368}",
+    "dev:client": "vite",
     "build": "vite build",
     "build:test": "vite build --mode test",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
+    "test:integration": "npm run build:test && vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
-    "test": "npm run test:unit && npm run test:component && npm run test:e2e"
+    "test:e2e:nightly": "playwright test --config playwright.nightly.config.ts",
+    "test": "npm run test:unit && npm run test:component && npm run test:integration && npm run test:e2e"
   },
   "keywords": [],
   "author": "",
@@ -20,11 +23,16 @@
   "type": "module",
   "private": "true",
   "dependencies": {
+    "lib0": "^0.2.119",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.0",
+    "@cloudflare/workers-types": "^5.20261010.1",
     "@playwright/test": "^1.64.0",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",

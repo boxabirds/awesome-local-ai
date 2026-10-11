@@ -41,6 +41,144 @@ function isLowSurrogate(code: number): boolean {
   return code >= 0xdc00 && code <= 0xdfff;
 }
 
+export interface TextDiff {
+  /** Where the change starts, in `before`. */
+  readonly prefix: number;
+  /** How many characters of `before` the change removes. */
+  readonly deleteLength: number;
+  /** What the change writes in their place. */
+  readonly insertText: string;
+}
+
+/**
+ * The single change between two strings: longest common prefix, longest common
+ * suffix, one edit in the middle. This is what makes concurrent typing safe —
+ * a keystroke is a small change, and applying only that change leaves anything
+ * someone else wrote alone.
+ */
+export function diffText(before: string, after: string): TextDiff {
+  let prefix = 0;
+  const shared = Math.min(before.length, after.length);
+  while (prefix < shared && before.charCodeAt(prefix) === after.charCodeAt(prefix)) {
+    prefix += 1;
+  }
+
+  let suffix = 0;
+  while (
+    suffix < shared - prefix &&
+    before.charCodeAt(before.length - 1 - suffix) === after.charCodeAt(after.length - 1 - suffix)
+  ) {
+    suffix += 1;
+  }
+
+  // Keep whole surrogate pairs on one side of the edit boundary.
+  if (
+    prefix > 0 &&
+    prefix < before.length &&
+    isLowSurrogate(before.charCodeAt(prefix)) &&
+    isHighSurrogate(before.charCodeAt(prefix - 1))
+  ) {
+    prefix -= 1;
+  }
+  if (
+    suffix > 0 &&
+    suffix < before.length &&
+    isHighSurrogate(before.charCodeAt(before.length - suffix)) &&
+    suffix < before.length - 1 &&
+    isLowSurrogate(before.charCodeAt(before.length - suffix - 1))
+  ) {
+    suffix -= 1;
+  }
+
+  return {
+    prefix,
+    deleteLength: before.length - prefix - suffix,
+    insertText: after.slice(prefix, after.length - suffix),
+  };
+}
+
+export interface RemoteMerge {
+  readonly value: string;
+  /** How far the caret moves so typing can continue where it was. */
+  readonly caretShift: number;
+}
+
+/**
+ * Fold text that arrived from someone else into what this editor is showing.
+ *
+ * `base` is the shared text this editor's `local` value was built on. Remote
+ * text never replaces `local` wholesale — that would drop the characters typed
+ * since `base`, which is exactly how two people typing into one note lose each
+ * other's work. Instead the remote change (relative to `base`) is written into
+ * `local` at the place it belongs.
+ *
+ * When this editor has edited the very region the remote change touched, both
+ * edits are kept: the remote text is inserted at that point and the local one
+ * stays next to it. Order can shift; nothing is thrown away.
+ */
+export function mergeRemoteText(local: string, base: string, remote: string): RemoteMerge {
+  if (local === base) {
+    // Nothing local to protect: the shared text is the value.
+    return { value: remote, caretShift: 0 };
+  }
+  if (remote === base) {
+    return { value: local, caretShift: 0 };
+  }
+
+  const { prefix, deleteLength, insertText } = diffText(base, remote);
+  const untouchedHere = local.slice(prefix, prefix + deleteLength) === base.slice(prefix, prefix + deleteLength);
+
+  if (untouchedHere) {
+    return {
+      value: local.slice(0, prefix) + insertText + local.slice(prefix + deleteLength),
+      caretShift: insertText.length - deleteLength,
+    };
+  }
+
+  return {
+    value: local.slice(0, prefix) + insertText + local.slice(prefix),
+    caretShift: insertText.length,
+  };
+}
+
+/**
+ * Write one change — delete `deleteLength` characters at `at`, insert
+ * `insertText` there — into the shared text. Indexes are pulled back into
+ * range, and nothing else in the text is touched, which is what lets two
+ * people type into one note without overwriting each other.
+ */
+export function applyTextDelta(
+  ytext: Y.Text,
+  at: number,
+  deleteLength: number,
+  insertText: string,
+  origin: unknown,
+): void {
+  const length = ytext.length;
+  const start = Number.isFinite(at) ? Math.max(0, Math.min(Math.floor(at), length)) : 0;
+  const remove = Number.isFinite(deleteLength) ? Math.max(0, Math.min(Math.floor(deleteLength), length - start)) : 0;
+  const insert = insertText.length;
+  if (remove === 0 && insert === 0) {
+    return;
+  }
+
+  const run = (): void => {
+    if (remove > 0) {
+      ytext.delete(start, remove);
+    }
+    if (insert > 0) {
+      ytext.insert(start, insertText);
+    }
+  };
+
+  const doc = ytext.doc;
+  if (doc) {
+    doc.transact(run, origin);
+  } else {
+    run();
+  }
+}
+
 /**
  * Write `next` into `ytext` using at most one delete and one insert.
  * No-op when the text already matches (no transaction, no update event).
@@ -51,41 +189,7 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
     return;
   }
 
-  let prefix = 0;
-  const shared = Math.min(current.length, next.length);
-  while (prefix < shared && current.charCodeAt(prefix) === next.charCodeAt(prefix)) {
-    prefix += 1;
-  }
-
-  let suffix = 0;
-  while (
-    suffix < shared - prefix &&
-    current.charCodeAt(current.length - 1 - suffix) === next.charCodeAt(next.length - 1 - suffix)
-  ) {
-    suffix += 1;
-  }
-
-  // Keep whole surrogate pairs on one side of the edit boundary.
-  if (
-    prefix > 0 &&
-    prefix < current.length &&
-    isLowSurrogate(current.charCodeAt(prefix)) &&
-    isHighSurrogate(current.charCodeAt(prefix - 1))
-  ) {
-    prefix -= 1;
-  }
-  if (
-    suffix > 0 &&
-    suffix < current.length &&
-    isHighSurrogate(current.charCodeAt(current.length - suffix)) &&
-    suffix < current.length - 1 &&
-    isLowSurrogate(current.charCodeAt(current.length - suffix - 1))
-  ) {
-    suffix -= 1;
-  }
-
-  const deleteLength = current.length - prefix - suffix;
-  const insertText = next.slice(prefix, next.length - suffix);
+  const { prefix, deleteLength, insertText } = diffText(current, next);
   if (deleteLength === 0 && insertText.length === 0) {
     return;
   }

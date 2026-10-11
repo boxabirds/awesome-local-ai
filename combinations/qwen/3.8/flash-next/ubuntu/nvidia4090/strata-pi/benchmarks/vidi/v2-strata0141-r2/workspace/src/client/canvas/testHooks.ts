@@ -24,7 +24,10 @@ export function installTestHooks(controllerRef: { current: CameraController }): 
   if (typeof window === 'undefined') {
     return;
   }
+  // Merged, not replaced: `connectBoard` puts the connection state on the same
+  // hook, and the board's camera is installed again whenever it changes.
   window.__vidi6 = {
+    ...window.__vidi6,
     setCamera(camera: Camera): void {
       controllerRef.current.setCamera(camera);
     },

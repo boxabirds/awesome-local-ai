@@ -78,6 +78,33 @@ export const STICKY_TEXT_PADDING_WORLD = 12;
 export const BOARD_SCHEMA_VERSION = 1;
 
 // ---------------------------------------------------------------------------
+// Live collaboration (story 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Soft simultaneous-editor capacity. It is the design and test target, never
+ * enforced: a 6th person joins and edits normally.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** PRD `live.propagate`: a change must reach every other screen within this. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Upper bound for the provider's exponential reconnect backoff. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long the green "Connected" confirmation stays after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** The outage length the catch-up requirement is verified with. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/**
+ * Functional wait used by every e2e test. Latency is measured and reported
+ * against LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted on this shared machine.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+/** How long two screens sit idle in the nightly connection-stability test (TC-29). */
+export const NIGHTLY_IDLE_MS = 45_000;
+/** How long the nightly capacity soak keeps editing (TC-30). */
+export const NIGHTLY_SOAK_MS = 60_000;
+
+// ---------------------------------------------------------------------------
 // Copy
 // ---------------------------------------------------------------------------
 

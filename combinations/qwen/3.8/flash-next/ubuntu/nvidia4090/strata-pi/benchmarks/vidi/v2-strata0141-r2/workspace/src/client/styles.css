@@ -407,3 +407,48 @@ body {
 .note-delete:hover {
   background: #fdecea;
 }
+
+/* Connection status (story 3): top centre, and only when it is worth knowing. */
+.connection-status {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.connection-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+/* Amber: edits are still going into the local document, they are just not shared yet. */
+.connection-status--reconnecting {
+  border-color: #f0a20f;
+  color: #92400e;
+}
+
+.connection-status--reconnecting .connection-status__dot {
+  background: #f59e0b;
+}
+
+/* Green: the connection came back and everything caught up. */
+.connection-status--confirmed {
+  border-color: #16a34a;
+  color: #14532d;
+}
+
+.connection-status--confirmed .connection-status__dot {
+  background: #16a34a;
+}

@@ -9,10 +9,13 @@ import {
   STICKY_TEXT_PADDING_WORLD,
 } from '../../src/shared/config';
 import {
+  applyTextDelta,
   applyTextDiff,
   clampToLimit,
   counterVisible,
+  diffText,
   fitFontSize,
+  mergeRemoteText,
 } from '../../src/client/objects/StickyText';
 import {
   LONG_NOTE_TEXT,
@@ -335,5 +338,102 @@ describe('font fitting (fitFontSize; supports the UI fitting cases and TC-33)', 
     const fit = fitFontSize(fakeMeasure(SHORT_NOTE_TEXT, 10).el, 10);
     expect(fit.fontPx).toBe(STICKY_FONT_MIN_PX);
     expect(fit.overflow).toBe(true);
+  });
+});
+
+describe('applyTextDelta', () => {
+  it('writes one change at the place it belongs', () => {
+    const target = textDoc('abXc');
+    applyTextDelta(target.ytext, 2, 1, '', 'test-origin');
+    expect(target.ytext.toString()).toBe('abc');
+    applyTextDelta(target.ytext, 1, 0, 'Z', 'test-origin');
+    expect(target.ytext.toString()).toBe('aZbc');
+  });
+
+  it('pulls an index outside the text back into range', () => {
+    const target = textDoc('abc');
+    applyTextDelta(target.ytext, 99, 5, '!', 'test-origin');
+    expect(target.ytext.toString()).toBe('abc!');
+    applyTextDelta(target.ytext, -4, 2, '', 'test-origin');
+    expect(target.ytext.toString()).toBe('c!');
+  });
+
+  it('writes nothing when there is no change', () => {
+    const target = textDoc('abc');
+    target.doc.on('update', () => {
+      throw new Error('a change-less delta must not write');
+    });
+    applyTextDelta(target.ytext, 1, 0, '', 'test-origin');
+    expect(target.ytext.toString()).toBe('abc');
+  });
+
+  it('carries a transaction origin, so local writes stay recognisable', () => {
+    const target = textDoc('abc');
+    const origins: unknown[] = [];
+    const onText = (event: Y.YTextEvent): void => {
+      origins.push(event.transaction.origin);
+    };
+    target.ytext.observe(onText);
+    applyTextDelta(target.ytext, 0, 0, 'Z', 'test-origin');
+    target.ytext.unobserve(onText);
+    expect(origins).toEqual(['test-origin']);
+  });
+});
+
+describe('diffText', () => {
+  it('describes a keystroke as one change', () => {
+    expect(diffText('ab', 'aXb')).toEqual({ prefix: 1, deleteLength: 0, insertText: 'X' });
+    expect(diffText('hello world', 'hello wrld')).toEqual({ prefix: 7, deleteLength: 1, insertText: '' });
+  });
+
+  it('is an empty change when nothing changed', () => {
+    expect(diffText('same', 'same')).toEqual({ prefix: 4, deleteLength: 0, insertText: '' });
+  });
+
+  it('keeps a whole surrogate pair on one side of the boundary', () => {
+    // Cutting between a pair's halves would write a lone, broken character.
+    expect(diffText('a\uD83D\uDE00b', 'aX\uD83D\uDE00b').prefix).toBe(1);
+    const removed = diffText('x\uD83D\uDE00y', 'xy');
+    expect(removed.prefix).toBe(1);
+    expect(removed.deleteLength).toBe(2);
+  });
+});
+
+describe('mergeRemoteText (TC-23)', () => {
+  it('keeps both people\'s typing when text arrives mid-edit', () => {
+    // An empty note: this editor typed 'Alex was here', someone else typed
+    // 'and Sam'. Adopting the remote text wholesale would lose this editor's
+    // characters; folding it in keeps both.
+    const merged = mergeRemoteText('Alex was here', '', 'and Sam');
+    expect(merged.value).toContain('Alex was here');
+    expect(merged.value).toContain('and Sam');
+    expect(merged.value.length).toBe('Alex was here'.length + 'and Sam'.length);
+  });
+
+  it('writes the remote change where it belongs', () => {
+    // Both started from 'hello'; this editor is adding ' world'.
+    const merged = mergeRemoteText('hello world', 'hello', 'hello there');
+    expect(merged.value).toBe('hello there world');
+    expect(merged.caretShift).toBe(' there'.length);
+  });
+
+  it('keeps a local deletion and the remote insertion when they touch the same spot', () => {
+    const merged = mergeRemoteText('acd', 'abcd', 'abXd');
+    expect(merged.value).toContain('X');
+    expect(merged.value).not.toContain('b');
+  });
+
+  it('is the shared text when this editor has changed nothing', () => {
+    expect(mergeRemoteText('hello', 'hello', 'hello there')).toEqual({
+      value: 'hello there',
+      caretShift: 0,
+    });
+  });
+
+  it('leaves the value alone when the remote change is empty', () => {
+    expect(mergeRemoteText('hello world', 'hello', 'hello')).toEqual({
+      value: 'hello world',
+      caretShift: 0,
+    });
   });
 });

@@ -1,14 +1,27 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-17",
-  "send_metrics": false,
-  "observability": {
-    "enabled": false
-  },
-  // Story 1 ships the client only; the Worker entry (Durable Objects) arrives
-  // in story 3. `wrangler dev` serves the built client from `dist/client`.
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "./dist/client"
-  }
+    "binding": "ASSETS",
+    "directory": "dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }
