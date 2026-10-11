@@ -87,6 +87,11 @@ because data lives in a working tree.
     and `/etc/awesome-local-ai/`, under a dedicated service user, come later (owner, 10 Oct 2026). To keep that move
     a configuration change and not a code change, every path in this design is read from one `paths` table in the
     configuration and nothing is hard-coded to the home directory.
+14. **Nothing is named for one pack** (owner, 11 Oct 2026): the system serves arbitrary specs and `vidi` is only the
+    first. No location name contains a pack name, and a folder holding data that belongs to one pack has the pack as
+    its first level (`gradings/<pack>/<package>/`, `recordings/<pack>/`, `judging/<pack>/`, `annotate/<pack>/`,
+    `keys/<pack>/`). The lake and `reference/` already carry the pack in the run id. This is why `~/.vidi-bench` is
+    retired (section H).
 
 ## Architecture
 
@@ -103,9 +108,9 @@ OPERATIONAL DATA (the data root: ~/.local/share/awesome-local-ai/data on every m
          reference/<pack>/<stack>/<run>/    reference-model runs (Opus, Sonnet): records, compact logs, bundles
          warehouse/conversations.db
          analytics/analytics.db
-         recordings/ judging/ annotate/ keys/                       (today: the private repo's state/)
+         recordings/<pack>/ judging/<pack>/ annotate/<pack>/ keys/<pack>/   (today: the private repo's state/)
                             (the recording secret is in the secrets folder, section H, not here)
-         gradings/<package>/{package/, results/<judge>/}           (today: the private repo's gradings/)
+         gradings/<pack>/<package>/{package/, results/<judge>/}    (today: the private repo's gradings/)
          exports/<date>/                    publication staging, written only by the export step
 
 FLOW
@@ -225,9 +230,9 @@ run dir, else the lake; `copy_private`, `private_copy`, `repo_of`, `record_priva
 gate.
 
 Judges go through the engine (decision 10, section G): `grading_package.py` writes the package into
-`gradings/<package>/package/` in the data root; a judge downloads it from `GET /v1/gradings/<package>/package` and
+`gradings/<pack>/<package>/package/` in the data root; a judge downloads it from `GET /v1/gradings/<package>/package` and
 uploads results to `PUT /v1/gradings/<package>/results/<judge>/<file>`, each with a per-judge bearer token that is
-valid for named packages only. The engine writes uploads under `gradings/<package>/results/<judge>/`, never
+valid for named packages only. The engine writes uploads under `gradings/<pack>/<package>/results/<judge>/`, never
 overwrites (a second upload of the same name is versioned beside the first), and accepts only the file names a
 result consists of (`build-A.jsonl`, `build-B.jsonl`, the transcript). `judge-setup.sh` and `judge-submit.sh`
 become thin clients of those two calls; `judge_collect.py` reads the directory. No git worktree, no push, no write
@@ -268,7 +273,8 @@ owns the data root and every API:
 - **collect, ingest, analyse:** what `dbench collect` does today, moved in whole;
 - **state:** the rows, machines and faults that `domain.ts` and `faults.ts` compute, ported to Rust with the
   existing vitest suites (`domain.test.ts`, `faults.test.ts`, `sources.test.ts`) as goldens, as the ingest's parsers
-  were ported from Python; served as `GET /v1/state` and `GET /v1/faults`;
+  were ported from Python; served as `GET /v1/state` and `GET /v1/faults`. Reference runs are listed as reference but
+  left out of every ranking or summary figure unless the request sets `include_reference=true` (decision 11);
 - **conversations:** the existing `/v1/conversations/...` API, unchanged;
 - **files:** `GET /v1/runs`, `GET /v1/runs/<id>/files`, `GET /v1/runs/<id>/file?path=` over the lake and
   `reference/`, allow-listed as the node API is, so the gallery and the monitor can run on another machine if ever
@@ -303,7 +309,8 @@ one entry in the `paths` table of the configuration, so the roadmap column is a 
 | the data root | the checkout | `~/.local/share/awesome-local-ai/data/` | `/var/lib/awesome-local-ai/data/` |
 | harness releases | `~/.dbench/releases/<tag>/` | `~/.local/share/awesome-local-ai/releases/<tag>/` | `/var/lib/awesome-local-ai/releases/` |
 | installed engines and models | `~/.local/share/<install-id>/` | `~/.local/share/awesome-local-ai/installs/<install-id>/` | `/var/lib/awesome-local-ai/installs/` |
-| agent work roots | `~/.w/<id>/`, linked from `~/.vidi-bench/work/<long name>` | `~/.local/share/awesome-local-ai/work/<id>/` | `/var/lib/awesome-local-ai/work/` |
+| agent work roots | `~/.w/<id>/`, linked from `~/.vidi-bench/work/<long name>` | `~/.local/share/awesome-local-ai/work/<id>/`, linked from `.../work/links/<long name>` | `/var/lib/awesome-local-ai/work/` |
+| egress files | `~/.vidi-bench/` (the name suggests one pack; decision 14) | `~/.local/share/awesome-local-ai/work/egress/`; `~/.vidi-bench` is renamed aside by the node switch, never deleted | `/var/lib/awesome-local-ai/work/egress/` |
 | logs | `~/.dbench/dbench.log` on a node; `ops/service-state/*.log` in the host's checkout | `~/.local/share/awesome-local-ai/logs/<service>.log` | `/var/log/awesome-local-ai/` |
 | configuration: nodes, backup, engine, paths | `~/.config/dbench/nodes.toml`, `~/.config/bench-backup/config.toml`, flags in the service units | `~/.config/awesome-local-ai/{nodes,backup,engine,paths}.toml` | `/etc/awesome-local-ai/` |
 | secrets: node token, Claude token, restic password, recording secret, judge tokens | `~/.dbench/token`, `~/.dbench/claude-oauth-token`, `~/.config/bench-backup/password`, `state/recording-secret` | `~/.config/awesome-local-ai/secrets/` (directory 0700, files 0600) | `/etc/awesome-local-ai/secrets/`, owned by the service user |
