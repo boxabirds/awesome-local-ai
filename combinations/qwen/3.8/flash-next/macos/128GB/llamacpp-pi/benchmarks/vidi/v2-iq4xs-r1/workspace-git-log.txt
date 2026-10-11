@@ -1,3 +1,37 @@
+commit c7d5e4dd8600495a4ff87a63a186cbf48cae9f00
+vidi-agent  Sun Oct 11 14:38:00 2026 +0100
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ src/client/objects/StickyText.ts | 152 +++++++++++++++++++++++++++++++++++++--
+ tests/fixtures/texts.ts          |  12 +++-
+ tests/unit/sticky-text.test.ts   |   2 +-
+ 3 files changed, 156 insertions(+), 10 deletions(-)
+commit 29eea27089d7ca6645c435a0372ba7351e32679f
+agent  Sun Oct 11 13:21:43 2026 +0000
+
+    story 3: board id and protocol decode unit tests (TC-01..TC-03), named settings, deps
+
+
+ .gitignore                  |    1 +
+ PROGRESS.md                 |    1 +
+ package-lock.json           | 1361 +++++++++++++++++++++++++++++++++++++++++++
+ package.json                |    4 +
+ src/shared/board-id.ts      |   58 ++
+ src/shared/config.ts        |   37 ++
+ src/shared/protocol.ts      |  100 ++++
+ tests/unit/board-id.test.ts |   68 +++
+ tests/unit/protocol.test.ts |  145 +++++
+ 9 files changed, 1775 insertions(+)
+commit 13a4f3bd0b424c7fe8c8c06c92f96600b8e0c16f
+vidi-agent  Sun Oct 11 13:52:28 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit ce66709c93724d12c78f541ca90c4278354c6741
 vidi-agent  Sun Oct 11 13:52:17 2026 +0100
 
