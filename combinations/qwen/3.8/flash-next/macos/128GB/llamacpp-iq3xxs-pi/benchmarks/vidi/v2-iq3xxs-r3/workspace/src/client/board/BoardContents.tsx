@@ -10,15 +10,17 @@ import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
+import { useTool } from './useTool';
 import { useUndo, useUndoController } from './useUndo';
 import type { UndoController } from './undo';
 import { boundingBox, SelectionOverlay } from './SelectionOverlay';
 import { SelectionBar } from './SelectionBar';
 import { MarqueeRect, useMarquee } from './Marquee';
 import { NOTE_TOOLBAR_GAP_PX } from '../objects/NoteToolbar';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
 import { canEdit } from './editable';
 import { Toolbar } from './Toolbar';
+import { sessionId } from '../sessionId';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { getObjectType } from '../objects/registry';
 import {
@@ -28,6 +30,8 @@ import {
   LOCAL_ORIGIN,
   setStickyColor,
 } from '../../shared/board-model';
+import { isTextSnapshot } from '../../shared/objects/text';
+import { createText, setTextSize } from '../../shared/objects/text';
 import type { Point } from '../canvas/camera';
 // Registers the sticky note; the object components are reached through the
 // registry, so this file says nothing about how any one type looks.
@@ -100,6 +104,9 @@ export function BoardContents({ boardId = null, doc, undo: given }: BoardContent
   /** Every way this client can change the board, decided in one place. */
   const editable = canEdit(connection);
   const { camera } = board;
+  // Which tool the pointer holds (story 9, `text.tool_ui`). A board that cannot
+  // be written to does not hold a tool that writes, and says so.
+  const tool = useTool(editable);
 
   // Story 8: what this person has done on this board, in this tab, and can take
   // back again. It hangs off the document rather than the address, because that
@@ -150,6 +157,29 @@ export function BoardContents({ boardId = null, doc, undo: given }: BoardContent
     [document, editable, selection, undo],
   );
 
+  /**
+   * One size preset for the selected text (`text.size`). Where a note keeps its
+   * size to itself, a text’s size changes its measurements, and the object does
+   * that itself: picking a size is a local change to the text’s own record, which
+   * is exactly what its box sync listens for, so the width and height it needs are
+   * re-measured by the one component that may write them — in this same undo step.
+   */
+  const sizeText = useCallback(
+    (size: TextSize): void => {
+      if (!editable) return;
+      const ids = [...selection.ids];
+      undo.boundary();
+      document.transact(
+        () => {
+          for (const id of ids) setTextSize(document, id, size);
+        },
+        LOCAL_ORIGIN,
+      );
+      undo.boundary();
+    },
+    [document, editable, selection, undo],
+  );
+
   // The gesture, the marquee and the keys all act on the same selection, and all
   // read the board through `objects` — so an object deleted by somebody else
   // stops being dragged, and stops being nudged, on the same frame it vanishes.
@@ -171,8 +201,6 @@ export function BoardContents({ boardId = null, doc, undo: given }: BoardContent
     },
     [selection],
   ));
-  useBoardKeys({ doc: document, selection, snapshot: objects, canEdit: editable, undo });
-
   /** Create a note centred on a world point, selected and in edit mode. */
   const createAndEdit = useCallback(
     (world: Point): void => {
@@ -187,6 +215,46 @@ export function BoardContents({ boardId = null, doc, undo: given }: BoardContent
     },
     [document, editable, startEditing, undo],
   );
+
+  /** The toolbar button and the `N` key: a note in the middle of what is on screen. */
+  const createStickyAtCentre = useCallback((): void => {
+    // Centre of the visible board area, wherever the board is panned
+    // (sticky.create_button, TC-34).
+    const centre: Point = { x: board.viewport.width / 2, y: board.viewport.height / 2 };
+    createAndEdit(screenToWorld(camera, centre));
+  }, [board.viewport.height, board.viewport.width, camera, createAndEdit]);
+
+  /**
+   * The Text tool's click (`text.tool_ui`): a text object whose top-left is
+   * where the pointer was, size M, selected and open for typing, and the pointer
+   * back to Select — one click makes one heading, and the click after it selects
+   * rather than spells.
+   */
+  const createTextAt = useCallback(
+    (world: Point): void => {
+      if (!editable) return;
+      undo.boundary();
+      const id = createText(document, world, sessionId());
+      undo.boundary();
+      if (typeof id !== 'string') return; // non-finite point: nothing happens
+      tool.setTool('select');
+      startEditing(id);
+    },
+    [document, editable, startEditing, tool, undo],
+  );
+
+  // The keyboard acts on the same selection, the same document and the same tool
+  // as the pointer and the bar, and is given the same two commands the toolbar
+  // holds: `N` makes a note, and `T`/`V`/Escape change what the pointer is.
+  useBoardKeys({
+    doc: document,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo,
+    tool,
+    onCreateSticky: createStickyAtCentre,
+  });
 
   // A board that stops being editable also stops being *edited*: an object that
   // was open for typing closes, so the keystrokes that come after the bad news
@@ -243,6 +311,8 @@ export function BoardContents({ boardId = null, doc, undo: given }: BoardContent
       <BoardViewport
         onEmptySpaceClick={selection.clear}
         onEmptySpaceDoubleClick={createAndEdit}
+        tool={tool.tool}
+        onTextSpotClick={createTextAt}
         marquee={marquee}
         overlay={
           <>
@@ -266,6 +336,8 @@ export function BoardContents({ boardId = null, doc, undo: given }: BoardContent
                   dragging={gesture.dragging}
                   color={lone && isStickySnapshot(lone) ? lone.color : undefined}
                   onColor={recolourSelection}
+                  size={lone && isTextSnapshot(lone) ? lone.size : undefined}
+                  onSize={sizeText}
                   onDelete={deleteSelection}
                 />
               </div>
@@ -312,15 +384,8 @@ export function BoardContents({ boardId = null, doc, undo: given }: BoardContent
       <Toolbar
         disabled={!editable}
         undo={undoActions}
-        onCreateSticky={() => {
-          // Centre of the visible board area, wherever the board is panned
-          // (sticky.create_button, TC-34).
-          const centre: Point = {
-            x: board.viewport.width / 2,
-            y: board.viewport.height / 2,
-          };
-          createAndEdit(screenToWorld(camera, centre));
-        }}
+        tool={tool}
+        onCreateSticky={createStickyAtCentre}
       />
     </>
   );

@@ -115,7 +115,10 @@ export const SELECTION_BOARD_NOTES = 20;
  */
 export function selectionBoard(seed = 6): SeedPlacement[] {
   const rng = makeRng(seed);
-  const columns = [-580, -400, -220, -40, 140];
+  // The first column starts a hand's width clear of the floating left toolbar, so
+  // a marquee can begin beside it: a press inside the toolbar belongs to a button,
+  // and the toolbar is only going to get taller as boards gain things to hold.
+  const columns = [-540, -360, -180, -20, 160];
   const clusters = [
     [-330, -140],
     [240, 430],

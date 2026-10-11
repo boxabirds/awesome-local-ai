@@ -35,6 +35,7 @@ import {
   type Participant,
 } from './helpers/live';
 import { noteTexts } from './helpers/notes';
+import { expectInitialView } from './helpers/board';
 
 /** What a browser will let a test do with the clipboard, where it lets it do anything. */
 const CLIPBOARD_PERMISSIONS = ['clipboard-read', 'clipboard-write'];
@@ -105,6 +106,10 @@ test('TC-26 create a board, copy its link, and the second person is on the same 
   expect(boardIdForSam, 'Sam was sent somewhere else').toBe(boardId);
   await expect(sam.page.locator('.sticky-note')).toHaveCount(1);
   await expect.poll(async () => (await noteTexts(sam.page)).join('|')).toBe('written by Maya');
+  // Sam's own view of the board, not just its content: a note read from the room is
+  // drawn before this screen's camera has settled, and a click aimed at a note
+  // measured against the view that has not arrived yet misses it.
+  await expectInitialView(sam.page);
 
   // And it is one board, not two that look alike: Sam writes, Maya reads.
   await changeVisible(

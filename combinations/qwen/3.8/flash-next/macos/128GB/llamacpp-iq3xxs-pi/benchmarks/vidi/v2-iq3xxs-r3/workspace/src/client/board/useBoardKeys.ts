@@ -7,6 +7,7 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType, isObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { SelectionController } from './useSelection';
+import type { ToolController } from './useTool';
 
 export interface BoardKeysOptions {
   /** Mutating commands go through this document, one transaction per command. */
@@ -17,6 +18,18 @@ export interface BoardKeysOptions {
   readonly snapshot: readonly ObjectSnapshot[];
   /** False while this client may not write: reading keys still work. */
   readonly canEdit: boolean;
+  /**
+   * The tool the pointer is holding (story 9, `text.tool_ui`): V picks Select, T
+   * picks Text, Escape puts Select back. Left out by a caller with no tools to
+   * give, and `T` on a board that cannot be written to is refused by the tool
+   * itself, not by this key handler knowing about permissions.
+   */
+  readonly tool?: ToolController;
+  /**
+   * What `N` does: the same command as the toolbar's Sticky note button
+   * (`sticky.create_button`, and story 9's TC-18 that the key did not steal it).
+   */
+  readonly onCreateSticky?: () => void;
   /**
    * This person's history (story 8): Ctrl/Cmd+Z and Ctrl+Y are answered from
    * here, and every command below is bracketed by `boundary()` so one command
@@ -74,6 +87,10 @@ function isEditableTarget(target: EventTarget | null): boolean {
  * that rule as a pointer is. Selecting and letting go are not writing, so those
  * two always work: reading a board you cannot change still needs a way to look.
  *
+ * Story 9 adds three letters to the same listener, and they obey the same
+ * silence: V and T pick the tool the pointer holds, and N runs the toolbar's
+ * Sticky note button (`text.tool_ui`, and TC-18 that the key is still there).
+ *
  * Nothing here fires while a text edit is open. The keystrokes belong to the text
  * being typed, and a Delete that ate a whole selection because one caret was in
  * the wrong place would be the worst kind of surprise.
@@ -84,16 +101,25 @@ export function useBoardKeys({
   snapshot,
   canEdit,
   undo,
+  tool,
+  onCreateSticky,
 }: BoardKeysOptions): void {
   // One window listener for the life of the board; every frame reads the newest
   // selection, snapshot and permission through this.
-  const latest = useRef({ doc, selection, snapshot, canEdit, undo });
-  latest.current = { doc, selection, snapshot, canEdit, undo };
+  const latest = useRef({ doc, selection, snapshot, canEdit, undo, tool, onCreateSticky });
+  latest.current = { doc, selection, snapshot, canEdit, undo, tool, onCreateSticky };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { selection: chosen, snapshot: objects, doc: document, canEdit: editable, undo: history } =
-        latest.current;
+      const {
+        selection: chosen,
+        snapshot: objects,
+        doc: document,
+        canEdit: editable,
+        undo: history,
+        tool: tools,
+        onCreateSticky: newSticky,
+      } = latest.current;
       // Typing belongs to the field it is in, and so does every other key: an
       // Escape, a Delete or an arrow typed into a note must reach the note. That
       // is also why Ctrl/Cmd+Z typed *into a note* is never taken here — the
@@ -125,7 +151,27 @@ export function useBoardKeys({
       if (event.ctrlKey || event.metaKey || event.altKey) return;
 
       if (event.key === 'Escape') {
+        // Escape is “never mind” in both directions: the selection lets go, and
+        // so does any tool that was picked (`text.tool_ui`).
+        tools?.setTool('select');
         chosen.clear();
+        return;
+      }
+
+      // The tools. None of them needs a selection, because a tool is about the
+      // pointer rather than about what happens to be under it.
+      const letter = event.key.toLowerCase();
+      if (letter === 'v' || letter === 't') {
+        event.preventDefault();
+        tools?.setTool(letter === 't' ? 'text' : 'select');
+        return;
+      }
+      if (letter === 'n') {
+        // Story 2's button, in a key. It writes, so a board that could not be
+        // loaded takes the key away with the button.
+        event.preventDefault();
+        if (!editable) return;
+        newSticky?.();
         return;
       }
 

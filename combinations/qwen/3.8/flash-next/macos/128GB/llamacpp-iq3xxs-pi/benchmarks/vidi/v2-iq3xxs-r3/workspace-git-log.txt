@@ -1,3 +1,105 @@
+commit ce50b2159bcbe98f6a0bbfc44c575bfbdf6ddfaa
+vidi-agent  Sun Oct 11 04:26:39 2026 +0100
+
+    harness: snapshot after story 9 (uncommitted agent work)
+
+
+ tests/e2e/helpers/selection.ts |  21 ++-
+ tests/e2e/helpers/texts.ts     | 239 ++++++++++++++++++++++++
+ tests/e2e/share.spec.ts        |   5 +
+ tests/e2e/text.spec.ts         | 400 +++++++++++++++++++++++++++++++++++++++++
+ tests/fixtures/boards.ts       |   5 +-
+ tests/fixtures/texts.ts        |   7 +
+ 6 files changed, 672 insertions(+), 5 deletions(-)
+commit 21206ba84448505fc5f780596c3fcb5be872da9b
+agent  Sun Oct 11 02:06:33 2026 +0000
+
+    story 9: text objects, one editor for both kinds of text, the size toolbar and the TC-19 to TC-25 tests (tasks 8-9)
+
+
+ NOTES.md                                |  60 +++++
+ PROGRESS.md                             |  10 +-
+ src/client/board/BoardContents.tsx      |  30 ++-
+ src/client/board/SelectionBar.tsx       |  34 ++-
+ src/client/board/SelectionOverlay.tsx   |  30 ++-
+ src/client/board/useTransformGesture.ts |  60 ++++-
+ src/client/objects/NoteToolbar.tsx      |  15 +-
+ src/client/objects/StickyText.ts        |   4 +-
+ src/client/objects/StickyTextEditor.tsx | 209 ++--------------
+ src/client/objects/TextEditor.tsx       | 275 +++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 147 +++++++++++
+ src/client/objects/TextToolbar.tsx      |  81 ++++++
+ src/client/objects/icons.tsx            |  24 ++
+ src/client/objects/registry.tsx         |  47 +++-
+ src/client/styles.css                   | 115 +++++++++
+ tests/component/TextObject.test.tsx     | 421 ++++++++++++++++++++++++++++++++
+ tests/component/helpers/board.tsx       |   9 +-
+ 17 files changed, 1356 insertions(+), 215 deletions(-)
+commit db90bb81424c578f72dfc700517f84c79f5515c7
+agent  Sun Oct 11 01:23:08 2026 +0000
+
+    story 9: the Text tool, V/T/N/Escape and the TC-14 to TC-18 tests (tasks 6-7)
+
+
+ PROGRESS.md                         |  33 +++-
+ src/client/board/BoardContents.tsx  |  61 ++++--
+ src/client/board/Toolbar.tsx        |  91 ++++++++-
+ src/client/board/useBoardKeys.ts    |  54 +++++-
+ src/client/board/useTool.ts         |  44 +++++
+ src/client/canvas/BoardViewport.tsx |  89 ++++++++-
+ src/client/sessionId.ts             |  19 ++
+ src/client/styles.css               |  21 ++
+ tests/component/ToolMode.test.tsx   | 371 ++++++++++++++++++++++++++++++++++++
+ 9 files changed, 755 insertions(+), 28 deletions(-)
+commit 505f97e7a001039c4f185148608317bd81b6c2c0
+agent  Sun Oct 11 00:51:49 2026 +0000
+
+    story 9: text layout, local-only box sync and the TC-07 to TC-13 tests (tasks 3-5)
+
+
+ NOTES.md                               |  33 ++++++
+ PROGRESS.md                            |   6 +-
+ src/client/objects/textLayout.ts       | 179 +++++++++++++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts   | 116 +++++++++++++++++++
+ src/shared/config.ts                   |  19 +++-
+ src/shared/objects/text.ts             |  25 +++-
+ tests/component/TextBoxSync.test.tsx   | 201 +++++++++++++++++++++++++++++++++
+ tests/component/helpers/text-board.tsx |  52 +++++++++
+ tests/unit/text-layout.test.ts         | 175 ++++++++++++++++++++++++++++
+ tests/unit/text-model.test.ts          |  16 +++
+ 10 files changed, 812 insertions(+), 10 deletions(-)
+commit 145692659c090909751a48b26674439b944e6c7e
+agent  Sun Oct 11 00:13:42 2026 +0000
+
+    story 9: shared text-edit helpers and the coverage table's TC-01 to TC-06 (tasks 1-2)
+
+
+ src/client/objects/StickyText.ts |  85 +++---------
+ src/shared/text-edit.ts          |  71 ++++++++++
+ tests/unit/text-model.test.ts    | 288 ++++++++++++++++++++++++---------------
+ 3 files changed, 270 insertions(+), 174 deletions(-)
+commit 8a8fcb5fd29a5fe4e202a1b62836d581f35bb3b9
+agent  Sun Oct 11 00:08:49 2026 +0000
+
+    story 9: text object model, settings and model tests (tasks 1-2, TC-01 to TC-06)
+
+
+ NOTES.md                      |  38 ++++++
+ PROGRESS.md                   |   4 +-
+ src/shared/board-model.ts     |  54 ++++++++-
+ src/shared/config.ts          |  47 ++++++++
+ src/shared/objects/text.ts    | 271 ++++++++++++++++++++++++++++++++++++++++++
+ tests/unit/helpers/text.ts    |  62 ++++++++++
+ tests/unit/text-model.test.ts | 259 ++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 727 insertions(+), 8 deletions(-)
+commit 59bdf9076d8919d67252b36ca1d19626596d267e
+vidi-agent  Sun Oct 11 00:23:14 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit 1b96a4529ebcd3dce1ba3e1caaca95d834ad87c3
 agent  Sat Oct 10 23:19:39 2026 +0000
 

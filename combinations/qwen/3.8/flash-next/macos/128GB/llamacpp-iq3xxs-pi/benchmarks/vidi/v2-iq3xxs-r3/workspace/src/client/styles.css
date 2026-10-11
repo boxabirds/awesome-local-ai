@@ -81,6 +81,20 @@ body {
   pointer-events: none;
 }
 
+/* The Text tool (story 9, `text.tool_ui`): the cursor says a sentence is coming,
+   and what is under the pointer stops answering it, so the click that chooses
+   where a heading goes reaches the board even where a note is in the way. The
+   selection chrome lives outside the world layer, so the handles of what is
+   already selected keep answering, which is right — they belong to the thing
+   that is selected, not to the next one. */
+.board-viewport[data-tool="text"] {
+  cursor: text;
+}
+
+.board-world[data-tool="text"] * {
+  pointer-events: none;
+}
+
 /* Left creation toolbar (sticky.create_button). */
 .board-toolbar {
   position: absolute;
@@ -114,6 +128,13 @@ body {
 
 .board-toolbar-button:hover {
   background: rgba(20, 80, 158, 0.12);
+}
+
+/* A tool that is being held looks held (`text.tool_ui`): `aria-pressed` is the
+   state, and this is what it does to the button. */
+.board-toolbar-button[aria-pressed="true"] {
+  background: rgba(20, 80, 158, 0.22);
+  box-shadow: inset 0 0 0 1.5px #2b6cff;
 }
 
 /* ---- sticky notes (story 2) ---- */
@@ -353,6 +374,121 @@ body {
 }
 
 .note-delete:hover {
+  background: rgba(179, 38, 30, 0.12);
+}
+
+/* ---- text objects (story 9) ---- */
+
+/* Words on the board with nothing around them (`text.object`): no fill, no
+   border, no corner to fold. The box is the one the layout measured, and it is
+   not invisible to the pointer — a click anywhere in it, including beside a short
+   line, selects the text it encloses. */
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  background: transparent;
+  color: inherit;
+  /* The board’s own font, which is also the font `createCanvasMeasurer` measures
+     with (`TEXT_FONT_FAMILY`): if these two ever disagree, so does every measured
+     width on the board. The line height is `TEXT_LINE_HEIGHT`. */
+  font-family: inherit;
+  line-height: 1.3;
+  outline: none;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+/* A text has no fill to be seen through, so the only thing that can say “this one
+   is selected” is its edge — the same blue the notes get, for the same reason. */
+.text-object[data-selected="true"] {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Wrapping as the layout function wraps it: hard breaks where the words are, soft
+   breaks where the box forces them, and never one more line than the stored height
+   allows (`text.auto_width`, `text.height`). */
+.text-object-content {
+  width: 100%;
+  height: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+}
+
+/* The field typed into: the same box, the same wrap and the same font as the text
+   it stands in, so the line breaks happen while typing exactly where they will
+   happen afterwards. */
+.text-editor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* The toolbar above one selected text: the four sizes and delete (`text.size`). */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 0 5px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.text-size-button {
+  min-width: 26px;
+  height: 24px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--chrome-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.text-size-button:hover {
+  background: rgba(20, 80, 158, 0.12);
+}
+
+/* The size the text already has looks chosen, because it is (`text.size`). */
+.text-size-button[aria-pressed="true"] {
+  background: rgba(20, 80, 158, 0.22);
+  box-shadow: inset 0 0 0 1.5px var(--focus-ring);
+}
+
+.text-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #b3261e;
+  cursor: pointer;
+}
+
+.text-delete:hover {
   background: rgba(179, 38, 30, 0.12);
 }
 

@@ -20,6 +20,7 @@ import {
 } from '../../shared/geometry';
 import type { Handle, Point, Rect } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import type { Camera } from '../canvas/camera';
 import type { SelectionController } from './useSelection';
 
@@ -71,6 +72,18 @@ export interface TransformGesture {
 interface Spec {
   readonly minSize: number;
   readonly aspectLocked: boolean;
+  /**
+   * True for a type that takes its height from its words (`handles:
+   * 'horizontal'`), and therefore has exactly one dimension a handle may set.
+   */
+  readonly horizontal: boolean;
+  /**
+   * True while such a type still takes the width its content asks for. A group
+   * resize moves it and leaves that width alone; a width it chose for itself
+   * (`text.fixed_width`) scales with the box like anything else's would
+   * (`text.group`).
+   */
+  readonly autoWidth: boolean;
 }
 
 /** One press, from the pointer going down to it coming back up. */
@@ -118,7 +131,14 @@ function measure(snapshot: readonly ObjectSnapshot[], ids: Iterable<string>): Me
   for (const object of picked) {
     rects.set(object.id, objectBounds(object));
     const spec = getObjectType(object.type);
-    specs.push({ minSize: spec?.minSize ?? 0, aspectLocked: spec?.aspectLocked ?? false });
+    specs.push({
+      minSize: spec?.minSize ?? 0,
+      aspectLocked: spec?.aspectLocked ?? false,
+      horizontal: spec?.handles === 'horizontal',
+      // Missing means “not a text”: a type with no width mode has a width of its
+      // own, and scales.
+      autoWidth: object.widthMode === 'auto',
+    });
   }
   return {
     ids: picked.map((object) => object.id),
@@ -183,21 +203,53 @@ function applyGesture(latest: Latest, gesture: Gesture, at: Point): void {
     MAX_OBJECT_SIZE_WORLD,
   );
   const box = anchoredBox(gesture.startBox, gesture.handle, scale);
+  const lone = isLoneText(gesture);
   const rects = new Map<string, Rect>();
-  for (const [id, rect] of gesture.startRects) {
+  gesture.ids.forEach((id, index) => {
+    const rect = gesture.startRects.get(id);
+    if (!rect) return;
+    const spec = gesture.specs[index];
     const grown = scaleWithin(rect, gesture.startBox, box);
     // `clampScale` stopped the *box* at each object's minimum, so a note can
     // never shrink below `STICKY_MIN_SIZE_WORLD` here. The 1-unit floor is the
     // same rule for a type that declared no minimum of its own: an object with
     // no area is not an object, and the board model would refuse to write it.
+    const width = Math.max(grown.width, 1);
+    // A group resize does not re-choose how wide a text's own words want to be
+    // (`text.group`): it moves it, and leaves the width it had. A width chosen
+    // deliberately scales with everything else, because it stopped being about
+    // the words the moment it was chosen.
+    const keepsWidth = !lone && spec?.horizontal && spec.autoWidth;
     rects.set(id, {
       x: grown.x,
       y: grown.y,
-      width: Math.max(grown.width, 1),
-      height: Math.max(grown.height, 1),
+      width: keepsWidth ? rect.width : width,
+      height: keepsWidth ? rect.height : Math.max(grown.height, 1),
     });
+  });
+
+  // One text, and the handle *is* its width (`text.fixed_width`): the write goes
+  // through the type's own command, which is the one place that knows that taking
+  // a fixed width also means having one. The height it now needs is measured by
+  // the object's own box sync, in this same undo step.
+  if (lone) {
+    const id = gesture.ids[0];
+    const target = rects.get(id);
+    const was = gesture.startRects.get(id);
+    if (target && was) {
+      setTextWidthFixed(latest.doc, id, target.width);
+      if (target.x !== was.x || target.y !== was.y) {
+        moveObjects(latest.doc, new Map([[id, { x: target.x, y: target.y }]]));
+      }
+    }
+    return;
   }
   resizeObjects(latest.doc, rects);
+}
+
+/** One object, and a type that takes its height from its words. */
+function isLoneText(gesture: Gesture): boolean {
+  return gesture.ids.length === 1 && gesture.specs[0]?.horizontal === true;
 }
 
 /**

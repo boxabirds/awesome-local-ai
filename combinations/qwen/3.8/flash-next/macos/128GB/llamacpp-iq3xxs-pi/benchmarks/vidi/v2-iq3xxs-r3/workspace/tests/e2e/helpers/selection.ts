@@ -57,11 +57,24 @@ export async function placements(page: Page): Promise<Map<string, Placement>> {
   return seen;
 }
 
-/** Ids this screen has selected, sorted so two screens can be compared. */
+/**
+ * Ids this screen has selected, sorted so two screens can be compared. Every
+ * object type is asked, because a selection is generic and a test that says
+ * "nothing is selected" means it about all of them (`sel.all_types`).
+ */
 export async function selectedIds(page: Page): Promise<string[]> {
-  const selected = await page
-    .locator('.sticky-note[data-selected="true"]')
-    .evaluateAll((elements) => elements.map((element) => (element as HTMLElement).dataset.noteId ?? ''));
+  const selected = await page.locator('[data-selected="true"]').evaluateAll((elements) =>
+    elements.map((element) => {
+      const object = element as HTMLElement;
+      return (
+        object.dataset.noteId ??
+        object.dataset.textId ??
+        object.dataset.boxId ??
+        object.dataset.objectId ??
+        ''
+      );
+    }),
+  );
   return selected.sort();
 }
 

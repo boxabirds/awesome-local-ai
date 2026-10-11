@@ -25,7 +25,8 @@
 import * as Y from 'yjs';
 
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD } from './config';
-import type { StickyColor } from './config';
+import type { StickyColor, TextSize } from './config';
+import type { TextWidthMode } from './objects/text';
 import { rectContains } from './geometry';
 import type { Point, Rect } from './geometry';
 
@@ -39,12 +40,17 @@ export const SCHEMA_VERSION = 1;
 /** Note type key; the renderer skips entries of any other type. */
 export const STICKY_TYPE = 'sticky';
 
+/** The `type` value of a text object (story 9, `text.shared`). */
+export const TEXT_TYPE = 'text';
+
 /**
  * The object types this build's board model can read. Stories 9-12 add theirs
  * here as they add them; a type that is in the document but not in this set is
- * shown by nobody and selectable by nobody (`sel.all_types`).
+ * shown by nobody and selectable by nobody (`sel.all_types`). Text is here,
+ * which is what makes it selectable, movable, deletable and undoable with those
+ * stories unchanged; what a build can *draw* is the client registry's say.
  */
-export const MODEL_OBJECT_TYPES: ReadonlySet<string> = new Set([STICKY_TYPE]);
+export const MODEL_OBJECT_TYPES: ReadonlySet<string> = new Set([STICKY_TYPE, TEXT_TYPE]);
 
 /** Whether `type` is one of `MODEL_OBJECT_TYPES`. */
 export function isModelObjectType(type: string): boolean {
@@ -76,6 +82,16 @@ export interface ObjectSnapshot {
   readonly createdAt: number;
   readonly width?: number | undefined;
   readonly height?: number | undefined;
+  /**
+   * Story 9 (text objects only, and absent for every other type): the size
+   * preset, whether the width came from the content or from a side handle, the
+   * characters, and the anonymous per-tab id of who made the object — stories 6
+   * and 13-17 replace that with a real user reference, and add `editedAt`.
+   */
+  readonly size?: TextSize;
+  readonly widthMode?: TextWidthMode;
+  readonly text?: string;
+  readonly createdBy?: string;
 }
 
 /** A note as rendered: the immutable view of one `objects` entry. */
@@ -83,6 +99,9 @@ export interface StickySnapshot extends ObjectSnapshot {
   readonly type: 'sticky';
   readonly color: StickyColor;
   readonly text: string;
+  /** A note is never sized by its content, and never has a size preset. */
+  readonly size?: undefined;
+  readonly widthMode?: undefined;
 }
 
 type ObjectMap = Y.Map<unknown>;
@@ -92,12 +111,13 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function objectsOf(doc: Y.Doc): Y.Map<ObjectMap> {
+/** Every object of every type, keyed by id — the `objects` map itself. */
+export function objectsOf(doc: Y.Doc): Y.Map<ObjectMap> {
   return doc.getMap<ObjectMap>(OBJECTS_KEY);
 }
 
 /** The entry for `id`, or undefined when it is missing or not a Y.Map. */
-function objectOf(doc: Y.Doc, id: string): ObjectMap | undefined {
+export function objectOf(doc: Y.Doc, id: string): ObjectMap | undefined {
   const entry = objectsOf(doc).get(id);
   return entry instanceof Y.Map ? entry : undefined;
 }
@@ -113,7 +133,7 @@ function zOf(entry: ObjectMap): number {
 }
 
 /** Highest `z` in the document; 0 for an empty document, so the first z is 1. */
-function maxZ(doc: Y.Doc): number {
+export function maxZ(doc: Y.Doc): number {
   let max = 0;
   for (const entry of objectsOf(doc).values()) {
     if (entry instanceof Y.Map) max = Math.max(max, zOf(entry));
@@ -223,6 +243,10 @@ function toObjectSnapshot(id: string, entry: ObjectMap): ObjectSnapshot | undefi
   if (typeof type !== 'string') return undefined;
   if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z)) return undefined;
   if (!isFiniteNumber(createdAt)) return undefined;
+  const size = entry.get('size');
+  const widthMode = entry.get('widthMode');
+  const text = entry.get('text');
+  const createdBy = entry.get('createdBy');
   return {
     id,
     type,
@@ -232,7 +256,25 @@ function toObjectSnapshot(id: string, entry: ObjectMap): ObjectSnapshot | undefi
     createdAt,
     width: sizeOf(entry, 'width'),
     height: sizeOf(entry, 'height'),
+    // A later story's fields are read when an entry has them and they are of the
+    // kind that story defined, and left out otherwise — which is how a note's
+    // snapshot comes with no `size`, and an object from a story this build has
+    // not got to yet costs nothing.
+    ...(isTextSizeValue(size) ? { size } : {}),
+    ...(isTextWidthModeValue(widthMode) ? { widthMode } : {}),
+    ...(text instanceof Y.Text ? { text: text.toString() } : {}),
+    ...(typeof createdBy === 'string' ? { createdBy } : {}),
   };
+}
+
+/** Is `value` one of the story 9 size presets? (Kept here so the reader is one.)  */
+function isTextSizeValue(value: unknown): value is TextSize {
+  return value === 'S' || value === 'M' || value === 'L' || value === 'XL';
+}
+
+/** Is `value` one of the story 9 width modes? */
+function isTextWidthModeValue(value: unknown): value is TextWidthMode {
+  return value === 'auto' || value === 'fixed';
 }
 
 /** Notes in `doc` sorted by `(z, id)`; malformed and non-note entries skipped. */

@@ -42,3 +42,10 @@ export const PROSE_1000: string = buildProse(STICKY_TEXT_MAX_CHARS).slice(0, STI
 
 /** 1,200 characters: what gets pasted in the paste-limit checks. */
 export const PROSE_1200: string = buildProse(1200).slice(0, 1200);
+
+/**
+ * Exactly 300 characters of the same prose: the PRD's "300-character sentence"
+ * annotation, which is long enough that no free text on the board keeps it on one
+ * line, and short enough to read out loud when a test fails (`text.auto_width`).
+ */
+export const PROSE_300: string = buildProse(300).slice(0, 300);

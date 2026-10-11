@@ -12,12 +12,13 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 
-import { objectBounds, STICKY_TYPE } from '../../shared/board-model';
+import { objectBounds, STICKY_TYPE, TEXT_TYPE } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /** What the board renders one object with; the same props for every type. */
 export interface ObjectProps {
@@ -55,8 +56,21 @@ export interface ObjectTypeSpec {
   readonly aspectLocked: boolean;
   readonly minSize: number;
   readonly editableText: boolean;
+  /**
+   * Which handles this type accepts (`sel.resize`, and story 9's `text.fixed_width`):
+   * `'all'` (the default) is the eight corners and edges a box has; `'horizontal'`
+   * is the two side edges only, for a type whose height is not its own to give —
+   * text takes as many lines as its words need, so pulling its bottom would be
+   * pulling at a measurement.
+   */
+  readonly handles?: 'all' | 'horizontal';
   /** Is `worldPoint` on `object`? Used by hit testing, never by the renderer. */
   hitTest(object: ObjectSnapshot, worldPoint: Point): boolean;
+}
+
+/** The handles a type accepts, when it said nothing: all eight. */
+export function objectHandles(type: string): 'all' | 'horizontal' {
+  return specs.get(type)?.handles ?? 'all';
 }
 
 /** What is registered, in registration order. Written only by `registerObjectType`. */
@@ -101,6 +115,35 @@ registerObjectType(STICKY_TYPE, {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: (object, point) => {
+    const bounds = objectBounds(object);
+    return (
+      point.x >= bounds.x &&
+      point.y >= bounds.y &&
+      point.x <= bounds.x + bounds.width &&
+      point.y <= bounds.y + bounds.height
+    );
+  },
+});
+
+/**
+ * Text, registered the same way and the first type added purely by registering it:
+ * `sel.all_types` promised that a new object type is a `registerObjectType` call
+ * and no selection code, and story 9 is holding that promise — selection, marquee,
+ * arrow keys, delete, duplicate, group moves and undo are all untouched here.
+ *
+ * It can be resized, but its proportions are its words' doing, and the smallest it
+ * may be squeezed is one short word wide. Its handles are the two side edges only:
+ * a text's width is the one thing about it a person may choose, and its height is
+ * the consequence (`text.fixed_width`, `text.height`).
+ */
+registerObjectType(TEXT_TYPE, {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: (object, point) => {
     const bounds = objectBounds(object);
     return (

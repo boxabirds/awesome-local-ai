@@ -16,6 +16,7 @@ import {
 import type { Point } from './camera';
 import { screenToWorld } from './camera';
 import type { Marquee } from '../board/Marquee';
+import type { ToolMode } from '../board/useTool';
 import { useBoard } from './CameraProvider';
 import type { BoardController } from './CameraProvider';
 
@@ -85,6 +86,20 @@ export interface BoardViewportProps {
    */
   marquee?: Marquee;
   /**
+   * Which tool the pointer holds (story 9, `text.tool_ui`). While it is `text`, a
+   * press on empty space neither pans nor draws a marquee — it is a place being
+   * chosen for a sentence — and the objects under the pointer are made
+   * transparent to it, which is how a heading gets placed on top of the cluster
+   * it belongs to.
+   */
+  tool?: ToolMode;
+  /**
+   * A press-and-release anywhere on the board while the Text tool is held, in
+   * world coordinates — including one that landed on an object. Nothing is
+   * created here; the board decides that, and whether the tool stays held.
+   */
+  onTextSpotClick?(world: Point): void;
+  /**
    * Screen-space chrome over the board: the selection's outline, handles, bar.
    * Rendered outside the world layer, so it keeps its size at every zoom, and
    * never becomes part of what other people see.
@@ -105,6 +120,8 @@ export function BoardViewport({
   onEmptySpaceClick,
   onEmptySpaceDoubleClick,
   marquee,
+  tool = 'select',
+  onTextSpotClick,
   overlay,
 }: BoardViewportProps): JSX.Element {
   const board = useBoard();
@@ -120,10 +137,21 @@ export function BoardViewport({
   /** The press drawing a marquee, which is the pointer that is *not* panning. */
   const marqueePointerIdRef = useRef<number | null>(null);
   const [marqueeActive, setMarqueeActive] = useState(false);
+  /** The press that is choosing a place for text, which is neither pan nor marquee. */
+  const textPointerIdRef = useRef<number | null>(null);
+  /** Where that press started, in surface pixels: a press that travelled is not a click. */
+  const textPressRef = useRef<Point | null>(null);
+  /**
+   * The surface point of the text the last press placed. A double-click is two
+   * presses and a double-click, and the first of them has already been answered
+   * by a heading: without this, pressing T and double-clicking to write a title
+   * would also drop a sticky note under it.
+   */
+  const placedTextRef = useRef<Point | null>(null);
 
   /** Latest callbacks, so nothing needs re-attaching when they change. */
-  const callbacksRef = useRef({ onEmptySpaceClick, onEmptySpaceDoubleClick, marquee });
-  callbacksRef.current = { onEmptySpaceClick, onEmptySpaceDoubleClick, marquee };
+  const callbacksRef = useRef({ onEmptySpaceClick, onEmptySpaceDoubleClick, marquee, onTextSpotClick });
+  callbacksRef.current = { onEmptySpaceClick, onEmptySpaceDoubleClick, marquee, onTextSpotClick };
 
   /** Abandon the rectangle in progress; the selection is left as it was. */
   const cancelMarquee = useCallback(() => {
@@ -225,6 +253,17 @@ export function BoardViewport({
     if (!surface) return;
     if (event.button !== 0) return;
     if (!isPanSurface(event.target)) return;
+    if (tool === 'text') {
+      // The Text tool owns this press: it does not pan, it does not marquee, and
+      // it is not a click on empty space either — it is a place being picked
+      // (`text.tool_ui`).
+      textPointerIdRef.current = event.pointerId;
+      textPressRef.current = boardPoint(surface, event.clientX, event.clientY);
+      if (typeof surface.setPointerCapture === 'function') {
+        surface.setPointerCapture(event.pointerId);
+      }
+      return;
+    }
     // Shift turns the same press on the same empty space into a marquee instead
     // of a pan (`sel.marquee_ui`); nothing else about the press changes.
     if (event.shiftKey && callbacksRef.current.marquee) {
@@ -249,6 +288,7 @@ export function BoardViewport({
   const movePan = (event: ReactPointerEvent<HTMLDivElement>) => {
     const surface = surfaceRef.current;
     if (!surface) return;
+    if (textPointerIdRef.current === event.pointerId) return; // a place does not move
     if (marqueePointerIdRef.current === event.pointerId) {
       callbacksRef.current.marquee?.move(boardPoint(surface, event.clientX, event.clientY));
       return;
@@ -263,6 +303,33 @@ export function BoardViewport({
 
   const endPan = (event: ReactPointerEvent<HTMLDivElement>, released: boolean): void => {
     const surface = surfaceRef.current;
+    if (textPointerIdRef.current === event.pointerId) {
+      const pressed = textPressRef.current;
+      textPointerIdRef.current = null;
+      textPressRef.current = null;
+      if (
+        surface &&
+        typeof surface.releasePointerCapture === 'function' &&
+        surface.hasPointerCapture?.(event.pointerId)
+      ) {
+        surface.releasePointerCapture(event.pointerId);
+      }
+      // A press that travelled is not a click — the same rule that tells a pan
+      // from a click everywhere else on this board — so a heading that was never
+      // meant to be stays unwritten (TC-31). The place is where the press
+      // started, not where the pointer happened to leave go.
+      const here = surface ? boardPoint(surface, event.clientX, event.clientY) : null;
+      if (
+        released &&
+        here &&
+        pressed &&
+        Math.abs(here.x - pressed.x) + Math.abs(here.y - pressed.y) < DRAG_THRESHOLD_PX
+      ) {
+        placedTextRef.current = pressed;
+        callbacksRef.current.onTextSpotClick?.(screenToWorld(boardRef.current.camera, pressed));
+      }
+      return;
+    }
     if (marqueePointerIdRef.current === event.pointerId) {
       marqueePointerIdRef.current = null;
       setMarqueeActive(false);
@@ -298,8 +365,22 @@ export function BoardViewport({
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     const surface = surfaceRef.current;
     if (!surface) return;
-    // Only empty board space creates notes; objects stop propagation.
+    // Only empty board space creates notes; objects stop propagation. While the
+    // Text tool is held a double-click is two clicks with a place between them,
+    // and the place has already been answered by the first one.
     if (!isPanSurface(event.target)) return;
+    if (tool === 'text') return;
+    const placed = placedTextRef.current;
+    placedTextRef.current = null;
+    if (placed) {
+      const surface = surfaceRef.current;
+      if (surface) {
+        const here = boardPoint(surface, event.clientX, event.clientY);
+        // One gesture, one command: the press that placed the text produced this
+        // double-click, and it is not also the story 2 shortcut.
+        if (Math.abs(here.x - placed.x) + Math.abs(here.y - placed.y) < DRAG_THRESHOLD_PX) return;
+      }
+    }
     const point = boardPoint(surface, event.clientX, event.clientY);
     callbacksRef.current.onEmptySpaceDoubleClick?.(
       screenToWorld(boardRef.current.camera, point),
@@ -319,6 +400,7 @@ export function BoardViewport({
       className="board-viewport"
       data-testid="board-viewport"
       data-pan-surface=""
+      data-tool={tool}
       data-panning={panning ? 'true' : 'false'}
       onPointerDown={startPan}
       onPointerMove={movePan}
@@ -339,6 +421,7 @@ export function BoardViewport({
       <div
         className="board-world"
         data-testid="board-world"
+        data-tool={tool}
         style={{
           transform: `scale(${camera.zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
         }}

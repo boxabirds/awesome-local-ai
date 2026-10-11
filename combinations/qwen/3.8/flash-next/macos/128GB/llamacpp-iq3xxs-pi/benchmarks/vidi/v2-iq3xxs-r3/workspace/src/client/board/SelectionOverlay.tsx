@@ -11,7 +11,7 @@ import {
   handleMovesTop,
 } from '../../shared/geometry';
 import type { Handle, Rect } from '../../shared/geometry';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, objectHandles } from '../objects/registry';
 import type { Camera } from '../canvas/camera';
 import { worldToScreen } from '../canvas/camera';
 
@@ -33,6 +33,32 @@ export function boundingBox(
 function anyResizable(ids: ReadonlySet<string>, snapshot: readonly ObjectSnapshot[]): boolean {
   return snapshot.some((object) => ids.has(object.id) && (getObjectType(object.type)?.resizable ?? false));
 }
+
+/**
+ * The handles this selection accepts (`sel.resize`, `text.fixed_width`).
+ *
+ * The eight, unless *every* object in the selection takes its height from its
+ * words — in which case the top and bottom edges would promise something the board
+ * cannot do, and only the two side edges are drawn. A text on its own therefore has
+ * a width and nothing else; a text beside a note has all eight again, because the
+ * box around them *is* a box, and the note in it does have a height of its own
+ * (what happens to the text inside such a group is the gesture's rule, not this
+ * one). An object of a type this build cannot draw counts as “all eight”, since
+ * promising less than it allows is the safe mistake.
+ */
+function selectionHandles(
+  ids: ReadonlySet<string>,
+  snapshot: readonly ObjectSnapshot[],
+): readonly Handle[] {
+  const selected = snapshot.filter((object) => ids.has(object.id));
+  if (selected.length > 0 && selected.every((object) => objectHandles(object.type) === 'horizontal')) {
+    return HORIZONTAL_HANDLES;
+  }
+  return HANDLES;
+}
+
+/** The two side edges: what a height-derived object lets you pull. */
+const HORIZONTAL_HANDLES: readonly Handle[] = ['w', 'e'];
 
 export interface SelectionOverlayProps {
   /** The selected ids; nothing is drawn for an empty selection. */
@@ -95,7 +121,7 @@ export function SelectionOverlay({
       style={{ left: `${origin.x}px`, top: `${origin.y}px`, width: `${width}px`, height: `${height}px` }}
     >
       {editable && anyResizable(ids, snapshot)
-        ? HANDLES.map((handle) => (
+        ? selectionHandles(ids, snapshot).map((handle) => (
             <button
               key={handle}
               type="button"

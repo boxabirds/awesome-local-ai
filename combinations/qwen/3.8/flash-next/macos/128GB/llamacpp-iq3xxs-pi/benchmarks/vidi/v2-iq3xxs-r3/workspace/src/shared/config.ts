@@ -210,3 +210,61 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * (undo.session_only).
  */
 export const UNDO_MAX_STEPS = 200;
+
+/* --- story 9: writing free text anywhere on the board ------------------- */
+
+/**
+ * The four text sizes (text.size): the key is what a board stores, so it is a
+ * string on the wire whatever the labels say; the value is the font size in
+ * board units, which is CSS pixels at 100 % zoom.
+ */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+/** Which keys {@link TEXT_SIZES} has, in the order the toolbar offers them. */
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** A text object starts at this size (text.create). */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/**
+ * The automatic width limit (text.auto_width): an auto-width box is as wide as
+ * its longest line, and a line longer than this wraps onto the next one.
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** The narrowest a fixed width may be (text.fixed_width). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** How many characters one text object holds (text.limit). */
+export const TEXT_MAX_CHARS = 5_000;
+
+/**
+ * A line is this many times the font size tall — the same multiple the CSS uses
+ * for `line-height`, so a measured box and a laid-out box agree.
+ */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/**
+ * Room the box keeps at its left and right of its lines, so an italic or a
+ * wide glyph is not clipped by the box edge. It is inside the automatic width
+ * limit, so a wrapped line is `TEXT_MAX_AUTO_WIDTH_WORLD` minus twice this.
+ */
+export const TEXT_BOX_PADDING_WORLD = 8;
+
+/**
+ * The font the text objects and the measurer share: the same stack `:root`
+ * renders, so what the measurer measured is what the board draws, and text
+ * stays crisp at every zoom (readability constraint). A webfont would have to
+ * be listed here *and* loaded before the box a text object reports means
+ * anything, which is why the board's own stack is the one that is measured.
+ */
+export const TEXT_FONT_FAMILY =
+  'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+
+/**
+ * How wide a character is, when nothing can be measured: the estimate a
+ * measurer falls back to (`text.layout`'s error path) is this times the font
+ * size, per character. Deliberately a little wide — an estimated box that is
+ * slightly too big is a box nobody can mistake for a clipping one.
+ */
+export const TEXT_ESTIMATED_GLYPH_RATIO = 0.52;

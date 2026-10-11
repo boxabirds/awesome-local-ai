@@ -300,7 +300,14 @@ export function selectedElements(): HTMLElement[] {
 /** Their ids, sorted, so a test can say what is selected without order noise. */
 export function selectedIds(): string[] {
   return selectedElements()
-    .map((element) => element.dataset.noteId ?? element.dataset.boxId ?? element.dataset.objectId ?? '')
+    .map(
+      (element) =>
+        element.dataset.noteId ??
+        element.dataset.textId ??
+        element.dataset.boxId ??
+        element.dataset.objectId ??
+        '',
+      )
     .filter((id) => id !== '')
     .sort();
 }

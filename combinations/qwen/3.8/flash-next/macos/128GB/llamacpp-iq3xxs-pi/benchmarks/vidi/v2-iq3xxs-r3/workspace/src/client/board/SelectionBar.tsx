@@ -1,9 +1,12 @@
 import type { JSX } from 'react';
 
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
 import { isStickySnapshot } from '../../shared/board-model';
 import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
+import { isTextSnapshot } from '../../shared/objects/text';
+import type { TextSnapshot } from '../../shared/objects/text';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 
 export interface SelectionBarProps {
   /** The selected ids, in no particular order. */
@@ -21,6 +24,13 @@ export interface SelectionBarProps {
   readonly color?: StickyColor | undefined;
   /** Recolour every selected note; absent when there is nothing to recolour. */
   onColor?(color: StickyColor): void;
+  /**
+   * The size of the one selected text, or `undefined` when the selection is not
+   * one text (`text.size`).
+   */
+  readonly size?: TextSize | undefined;
+  /** Give the selected text a size preset; absent when there is no text to size. */
+  onSize?(size: TextSize): void;
   /** True while a move or resize is in progress: the toolbar hides (TC-26). */
   readonly dragging?: boolean;
 }
@@ -33,6 +43,13 @@ function loneNote(
   if (ids.size !== 1) return undefined;
   const lone = snapshot.find((object) => ids.has(object.id));
   return lone !== undefined && isStickySnapshot(lone) ? lone : undefined;
+}
+
+/** The selected text, when the selection is exactly one piece of text. */
+function loneText(ids: ReadonlySet<string>, snapshot: readonly ObjectSnapshot[]): TextSnapshot | undefined {
+  if (ids.size !== 1) return undefined;
+  const only = snapshot.find((object) => ids.has(object.id));
+  return only !== undefined && isTextSnapshot(only) ? only : undefined;
 }
 
 /**
@@ -54,6 +71,8 @@ export function SelectionBar({
   editable,
   color,
   onColor,
+  size,
+  onSize,
   dragging = false,
 }: SelectionBarProps): JSX.Element | null {
   if (ids.size === 0) return null;
@@ -68,6 +87,19 @@ export function SelectionBar({
         color={color ?? lone.color}
         disabled={!editable}
         onColor={(next) => onColor(next)}
+        onDelete={onDelete}
+      />
+    ) : null;
+  }
+  // One piece of text on its own gets the same treatment as one note: its own
+  // toolbar, in the same place, with the four sizes and delete (`text.size`).
+  const only = loneText(ids, snapshot);
+  if (only) {
+    return !dragging && onSize ? (
+      <TextToolbar
+        size={size ?? only.size}
+        disabled={!editable}
+        onSize={(next) => onSize(next)}
         onDelete={onDelete}
       />
     ) : null;

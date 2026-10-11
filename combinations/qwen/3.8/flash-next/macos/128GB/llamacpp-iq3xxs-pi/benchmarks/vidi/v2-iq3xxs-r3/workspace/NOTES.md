@@ -682,3 +682,134 @@ quarantined: 1}`, which reaches the room as a load failure (close 4500) and
   origin, which is why the eight notes of TC-22 are not in Mia's history when she
   arrives at them. A seeder that used `LOCAL_ORIGIN` would hand her eight steps
   she never did and a TC-22 that proves nothing.
+
+## Story 9 decisions and deviations
+
+- **`TEXT_TYPE` lives in `src/shared/board-model.ts`, not in the story's own
+  module.** `MODEL_OBJECT_TYPES` is built in that file, so declaring the type
+  value there keeps the imports one-way (`shared/objects/text.ts` → board-model)
+  exactly as `STICKY_TYPE` is declared and used. The alternative — the model
+  importing the constant from the story — would put a cycle in the module graph
+  for one string.
+- **The text fields ride on `ObjectSnapshot` as optional fields.** The interface
+  already said "the fields past `createdAt` belong to one type"; `size`,
+  `widthMode`, `text` and `createdBy` are read in `toObjectSnapshot` when an
+  entry has them and of the kind a story defined, and are left out otherwise.
+  `StickySnapshot` pins `size`/`widthMode` to `undefined`, so a note — which is
+  sized by its type default, not by a font preset — can never be mistaken for
+  the other kind of `size`. `TextSnapshot extends ObjectSnapshot` narrows them,
+  and `isTextSnapshot` is what the client reaches for before drawing one.
+- **One setting the design's list omits: `TEXT_BOX_PADDING_WORLD` (8).** TC-07
+  asks for a box of "measured line plus padding", and glyphs at the edge of a box
+  need the room. It is *inside* the automatic width limit, so a line that wraps
+  is `TEXT_MAX_AUTO_WIDTH_WORLD` wide and TC-26 still measures 600.
+- **`createdBy` is a per-tab anonymous id, not a user reference.** Story 6
+  (identity) and stories 13–17 (`editedBy`, `editedAt`, presence) are not in this
+  build, and there is no `useIdentity` to ask. `src/client/sessionId.ts` holds
+  one `crypto.randomUUID()` per tab and passes it to `createText`; the model's
+  argument is optional and defaults to `''`. When story 6 lands it replaces the
+  caller's argument, not the signature.
+- **Empty means *zero characters*, not "blank"** (`isEmptyText`): a heading of
+  spaces was typed on purpose (tasks.md TC-04's negative case), and only a text
+  with nothing in it is deleted when its edit ends.
+- **Every story 9 write uses `LOCAL_ORIGIN`.** Story 8's undo filter tracks that
+  origin alone, so a text created, resized, resized-in-size or box-remeasured by
+  this client is undoable; and `useTextBoxSync` recognises its own transactions
+  by the same test, which is how remote text never causes a box write.
+- **`tests/unit/text-model.test.ts` does not mock a measurer.** The design notes
+  that a fake measurer belongs to the client's layout tests, so the model tests
+  need none: the initial box a `createText` writes is `TEXT_MIN_WIDTH_WORLD` by
+  one line of the default size — an estimate, not a measurement.
+### Story 9, second half: layout and box sync
+
+  - **600 is a box width *and* the wrapping threshold.** The PRD wraps only a line
+  "longer than 600 board units", and TC-09 pins the boundary: a line measuring
+  exactly 600 is one line in a box 600 wide. So an automatic text wraps at
+  `TEXT_MAX_AUTO_WIDTH_WORLD` and its box is then
+  `clamp(longest line + padding, TEXT_MIN_WIDTH_WORLD, 600)`. The alternative —
+  wrapping at `600 − padding` because the padding is inside the box — would wrap
+  a 590-unit line the PRD says fits, so the padding is dropped at the limit: a
+  line at the limit sits in it. `TEXT_BOX_PADDING_WORLD` still buys its room at
+  every other width, which is what TC-07's "measured line plus padding" is.
+  - **A box is a whole number of board units.** `layoutText` rounds, and so does
+  `createText`'s initial height, for one reason beyond tidiness: the rule that
+  keeps a document quiet is "write only if the measurement differs from what is
+  stored", and that comparison is meaningless if one side is `26.000000000000004`.
+  - **`useTextBoxSync` uses `observeDeep`, not `observe`.** The characters of a
+  text are a `Y.Text` *inside* the object entry, and typing does not touch the
+  map, so an observer of the map would never hear anybody type.
+  - **Deviation from the design's sequence diagram: the box sync, not the gesture,
+  turns a dragged width into a fixed width.** The diagram has
+  `useTransformGesture` calling `setTextWidthFixed`. It is instead the hook that
+  notices "this client wrote a width that is neither what it measured nor what
+  the content asks for", and that means story 7's generic gesture keeps no
+  knowledge of object types — it resizes, and text is a text. TC-12 pins the
+  observable half: after a local width drag the mode is `fixed` and the height
+  is the re-wrapped one, in one write.
+  - **`setTextWidthFixed` takes an optional height** so a width drag leaves one
+  transaction behind (width, mode, height) instead of three, which is one undo
+  step rather than a drag that has to be undone three times.
+  - **jsdom prints `Not implemented: HTMLCanvasElement's getContext()`** in any
+  component test that measures text: jsdom has no canvas, which is the same
+  territory as TC-32 and lands in the estimate path. The probe is cached, so it
+  is once per worker rather than once per component.
+
+## Tasks 8-9: the text object, its editor and its toolbar
+
+- **One editor, not two.** `TextEditor` holds everything story 2's editor did —
+  diff into the `Y.Text` on every input, clamp, caret at the end, Escape and
+  outside-click ending the edit, the board's history answering Ctrl/Cmd+Z — and
+  `StickyTextEditor` is now what a note asks of it: its 1,000-character limit, its
+  counter, a field sized by the note's CSS (`width: 'auto'`), and no re-measuring,
+  because a note fits its text to its box instead of growing the box. The outside-
+  press test that decides "is this press outside me?" used to look for
+  `[data-note-id]`; it looks for `[data-note-id], [data-text-id]` now, which is the
+  one place the refactor touched behaviour and TC-19's second test pins it.
+- **The counter is a rule the owner hands in, not a rule the editor has.** The
+  shared editor takes `counter?: (length) => boolean`; a note passes story 2's own
+  `counterVisible` (950 of 1,000, `sticky.text_limit`) and a text passes nothing,
+  because nobody asked for a heading counted up and `TEXT_MAX_CHARS` is a wall
+  rather than a countdown. Kept as a function rather than a number so the note's
+  rule stays a note's rule, with its unit tests pointing at it.
+- **A text's field is as wide as its box.** `width={bounds.width}` is the whole
+  reason typing looks like what you get: the line breaks while you type at the
+  same characters they break at afterwards.
+- **`text.empty` is enforced at the edit's end**, in `TextObject`, by
+  `isEmptyText`/`deleteIfEmpty`. Not while it is open — an empty heading is exactly
+  what a person is looking at for the first second of typing — and the selection
+  lets go of it by itself because the board already drops objects that vanish. An
+  undo back to empty inside an open edit therefore does *not* delete the object.
+- **Handles are asked of the type, decided by the selection.** `ObjectTypeSpec`
+  gained `handles?: 'all' | 'horizontal'` and text declares `horizontal`;
+  `SelectionOverlay` draws only the two side edges when *every* selected object
+  says that, so a text beside a note has all eight again (the box around them is a
+  box). An object of a type this build cannot draw counts as `all`, since promising
+  less than it allows is the safe mistake.
+- **The gesture's one text-specific line** is the case the design named: one
+  object, `handles: 'horizontal'`, a side handle — write through
+  `setTextWidthFixed`, move x/y separately, so the drag is one undo step. In a
+  mixed selection an *auto* width text is repositioned and keeps the width its
+  words asked for, while a text with a width it chose scales like anything else
+  (`text.group`); its letters are never scaled, in any case (`text.font`).
+- **Design's "size change and handle drag call `remeasureAfterLocalChange`"
+  happens through the box sync's observer instead of an explicit call.** Picking a
+  size is a local change to the object's own record, and that is exactly what
+  `useTextBoxSync` listens for, so neither `TextToolbar` nor the gesture has to
+  know the hook exists. It lands in the same undo step, because the observer fires
+  at commit and the boundary comes after.
+- **A lone text gets its own toolbar in `SelectionBar`**, by the same rule that
+  gives a lone note `NoteToolbar`, and it goes away while the object is being
+  typed into or dragged for the same reason (the whole anchor is hidden).
+- **The bin is drawn once** (`icons.tsx`) now that two toolbars delete.
+- **The words stay mounted while editing**, `visibility: hidden`, as a note's do.
+  It keeps the object from collapsing to an empty box, and it keeps the words
+  readable in the DOM for the browser tests that assert what a heading says.
+- **Test-level, and only a test-level thing:** a text that arrives from another
+  screen carries the box *that* screen measured, and this client never re-measures
+  it (`text.height`) — correct behaviour, but it means a test that seeded a text
+  through the model is holding an unmeasured minimum box. `measureHere` in
+  `TextObject.test.tsx` gives the object one local change to answer (size to S and
+  straight back), which leaves the text as it was and the box measured here.
+  Relatedly, widths in component tests are compared only to each other: jsdom has
+  no canvas, so the measurer is estimating, and what a measurement is worth is
+  settled in the browser (TC-26) and by the layout tests (TC-07 and up).
