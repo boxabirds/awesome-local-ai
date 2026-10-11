@@ -255,3 +255,11 @@ def test_a_linux_process_resident_memory_is_split_into_anonymous_and_file_backed
 
 def test_a_status_without_the_split_gives_nothing_not_zeros():
     assert hostenv.parse_proc_status_split_mib("Name:\tx\nVmRSS:\t10 kB\n") is None
+
+
+def test_a_token_count_in_a_recorded_process_command_is_kept_and_a_key_is_masked():
+    # The memory snapshot lists processes' command lines; a key is masked there, a count of tokens is not.
+    from hostenv import _clean_command
+    cleaned = _clean_command("gufo serve --draft-tokens 7 --max-tokens 32768 --api-key sk-live-abc /home/u/models", "/home/u")
+    assert "--draft-tokens 7" in cleaned and "--max-tokens 32768" in cleaned
+    assert "sk-live-abc" not in cleaned and "--api-key ***" in cleaned and "~/models" in cleaned

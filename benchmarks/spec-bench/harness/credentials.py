@@ -36,6 +36,15 @@ import os
 import re
 from pathlib import Path
 
+# A flag that counts tokens (--draft-tokens 7, --max-tokens=32768) has "token" in its name and is not a credential.
+# Only a number is exempt: a plural name with any other value could still be one.
+_COUNT_FLAG = re.compile(r"^--?[\w-]*tokens$", re.I)
+_COUNT_VALUE = re.compile(r"^\d+$")
+
+
+def is_token_count(flag: str, value: str) -> bool:
+    return bool(_COUNT_FLAG.match(flag) and _COUNT_VALUE.match(value))
+
 MIN_VALUE_CHARS = 8
 ENV_NAME_KEYWORDS = ("API_KEY", "APIKEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "ACCESS_KEY", "PRIVATE_KEY")
 # What ends a value: space, quotes, a backslash (a JSON escape), shell and markup punctuation, a truncation mark.

@@ -14,6 +14,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import credentials
+
 IS_MAC = sys.platform == "darwin"
 KIB_PER_GIB = 1024 ** 2
 MIB_PER_GIB = 1024
@@ -182,7 +184,9 @@ _SECRET_FLAG = re.compile(r"(--?[\w-]*(?:key|token|secret|password)[\w-]*)([ =])
 
 def _clean_command(args: str, home: str) -> str:
     """Run folders are published: no home paths and no keys in a recorded command line."""
-    args = _SECRET_FLAG.sub(lambda m: f"{m.group(1)}{m.group(2)}***", args.replace(home, "~"))
+    args = _SECRET_FLAG.sub(
+        lambda m: m.group(0) if credentials.is_token_count(m.group(1), m.group(3)) else f"{m.group(1)}{m.group(2)}***",
+        args.replace(home, "~"))
     return args[:COMMAND_CHARS]
 
 

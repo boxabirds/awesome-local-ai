@@ -178,6 +178,15 @@ assert_ok    "THINKING=0: thinking off"                has_pair --think off
 assert_ok    "...with the instruct sampler"            has_pair --temperature 0.7
 assert_fails "...and no effort flag"                   grep -qx -- --reasoning-effort "$ARGV"
 
+# run.sh --max <n> (and SPEC_DRAFT_N_MAX) is the draft depth for every engine; gufo's launcher used to read only
+# DRAFT_TOKENS, so `./run.sh ... --max 4` was accepted and did nothing.
+rm -f "$ARGV"; launch SPEC_DRAFT_N_MAX=4
+assert_ok "SPEC_DRAFT_N_MAX (run.sh --max) sets the draft depth"  has_pair --draft-tokens 4
+rm -f "$ARGV"; launch SPEC_DRAFT_N_MAX=4 DRAFT_TOKENS=5
+assert_ok "...and gufo's own DRAFT_TOKENS wins over it"           has_pair --draft-tokens 5
+rm -f "$ARGV"; launch
+assert_ok "...and with neither, the profile's depth (7)"          has_pair --draft-tokens 7
+
 rm -f "$ARGV"; launch DRAFT_TOKENS=4 CTX=65536
 assert_ok "DRAFT_TOKENS overrides the profile"         has_pair --draft-tokens 4
 assert_ok "CTX overrides the profile"                  has_pair --context 65536

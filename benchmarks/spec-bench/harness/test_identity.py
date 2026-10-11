@@ -242,3 +242,21 @@ def test_a_host_process_is_its_own_engine(tmp_path, monkeypatch):
     rec = I.identity(env, 18010)
     assert rec["server_command"] == argv and rec["listener_command"] is None and rec["container"] is None
     assert rec["engine_version"] == "version: 1 (commit a)"
+
+
+# A run record is published, so a key on a command line is masked. A count of tokens is not a key: on 11 Oct 2026
+# every gufo record showed `--draft-tokens ***`, because the rule masked any flag with "token" in its name, and the
+# draft depth (which changes speed a great deal) could not be read back from any run.
+def test_a_flag_that_counts_tokens_keeps_its_number_in_the_recorded_command():
+    argv = ["gufo", "serve", "--draft-tokens", "7", "--max-tokens=32768", "--context", "196608"]
+    assert I.redact(argv) == argv
+
+
+def test_a_key_or_token_on_the_command_line_is_still_masked():
+    argv = ["gufo", "serve", "--api-key", "sk-live-abc", "--hf-token=hf_secret", "--token", "t0k3n", "--password=pw"]
+    assert I.redact(argv) == ["gufo", "serve", "--api-key", "***", "--hf-token=***", "--token", "***", "--password=***"]
+
+
+def test_a_counting_flag_is_only_exempt_for_a_number():
+    # a plural name with a value that is not a count could still be a credential
+    assert I.redact(["x", "--auth-tokens", "abc123def456"]) == ["x", "--auth-tokens", "***"]

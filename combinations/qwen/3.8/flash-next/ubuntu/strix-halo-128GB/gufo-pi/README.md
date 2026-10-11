@@ -59,8 +59,9 @@ compares engine *and* quant, not the engine alone.
 Server-side defaults, identical to llamacpp-pi: temperature 1.0, top-p 0.95,
 top-k 20, min-p 0, thinking on, reasoning effort `low`. A request that sets its
 own still wins. `THINKING=0` switches to the instruct sampler. MTP drafts up to
-7 tokens a step (gufo's default; llama.cpp's runs use 4): `DRAFT_TOKENS=4` for
-an A/B.
+7 tokens a step (gufo's default; llama.cpp's runs use 4): `./run.sh qwen3.8-flash-next-gufo --max 4 --server` (or
+`DRAFT_TOKENS=4`) for an A/B. The depth is a ceiling: gufo adapts below it, and in one 11-hour session proposed 2.4
+drafts per step on average (11 Oct 2026). The launcher prints the depth at start (`draft=`) and run records show it from the first harness release after 11 Oct 2026 (earlier gufo records have `***` there, a masking bug).
 
 ## Requirements
 

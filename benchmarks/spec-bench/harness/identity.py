@@ -33,6 +33,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import credentials
+
 MODEL_ROLES = ("MODEL_FILE", "MTP_FILE", "MMPROJ_FILE", "GUFO_MODEL_REL", "GUFO_MTP_REL")
 HF_METADATA = Path(".cache/huggingface/download")
 VERIFIED_MARKER = ".awesome-local-ai-verified"
@@ -244,14 +246,19 @@ def version_command(backend: str | None, argv: list[str] | None, container: dict
 
 
 def redact(argv: list[str]) -> list[str]:
-    """Run records are published: a key given on a command line is masked."""
+    """Run records are published: a key given on a command line is masked. A count of tokens is not a key."""
     out, mask_next = [], False
-    for a in argv:
+    for i, a in enumerate(argv):
         if mask_next:
             out.append("***"); mask_next = False
             continue
-        flag, eq, _ = a.partition("=")
+        flag, eq, value = a.partition("=")
         if _SECRET.match(flag):
+            if not eq:
+                value = argv[i + 1] if i + 1 < len(argv) else ""
+            if credentials.is_token_count(flag, value):
+                out.append(a)
+                continue
             if eq:
                 out.append(f"{flag}=***")
                 continue

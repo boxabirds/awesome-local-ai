@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 import engine_settings as E
+import identity as I
 
 # --- real-shaped command lines -------------------------------------------------------------------
 
@@ -202,6 +203,13 @@ class TestGufo:
         assert (val(s, "temperature"), val(s, "top_p"), val(s, "top_k"), val(s, "min_p")) == (1.0, 0.95, 20, 0.0)
         assert val(s, "quantisation") == "UD-Q4_K_XL"
         assert s["reasoning_effort"]["engine"]["value"] == "low"
+
+    def test_the_draft_depth_survives_the_masking_of_a_published_command_line(self):
+        # The record is made from the command line AFTER keys are masked. On 11 Oct 2026 that rule masked
+        # `--draft-tokens 7`, and every gufo run recorded "draft_max": "***".
+        s = settings("gufo", I.redact(GUFO), GUFO_VERSION)
+        assert val(s, "speculative")["draft_max"] == 7
+        assert "--draft-tokens 7" in s["speculative"]["evidence"]
 
     def test_gufo_has_no_kv_type_switch_so_it_is_unknown_with_why(self):
         s = settings("gufo", GUFO)
