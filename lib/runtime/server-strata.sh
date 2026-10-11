@@ -57,7 +57,9 @@ PY="$STRATA_DIR/.venv/bin/python"
 [[ -n "${STRATA_DIR_REL:-}" && -x "$PY" && -f "$STRATA_DIR/serve/server.py" ]] || {
   echo "${SERVER_CMD}: no Strata checkout at ${STRATA_DIR}; re-run the install script." >&2
   exit 1; }
-SETUP_CONFIG="$STRATA_DIR/strata-$(printf '%s' "$STRATA_QUANT" | tr '[:upper:]' '[:lower:]').json"
+# The file setup writes is named for the quant, and for the family too when it is not the default one (the Unsloth
+# family's is strata-unsloth-ud-iq4_xs.json); a combination that needs another name says so.
+SETUP_CONFIG="$STRATA_DIR/${STRATA_SETUP_CONFIG:-strata-$(printf '%s' "$STRATA_QUANT" | tr '[:upper:]' '[:lower:]').json}"
 [[ -f "$SETUP_CONFIG" ]] || {
   echo "${SERVER_CMD}: Strata's setup has not written ${SETUP_CONFIG}; re-run the install script." >&2
   exit 1; }
@@ -117,9 +119,9 @@ if [[ "${avail_ram:-}" =~ ^[0-9]+$ ]] && (( avail_ram < min_ram )); then
 fi
 
 RUN_CONFIG="$ROOT/strata-run.json"
-python3 - "$SETUP_CONFIG" "$RUN_CONFIG" "$CTX" "${STRATA_VRAM_RESERVE_MIB:-0}" "$ROOT/strata-engine.log" "$MODEL_ALIAS" "${SAMPLING_THINKING:---temperature 1.0 --top-p 0.95 --top-k 20}" <<'PY'
+python3 - "$SETUP_CONFIG" "$RUN_CONFIG" "$CTX" "${STRATA_VRAM_RESERVE_MIB:-0}" "$ROOT/strata-engine.log" "$MODEL_ALIAS" "${SAMPLING_THINKING:---temperature 1.0 --top-p 0.95 --top-k 20}" "${STRATA_ENV:-}" <<'PY'
 import json, sys
-src, dst, ctx, reserve, log, name, sampling = sys.argv[1:8]
+src, dst, ctx, reserve, log, name, sampling, env = sys.argv[1:9]
 cfg = json.load(open(src))
 args = list(cfg["args"])
 def drop(flag):
@@ -136,6 +138,11 @@ cfg["log"] = log
 words = sampling.split()
 want = {"--temperature": ("temperature", float), "--top-p": ("top_p", float), "--top-k": ("top_k", int)}
 cfg["sampling"] = {key: cast(words[words.index(flag) + 1]) for flag, (key, cast) in want.items() if flag in words}
+# The combination's engine switches, beside what setup put in the environment (the hipBLASLt table on a Strix Halo).
+merged = dict(cfg.get("env") or {})
+merged.update(pair.split("=", 1) for pair in env.split() if "=" in pair)
+if merged:
+    cfg["env"] = merged
 json.dump(cfg, open(dst, "w"), indent=1)
 PY
 # pi sends no reasoning effort, and Qwen3.8's template default is xhigh; Strata applies this to requests that name none.
