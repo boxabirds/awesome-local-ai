@@ -1,3 +1,46 @@
+commit 8ef133a0088b9fd8cd052d484c57e6c2e9ca69ce
+agent  Sun Oct 11 16:49:30 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  |   69 ++
+ PROGRESS.md                               |   18 +-
+ package-lock.json                         | 1511 ++++++++++++++++++++++++++++-
+ package.json                              |    8 +-
+ src/client/App.tsx                        |   36 +-
+ src/client/app.css                        |   34 +
+ src/client/board/useBoardDoc.ts           |   71 +-
+ src/client/canvas/testHooks.ts            |   12 +-
+ src/client/objects/StickyTextEditor.tsx   |   30 +
+ src/client/sync/ConnectionStatus.tsx      |   30 +
+ src/client/sync/connectBoard.ts           |  162 ++++
+ src/shared/board-id.ts                    |   50 +
+ src/shared/config.ts                      |   15 +
+ src/shared/protocol.ts                    |   73 ++
+ src/worker/board-room.ts                  |  150 +++
+ src/worker/index.ts                       |   39 +
+ tests/component/ConnectionStatus.test.tsx |   94 ++
+ tests/e2e/helpers/collab.ts               |  199 ++++
+ tests/e2e/live-collaboration.spec.ts      |  430 ++++++++
+ tests/integration/helpers.ts              |   94 ++
+ tests/integration/room.test.ts            |  326 +++++++
+ tests/integration/routing.test.ts         |   53 +
+ tests/integration/yclient.ts              |  258 +++++
+ tests/unit/board-id.test.ts               |   44 +
+ tests/unit/protocol.test.ts               |   96 ++
+ tsconfig.json                             |    2 +-
+ vitest.config.ts                          |   21 +-
+ wrangler.jsonc                            |   21 +-
+ 28 files changed, 3904 insertions(+), 42 deletions(-)
+commit 6dda5b355edb2df96a1b7fb3f9cec80da2b2079e
+vidi-agent  Sun Oct 11 14:52:18 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)
 commit f09badf21cba5a8735075ab530ed544d054de9b8
 agent  Sun Oct 11 14:51:30 2026 +0100
 

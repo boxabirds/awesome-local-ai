@@ -10,15 +10,17 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 10/10 | 0 | 0 | 20/20 |
+| 3 | 6/7 | 0 | 0 | 26/27 |
 
-**New work** 16/16, **regressions** 0, **repairs** 0, **cumulative** 20/20.
+**New work** 22/23, **regressions** 0, **repairs** 0, **cumulative** 26/27.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 32.7 | None | None | None | — | — | green | 6/6 |  | 0 / 1 | 0 | — | throttled 0%, server peak 17 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 50.2 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 2 | — | throttled 0%, server peak 17 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 117.4 | None | None | None | — | — | green | 26/27 |  | 0 / 0 | 5 | — | throttled 0%, server peak 17 GB |
 
-**Totals:** 2 stories, 83 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 20/20, stalled 0, partial 0, 3881 lines in src+tests.
+**Totals:** 3 stories, 200 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 26/27, stalled 0, partial 0, 6123 lines in src+tests.
 
 ## How it happened
 
@@ -28,6 +30,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 3 by the agent | 6820 / 58 | `BoardViewport.tsx` (231), `useCamera.ts` (167), `camera.ts` (138), `app.css` (79), `NOTES.md` (62), `playwright.config.ts` (52), +15 more |
 | 2 | 1 by the agent | 2478 / 21 | `StickyNote.tsx` (283), `board-model.ts` (197), `StickyTextEditor.tsx` (140), `App.tsx` (130), `app.css` (104), `StickyText.ts` (80), +10 more |
+| 3 | 1 by the agent | 3904 / 42 | `connectBoard.ts` (162), `board-room.ts` (150), `protocol.ts` (73), `useBoardDoc.ts` (71), `NOTES.md` (69), `board-id.ts` (50), +12 more |
 
 ### Earlier stories broken or fixed
 
