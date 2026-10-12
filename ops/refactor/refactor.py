@@ -671,13 +671,31 @@ def parse_kcov(root: Path, report: dict) -> dict[str, FileCoverage]:
     return {relative(root, f["file"]): FileCoverage(int(f["total_lines"]), int(f["covered_lines"]), 0, 0) for f in report["files"]}
 
 
+def run_kcov(root: Path, outdir: Path, spec: dict) -> dict[str, FileCoverage]:
+    """Every shell test script runs under kcov, then the runs are merged and the merged json is read (Linux only)."""
+    kcov = shutil.which("kcov")
+    if kcov is None:
+        raise NotMeasured("kcov is not installed (it measures shell coverage on Linux only)")
+    parts = []
+    for script in sorted(p for p in root.glob(spec["glob"]) if p.is_file()):
+        part = outdir / script.stem
+        done = subprocess.run([kcov, f"--include-path={root}", str(part), str(script)], cwd=root, capture_output=True, text=True)
+        if done.returncode != EXIT_OK:
+            raise SuiteRed(f"{script.relative_to(root)} exited {done.returncode} under kcov")
+        parts.append(str(part))
+    merged = subprocess.run([kcov, "--merge", str(outdir / "kcov-merged"), *parts], cwd=root, capture_output=True, text=True)
+    if merged.returncode != EXIT_OK:
+        raise SuiteRed(f"kcov --merge exited {merged.returncode}")
+    return parse_kcov(root, json.loads((outdir / spec.get("file", "kcov-merged/coverage.json")).read_text()))
+
+
 def run_coverage(root: Path, language: str, spec: dict) -> dict[str, FileCoverage]:
     """Run one language's suite under its coverage tool and read the per-file counts it wrote."""
-    if language == "shell":
-        raise NotMeasured("no shell coverage tool is configured here (kcov runs on Linux only)")
     outdir = root / REPORTS_DIR / f"coverage-{language}"
     shutil.rmtree(outdir, ignore_errors=True)
     outdir.mkdir(parents=True)
+    if language == "shell":
+        return run_kcov(root, outdir, spec)
     out = outdir / spec.get("file", "coverage.json")       # a tool that writes a folder names the file it writes there
     command = [part.replace(COVERAGE_OUT, str(out)).replace(COVERAGE_OUTDIR, str(outdir)) for part in spec["command"]]
     try:
@@ -709,7 +727,8 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage) -> Result:
     measured_counts: dict[str, list[int]] = {}
     for language, touched in sorted(files.items()):
         try:
-            measured = runner(root, language, specs.get(language, {}).get("coverage", {}) | {"dir": specs.get(language, {}).get("dir", ".")})
+            language_spec = specs.get(language, {})
+            measured = runner(root, language, language_spec.get("coverage", {}) | {"dir": language_spec.get("dir", "."), "glob": language_spec.get("glob", "")})
         except NotMeasured as exc:
             not_measured[language] = str(exc)
             continue

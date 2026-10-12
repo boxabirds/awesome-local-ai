@@ -42,3 +42,7 @@ command = ["cargo", "+nightly", "llvm-cov", "--workspace", "--json", "--branch",
 format = "vitest-summary"
 command = ["bun", "x", "vitest", "run", "--coverage.enabled", "--coverage.provider=v8", "--coverage.reporter=json-summary", "--coverage.reportsDirectory={outdir}"]
 file = "coverage-summary.json"
+
+[shell.coverage]
+format = "kcov"
+file = "kcov-merged/coverage.json"

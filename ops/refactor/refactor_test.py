@@ -1278,3 +1278,50 @@ def test_tc24_the_missing_tool_is_exit_2_naming_it_through_the_real_command(cove
     done, report = coverage_run(root)
     assert done.returncode == R.EXIT_ERROR and {p["code"] for p in report["problems"]} == {"E-TOOL-MISSING"}
     assert "llvm-cov-not-installed" in report["problems"][0]["detail"]
+
+
+# ---- shell coverage through kcov (Linux): our invocation, tested with a stand-in kcov on the PATH -------------------------------
+
+FAKE_KCOV = """#!/bin/sh
+# records every call; a --merge call writes the merged json the real kcov would
+echo "$@" >> "$KCOV_LOG"
+if [ "$1" = "--merge" ]; then
+  mkdir -p "$2"
+  printf '{"files": [{"file": "%s/tests/one-test.sh", "covered_lines": "7", "total_lines": "9"}]}' "$KCOV_ROOT" > "$2/coverage.json"
+else
+  mkdir -p "$2"
+fi
+"""
+
+
+def shell_root(tmp_path: Path) -> Path:
+    root = make_root(tmp_path, touched='[[entry]]\nlanguage = "shell"\nfile = "tests/one-test.sh"\nfunction = "<script>"\nclasses = ["B"]\n')
+    write(root, "tests/one-test.sh", "echo hi\n")
+    write(root, "tests/two-test.sh", "echo ho\n")
+    write(root, "ops/refactor/runners.toml",
+          '[shell]\nglob = "tests/*-test.sh"\n[shell.coverage]\nformat = "kcov"\nfile = "kcov-merged/coverage.json"\n')
+    return root
+
+
+def test_with_kcov_every_shell_test_runs_under_it_then_the_results_are_merged_and_read(tmp_path, monkeypatch):
+    root = shell_root(tmp_path)
+    bin_dir = tmp_path / "bin"
+    write(bin_dir, "kcov", FAKE_KCOV).chmod(0o755)
+    log = tmp_path / "kcov.log"
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setenv("KCOV_LOG", str(log))
+    monkeypatch.setenv("KCOV_ROOT", str(root.resolve()))
+    result = R.check_coverage(root)
+    calls = log.read_text().splitlines()
+    assert any("tests/one-test.sh" in c for c in calls) and any("tests/two-test.sh" in c for c in calls)
+    assert any(c.startswith("--merge") for c in calls)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-BELOW", "tests/one-test.sh")] and "7 of 9 lines" in result.problems[0].detail
+    assert result.data["not_measured"] == {}
+
+
+def test_without_kcov_on_the_path_shell_is_not_measured_and_the_check_still_decides(tmp_path, monkeypatch):
+    root = shell_root(tmp_path)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    assert shutil.which("kcov") is None
+    result = R.check_coverage(root)
+    assert result.exit_code == R.EXIT_OK and list(result.data["not_measured"]) == ["shell"]
