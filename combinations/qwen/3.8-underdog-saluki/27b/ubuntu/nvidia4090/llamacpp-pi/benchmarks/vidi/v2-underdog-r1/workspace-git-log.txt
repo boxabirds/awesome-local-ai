@@ -1,3 +1,60 @@
+commit 9b61ebf123710459b7b1fb1e4c469ec19a8fbc72
+vidi-agent  Mon Oct 12 11:51:17 2026 +0100
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ index.html                                |   4 +-
+ playwright.config.ts                      |   6 +-
+ scratch/spike-worker.ts                   |  55 +++++
+ scratch/wrangler.jsonc                    |   5 +
+ scratch/ws-probe.ts                       |  12 +
+ src/client/App.tsx                        | 177 ++------------
+ src/client/api.ts                         |  48 ++++
+ src/client/board/Board.tsx                | 196 ++++++++++++++++
+ src/client/board/ConnectionStatus.tsx     |  26 +++
+ src/client/board/Toolbar.tsx              |   5 +-
+ src/client/board/connect.ts               | 108 +++++++++
+ src/client/board/useBoardDoc.ts           |  25 +-
+ src/client/objects/StickyNote.tsx         |  14 +-
+ src/client/pages/BoardPage.tsx            |  64 ++++++
+ src/client/pages/HomePage.tsx             |  68 ++++++
+ src/client/pages/NotFoundPage.tsx         |  17 ++
+ src/client/pages/state.ts                 |  52 +++++
+ src/client/router.ts                      |  55 +++++
+ src/client/share/SharePanel.tsx           | 156 +++++++++++++
+ src/client/styles.css                     | 175 ++++++++++++++
+ src/shared/config.ts                      |  14 +-
+ src/worker/board-room.ts                  | 368 +++++++++++++++++++++++++++++-
+ src/worker/board-store.ts                 | 276 ++++++++++++++++++----
+ src/worker/cloudflare-workers.d.ts        |  45 ++--
+ src/worker/create-board.ts                |  37 +++
+ src/worker/index.ts                       | 104 +++++++--
+ src/worker/test-hooks.ts                  |  33 +++
+ tests/component/BoardViewport.test.tsx    |   4 +-
+ tests/component/NavigationHint.test.tsx   |   4 +-
+ tests/component/SharePanel.test.tsx       | 152 ++++++++++++
+ tests/component/StickyNote.test.tsx       |   6 +-
+ tests/component/StickyTextEditor.test.tsx |   4 +-
+ tests/component/pages.test.tsx            | 189 +++++++++++++++
+ tests/e2e/helpers/board.ts                |  11 +
+ tests/e2e/navigation.spec.ts              |   9 +-
+ tests/e2e/share.spec.ts                   | 162 +++++++++++++
+ tests/e2e/sticky-notes.spec.ts            |  14 +-
+ tests/integration/board-api.test.ts       | 234 +++++++++++++++++++
+ tests/integration/board-store.test.ts     |  20 +-
+ tests/integration/routing.test.ts         |  12 +-
+ tests/integration/tmp-spike.test.ts       |  12 +
+ tests/unit/create-board.test.ts           |  27 +++
+ 42 files changed, 2715 insertions(+), 290 deletions(-)
+commit 9740bcd7346db03e43821b466060ba4b50f80140
+vidi-agent  Mon Oct 12 07:47:29 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 30 +++++++++++++-----------------
+ 1 file changed, 13 insertions(+), 17 deletions(-)
 commit dba8b23f90de75a6d6be799ab725a6c7230f850d
 vidi-agent  Mon Oct 12 07:47:21 2026 +0100
 

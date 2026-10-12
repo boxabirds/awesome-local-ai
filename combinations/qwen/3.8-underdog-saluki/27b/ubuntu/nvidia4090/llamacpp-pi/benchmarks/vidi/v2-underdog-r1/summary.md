@@ -12,8 +12,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | 8/10 | 0 | 0 | 17/20 |
 | 3 | 0/7 | 17 | 0 | 0/27 |
 | 4 | 0/4 | 0 | 0 | 0/31 |
+| 5 | 3/5 | 0 | 19 | 22/36 |
 
-**New work** 14/27, **regressions** 17, **repairs** 0, **cumulative** 0/31.
+**New work** 17/32, **regressions** 17, **repairs** 19, **cumulative** 22/36.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -21,13 +22,16 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 86.9 | None | None | None | — | — | green | 17/20 |  | 0 / 0 | 4 | — | throttled 0%, server peak 24 GB |
 | 3 | See other people's edits appear live on the same board | PARTIAL (red) | 74.6 | None | None | None | — | — | red | 0/27 |  | 0 / 1 | 4 | — | throttled 0%, server peak 24 GB |
 | 4 | Return to a board and find everything as it was left | DONE, on partial 3 | 49.3 | None | None | None | — | — | red | 0/31 | yes | 0 / 0 | 3 | — | throttled 0%, server peak 25 GB |
+| 5 | Share a board with others using a link | PARTIAL (red), on partial 3 | 237.0 | None | None | None | — | — | red | 22/36 |  | 3 / 0 | 13 | — | throttled 0%, server peak 26 GB |
 
-**Totals:** 4 stories, 252 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/4, final acceptance 0/31, stalled 1, partial 1, 5330 lines in src+tests.
+**Totals:** 5 stories, 489 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/5, final acceptance 22/36, stalled 1, partial 2, 7679 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 3 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [2, 3, 4, 5, 6, 7, 8, 9] (implementation: [2, 3, 4]), held-out 0/7 (floor 0.571).
 - Story 4, built on partial 3: held-out tests on the partial base 0/11; partial story's tests fixed 0, regressed 0; 1 stub-like lines added to src/.
+- **Story 5 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7] (implementation: [2, 4, 5]), held-out 3/5 (floor 0.0).
+- Story 5, built on partial 3: held-out tests on the partial base 5/16; partial story's tests fixed 1, regressed 0; 6 stub-like lines added to src/.
 
 ## How it happened
 
@@ -39,12 +43,18 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 1 by the agent | 2524 / 20 | `StickyNote.tsx` (217), `board-model.ts` (210), `styles.css` (153), `StickyTextEditor.tsx` (136), `StickyText.ts` (109), `App.tsx` (99), +10 more |
 | 3 | 1 by the agent, + harness snapshot | 1878 / 48 | `protocol.ts` (119), `index.ts` (67), `board-id.ts` (45), `cloudflare-workers.d.ts` (31), `vitest.config.ts` (30), `board-room.ts` (22), +5 more |
 | 4 | harness snapshot (agent left work uncommitted) | 1028 / 23 | `board-store.ts` (294), `room-state.ts` (97), `cloudflare-workers.d.ts` (51), `cloudflare-test.d.ts` (36), `PROGRESS.md` (32), `config.ts` (18), +4 more |
+| 5 | harness snapshot (agent left work uncommitted) | 2715 / 290 | `board-room.ts` (368), `board-store.ts` (276), `Board.tsx` (196), `App.tsx` (177), `styles.css` (175), `SharePanel.tsx` (156), +21 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 3 broke 17, fixed 0** earlier held-out tests (harness: snapshot after story 3 (uncommitted agent work); story 3 task 1: board id and protocol decode unit tests (TC-01 to TC-03)). Source files it changed most: `protocol.ts` (119), `index.ts` (67), `board-id.ts` (45), `cloudflare-workers.d.ts` (31), `vitest.config.ts` (30), `board-room.ts` (22), +5 more.
   - story 1: 9/10 → 0/10; broke 9.
   - story 2: 8/10 → 0/10; broke 8.
+- **Story 5 broke 0, fixed 19** earlier held-out tests (harness: snapshot after story 5 (uncommitted agent work)). Source files it changed most: `board-room.ts` (368), `board-store.ts` (276), `Board.tsx` (196), `App.tsx` (177), `styles.css` (175), `SharePanel.tsx` (156), +21 more.
+  - story 1: 0/10 → 9/10; fixed 9
+  - story 2: 0/10 → 8/10; fixed 8
+  - story 3: 0/7 → 1/7; fixed 1
+  - story 4: 0/4 → 1/4; fixed 1
 
 ### Interruptions and dead time
 
