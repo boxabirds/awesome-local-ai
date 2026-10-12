@@ -1,3 +1,61 @@
+commit f646214c9904b794ff1c285d9a7011e90c54d7a3
+vidi-agent  Mon Oct 12 16:18:33 2026 +0100
+
+    harness: snapshot after story 8 (uncommitted agent work)
+
+
+ NOTES.md                                |  22 +
+ playwright.config.ts                    |   2 +-
+ scratch/spike-worker.ts                 |  55 ---
+ scratch/wrangler.jsonc                  |   5 -
+ scratch/ws-probe.ts                     |  12 -
+ src/client/board/Board.tsx              | 194 +++++----
+ src/client/board/SelectionBar.tsx       |  71 ++++
+ src/client/board/SelectionOverlay.tsx   | 144 +++++++
+ src/client/board/Toolbar.tsx            |  29 +-
+ src/client/board/UndoButtons.tsx        |  56 +++
+ src/client/board/undo.ts                |  92 +++++
+ src/client/board/useBoardDoc.ts         |  23 +-
+ src/client/board/useBoardKeys.ts        | 161 ++++++++
+ src/client/board/useMarquee.ts          | 100 +++++
+ src/client/board/useSelection.ts        | 161 ++++++--
+ src/client/board/useTransformGesture.ts | 299 ++++++++++++++
+ src/client/board/useUndo.ts             |  51 +++
+ src/client/canvas/BoardViewport.tsx     |  39 +-
+ src/client/objects/StickyNote.tsx       | 189 +++------
+ src/client/objects/StickyTextEditor.tsx |  37 +-
+ src/client/objects/registry.tsx         |  89 ++++
+ src/shared/board-model.ts               | 250 ++++++++++--
+ src/shared/config.ts                    |  18 +
+ src/shared/geometry.ts                  | 204 ++++++++++
+ tests/component/UndoBoundaries.test.tsx | 249 ++++++++++++
+ tests/component/UndoControls.test.tsx   | 156 +++++++
+ tests/component/selection.test.tsx      | 693 ++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/board.ts              |  10 +-
+ tests/e2e/pgtest.spec.ts                |  10 +
+ tests/e2e/selection.spec.ts             | 386 ++++++++++++++++++
+ tests/e2e/tmp-app.tsx                   | 104 +++++
+ tests/e2e/tmp-resize.spec.ts            |  45 +++
+ tests/e2e/tmp-wf.spec.ts                |   6 +
+ tests/e2e/undo.spec.ts                  | 287 +++++++++++++
+ tests/fixtures/testbox.tsx              |  61 +++
+ tests/unit/board-model-group.test.ts    | 256 ++++++++++++
+ tests/unit/geometry.test.ts             | 173 ++++++++
+ tests/unit/registry.test.ts             |  69 ++++
+ tests/unit/selection-reducer.test.ts    |  85 ++++
+ tests/unit/undo-boundaries.test.ts      | 170 ++++++++
+ tests/unit/undo-history.test.ts         | 300 ++++++++++++++
+ tmp-ws-test/index.js                    |  11 +
+ tmp-ws-test/wrangler.jsonc              |   1 +
+ 43 files changed, 5018 insertions(+), 357 deletions(-)
+commit ba69125dd65ae126132860160c27b04a37a5d1c2
+vidi-agent  Mon Oct 12 12:14:08 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit 1c65398f8d450333d1ef1b119eb01c01cdad5ef2
 vidi-agent  Mon Oct 12 11:51:32 2026 +0100
 
