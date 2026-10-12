@@ -1130,3 +1130,32 @@ def test_adapt_typescript_stores_the_typescript_key_and_keeps_the_rest(tmp_path)
     assert cli(root, "adapt-typescript", str(vitest), str(playwright), "--e2e-dir", "tools/b/e2e") == R.EXIT_OK
     stored = json.loads((root / "ops/refactor/reports/touched-tests.json").read_text())
     assert stored["rust"] == ["m::t"] and len(stored["typescript"]) == 3
+
+
+# ---- script-level stubs (approved 12 Oct 2026): a script with no functions is stubbed as a whole ----------------------------
+
+SCRIPT_ENTRY = '[[entry]]\nfile = "src/go.sh"\nfunction = "<script>"\nlanguage = "shell"\nclasses = ["B"]\n'
+
+
+def script_stub_result(tmp_path: Path, body: str) -> R.Result:
+    root = make_root(tmp_path, touched=SCRIPT_ENTRY)
+    write(root, "src/go.sh", body)
+    return R.check_stubs(root)
+
+
+def test_a_script_reduced_to_a_shebang_comments_and_exit_99_is_a_stub(tmp_path):
+    assert script_stub_result(tmp_path, "#!/usr/bin/env bash\n# replaced\n\nexit 99\n").exit_code == R.EXIT_OK
+
+
+def test_a_script_with_any_other_code_is_not_a_stub(tmp_path):
+    result = script_stub_result(tmp_path, "#!/usr/bin/env bash\necho hi\nexit 99\n")
+    assert codes(result) == ["E-NOT-STUB"]
+
+
+def test_a_script_that_exits_with_another_code_or_has_functions_left_is_not_a_stub(tmp_path):
+    assert codes(script_stub_result(tmp_path, "#!/bin/sh\nexit 0\n")) == ["E-NOT-STUB"]
+    assert codes(script_stub_result(tmp_path, "#!/bin/sh\nf() { :; }\nexit 99\n")) == ["E-NOT-STUB"]
+
+
+def test_an_empty_script_is_not_a_stub(tmp_path):
+    assert codes(script_stub_result(tmp_path, "#!/bin/sh\n")) == ["E-NOT-STUB"]

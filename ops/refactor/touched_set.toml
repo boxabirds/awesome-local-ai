@@ -649,29 +649,29 @@ file = "tools/vidi-gallery/src/sync.rs"
 function = "sync_repo"
 classes = ["B"]
 
-[[excluded]]
+[[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/fetch-work.sh"
 function = "<script>"
-reason = "script body, not a function: delete-first for a whole script is an open decision (see ops/refactor/README.md); until it is decided the script is covered by its own shell test under U8 or U13"
+classes = ["A"]
 
-[[excluded]]
+[[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/judge-setup.sh"
 function = "<script>"
-reason = "script body, not a function: delete-first for a whole script is an open decision (see ops/refactor/README.md); until it is decided the script is covered by its own shell test under U8 or U13"
+classes = ["B", "E"]
 
-[[excluded]]
+[[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/judge-submit.sh"
 function = "<script>"
-reason = "script body, not a function: delete-first for a whole script is an open decision (see ops/refactor/README.md); until it is decided the script is covered by its own shell test under U8 or U13"
+classes = ["B"]
 
-[[excluded]]
+[[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/setup-node.sh"
 function = "<script>"
-reason = "script body, not a function: delete-first for a whole script is an open decision (see ops/refactor/README.md); until it is decided the script is covered by its own shell test under U8 or U13"
+classes = ["E"]
 
 [[excluded]]
 language = "typescript"

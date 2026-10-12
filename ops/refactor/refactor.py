@@ -464,7 +464,9 @@ class Results:
 
 RUST_STUB = re.compile(r"^(?:todo|unimplemented)!\s*\(.*\)\s*;?$", re.S)
 TS_STUB = re.compile(r"^throw\s+new\s+Error\s*\(.*\)\s*;?$", re.S)
-SHELL_STUB = re.compile(r"^return\s+99\s*;?$")
+SHELL_STUB_CODE = 99      # the exit/return status of every shell stub
+SHELL_STUB = re.compile(rf"^return\s+{SHELL_STUB_CODE}\s*;?$")
+SCRIPT_STUB = re.compile(rf"^exit\s+{SHELL_STUB_CODE}\s*;?$")
 
 
 def brace_body(text: str) -> str | None:
@@ -501,6 +503,9 @@ def python_is_stub(text: str, name: str) -> bool | None:
 def is_stub(language: str, text: str, name: str) -> bool | None:
     if language == "python":
         return python_is_stub(text, name)
+    if language == "shell" and name == SCRIPT_LEVEL:
+        code = [l.strip() for l in text.splitlines() if l.strip() and not l.strip().startswith("#")]
+        return len(code) == 1 and bool(SCRIPT_STUB.match(code[0]))     # a script with no functions: the whole body is `exit 99`
     func = next((f for f in functions_of(language, text) if f.name == name), None)
     if func is None:
         return None
