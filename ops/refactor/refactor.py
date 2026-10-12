@@ -838,13 +838,12 @@ def main(argv: list[str] | None = None) -> int:
                        ("check-fates", "every assigned test has exactly one fate"),
                        ("check-coverage", f"100% line and branch coverage from {COVERAGE_INPUT}"),
                        ("report-deletion", f"every assigned test failed against the stubs, from {RESULTS_INPUT}"),
-                       ("check-idle", "no story is running on this machine"),
-                       ("stage", "print the current stage")):
+                       ("check-idle", "no story is running on this machine")):
         sub.add_parser(name, help=text)
     build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
     build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
-    sub.add_parser("advance", help="move to the next stage if its check passes").add_argument("to")
+    sub.add_parser("stage", help="print the current stage; with a stage name, move to it if its justifying check passes").add_argument("to", nargs="?")
     args = parser.parse_args(argv)
     root = args.root
     lister = list_tests                                   # looked up at call time so tests can replace it
@@ -857,7 +856,7 @@ def main(argv: list[str] | None = None) -> int:
         "check-idle": lambda: check_idle(probe_running_stories),
     }
     try:
-        if args.command == "stage":
+        if args.command == "stage" and args.to is None:
             print(read_stage(root))
             return EXIT_OK
         if args.command == "build-touched-set":
@@ -876,7 +875,7 @@ def main(argv: list[str] | None = None) -> int:
                 result.error("E-RESULTS-MISSING", str(RESULTS_INPUT), "no results to read")
             else:
                 result = report_deletion(root, results)
-        elif args.command == "advance":
+        elif args.command == "stage":
             result = move_stage(root, args.to, default_justifiers(lister))
         else:
             result = simple[args.command]()
@@ -884,7 +883,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{args.command}: UNDECIDED\n  E-ADAPTER  {exc}")
         return EXIT_ERROR
     except StageFileCorrupt as exc:
-        print(f"{STAGE_FILE}: corrupt, left as it is: {exc}")
+        print(f"{args.command}: UNDECIDED\n  E-STAGE-FILE-CORRUPT  {STAGE_FILE}  left as it is: {exc}")
         return EXIT_ERROR
     print_result(args.command, result)
     return result.exit_code

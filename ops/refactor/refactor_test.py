@@ -741,20 +741,20 @@ def cli(root: Path, *args: str) -> int:
 def test_tc44_advance_inventory_to_matrices_needs_the_register_and_the_touched_set_to_hold(tmp_path, monkeypatch):
     root = make_root(tmp_path, assignments=SIX_ASSIGNED)
     monkeypatch.setattr(R, "list_tests", lister(python=SIX_LISTED))
-    assert cli(root, "advance", "Matrices") == R.EXIT_OK
+    assert cli(root, "stage", "Matrices") == R.EXIT_OK
     assert R.read_stage(root) == "Matrices"
 
 
 def test_tc45_advance_with_the_register_broken_refuses_and_the_stage_stays(tmp_path, monkeypatch):
     root = make_root(tmp_path, assignments=SIX_ASSIGNED)
     monkeypatch.setattr(R, "list_tests", lister(python=SIX_LISTED + ["d.py::extra"]))
-    assert cli(root, "advance", "Matrices") == R.EXIT_FAIL
+    assert cli(root, "stage", "Matrices") == R.EXIT_FAIL
     assert R.read_stage(root) == "Inventory"
 
 
 def test_advancing_two_stages_at_once_is_refused_with_exit_1(tmp_path):
     root = make_root(tmp_path)
-    assert cli(root, "advance", "Proved") == R.EXIT_FAIL
+    assert cli(root, "stage", "Proved") == R.EXIT_FAIL
 
 
 def test_stage_prints_the_current_stage(tmp_path, capsys):
@@ -763,10 +763,11 @@ def test_stage_prints_the_current_stage(tmp_path, capsys):
     assert capsys.readouterr().out.strip() == "Inventory"
 
 
-def test_a_corrupt_stage_file_is_exit_1_and_is_left_as_it_is(tmp_path):
+def test_a_corrupt_stage_file_is_exit_2_names_its_code_and_is_left_as_it_is(tmp_path, capsys):
     root = make_root(tmp_path)
     write(root, "ops/refactor/stage.toml", "stage = [")
     assert cli(root, "stage") == R.EXIT_ERROR
+    assert "E-STAGE-FILE-CORRUPT" in capsys.readouterr().out
     assert (root / "ops/refactor/stage.toml").read_text() == "stage = ["
 
 
@@ -815,9 +816,9 @@ def test_a_deletion_advance_is_refused_until_the_stubs_are_in(tmp_path):
     root = make_root(tmp_path, touched=FATE_TOUCHED)
     write(root, "ops/refactor/stage.toml", 'stage = "Proved"\n')
     write(root, "src/a.py", "def record():\n    return 1\n")
-    assert cli(root, "advance", "Deleted") == R.EXIT_FAIL
+    assert cli(root, "stage", "Deleted") == R.EXIT_FAIL
     write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
-    assert cli(root, "advance", "Deleted") == R.EXIT_OK
+    assert cli(root, "stage", "Deleted") == R.EXIT_OK
 
 
 # ---- found by running the scan on the real repository: test code and functions the design names --------------------------
@@ -1138,3 +1139,16 @@ def test_the_real_u1_file_declares_the_eight_dimensions_of_the_prd_and_yields_10
     assert list(data["dimensions"]) == ["run_kind", "story_outcome", "private_files", "credential", "heldout_title", "size",
                                         "results_root", "run_position"]
     assert R.raw_tuple_count(data["dimensions"]) == 1024
+
+
+def test_tc20_the_stage_is_checked_before_and_after_every_move_including_each_refusal(tmp_path):
+    root = make_root(tmp_path)
+    steps = [("Matrices", ok_justifier, "Inventory", "Matrices"),       # a justified move
+             ("Deleted", ok_justifier, "Matrices", "Matrices"),          # a skip is refused: unchanged
+             ("Frozen", ok_justifier, "Matrices", "Matrices"),           # an unknown stage is refused: unchanged
+             ("Proved", failing_justifier, "Matrices", "Matrices"),      # an unjustified move is refused: unchanged
+             ("Proved", ok_justifier, "Matrices", "Proved")]
+    for to, justifier, before, after in steps:
+        assert stage_of(root) == before
+        R.move_stage(root, to, justifiers_all(justifier))
+        assert stage_of(root) == after
