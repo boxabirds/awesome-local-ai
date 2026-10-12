@@ -43,6 +43,8 @@ patterns = [
   'Command::new\("git"\)[\s\S]{0,300}?"(fetch|pull|ls-tree|cat-file|show|ls-files|log)"',
   'origin/main',
   'git_pull',
+  # the repository's own helper style: git(repo, "fetch", ...) in the benchmarker server
+  '''\bgit\(\s*\w+,\s*["'](fetch|pull|ls-tree|cat-file|show|ls-files|log)["']''',
 ]
 
 [classes.C]

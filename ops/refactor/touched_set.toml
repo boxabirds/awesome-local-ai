@@ -687,12 +687,6 @@ classes = ["A"]
 
 [[entry]]
 language = "typescript"
-file = "tools/benchmarker/server/domain.ts"
-function = "said"
-classes = ["A"]
-
-[[entry]]
-language = "typescript"
 file = "tools/benchmarker/server/main.ts"
 function = "loadFixture"
 classes = ["E"]
@@ -707,4 +701,28 @@ reason = "module-level text only (a docstring, comment or constant): there is no
 language = "typescript"
 file = "tools/benchmarker/server/sources.ts"
 function = "git"
+classes = ["B"]
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/domain.ts"
+function = "parseInterventions"
+classes = ["A"]
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/sources.ts"
+function = "flowCountsAt"
+classes = ["B"]
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/sources.ts"
+function = "loadFlowCounts"
+classes = ["B"]
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/sources.ts"
+function = "loadRuns"
 classes = ["B"]

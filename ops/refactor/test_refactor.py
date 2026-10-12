@@ -1024,3 +1024,87 @@ def test_check_register_writes_nothing_outside_the_reports_folder(mini):
     before = snapshot(mini)
     assert tool(mini, "check-register").returncode == R.EXIT_OK
     assert snapshot(mini) == before
+
+
+# ---- touched set: commands and boundary cases of task 1.11 -------------------------------------------------------------
+
+import hashlib
+
+
+def test_build_touched_set_propose_prints_the_proposal_and_never_changes_the_committed_set(tmp_path, capsys):
+    root = make_code_root(tmp_path, {"src/a.py": "def f(p):\n    return p.relative_to(REPO_ROOT)\n"}, touched="# committed\n")
+    before = hashlib.sha256((root / "ops/refactor/touched_set.toml").read_bytes()).hexdigest()
+    assert cli(root, "build-touched-set", "--propose") == R.EXIT_OK
+    assert "src/a.py::f" in capsys.readouterr().out
+    assert hashlib.sha256((root / "ops/refactor/touched_set.toml").read_bytes()).hexdigest() == before
+
+
+def test_build_touched_set_without_propose_is_refused(tmp_path):
+    root = make_code_root(tmp_path, {})
+    assert cli(root, "build-touched-set") == R.EXIT_ERROR
+
+
+def test_check_touched_set_is_the_command_name_and_the_old_names_are_gone(tmp_path):
+    root = make_code_root(tmp_path, {"src/a.py": "def f():\n    return 1\n"})
+    assert cli(root, "check-touched-set") == R.EXIT_OK
+    for old in ("check-touched", "propose-touched"):
+        with pytest.raises(SystemExit):
+            cli(root, old)
+
+
+def test_a_function_with_exactly_one_matching_line_is_proposed(tmp_path):
+    root = make_code_root(tmp_path, {"src/a.py": "def f():\n    x = 1\n    y = origin_main  # origin/main\n    return x\n"})
+    assert proposed(root) == {("src/a.py", "f"): ["B"]}
+
+
+def test_a_function_matching_all_of_a_to_e_lists_every_class(tmp_path):
+    body = ("def f(p):\n    p.relative_to(REPO_ROOT)\n    run(['git', 'fetch'])\n    run(['git', 'commit'])\n"
+            "    open('config.sh')\n    x = 'awesome-local-ai-bench-private'\n")
+    assert proposed(make_code_root(tmp_path, {"src/a.py": body})) == {("src/a.py", "f"): ["A", "B", "C", "D", "E"]}
+
+
+def test_a_match_on_the_first_and_on_the_last_line_of_a_file_is_found(tmp_path):
+    root = make_code_root(tmp_path, {
+        "src/first.sh": "run git commit\nf() {\n  echo hi\n}\n",
+        "src/last.sh": "f() {\n  echo hi\n  git commit -m x",
+    })
+    found = proposed(root)
+    assert found == {("src/first.sh", "<script>"): ["C"], ("src/last.sh", "f"): ["C"]}
+
+
+def test_an_indented_arrow_function_inside_a_typescript_function_does_not_end_the_outer_one(tmp_path):
+    src = ("export async function loadRuns(repo: string) {\n"
+           "  const names = (xs: string[]) => xs.map((x) => x.trim());\n"
+           "  await run(\"git\", \"fetch\", \"origin\");\n"
+           "}\n")
+    root = make_code_root(tmp_path, {"src/a.ts": src})
+    assert proposed(root) == {("src/a.ts", "loadRuns"): ["B"]}
+
+
+# ---- integration: the classifier on trimmed real files (task 1.12, TC-68) ------------------------------------------------
+
+REAL = Path(__file__).parent / "fixtures" / "real"
+
+
+def propose_as_process(root: Path) -> dict[tuple[str, str], str]:
+    done = tool(root, "build-touched-set", "--propose")
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    rows = [line.split() for line in done.stdout.splitlines() if "::" in line]
+    return {(file.split("::")[0], file.split("::")[1]): classes for _, file, classes in rows}
+
+
+def test_tc68_the_known_functions_are_found_with_the_expected_classes_in_unchanged_real_excerpts():
+    found = propose_as_process(REAL)
+    assert found[("drive.py", "record_story")].split(",")[0] == "C"
+    assert found[("sources.ts", "loadRuns")] == "B"
+    assert found[("collector.rs", "archived_runs")] == "B" and found[("collector.rs", "pass")] == "B"
+
+
+def test_tc68_negative_a_real_function_that_only_touches_workspace_git_is_not_proposed():
+    assert "def setup_workspace(" in (REAL / "drive.py").read_text()
+    assert ("drive.py", "setup_workspace") not in propose_as_process(REAL)
+
+
+def test_the_excerpts_carry_the_commit_they_came_from():
+    for name in ("drive.py", "sources.ts", "collector.rs"):
+        assert "pinned to commit" in (REAL / name).read_text().splitlines()[0]

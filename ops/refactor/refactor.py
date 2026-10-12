@@ -199,7 +199,7 @@ class Func:
 
 
 RUST_FN = re.compile(r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)")
-TS_FN = re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)|^\s*(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s*)?\(")
+TS_FN = re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)|^(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s*)?\(")
 RUST_TEST_MODULE = re.compile(r"^#\[cfg\(test\)\]", re.M)   # the trailing test module and everything after it is test code
 SHELL_FN = re.compile(r"^\s*(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{")
 
@@ -828,8 +828,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="the repository root (default: the current directory)")
     sub = parser.add_subparsers(dest="command", required=True)
     for name, text in (("check-register", "every test in exactly one use case"),
-                       ("propose-touched", "print the touched set the scan derives"),
-                       ("check-touched", "the committed touched set equals the scan"),
+                       ("check-touched-set", "the committed touched set equals the scan"),
                        ("check-stubs", "every touched function is a stub"),
                        ("check-fates", "every assigned test has exactly one fate"),
                        ("check-coverage", f"100% line and branch coverage from {COVERAGE_INPUT}"),
@@ -837,6 +836,8 @@ def main(argv: list[str] | None = None) -> int:
                        ("check-idle", "no story is running on this machine"),
                        ("stage", "print the current stage")):
         sub.add_parser(name, help=text)
+    build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
+    build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("advance", help="move to the next stage if its check passes").add_argument("to")
     args = parser.parse_args(argv)
@@ -844,7 +845,7 @@ def main(argv: list[str] | None = None) -> int:
     lister = list_tests                                   # looked up at call time so tests can replace it
     simple = {
         "check-register": lambda: check_register(root, lister),
-        "check-touched": lambda: check_touched(root),
+        "check-touched-set": lambda: check_touched(root),
         "check-stubs": lambda: check_stubs(root),
         "check-fates": lambda: check_fates(root),
         "check-coverage": lambda: check_coverage(root, load_measured(root)),
@@ -854,7 +855,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "stage":
             print(read_stage(root))
             return EXIT_OK
-        if args.command == "propose-touched":
+        if args.command == "build-touched-set":
+            if not args.propose:
+                print("build-touched-set: only --propose is supported; the committed set is changed by hand after review")
+                return EXIT_ERROR
             for e in propose_touched(root):
                 print(f"{e.language}  {e.file}::{e.function}  {','.join(e.classes)}")
             return EXIT_OK

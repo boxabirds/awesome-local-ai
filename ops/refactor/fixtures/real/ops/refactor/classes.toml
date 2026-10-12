@@ -1,0 +1,46 @@
+# The real patterns of ops/refactor/classes.toml (pinned to commit f76e6a167) over the three excerpts beside this file.
+[sources]
+python = ["drive.py"]
+rust = ["collector.rs"]
+typescript = ["sources.ts"]
+shell = []
+exclude = []
+
+[classes.A]
+patterns = [
+  'relative_to\(REPO_ROOT',
+  'RUN_RE\b',
+  'work_dir_name|work_id\b',
+  '-opencode/',
+]
+
+[classes.B]
+patterns = [
+  '''git['", \[]+(fetch|pull|ls-tree|cat-file|show|ls-files|log)\b''',
+  'Command::new\("git"\)[\s\S]{0,300}?"(fetch|pull|ls-tree|cat-file|show|ls-files|log)"',
+  'origin/main',
+  'git_pull',
+  # the repository's own helper style: git(repo, "fetch", ...) in the benchmarker server
+  '''\bgit\(\s*\w+,\s*["'](fetch|pull|ls-tree|cat-file|show|ls-files|log)["']''',
+]
+
+[classes.C]
+patterns = [
+  '''git['", \[]+(add|commit|push|rebase|reset|checkout)\b''',
+  'Command::new\("git"\)[\s\S]{0,300}?"(add|commit|push|rebase)"',
+  'push_with_rebase|record_story|record_private',
+]
+
+[classes.D]
+patterns = [
+  'copy_private|private_copy|repo_of\b',
+]
+
+[classes.E]
+patterns = [
+  'awesome-local-ai-bench-private',
+  'private_repo|private_version',
+]
+
+[classes.W]
+functions = ["setup_workspace", "restore_spec", "begin_progress_file", "story_finished", "bundle"]
