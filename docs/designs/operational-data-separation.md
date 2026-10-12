@@ -450,7 +450,8 @@ C and E (`docs/dataflow.md` and the sweep behind this design list them by file a
   before, the collector marks it complete, and `git -C <old checkout> status` shows nothing new for the rest of the
   series.
 - **Repository:** `tests/privacy-test.sh` passes with zero run directories tracked; a fresh clone of the public
-  repository is under 50 MB.
+  repository is under 10 MB (owner, 12 Oct 2026; the owner expects about 5 MB, and the limit is checked against a
+  rewritten history on a mirror before the force-push, then revisited if that measurement exceeds it).
 - **Backup:** after step 1 the nightly snapshot lists `lake`, `warehouse`, `analytics` and the staged databases pass
   `pragma integrity_check`; after step 6 it lists `reference` and `gradings`; the restore drill in `RESTORE.md`
   brings one run back byte-identical to the lake. The MECE test over the data root's directories passes.
