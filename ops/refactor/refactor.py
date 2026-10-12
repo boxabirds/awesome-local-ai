@@ -551,6 +551,90 @@ def report_deletion(root: Path, results: Results) -> Result:
     return result
 
 
+# ---- fates: every assigned test ends in exactly one state -----------------------------------------------------------
+
+FATE_STATES = ("kept", "rewritten", "retired")
+FATES_FILE = REFACTOR_DIR / "fates.toml"
+
+
+def check_fates(root: Path) -> Result:
+    """Each assigned test is kept unchanged, rewritten to the new contract, or retired together with a touched function."""
+    result = Result()
+    assigned = assigned_tests(root)
+    touched = {f"{e['file']}::{e['function']}" for e in read_toml(root / TOUCHED_FILE).get("entry", [])}
+    seen: dict[str, int] = {}
+    counts = {state: 0 for state in FATE_STATES}
+    for fate in read_toml(root / FATES_FILE).get("fate", []):
+        test, state = fate.get("test", ""), fate.get("state", "")
+        seen[test] = seen.get(test, 0) + 1
+        if test not in assigned:
+            result.fail("E-FATE-UNKNOWN-TEST", test, "not an assigned test")
+            continue
+        if state not in FATE_STATES:
+            result.fail("E-FATE-STATE", test, f"{state!r}: states are {', '.join(FATE_STATES)}")
+            continue
+        counts[state] += 1
+        if state == "rewritten" and not fate.get("new_test"):
+            result.fail("E-FATE-NO-NEW-TEST", test, "a rewritten test names the test that replaces it")
+        if state == "retired":
+            if fate.get("function") not in touched:
+                result.fail("E-FATE-RETIRED-NO-FUNCTION", test, "a retired test names the touched function retired with it")
+            if not fate.get("reason"):
+                result.fail("E-FATE-RETIRED-NO-REASON", test, "a retired test gives the reason")
+    for test in sorted(assigned):
+        if test not in seen:
+            result.fail("E-FATE-MISSING", test, "no fate")
+    for test, n in sorted(seen.items()):
+        if n > 1 and test in assigned:
+            result.fail("E-FATE-MULTIPLE", test, f"{n} fates")
+    result.data = {"counts": counts}
+    write_report(root, "fates", result)
+    return result
+
+
+# ---- coverage proof: 100% of lines and branches of every touched file -----------------------------------------------
+
+@dataclass
+class FileCoverage:
+    lines: int
+    lines_hit: int
+    branches: int
+    branches_hit: int
+
+
+Measured = dict[str, dict[str, FileCoverage]]   # language -> file -> coverage, as the language's own tool reported it
+
+
+def check_coverage(root: Path, measured: Measured) -> Result:
+    """Fail on any missed line or branch; a touched file the coverage tool did not report is undecidable, never a pass."""
+    result = Result()
+    files = sorted({(e["language"], e["file"]) for e in read_toml(root / TOUCHED_FILE).get("entry", [])})
+    for language, file in files:
+        cov = measured.get(language, {}).get(file)
+        if cov is None:
+            result.error("E-COVERAGE-UNKNOWN", file, f"{language}: the coverage tool reported nothing for this file")
+            continue
+        if cov.lines_hit < cov.lines:
+            result.fail("E-LINES-UNCOVERED", file, f"{cov.lines_hit} of {cov.lines} lines")
+        if cov.branches_hit < cov.branches:
+            result.fail("E-BRANCHES-UNCOVERED", file, f"{cov.branches_hit} of {cov.branches} branches")
+    write_report(root, "coverage", result)
+    return result
+
+
+# ---- idle guard: nothing moves on a machine that is running a story -------------------------------------------------
+
+def check_idle(probe: Callable[[], list[str] | None]) -> Result:
+    """The probe lists running stories, or returns None when it cannot tell; an unknown is never idle."""
+    result = Result()
+    running = probe()
+    if running is None:
+        result.error("E-IDLE-UNKNOWN", "machine", "the probe could not tell whether a story is running")
+    for story in running or []:
+        result.fail("E-MACHINE-BUSY", story, "a story is running: nothing moves until it ends")
+    return result
+
+
 def list_tests(root: Path) -> dict[str, set[str]]:
     """The real runners' test lists (filled in by the runner adapters below)."""
     return {}

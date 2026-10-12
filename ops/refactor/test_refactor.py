@@ -580,3 +580,140 @@ def test_the_deletion_report_never_edits_production_code(tmp_path):
     before = {f: (root / f).read_bytes() for f in STUB_FILES}
     R.report_deletion(root, results(ALL_FAILED | {SIX_TESTS[2]: R.PASSED}))
     assert {f: (root / f).read_bytes() for f in STUB_FILES} == before
+
+
+# ---- fates: every assigned test ends in exactly one state ----------------------------------------------------------------
+
+FATE_ASSIGNMENTS = '[assignments]\nU1 = ["python:t_a", "python:t_b", "python:t_c"]\n'
+FATE_TOUCHED = '[[entry]]\nfile = "src/a.py"\nfunction = "record"\nlanguage = "python"\nclasses = ["C"]\n'
+
+
+def fates_result(tmp_path: Path, fates: str, assignments: str = FATE_ASSIGNMENTS) -> R.Result:
+    root = make_root(tmp_path, assignments=assignments, touched=FATE_TOUCHED)
+    write(root, "ops/refactor/fates.toml", fates)
+    return R.check_fates(root)
+
+
+def test_tc54_each_assigned_test_with_one_valid_fate_passes(tmp_path):
+    result = fates_result(tmp_path, '''
+[[fate]]
+test = "python:t_a"
+state = "kept"
+[[fate]]
+test = "python:t_b"
+state = "rewritten"
+new_test = "python:t_b_new"
+[[fate]]
+test = "python:t_c"
+state = "retired"
+function = "src/a.py::record"
+reason = "the function is deleted"
+''')
+    assert result.exit_code == R.EXIT_OK, result.problems
+
+
+def test_tc55_an_assigned_test_without_a_fate_is_missing_and_one_with_two_is_refused(tmp_path):
+    result = fates_result(tmp_path, '''
+[[fate]]
+test = "python:t_a"
+state = "kept"
+[[fate]]
+test = "python:t_a"
+state = "kept"
+[[fate]]
+test = "python:t_b"
+state = "kept"
+''')
+    assert sorted(codes(result)) == ["E-FATE-MISSING", "E-FATE-MULTIPLE"]
+
+
+def test_tc56_a_fate_for_an_unassigned_test_or_with_an_unknown_state_is_refused(tmp_path):
+    result = fates_result(tmp_path, '''
+[[fate]]
+test = "python:t_a"
+state = "kept"
+[[fate]]
+test = "python:t_b"
+state = "kept"
+[[fate]]
+test = "python:t_c"
+state = "deleted"
+[[fate]]
+test = "python:ghost"
+state = "kept"
+''')
+    assert sorted(codes(result)) == ["E-FATE-STATE", "E-FATE-UNKNOWN-TEST"]
+
+
+def test_tc57_rewritten_needs_a_new_test_and_retired_needs_a_touched_function_and_a_reason(tmp_path):
+    result = fates_result(tmp_path, '''
+[[fate]]
+test = "python:t_a"
+state = "rewritten"
+[[fate]]
+test = "python:t_b"
+state = "retired"
+function = "src/a.py::elsewhere"
+reason = "gone"
+[[fate]]
+test = "python:t_c"
+state = "retired"
+function = "src/a.py::record"
+''')
+    assert sorted(codes(result)) == ["E-FATE-NO-NEW-TEST", "E-FATE-RETIRED-NO-FUNCTION", "E-FATE-RETIRED-NO-REASON"]
+
+
+def test_the_fates_report_is_written_and_counts_each_state(tmp_path):
+    root = make_root(tmp_path, assignments=FATE_ASSIGNMENTS, touched=FATE_TOUCHED)
+    write(root, "ops/refactor/fates.toml", '[[fate]]\ntest = "python:t_a"\nstate = "kept"\n')
+    R.check_fates(root)
+    report = json.loads((root / "ops/refactor/reports/fates.json").read_text())
+    assert report["exit_code"] == R.EXIT_FAIL and report["counts"]["kept"] == 1
+
+
+# ---- coverage proof: 100% lines and branches of the touched files, or no proof ----------------------------------------------
+
+def coverage_result(tmp_path: Path, measured: dict) -> R.Result:
+    root = make_root(tmp_path, touched=FATE_TOUCHED)
+    return R.check_coverage(root, measured)
+
+
+def test_tc40_full_line_and_branch_coverage_of_every_touched_file_passes(tmp_path):
+    result = coverage_result(tmp_path, {"python": {"src/a.py": R.FileCoverage(10, 10, 4, 4)}})
+    assert result.exit_code == R.EXIT_OK, result.problems
+
+
+def test_tc41_one_missed_line_or_branch_is_named_with_its_counts(tmp_path):
+    result = coverage_result(tmp_path, {"python": {"src/a.py": R.FileCoverage(10, 9, 4, 3)}})
+    assert codes(result) == ["E-LINES-UNCOVERED", "E-BRANCHES-UNCOVERED"]
+
+
+def test_tc42_a_touched_file_the_tool_did_not_report_is_undecidable_not_a_pass(tmp_path):
+    result = coverage_result(tmp_path, {"python": {}})
+    assert result.exit_code == R.EXIT_ERROR and codes(result) == ["E-COVERAGE-UNKNOWN"]
+
+
+def test_tc43_a_language_with_no_coverage_output_at_all_is_undecidable(tmp_path):
+    result = coverage_result(tmp_path, {})
+    assert result.exit_code == R.EXIT_ERROR and codes(result) == ["E-COVERAGE-UNKNOWN"]
+
+
+def test_a_file_with_no_branches_is_fully_covered_on_branches(tmp_path):
+    result = coverage_result(tmp_path, {"python": {"src/a.py": R.FileCoverage(3, 3, 0, 0)}})
+    assert result.exit_code == R.EXIT_OK
+
+
+# ---- idle guard: nothing moves on a machine that is running a story ---------------------------------------------------------
+
+def test_tc58_an_idle_machine_passes(tmp_path):
+    assert R.check_idle(lambda: []).exit_code == R.EXIT_OK
+
+
+def test_tc59_a_running_story_refuses_and_names_it(tmp_path):
+    result = R.check_idle(lambda: ["run v2-x-r1 story 3"])
+    assert result.exit_code == R.EXIT_FAIL and codes(result) == ["E-MACHINE-BUSY"]
+
+
+def test_tc60_a_probe_that_cannot_tell_is_undecidable(tmp_path):
+    result = R.check_idle(lambda: None)
+    assert result.exit_code == R.EXIT_ERROR and codes(result) == ["E-IDLE-UNKNOWN"]
