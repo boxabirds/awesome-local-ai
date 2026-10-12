@@ -1,3 +1,39 @@
+commit a8540506ef5d7ad272ebf906d8cb0d92489e01d3
+agent  Mon Oct 12 22:56:17 2026 +0000
+
+    story 8: per-user undo/redo (undo.history, undo.boundaries, undo.controls)
+
+
+ NOTES.md                                | 106 +++++++++
+ PROGRESS.md                             |  16 +-
+ src/client/App.tsx                      | 112 +++++++--
+ src/client/board/SelectionBar.tsx       |   8 +-
+ src/client/board/Toolbar.tsx            |   7 +-
+ src/client/board/UndoButtons.tsx        |  76 ++++++
+ src/client/board/UndoContext.ts         |  21 ++
+ src/client/board/undo.ts                | 111 +++++++++
+ src/client/board/useBoardKeys.ts        |  43 +++-
+ src/client/board/useUndo.ts             |  42 ++++
+ src/client/objects/StickyTextEditor.tsx |  64 ++++-
+ src/shared/config.ts                    |   6 +
+ tests/component/UndoControls.test.tsx   | 398 ++++++++++++++++++++++++++++++++
+ tests/e2e/undo.spec.ts                  | 218 +++++++++++++++++
+ tests/integration/undo-share.test.ts    |  81 +++++++
+ tests/unit/peer.ts                      |  55 +++++
+ tests/unit/undo-boundaries.test.ts      | 118 ++++++++++
+ tests/unit/undo-history.test.ts         | 263 +++++++++++++++++++++
+ tsconfig.json                           |   7 +-
+ tsconfig.worker.json                    |   7 +-
+ vitest.unit.config.ts                   |   4 +
+ 21 files changed, 1721 insertions(+), 42 deletions(-)
+commit e628ef7862e2b8c929c07e6c03a8e8518a560075
+vidi-agent  Mon Oct 12 22:18:02 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 29 +++++++++--------------------
+ 1 file changed, 9 insertions(+), 20 deletions(-)
 commit ae8d0b353211180e2719fa724d2bfaa9e43f2ad8
 agent  Mon Oct 12 20:58:52 2026 +0000
 
