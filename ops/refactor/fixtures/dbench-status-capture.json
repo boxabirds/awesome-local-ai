@@ -1,0 +1,121 @@
+{
+  "quintus": [
+    {
+      "id": "vidi-v2-iq4xs-llamacpp-r2",
+      "spec": {
+        "run_id": "v2-iq4xs-r2",
+        "client": "pi"
+      },
+      "state": {
+        "status": "running",
+        "pid": 19609,
+        "pgid": 19609,
+        "attempt": 1,
+        "started_at": 1791793322,
+        "boot_time": 1791296691
+      },
+      "progress": {
+        "current_story": "5"
+      }
+    },
+    {
+      "id": "vidi-v2-iq4xs-llamacpp-r3",
+      "spec": {
+        "run_id": "v2-iq4xs-r3",
+        "client": "pi"
+      },
+      "state": {
+        "status": "queued"
+      },
+      "progress": {
+        "current_story": null
+      }
+    },
+    {
+      "id": "vidi-v2-iq4xs-llamacpp-r1",
+      "spec": {
+        "run_id": "v2-iq4xs-r1",
+        "client": "pi"
+      },
+      "state": {
+        "status": "done",
+        "exit_code": 0
+      },
+      "progress": {
+        "current_story": ""
+      }
+    }
+  ],
+  "tritus": [
+    {
+      "id": "vidi-v2-stratastrix-again1-r1",
+      "spec": {
+        "run_id": "v2-stratastrix-r1",
+        "client": "pi"
+      },
+      "state": {
+        "status": "queued"
+      },
+      "progress": {
+        "current_story": "7"
+      }
+    },
+    {
+      "id": "vidi-v2-stratastrix-r3",
+      "spec": {
+        "run_id": "v2-stratastrix-r3",
+        "client": "pi"
+      },
+      "state": {
+        "status": "queued"
+      },
+      "progress": {
+        "current_story": null
+      }
+    },
+    {
+      "id": "vidi-v2-gufoopencode-again2-r3",
+      "spec": {
+        "run_id": "v2-gufoopencode-r3",
+        "client": "opencode"
+      },
+      "state": {
+        "status": "done",
+        "exit_code": 0
+      },
+      "progress": {
+        "current_story": ""
+      }
+    }
+  ],
+  "macbook-air": [
+    {
+      "id": "vidi-v2-sonnet-d-r6",
+      "spec": {
+        "run_id": "v2-r6",
+        "client": "claude"
+      },
+      "state": {
+        "status": "done",
+        "exit_code": 0
+      },
+      "progress": {
+        "current_story": ""
+      }
+    },
+    {
+      "id": "vidi-v2-sonnet-d-r5",
+      "spec": {
+        "run_id": "v2-r5",
+        "client": "claude"
+      },
+      "state": {
+        "status": "done",
+        "exit_code": 0
+      },
+      "progress": {
+        "current_story": ""
+      }
+    }
+  ]
+}

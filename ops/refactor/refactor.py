@@ -927,15 +927,43 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage) -> Result:
 
 # ---- idle guard: nothing moves on a machine that is running a story -------------------------------------------------
 
-def check_idle(probe: Callable[[], list[str] | None]) -> Result:
-    """The probe lists running stories, or returns None when it cannot tell; an unknown is never idle."""
+JOB_STATES = {"queued", "running", "done", "failed", "cancelled"}      # dbench's JobState, as `dbench status --json` prints it
+
+
+def guard_idle(node: str, status_text: str) -> Result:
+    """Exit 0 when no job on the node is running (queued jobs do not count); 1 naming the running job and its story; 2 when the
+    text is not the status of that node. An unknown state is never treated as idle."""
     result = Result()
-    running = probe()
-    if running is None:
-        result.error("E-IDLE-UNKNOWN", "machine", "the probe could not tell whether a story is running")
-    for story in running or []:
-        result.fail("E-MACHINE-BUSY", story, "a story is running: nothing moves until it ends")
+    try:
+        jobs = json.loads(status_text)[node]
+        if not isinstance(jobs, list):
+            raise TypeError("the node's jobs are not a list")
+        states = [(job["id"], job["state"]["status"], job["progress"].get("current_story")) for job in jobs]
+        unknown = [state for _, state, _ in states if state not in JOB_STATES]
+        if unknown:
+            raise ValueError(f"unknown job state {unknown[0]!r}")
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError, AttributeError) as exc:
+        result.error("E-STATUS-UNPARSEABLE", node, f"not the status of this node: {type(exc).__name__}: {exc}")
+        return result
+    for job_id, state, story in states:
+        if state == "running":
+            result.fail("E-MACHINE-BUSY", job_id, f"story {story}" if story else "story not started yet")
     return result
+
+
+def run_guard_idle(node: str) -> Result:
+    """Ask dbench for the node's status; a dbench that cannot be run or exits non-zero is an unreachable node (exit 2)."""
+    try:
+        done = subprocess.run(["dbench", "status", "--json", node], capture_output=True, text=True)
+    except FileNotFoundError:
+        result = Result()
+        result.error("E-UNREACHABLE", node, "dbench is not installed")
+        return result
+    if done.returncode != EXIT_OK:
+        result = Result()
+        result.error("E-UNREACHABLE", node, f"dbench status exited {done.returncode}: {done.stderr.strip()[-200:]}")
+        return result
+    return guard_idle(node, done.stdout)
 
 
 # ---- the real runners: every test the repository has, as the runners list it ------------------------------------------
@@ -1026,16 +1054,6 @@ def list_tests(root: Path) -> dict[str, set[str]]:
 # ---- inputs the runners' adapters write (neutral JSON), and the machine probe -------------------------------------------
 
 PARITY_REPORT = REPORTS_DIR / "parity.json"
-IDLE_PROBE_ENV = "REFACTOR_IDLE_PROBE"                 # a command that prints one running story per line
-
-
-def probe_running_stories() -> list[str] | None:
-    """Running stories on this machine, or None when it cannot be told (no probe command configured, or it failed)."""
-    command = os.environ.get(IDLE_PROBE_ENV)
-    if not command:
-        return None
-    done = subprocess.run(command, shell=True, capture_output=True, text=True)
-    return [line for line in done.stdout.splitlines() if line.strip()] if done.returncode == 0 else None
 
 
 def merged(*results: Result) -> Result:
@@ -1104,12 +1122,12 @@ def main(argv: list[str] | None = None) -> int:
                        ("fates", "every old test has one fate, every contract area a new test seen red; --render PATH writes the table"),
                        ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every touched file"),
                        ("report-deletion", "every assigned test failed against the stubs, read from the files run-suites wrote"),
-                       ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)"),
-                       ("check-idle", "no story is running on this machine")):
+                       ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)")):
         sub.add_parser(name, help=text)
     build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
     build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
     sub.choices["fates"].add_argument("--render", help="write the fates table (Markdown) to this path")
+    sub.add_parser("guard-idle", help="exit 0 when no job is running on the node (from `dbench status --json NODE`), 1 naming the job and story, 2 when unknown").add_argument("node")
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("stage", help="print the current stage; with a stage name, move to it if its justifying check passes").add_argument("to", nargs="?")
     args = parser.parse_args(argv)
@@ -1121,7 +1139,6 @@ def main(argv: list[str] | None = None) -> int:
         "check-stubs": lambda: check_stubs(root),
         "fates": lambda: merged(check_fates(root), check_contracts(root, read_results(root))),
         "check-coverage": lambda: check_coverage(root),
-        "check-idle": lambda: check_idle(probe_running_stories),
         "run-suites": lambda: run_suites(root),
     }
     try:
@@ -1142,6 +1159,8 @@ def main(argv: list[str] | None = None) -> int:
             result = check_matrix(root, args.use_case, lister)
         elif args.command == "report-deletion":
             result = report_deletion(root, read_results(root))
+        elif args.command == "guard-idle":
+            result = run_guard_idle(args.node)
         elif args.command == "stage":
             result = move_stage(root, args.to, default_justifiers(lister))
         else:

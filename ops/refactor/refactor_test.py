@@ -765,22 +765,6 @@ def test_the_four_tools_json_shapes_are_read_into_per_file_counts_relative_to_th
     assert R.parse_kcov(Path("/r"), KCOV) == {"tests/x.sh": R.FileCoverage(9, 7, 0, 0)}
 
 
-# ---- idle guard: nothing moves on a machine that is running a story ---------------------------------------------------------
-
-def test_tc58_an_idle_machine_passes(tmp_path):
-    assert R.check_idle(lambda: []).exit_code == R.EXIT_OK
-
-
-def test_tc59_a_running_story_refuses_and_names_it(tmp_path):
-    result = R.check_idle(lambda: ["run v2-x-r1 story 3"])
-    assert result.exit_code == R.EXIT_FAIL and codes(result) == ["E-MACHINE-BUSY"]
-
-
-def test_tc60_a_probe_that_cannot_tell_is_undecidable(tmp_path):
-    result = R.check_idle(lambda: None)
-    assert result.exit_code == R.EXIT_ERROR and codes(result) == ["E-IDLE-UNKNOWN"]
-
-
 # ---- justifiers and the command line ----------------------------------------------------------------------------------
 
 def cli(root: Path, *args: str) -> int:
@@ -827,16 +811,6 @@ def test_check_fates_and_check_stubs_run_from_the_command_line(tmp_path):
     assert cli(root, "check-stubs") == R.EXIT_FAIL          # not a stub yet
     write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
     assert cli(root, "check-stubs") == R.EXIT_OK
-
-
-def test_check_idle_uses_the_machine_probe(tmp_path, monkeypatch):
-    root = make_root(tmp_path)
-    monkeypatch.setattr(R, "probe_running_stories", lambda: [])
-    assert cli(root, "check-idle") == R.EXIT_OK
-    monkeypatch.setattr(R, "probe_running_stories", lambda: ["run x story 1"])
-    assert cli(root, "check-idle") == R.EXIT_FAIL
-    monkeypatch.setattr(R, "probe_running_stories", lambda: None)
-    assert cli(root, "check-idle") == R.EXIT_ERROR
 
 
 def test_a_deletion_advance_is_refused_until_the_stubs_are_in(tmp_path):
@@ -1726,3 +1700,108 @@ def test_tc53_killed_at_each_point_of_the_write_the_file_is_whole_old_or_whole_n
     proc = subprocess.run([sys.executable, "-c", script])
     assert proc.returncode != 0
     assert target.read_text() in (old, new)
+
+
+# ---- idle guard over dbench status (tasks 1.8 and 1.22) ----------------------------------------------------------------------------
+
+CAPTURE = Path(__file__).parent / "fixtures" / "dbench-status-capture.json"
+
+
+def status_text(**nodes) -> str:
+    """dbench status --json: {node: [jobs]}; a job is its id, its state and the story it is on."""
+    def job(i, status, story=None):
+        return {"id": i, "state": {"status": status}, "progress": {"current_story": story}}
+    return json.dumps({n: [job(*j) for j in jobs] for n, jobs in nodes.items()})
+
+
+def test_tc54_a_node_with_no_job_is_idle():
+    assert R.guard_idle("n1", status_text(n1=[])).exit_code == R.EXIT_OK
+
+
+def test_tc55_a_node_with_only_queued_jobs_is_idle():
+    assert R.guard_idle("n1", status_text(n1=[("j1", "queued"), ("j2", "queued", "7"), ("j3", "done"), ("j4", "failed"), ("j5", "cancelled")])).exit_code == R.EXIT_OK
+
+
+def test_tc56_a_job_running_story_4_is_busy_naming_the_job_and_the_story():
+    result = R.guard_idle("n1", status_text(n1=[("j1", "queued"), ("j2", "running", "4")]))
+    assert result.exit_code == R.EXIT_FAIL
+    assert [(p.code, p.subject) for p in result.problems] == [("E-MACHINE-BUSY", "j2")] and "story 4" in result.problems[0].detail
+
+
+def test_a_running_job_that_has_not_started_a_story_is_still_busy():
+    result = R.guard_idle("n1", status_text(n1=[("j2", "running", None)]))
+    assert result.exit_code == R.EXIT_FAIL and "story" in result.problems[0].detail
+
+
+@pytest.mark.parametrize("text", ["not json", "", "[]", '{"other": []}', '{"n1": "oops"}', '{"n1": [{"id": "j"}]}',
+                                  '{"n1": [{"id": "j", "state": {"status": "paused"}, "progress": {}}]}'])
+def test_tc58_anything_that_is_not_a_status_of_the_named_node_is_unparseable_never_idle(text):
+    result = R.guard_idle("n1", text)
+    assert result.exit_code == R.EXIT_ERROR and [p.code for p in result.problems] == ["E-STATUS-UNPARSEABLE"]
+
+
+def test_tc59_a_trimmed_capture_of_real_dbench_status_output_is_parsed_and_the_exit_follows_its_content():
+    text = CAPTURE.read_text()
+    busy = R.guard_idle("quintus", text)
+    assert busy.exit_code == R.EXIT_FAIL and busy.problems[0].subject == "vidi-v2-iq4xs-llamacpp-r2" and "story 5" in busy.problems[0].detail
+    assert R.guard_idle("tritus", text).exit_code == R.EXIT_OK          # queued and done only (the node is held)
+    assert R.guard_idle("macbook-air", text).exit_code == R.EXIT_OK
+    assert R.guard_idle("not-in-the-capture", text).exit_code == R.EXIT_ERROR
+
+
+# ---- integration: an unreachable node and a caller that stops (task 1.23, TC-57 and TC-60 / workflow W-2) --------------------------
+
+STAND_IN_DBENCH = """#!/usr/bin/env python3
+# a stand-in dbench: `status --json NODE` prints what the real one printed (a trimmed capture), or exits non-zero
+import json, os, sys
+if os.environ.get("STAND_IN_UNREACHABLE"):
+    sys.stderr.write("Error: cannot reach the node\\n"); sys.exit(1)
+node = sys.argv[-1]
+capture = json.load(open(os.environ["STAND_IN_CAPTURE"]))
+print(json.dumps({node: capture[node]}) if node in capture else "")
+"""
+
+
+def with_stand_in_dbench(tmp_path: Path, **env) -> dict:
+    bin_dir = tmp_path / "bin"
+    write(bin_dir, "dbench", STAND_IN_DBENCH).chmod(0o755)
+    return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}", "STAND_IN_CAPTURE": str(CAPTURE), **env}
+
+
+def test_tc57_a_dbench_that_exits_non_zero_is_exit_2_unreachable(tmp_path):
+    root = make_root(tmp_path)
+    done = tool(root, "guard-idle", "quintus", env=with_stand_in_dbench(tmp_path, STAND_IN_UNREACHABLE="1"))
+    assert done.returncode == R.EXIT_ERROR and "E-UNREACHABLE" in done.stdout
+
+
+def test_a_dbench_that_is_not_installed_is_also_unreachable(tmp_path):
+    root = make_root(tmp_path)
+    done = tool(root, "guard-idle", "quintus", env={**os.environ, "PATH": "/usr/bin:/bin"})
+    assert done.returncode == R.EXIT_ERROR and "E-UNREACHABLE" in done.stdout
+
+
+SWITCH_SCRIPT = """#!/bin/sh
+# a stand-in for the layout, install and switch scripts of stories 2 and 12: ask the guard first, stop on any non-zero exit
+python3 "$TOOL" --root "$ROOT" guard-idle "$NODE" || exit $?
+echo changed > "$WORK/changed.txt"
+"""
+
+
+def run_switch(tmp_path: Path, node: str) -> tuple[subprocess.CompletedProcess, Path]:
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "keep.txt").write_text("untouched")
+    script = write(tmp_path, "switch.sh", SWITCH_SCRIPT)
+    env = {**with_stand_in_dbench(tmp_path), "TOOL": str(TOOL), "ROOT": str(make_root(tmp_path / "root")), "NODE": node, "WORK": str(work)}
+    return subprocess.run(["sh", str(script)], env=env, capture_output=True, text=True), work
+
+
+def test_tc60_and_w2_a_switch_script_that_calls_the_guard_first_stops_before_touching_any_file_while_a_story_runs(tmp_path):
+    done, work = run_switch(tmp_path, "quintus")                 # the real capture has a story running on quintus
+    assert done.returncode == R.EXIT_FAIL and "E-MACHINE-BUSY" in done.stdout and "story 5" in done.stdout
+    assert sorted(p.name for p in work.iterdir()) == ["keep.txt"] and (work / "keep.txt").read_text() == "untouched"
+
+
+def test_w2_negative_with_an_idle_status_the_same_script_proceeds(tmp_path):
+    done, work = run_switch(tmp_path, "tritus")
+    assert done.returncode == 0 and (work / "changed.txt").read_text() == "changed\n"
