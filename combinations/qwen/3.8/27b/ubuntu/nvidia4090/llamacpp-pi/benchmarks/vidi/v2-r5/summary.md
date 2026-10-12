@@ -16,8 +16,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | 8/8 | 0 | 0 | 42/44 |
 | 8 | 7/7 | 0 | 0 | 49/51 |
 | 9 | 6/6 | 1 | 0 | 54/57 |
+| 10 | 8/8 | 0 | 1 | 63/65 |
 
-**New work** 51/53, **regressions** 1, **repairs** 0, **cumulative** 54/57.
+**New work** 59/61, **regressions** 1, **repairs** 1, **cumulative** 63/65.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -29,8 +30,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | Select, move, resize and delete several objects at once | DONE | 102.9 | None | None | None | — | — | green | 42/44 |  | 0 / 0 | 5 | — | throttled 0%, server peak 18 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 55.6 | None | None | None | — | — | green | 49/51 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 | 9 | Write free text anywhere on the board | DONE | 60.2 | None | None | None | — | — | green | 54/57 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 94.1 | None | None | None | — | — | red | 63/65 |  | 0 / 0 | 4 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 8 stories, 611 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/8, final acceptance 54/57, stalled 0, partial 0, 17248 lines in src+tests.
+**Totals:** 9 stories, 705 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/9, final acceptance 63/65, stalled 0, partial 0, 20930 lines in src+tests.
 
 ## How it happened
 
@@ -46,11 +48,14 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 6 by the agent | 3243 / 453 | `useTransformGesture.ts` (345), `Board.tsx` (312), `board-model.ts` (306), `StickyNote.tsx` (224), `geometry.ts` (188), `BoardViewport.tsx` (140), +12 more |
 | 8 | 1 by the agent | 1648 / 25 | `undo.ts` (125), `UndoButtons.tsx` (69), `NOTES.md` (66), `useUndo.ts` (57), `useBoardKeys.ts` (43), `Board.tsx` (39), +7 more |
 | 9 | 10 by the agent | 2466 / 179 | `text.ts` (222), `TextEditor.tsx` (202), `TextObject.tsx` (171), `textLayout.ts` (138), `Board.tsx` (132), `board-model.ts` (70), +18 more |
+| 10 | 1 by the agent | 3778 / 98 | `ConnectorObject.tsx` (319), `ConnectorTool.tsx` (240), `connector.ts` (237), `ShapeTool.tsx` (197), `ShapeObject.tsx` (176), `shape.ts` (163), +16 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 9 broke 1, fixed 0** earlier held-out tests (story 9: Write free text anywhere on the board; story 9: text object component tests (TC-19 to TC-25); story 9: text object, editor, toolbar, e/w handles and group resize rule; story 9: tool mode component tests (TC-14 to TC-18); story 9: select/text tool modes with V/T/N/Escape shortcuts; story 9: box sync component tests (TC-12, TC-13); story 9: text layout and local-only box sync; story 9: text layout unit tests first (TC-07..TC-11, TC-32); story 9: text object model and shared text-edit helpers; story 9: text model unit tests first (TC-01..TC-06)). Source files it changed most: `text.ts` (222), `TextEditor.tsx` (202), `TextObject.tsx` (171), `textLayout.ts` (138), `Board.tsx` (132), `board-model.ts` (70), +18 more.
   - story 7: 8/8 → 7/8; broke 1.
+- **Story 10 broke 0, fixed 1** earlier held-out tests (story 10: Draw shapes and connect them with arrows that follow when moved). Source files it changed most: `ConnectorObject.tsx` (319), `ConnectorTool.tsx` (240), `connector.ts` (237), `ShapeTool.tsx` (197), `ShapeObject.tsx` (176), `shape.ts` (163), +16 more.
+  - story 7: 7/8 → 8/8; fixed 1
 
 ### Interruptions and dead time
 
