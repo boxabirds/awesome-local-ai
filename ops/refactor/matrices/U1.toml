@@ -1,0 +1,12 @@
+# U1: the harness records a story. The eight dimensions are fixed by the PRD of story 1 (and the design's
+# "Refactoring method"); the cells are written in task 1.25. Dimensions come first, cells after.
+
+[dimensions]
+run_kind = ["combination", "reference"]
+story_outcome = ["done", "partial", "stopped", "failed"]
+private_files = ["present", "absent"]
+credential = ["present", "absent"]
+heldout_title = ["present", "absent"]
+size = ["under", "over"]
+results_root = ["set and valid", "unset", "a git checkout", "inside one"]
+run_position = ["inside root", "outside"]

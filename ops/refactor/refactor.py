@@ -328,6 +328,11 @@ def check_touched(root: Path) -> Result:
 
 # ---- matrix: dimensions first, then one test per cell ---------------------------------------------------------------
 
+def raw_tuple_count(dimensions: dict[str, list[str]]) -> int:
+    """How many cells the cross product of the declared dimensions has (before any impossible cell is considered)."""
+    return len(list(itertools.product(*dimensions.values())))
+
+
 def check_matrix(root: Path, use_case: str, lister: Lister) -> Result:
     """The cross product of the declared dimensions has exactly one test in every cell, and no cell outside it."""
     result = Result()

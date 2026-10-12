@@ -6,6 +6,7 @@ Run with: uv run --with pytest python -m pytest -q ops/refactor
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -1120,3 +1121,20 @@ def test_tc68_negative_a_real_function_that_only_touches_workspace_git_is_not_pr
 def test_the_excerpts_carry_the_commit_they_came_from():
     for name in ("drive.py", "sources.ts", "collector.rs"):
         assert "pinned to commit" in (REAL / name).read_text().splitlines()[0]
+
+
+# ---- matrix: task 1.13's assertions on the tuple, and the real U1 file --------------------------------------------------
+
+def test_tc13_the_extra_cell_names_its_tuple_and_tc14_the_multiple_cell_names_its_tuple_and_tests(tmp_path):
+    extra = matrix_result(tmp_path / "a", TWO_BY_TWO + '[[cell]]\nat = ["combination", "stopped"]\ntest = "python:t.py::a"\n')
+    assert [(p.code, p.subject) for p in extra.problems] == [("E-CELL-EXTRA", "combination x stopped")]
+    multiple = matrix_result(tmp_path / "b", TWO_BY_TWO.replace('test = "python:t.py::d"', 'tests = ["python:t.py::d", "python:t.py::a"]'))
+    problem = multiple.problems[0]
+    assert (problem.code, problem.subject) == ("E-CELL-MULTIPLE", "reference x partial") and "python:t.py::a" in problem.detail
+
+
+def test_the_real_u1_file_declares_the_eight_dimensions_of_the_prd_and_yields_1024_raw_tuples():
+    data = tomllib.loads((Path(__file__).parent / "matrices" / "U1.toml").read_text())
+    assert list(data["dimensions"]) == ["run_kind", "story_outcome", "private_files", "credential", "heldout_title", "size",
+                                        "results_root", "run_position"]
+    assert R.raw_tuple_count(data["dimensions"]) == 1024
