@@ -767,15 +767,133 @@ def assign_by_file(root: Path) -> Result:
             test = qualified(language, test_id)
             if test in unfit_tests:
                 continue
-            use_case = table.get(language, {}).get(test_id.split("::", 1)[0])
+            parts = test_id.split("::")
+            keys = ["::".join(parts[:n]) for n in range(len(parts) - 1, 0, -1)]      # the longest prefix first
+            use_case = next((table[language][k] for k in keys if k in table.get(language, {})), None)
             if use_case is None:
-                result.fail("E-FILE-UNMAPPED", test_id.split("::", 1)[0], f"{language}: no entry in {FILE_USE_CASE_FILE}")
+                result.fail("E-FILE-UNMAPPED", parts[0], f"{language}: no entry in {FILE_USE_CASE_FILE}")
             elif use_case in use_cases:
                 assigned.setdefault(use_case, []).append(test)
     if result.exit_code == EXIT_OK:
         atomic_write(root / ASSIGNMENTS_FILE, render_assignments(assigned, unfit))
         result.data = {"counts": {u: len(t) for u, t in sorted(assigned.items())}}
     write_report(root, "assign-by-file", result)
+    return result
+
+
+# ---- rust adapter: which tests belong to the touched files ------------------------------------------------------------
+
+RUST_RUNNING = re.compile(r"^\s*Running (unittests )?(\S+) \(target/debug/deps/([A-Za-z0-9_]+?)-[0-9a-f]+\)")
+RUST_TEST_LINE = re.compile(r"^(\S+): test$")
+RUST_SKIP_STEMS = {"main", "lib", "mod"}
+
+
+def rust_module_file(root: Path, crate_dir: str, entry_file: str, module: list[str]) -> str | None:
+    """The source file that holds a unit test's module: the longest module prefix that has a file (the rest is inline)."""
+    if not module:
+        return f"{crate_dir}/{entry_file}"
+    for end in range(len(module), 0, -1):
+        base = f"{crate_dir}/src/{'/'.join(module[:end])}"
+        for candidate in (f"{base}.rs", f"{base}/mod.rs"):
+            if (root / candidate).exists():
+                return candidate
+    return None
+
+
+def rust_touching_tests(root: Path, listing: str) -> set[str]:
+    """Tests of `cargo test -- --list` output that belong to a touched file: a unit test by its module's file, an
+    integration test by whether its text names a touched module. A static rule; report-deletion corrects it with facts."""
+    touched_files = {e["file"] for e in read_toml(root / TOUCHED_FILE).get("entry", []) if e["language"] == "rust"}
+    stems = {Path(f).stem if Path(f).stem not in RUST_SKIP_STEMS else Path(f).parent.name for f in touched_files}
+    found: set[str] = set()
+    crate_dir, kind, entry_file, integration_text = "", "", "", ""
+    for line in listing.splitlines():
+        running = RUST_RUNNING.match(line)
+        if running:
+            unit, entry_file, binary = running.group(1), running.group(2), running.group(3)
+            if unit:
+                crate_dir = f"tools/{binary.replace('_', '-')}"
+                if not (root / crate_dir).is_dir():
+                    raise AdapterError(f"{crate_dir}: no such crate folder (binary {binary})")
+            kind = "unit" if unit else "integration"
+            integration_text = "" if unit else (root / crate_dir / entry_file).read_text() if (root / crate_dir / entry_file).exists() else ""
+            continue
+        test = RUST_TEST_LINE.match(line)
+        if not test or not kind:
+            continue
+        name = test.group(1)
+        if kind == "unit":
+            segments = name.split("::")
+            module = segments[: segments.index("tests")] if "tests" in segments else segments[:-1]
+            file = rust_module_file(root, crate_dir, entry_file, module)
+            if file is None:
+                raise AdapterError(f"{crate_dir}: no source file for the module of test {name}")
+            if file in touched_files:
+                found.add(f"{crate_dir}/{entry_file}::{name}")
+        elif any(re.search(rf"\b{re.escape(stem)}\b", integration_text) for stem in stems):
+            found.add(f"{crate_dir}/{entry_file}::{name}")
+    return found
+
+
+def adapt_rust(root: Path, listing: Path) -> Result:
+    result = Result()
+    try:
+        tests = rust_touching_tests(root, listing.read_text())
+    except AdapterError as exc:
+        result.error("E-ADAPTER", str(listing), str(exc))
+        return result
+    path = root / TOUCHED_TESTS
+    current = json.loads(path.read_text()) if path.exists() else {}
+    current["rust"] = sorted(tests)
+    atomic_write(path, json.dumps(current, indent=JSON_INDENT, sort_keys=True) + "\n")
+    result.data = {"rust": len(tests)}
+    return result
+
+
+# ---- typescript adapter: vitest list and playwright list -----------------------------------------------------------------
+
+PLAYWRIGHT_LINE = re.compile(r"^\s+(\S+\.(?:spec|test)\.ts):\d+:\d+ › (.+)$")
+E2E_DIR_DEFAULT = "tools/benchmarker/e2e"
+
+
+def typescript_touching_tests(root: Path, vitest_json: str, playwright_list: str, e2e_dir: str = E2E_DIR_DEFAULT) -> set[str]:
+    """Vitest tests whose file is named for, or imports, a touched module; every Playwright test, because each one drives the
+    whole app through the server. A static rule; report-deletion corrects it with facts."""
+    stems = {Path(e["file"]).stem for e in read_toml(root / TOUCHED_FILE).get("entry", []) if e["language"] == "typescript"}
+    root_resolved = root.resolve()
+    found: set[str] = set()
+    touching: dict[str, bool] = {}
+    for row in json.loads(vitest_json):
+        try:
+            rel = Path(row["file"]).resolve().relative_to(root_resolved).as_posix()
+        except ValueError:
+            raise AdapterError(f"{row['file']}: a vitest file outside the repository") from None
+        if rel not in touching:
+            text = (root / rel).read_text() if (root / rel).exists() else ""
+            named = Path(rel).name.split(".")[0] in stems
+            imported = any(re.search(rf"""["'](?:[^"']*/)?{re.escape(stem)}(?:\.ts)?["']""", text) for stem in stems)
+            touching[rel] = named or imported
+        if touching[rel]:
+            found.add(f"{rel}::{row['name']}")
+    for line in playwright_list.splitlines():
+        m = PLAYWRIGHT_LINE.match(line)
+        if m:
+            found.add(f"{e2e_dir}/{m.group(1)}::{m.group(2)}")
+    return found
+
+
+def adapt_typescript(root: Path, vitest_json: Path, playwright_list: Path, e2e_dir: str) -> Result:
+    result = Result()
+    try:
+        tests = typescript_touching_tests(root, vitest_json.read_text(), playwright_list.read_text(), e2e_dir)
+    except AdapterError as exc:
+        result.error("E-ADAPTER", str(vitest_json), str(exc))
+        return result
+    path = root / TOUCHED_TESTS
+    current = json.loads(path.read_text()) if path.exists() else {}
+    current["typescript"] = sorted(tests)
+    atomic_write(path, json.dumps(current, indent=JSON_INDENT, sort_keys=True) + "\n")
+    result.data = {"typescript": len(tests)}
     return result
 
 
@@ -883,6 +1001,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("advance", help="move to the next stage if its check passes").add_argument("to")
     sub.add_parser("assign-by-file", help=f"expand {FILE_USE_CASE_FILE} into assignments.toml")
+    sub.add_parser("adapt-rust", help="store the Rust tests of the touched files, from `cargo test --workspace -- --list` output").add_argument("listing", type=Path)
+    ts = sub.add_parser("adapt-typescript", help="store the TypeScript tests of the touched files, from `vitest list --json` and `playwright test --list`")
+    ts.add_argument("vitest_json", type=Path)
+    ts.add_argument("playwright_list", type=Path)
+    ts.add_argument("--e2e-dir", default=E2E_DIR_DEFAULT)
     adapt = sub.add_parser("adapt-python", help="store the Python tests that execute the touched set, from coverage contexts")
     adapt.add_argument("sources", nargs="+", metavar="FOLDER=FILE",
                        help="the folder (relative to the repository root, with a trailing /) a coverage run was made in, and its JSON")
@@ -914,6 +1037,10 @@ def main(argv: list[str] | None = None) -> int:
                 result.error("E-RESULTS-MISSING", str(RESULTS_INPUT), "no results to read")
             else:
                 result = report_deletion(root, results)
+        elif args.command == "adapt-typescript":
+            result = adapt_typescript(root, args.vitest_json, args.playwright_list, args.e2e_dir)
+        elif args.command == "adapt-rust":
+            result = adapt_rust(root, args.listing)
         elif args.command == "assign-by-file":
             result = assign_by_file(root)
         elif args.command == "adapt-python":

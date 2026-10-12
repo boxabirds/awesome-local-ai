@@ -986,3 +986,147 @@ def test_assign_by_file_keeps_the_unfit_decisions_already_recorded(tmp_path):
     written = tomllib_load(root / "ops/refactor/assignments.toml")
     assert written["assignments"] == {"U1": ["python:h/a.py::t1"]} and written["unfit"][0]["test"] == "python:h/a.py::odd"
     assert cli(root, "check-register") == R.EXIT_OK
+
+
+# ---- rust adapter: which tests belong to the touched files (from `cargo test -- --list`) -------------------------------
+
+RUST_TOUCHED = (
+    '[[entry]]\nlanguage = "rust"\nfile = "tools/dbench/src/collector.rs"\nfunction = "pass"\nclasses = ["C"]\n'
+    '[[entry]]\nlanguage = "rust"\nfile = "tools/dbench/src/ingest/inputs.rs"\nfunction = "candidates"\nclasses = ["B"]\n')
+
+CARGO_LIST = """\
+     Running unittests src/lib.rs (target/debug/deps/dbench-3c9e3c3b1e939def)
+collector::tests::copies_a_run: test
+collector::tests::skips_a_complete_run: test
+events::tests::parses_an_event: test
+ingest::inputs::tests::reads_a_whole_log: test
+ingest::mod_less::tests::nothing: test
+
+2 tests, 0 benchmarks
+     Running tests/server.rs (target/debug/deps/server-607e7965d4855fd8)
+serves_a_run_file: test
+lists_machines: test
+     Running tests/label.rs (target/debug/deps/label-5db19efd581a89c8)
+renders_a_label: test
+   Doc-tests dbench
+"""
+
+
+def rust_root(tmp_path: Path) -> Path:
+    root = make_code_root(tmp_path, {
+        "tools/dbench/src/collector.rs": "pub fn pass() {}\n",
+        "tools/dbench/src/events.rs": "pub fn parse() {}\n",
+        "tools/dbench/src/ingest/inputs.rs": "pub fn candidates() {}\n",
+        "tools/dbench/tests/server.rs": "use dbench::collector::pass;\n#[test]\nfn serves_a_run_file() {}\n",
+        "tools/dbench/tests/label.rs": "#[test]\nfn renders_a_label() {}\n",
+    }, touched=RUST_TOUCHED)
+    return root
+
+
+def test_unit_tests_of_a_touched_module_are_in_and_of_an_untouched_module_are_out(tmp_path):
+    root = rust_root(tmp_path)
+    found = R.rust_touching_tests(root, CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
+    assert "tools/dbench/src/lib.rs::collector::tests::copies_a_run" in found
+    assert "tools/dbench/src/lib.rs::events::tests::parses_an_event" not in found
+
+
+def test_a_nested_module_path_resolves_to_its_file(tmp_path):
+    root = rust_root(tmp_path)
+    found = R.rust_touching_tests(root, CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
+    assert "tools/dbench/src/lib.rs::ingest::inputs::tests::reads_a_whole_log" in found
+
+
+def test_an_integration_test_file_that_names_a_touched_module_is_in_and_one_that_does_not_is_out(tmp_path):
+    root = rust_root(tmp_path)
+    found = R.rust_touching_tests(root, CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
+    assert "tools/dbench/tests/server.rs::serves_a_run_file" in found
+    assert not any(t.startswith("tools/dbench/tests/label.rs") for t in found)
+
+
+def test_a_unit_test_whose_module_has_no_file_is_an_adapter_error(tmp_path):
+    with pytest.raises(R.AdapterError):
+        R.rust_touching_tests(rust_root(tmp_path), CARGO_LIST)      # ingest::mod_less has no file
+
+
+def test_doc_tests_and_summary_lines_are_not_tests(tmp_path):
+    root = rust_root(tmp_path)
+    found = R.rust_touching_tests(root, CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
+    assert all("Doc-tests" not in t and "benchmarks" not in t for t in found)
+
+
+def test_adapt_rust_stores_the_rust_key_and_keeps_python(tmp_path):
+    root = rust_root(tmp_path)
+    write(root, "ops/refactor/reports/touched-tests.json", json.dumps({"python": ["x.py::t"]}))
+    listing = write(tmp_path, "list.txt", CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
+    assert cli(root, "adapt-rust", str(listing)) == R.EXIT_OK
+    stored = json.loads((root / "ops/refactor/reports/touched-tests.json").read_text())
+    assert stored["python"] == ["x.py::t"] and len(stored["rust"]) == 5
+
+
+def test_adapt_rust_on_an_unresolvable_module_is_exit_2_and_writes_nothing(tmp_path):
+    root = rust_root(tmp_path)
+    listing = write(tmp_path, "list.txt", CARGO_LIST)
+    assert cli(root, "adapt-rust", str(listing)) == R.EXIT_ERROR
+    assert not (root / "ops/refactor/reports/touched-tests.json").exists()
+
+
+def test_assign_by_file_uses_the_longest_matching_key_so_a_module_can_differ_from_its_file(tmp_path):
+    root = assign_root(tmp_path, '[rust]\n"c/src/lib.rs" = "U3"\n"c/src/lib.rs::ingest" = "U4"\n',
+                       {"rust": ["c/src/lib.rs::collector::tests::a", "c/src/lib.rs::ingest::inputs::tests::b"]})
+    assert cli(root, "assign-by-file") == R.EXIT_OK
+    written = tomllib_load(root / "ops/refactor/assignments.toml")["assignments"]
+    assert written == {"U3": ["rust:c/src/lib.rs::collector::tests::a"], "U4": ["rust:c/src/lib.rs::ingest::inputs::tests::b"]}
+
+
+# ---- typescript adapter: vitest list + playwright list ---------------------------------------------------------------
+
+TS_TOUCHED = (
+    '[[entry]]\nlanguage = "typescript"\nfile = "tools/b/server/domain.ts"\nfunction = "findRuns"\nclasses = ["A"]\n'
+    '[[entry]]\nlanguage = "typescript"\nfile = "tools/b/server/main.ts"\nfunction = "start"\nclasses = ["C"]\n')
+
+
+def ts_root(tmp_path: Path) -> Path:
+    return make_code_root(tmp_path, {
+        "tools/b/server/domain.ts": "export function findRuns() {}\n",
+        "tools/b/server/main.ts": "export function start() {}\n",
+        "tools/b/server/domain.test.ts": 'import { findRuns } from "./domain"\n',
+        "tools/b/shared/view.test.ts": 'import { thing } from "../server/domain"\n',
+        "tools/b/shared/other.test.ts": 'import { x } from "./stats"\n',
+    }, touched=TS_TOUCHED)
+
+
+def vitest_json(root: Path, *rows: tuple[str, str]) -> str:
+    return json.dumps([{"name": name, "file": str(root / file), "location": {"line": 1, "column": 1}} for file, name in rows])
+
+
+PW_LIST = "Listing tests:\n  activity.spec.ts:11:1 › the tab leads to it\n  run.spec.ts:5:3 › links › a flag can be read\nTotal: 2 tests in 2 files\n"
+
+
+def test_a_vitest_file_named_for_or_importing_a_touched_module_is_in_and_an_unrelated_one_is_out(tmp_path):
+    root = ts_root(tmp_path)
+    listing = vitest_json(root, ("tools/b/server/domain.test.ts", "finds runs"), ("tools/b/shared/view.test.ts", "shows a run"),
+                          ("tools/b/shared/other.test.ts", "adds"))
+    assert R.typescript_touching_tests(root, listing, "") == {"tools/b/server/domain.test.ts::finds runs", "tools/b/shared/view.test.ts::shows a run"}
+
+
+def test_every_playwright_test_is_in_because_it_drives_the_whole_app_through_the_server(tmp_path):
+    root = ts_root(tmp_path)
+    found = R.typescript_touching_tests(root, "[]", PW_LIST, e2e_dir="tools/b/e2e")
+    assert found == {"tools/b/e2e/activity.spec.ts::the tab leads to it", "tools/b/e2e/run.spec.ts::links › a flag can be read"}
+
+
+def test_a_vitest_file_outside_the_repository_is_an_adapter_error(tmp_path):
+    root = ts_root(tmp_path)
+    bad = json.dumps([{"name": "x", "file": "/elsewhere/a.test.ts", "location": {}}])
+    with pytest.raises(R.AdapterError):
+        R.typescript_touching_tests(root, bad, "")
+
+
+def test_adapt_typescript_stores_the_typescript_key_and_keeps_the_rest(tmp_path):
+    root = ts_root(tmp_path)
+    write(root, "ops/refactor/reports/touched-tests.json", json.dumps({"rust": ["m::t"]}))
+    vitest = write(tmp_path, "v.json", vitest_json(root, ("tools/b/server/domain.test.ts", "finds runs")))
+    playwright = write(tmp_path, "p.txt", PW_LIST)
+    assert cli(root, "adapt-typescript", str(vitest), str(playwright), "--e2e-dir", "tools/b/e2e") == R.EXIT_OK
+    stored = json.loads((root / "ops/refactor/reports/touched-tests.json").read_text())
+    assert stored["rust"] == ["m::t"] and len(stored["typescript"]) == 3
