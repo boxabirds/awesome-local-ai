@@ -1,3 +1,38 @@
+commit 28573cbae5debc04cde0c422f700da39bc6deda3
+agent  Mon Oct 12 02:01:52 2026 +0100
+
+    story 11: Sketch freehand with a pen
+
+
+ NOTES.md                            |  19 +++
+ PROGRESS.md                         |  12 +-
+ src/client/board/Board.tsx          |  18 +++
+ src/client/board/Toolbar.tsx        |  83 ++++++++++
+ src/client/board/useBoardDoc.ts     |  16 ++
+ src/client/canvas/testHooks.ts      |  10 ++
+ src/client/objects/StrokeObject.tsx | 122 ++++++++++++++
+ src/client/tools/PenTool.tsx        | 299 ++++++++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx     |  87 ++++++++++
+ src/client/tools/useActiveTool.ts   |   3 +-
+ src/client/tools/usePenOptions.ts   |  27 ++++
+ src/shared/board-model.ts           |  30 +++-
+ src/shared/config.ts                |  28 ++++
+ src/shared/geometry/simplify.ts     | 114 +++++++++++++
+ src/shared/objects/stroke.ts        | 154 ++++++++++++++++++
+ tests/component/PenTool.test.tsx    | 289 +++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/board.ts          |  36 +++++
+ tests/e2e/pen.spec.ts               | 182 +++++++++++++++++++++
+ tests/fixtures/pen-paths.ts         |  53 +++++++
+ tests/unit/stroke.test.ts           | 308 ++++++++++++++++++++++++++++++++++++
+ 20 files changed, 1882 insertions(+), 8 deletions(-)
+commit 73cc3054925281318bce9bd576965eff3a3b67ca
+vidi-agent  Mon Oct 12 01:36:28 2026 +0100
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)
 commit f0396b6be5dfd124d2d19f5e77bfaafa47761b60
 agent  Mon Oct 12 01:32:33 2026 +0100
 
