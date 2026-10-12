@@ -646,6 +646,51 @@ def check_idle(probe: Callable[[], list[str] | None]) -> Result:
     return result
 
 
+# ---- python adapter: which tests execute a touched function (coverage contexts) --------------------------------------
+
+class AdapterError(Exception):
+    """A runner's output cannot be read: the command turns this into exit 2, never a pass."""
+
+
+CONTEXT_PHASE = "|run"        # coverage's per-test context is "<nodeid>|run", "|setup" or "|teardown"
+
+
+def python_function_lines(text: str, name: str) -> set[int] | None:
+    """The line numbers from the def line through its last line, for a function or a Class.method; None if absent."""
+    node: ast.AST = ast.parse(text)
+    for part in name.split("."):
+        node = next((c for c in ast.iter_child_nodes(node)
+                     if isinstance(c, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and c.name == part), None)
+        if node is None:
+            return None
+    return set(range(node.lineno, node.end_lineno + 1))
+
+
+def tests_touching(contexts: dict[str, list[str]], lines: set[int]) -> set[str]:
+    """Qualified ids of the tests whose run phase executed any of the lines."""
+    found = set()
+    for line, names in contexts.items():
+        if int(line) in lines:
+            found |= {qualified("python", n[: -len(CONTEXT_PHASE)]) for n in names if n.endswith(CONTEXT_PHASE)}
+    return found
+
+
+def python_touching_tests(root: Path, coverage: dict) -> set[str]:
+    """Union over the touched Python functions; a touched file the coverage data lacks makes the answer unknowable."""
+    found: set[str] = set()
+    for e in read_toml(root / TOUCHED_FILE).get("entry", []):
+        if e["language"] != "python":
+            continue
+        data = coverage.get("files", {}).get(e["file"])
+        if data is None:
+            raise AdapterError(f"{e['file']}: no coverage data (the file was never imported by the run)")
+        lines = python_function_lines((root / e["file"]).read_text(), e["function"])
+        if lines is None:
+            raise AdapterError(f"{e['file']}::{e['function']}: no such function")
+        found |= tests_touching(data.get("contexts", {}), lines)
+    return found
+
+
 def list_tests(root: Path) -> dict[str, set[str]]:
     """The real runners' test lists (filled in by the runner adapters below)."""
     return {}

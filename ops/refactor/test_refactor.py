@@ -836,3 +836,55 @@ def test_a_named_function_matching_a_pattern_too_lists_both_classes_once(tmp_pat
     root = make_code_root(tmp_path, {"src/a.py": "def f():\n    run(['git', 'commit'])\n"})
     write(root, "ops/refactor/classes.toml", CLASSES + '\n[named]\nA = ["src/a.py::f"]\n')
     assert proposed(root) == {("src/a.py", "f"): ["A", "C"]}
+
+
+# ---- python adapter: the tests that execute a touched function, from coverage contexts ----------------------------------
+
+PY_SOURCE = "def record():\n    x = 1\n    return x\n\n\ndef other():\n    return 2\n"
+
+
+def test_function_lines_are_the_def_through_its_last_line():
+    assert R.python_function_lines(PY_SOURCE, "record") == {1, 2, 3}
+    assert R.python_function_lines(PY_SOURCE, "other") == {6, 7}
+
+
+def test_function_lines_of_a_method_use_the_dotted_name():
+    src = "class C:\n    def m(self):\n        return 1\n"
+    assert R.python_function_lines(src, "C.m") == {2, 3}
+
+
+def test_function_lines_of_a_missing_function_is_none():
+    assert R.python_function_lines(PY_SOURCE, "ghost") is None
+
+
+def test_a_test_whose_context_hit_a_line_of_the_function_touches_it():
+    contexts = {"2": ["test_a.py::test_one|run"], "7": ["test_b.py::test_two|run"]}
+    assert R.tests_touching(contexts, {1, 2, 3}) == {"python:test_a.py::test_one"}
+
+
+def test_setup_and_teardown_contexts_and_the_empty_context_are_not_tests():
+    contexts = {"2": ["", "test_a.py::test_one|setup", "test_a.py::test_one|teardown", "test_a.py::test_one|run"]}
+    assert R.tests_touching(contexts, {2}) == {"python:test_a.py::test_one"}
+
+
+def test_a_setup_only_hit_is_not_a_test_touching_the_function():
+    assert R.tests_touching({"2": ["test_a.py::test_one|setup"]}, {2}) == set()
+
+
+def test_parametrised_ids_keep_their_brackets():
+    assert R.tests_touching({"2": ["test_a.py::test_p[a-1]|run"]}, {2}) == {"python:test_a.py::test_p[a-1]"}
+
+
+def test_the_touched_python_tests_are_the_union_over_every_touched_function(tmp_path):
+    root = make_code_root(tmp_path, {"src/a.py": PY_SOURCE}, touched=(
+        '[[entry]]\nlanguage = "python"\nfile = "src/a.py"\nfunction = "record"\nclasses = ["A"]\n'
+        '[[entry]]\nlanguage = "python"\nfile = "src/a.py"\nfunction = "other"\nclasses = ["A"]\n'))
+    coverage = {"files": {"src/a.py": {"contexts": {"2": ["t.py::one|run"], "7": ["t.py::two|run"]}}}}
+    assert R.python_touching_tests(root, coverage) == {"python:t.py::one", "python:t.py::two"}
+
+
+def test_a_touched_python_file_missing_from_the_coverage_data_is_undecidable(tmp_path):
+    root = make_code_root(tmp_path, {"src/a.py": PY_SOURCE}, touched=(
+        '[[entry]]\nlanguage = "python"\nfile = "src/a.py"\nfunction = "record"\nclasses = ["A"]\n'))
+    with pytest.raises(R.AdapterError):
+        R.python_touching_tests(root, {"files": {}})
