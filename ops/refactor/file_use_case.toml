@@ -1,5 +1,6 @@
-# One use case per test file (docs/designs/operational-data-separation.md, "Refactoring method", step 1). `refactor.py
-# assign-by-file` expands this into assignments.toml; a touched test whose file is missing here stops the step.
+# One use case per test file (docs/designs/operational-data-separation.md, "Refactoring method", step 1): the decision behind
+# assignments.toml, which was written from it once (12 Oct 2026) by a script outside the tool. assignments.toml is the record the
+# tool reads; this file explains it, and a new test file is mapped here and assigned there.
 # Python test ids are written with their folder: benchmarks/spec-bench/harness/<file>.
 
 [python]
@@ -83,3 +84,9 @@
 "tools/benchmarker/server/faults.test.ts" = "U5"
 "tools/benchmarker/server/runNotes.test.ts" = "U5"
 "tools/benchmarker/server/sources.test.ts" = "U5"
+
+[shell]
+"tests/judge-setup-test.sh" = "U8"
+"tests/judge-submit-test.sh" = "U8"
+"tests/setup-node-test.sh" = "U13"
+"tests/fetch-work-test.sh" = "U1"
