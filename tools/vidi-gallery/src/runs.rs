@@ -478,6 +478,42 @@ mod tests {
     }
 
     #[test]
+    fn a_folder_named_vidi_is_a_benchmark_only_directly_under_benchmarks() {
+        let repo = tmp("discover-vidi-elsewhere");
+        let real = repo.join("combinations/q/benchmarks/vidi/r1");
+        let stray = repo.join("combinations/q/notes/vidi/r1");
+        for d in [&real, &stray] {
+            write(&d.join("metrics.json"), &json!({"stories": {}}));
+            std::fs::create_dir_all(d.join("workspace")).unwrap();
+        }
+        let found = discover(&repo);
+        assert_eq!(found.iter().map(|(s, r, _)| (s.as_str(), r.as_str())).collect::<Vec<_>>(), vec![("q", "r1")], "{found:?}");
+    }
+
+    #[test]
+    fn the_private_checkout_is_the_repos_sibling_and_a_repo_with_no_parent_has_none() {
+        assert_eq!(private_of(Path::new("/work/awesome-local-ai")), PathBuf::from("/work/awesome-local-ai-bench-private"));
+        assert_eq!(private_of(Path::new("/")), PathBuf::new());
+    }
+
+    #[test]
+    fn load_reads_a_runs_audit_from_the_private_checkout_beside_the_repo() {
+        let root = tmp("load-private");
+        let repo = root.join("awesome-local-ai");
+        let rel = "combinations/x/benchmarks/vidi/r1";
+        let run = repo.join(rel);
+        write(&run.join("metrics.json"), &json!({"stories": {}}));
+        std::fs::create_dir_all(run.join("workspace")).unwrap();
+        assert!(load(&repo)[0].judging.is_none());
+        let private = root.join("awesome-local-ai-bench-private/runs").join(rel);
+        std::fs::create_dir_all(&private).unwrap();
+        std::fs::write(private.join("audit.jsonl"), json!({"category": "functional", "severity": "high", "status": "counted"}).to_string()).unwrap();
+        let runs = load(&repo);
+        assert_eq!((runs.len(), runs[0].slug.as_str()), (1, "x_r1"));
+        assert_eq!(runs[0].judging.as_ref().map(|j| (j.rows, j.functional["high"])), Some((1, 1)));
+    }
+
+    #[test]
     fn the_final_score_prefers_accept_final_then_the_last_story_then_the_run() {
         let run = tmp("score");
         write(&run.join("stories/03/accept.json"), &json!({"passed": 20, "total": 27, "by_story": {"01": {"passed": 10, "total": 10}}}));

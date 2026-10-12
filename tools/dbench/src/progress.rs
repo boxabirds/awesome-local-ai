@@ -913,6 +913,26 @@ mod tests {
     }
 
     #[test]
+    fn a_job_whose_install_is_missing_or_names_no_combination_has_no_run_dir_and_says_why() {
+        let root = std::env::temp_dir().join(format!("dbench-nocombo-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (repo, share) = (root.join("repo"), root.join("share"));
+        std::fs::create_dir_all(share.join("no-combination")).unwrap();
+        std::fs::write(share.join("no-combination").join("install.env"), "INSTALL_ID=\"no-combination\"\nBACKEND=\"fake\"\n").unwrap();
+        let spec = |install: &str| -> JobSpec {
+            serde_json::from_str(&format!(r#"{{"install_id":"{install}","pack":"benchmarks/vidi","run_id":"r1","client":"pi","record":true}}"#)).unwrap()
+        };
+        let missing = resolve_run_dir(&repo, &share, &spec("not-installed")).unwrap_err();
+        assert_eq!(missing, format!("{} not found", share.join("not-installed").join("install.env").display()));
+        let none = resolve_run_dir(&repo, &share, &spec("no-combination")).unwrap_err();
+        assert_eq!(none, "install.env has no COMBINATION");
+        // The same two reasons reach a job's progress, which carries no stories and no run dir.
+        let p = compute(&repo, &share, &spec("no-combination"), &root.join("no-log"));
+        assert_eq!((p.error.as_deref(), p.run_dir, p.combination), (Some("install.env has no COMBINATION"), None, None));
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
     fn tail() {
         let p = std::env::temp_dir().join(format!("dbench-tail-{}", std::process::id()));
         let text: String = (1..=30).map(|i| format!("line {i}\n")).collect();

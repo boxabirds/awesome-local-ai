@@ -277,8 +277,19 @@ struct Server {
     http: reqwest::Client,
 }
 
+/// How long a stopped server may take to exit on SIGTERM before it is killed.
+const SERVER_STOP_DEADLINE: Duration = Duration::from_secs(5);
+
 impl Drop for Server {
+    /// SIGTERM, so the server returns from main and the coverage profile of its run is written (a SIGKILLed
+    /// process writes none); SIGKILL only if it does not go.
     fn drop(&mut self) {
+        // SAFETY: kill(2) on our own child's pid.
+        unsafe { libc::kill(self.child.id() as i32, libc::SIGTERM) };
+        let start = Instant::now();
+        while matches!(self.child.try_wait(), Ok(None)) && start.elapsed() < SERVER_STOP_DEADLINE {
+            std::thread::sleep(POLL);
+        }
         let _ = self.child.kill();
         let _ = self.child.wait();
     }

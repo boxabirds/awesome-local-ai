@@ -578,4 +578,15 @@ mod tests {
         let both = ["dbench", "harness-release", "--check-only", "--dry-run"];
         assert!(Cli::try_parse_from(both).is_err());
     }
+
+    #[test]
+    fn each_client_the_command_line_names_becomes_that_agent_client() {
+        for (name, want) in [("pi", AgentClient::Pi), ("opencode", AgentClient::Opencode), ("claude", AgentClient::Claude)] {
+            let cli = Cli::try_parse_from(["dbench", "submit", "node-a", "--id", "job-1", "--install-id", "i", "--pack", "p", "--run-id", "r1", "--client", name]).unwrap();
+            match cli.cmd {
+                Cmd::Submit { client, .. } => assert_eq!(AgentClient::from(client), want, "--client {name}"),
+                other => panic!("{other:?}"),
+            }
+        }
+    }
 }

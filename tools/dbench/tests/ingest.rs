@@ -997,6 +997,272 @@ fn a_run_recorded_before_the_rename_still_maps_from_opencode_to_pi() {
     std::fs::remove_dir_all(&root).unwrap();
 }
 
+/// `dbench ingest ARGS` without --json: the exit status, stdout, stderr.
+fn ingest_text(cwd: &std::path::Path, args: &[&str]) -> (bool, String, String) {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_dbench")).current_dir(cwd).arg("ingest").args(args).output().unwrap();
+    (out.status.success(), String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
+}
+
+fn git_in(dir: &std::path::Path, args: &[&str]) -> String {
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+#[test]
+fn dbench_ingest_reads_origin_main_fetching_first_unless_told_not_to_and_prints_a_line_of_text() {
+    let root = std::env::temp_dir().join(format!("dbench-ingest-git-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let (remote, work, clone) = (root.join("remote.git"), root.join("work"), root.join("clone"));
+    let (store, db_path) = (root.join("store"), root.join("insights/conversations.db"));
+    std::fs::create_dir_all(&work).unwrap();
+    git_in(&root, &["init", "--bare", "-q", remote.to_str().unwrap()]);
+    git_in(&work, &["init", "-q"]);
+    git_in(&work, &["remote", "add", "origin", remote.to_str().unwrap()]);
+    let publish = |story: &str| {
+        let dir = work.join(RUN).join("stories").join(story);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("agent-events.compact.jsonl.gz"), gzip(&fixture("accounting__claude-slept"))).unwrap();
+        std::fs::write(work.join(RUN).join("run.json"), r#"{"pack_version": "vidi-v2", "model_id": "m", "started_at": "2026-10-02T09:00:00Z"}"#).unwrap();
+        git_in(&work, &["add", "-A"]);
+        git_in(&work, &["commit", "-q", "-m", &format!("story {story}")]);
+        git_in(&work, &["push", "-q", "origin", "HEAD:main"]);
+    };
+    publish("01");
+    git_in(&root, &["clone", "-q", remote.to_str().unwrap(), clone.to_str().unwrap()]);
+    publish("02"); // pushed after the clone: origin/main in the clone does not have it until a fetch
+    let common = ["--db", db_path.to_str().unwrap(), "--repo", clone.to_str().unwrap(), "--store", store.to_str().unwrap()];
+
+    // --no-fetch reads the clone's origin/main as it is: one story.
+    let (ok, stdout, stderr) = ingest_text(&root, &[&common[..], &["--no-fetch"]].concat());
+    assert!(ok, "{stderr}");
+    assert!(stdout.starts_with("ingested 1 of 1 story runs in 1 runs (0 unchanged), 0 requests placed, "), "{stdout}");
+    // The default fetches origin first and so sees the second story; the first is unchanged.
+    let (ok, stdout, stderr) = ingest_text(&root, &common);
+    assert!(ok, "{stderr}");
+    assert!(stdout.starts_with("ingested 1 of 2 story runs in 1 runs (1 unchanged), 0 requests placed, "), "{stdout}");
+    assert!(stdout.ends_with(" s\n"), "{stdout}");
+    let db = Db::open_read_only(&db_path).unwrap();
+    let n: i64 = db.conn.query_row("select count(*) from stories", [], |r| r.get(0)).unwrap();
+    assert_eq!(n, 2);
+    assert_eq!(db.meta("source").unwrap().unwrap(), format!("git {} origin/main", clone.display()));
+    drop(db);
+    // A fetch that cannot happen is an error, not a quiet read of a stale rev.
+    let (ok, _, stderr) = ingest_text(&root, &["--db", db_path.to_str().unwrap(), "--repo", root.join("nowhere").to_str().unwrap(), "--store", store.to_str().unwrap()]);
+    assert!(!ok && stderr.contains("git fetch"), "{stderr}");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn dbench_ingest_with_a_database_path_that_has_no_parent_directory_fails_naming_the_path() {
+    // The filesystem root has no parent to create, and is not a database: the error says which path, and nothing is made.
+    let root = std::env::temp_dir().join(format!("dbench-ingest-rootdb-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let tree = root.join("repo");
+    std::fs::create_dir_all(&tree).unwrap();
+    let (ok, stdout, stderr) = ingest_text(&root, &["--db", "/", "--repo", tree.to_str().unwrap(), "--store", root.join("store").to_str().unwrap(), "--worktree"]);
+    assert!(!ok && stdout.is_empty(), "{stdout}{stderr}");
+    assert!(stderr.contains("open /"), "{stderr}");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+// ---- the collector's pass, in this process, with no node to pull from ----
+
+fn no_nodes() -> dbench::client::Ctx {
+    dbench::client::Ctx { nodes: Default::default(), collect: Default::default(), json: false }
+}
+
+fn collect_config(root: &std::path::Path, repo: Option<PathBuf>, worktree: bool) -> dbench::collector::Config {
+    dbench::collector::Config {
+        store: root.join("store"),
+        db: root.join("insights/conversations.db"),
+        repo,
+        worktree,
+        api: None,
+        nodes: vec![],
+        runs: vec![],
+        no_ingest: false,
+    }
+}
+
+fn cadence() -> dbench::collector::Cadence {
+    let second = std::time::Duration::from_secs(1);
+    dbench::collector::Cadence { running_poll: second, finished_recheck: second, settle_grace: second }
+}
+
+fn stories_in(db: &std::path::Path) -> i64 {
+    Db::open_read_only(db).unwrap().conn.query_row("select count(*) from stories", [], |r| r.get(0)).unwrap()
+}
+
+/// A work repo with origin/main holding one published story, and the bare remote it was pushed to.
+fn published_repo(root: &std::path::Path) -> (PathBuf, PathBuf) {
+    let (remote, work) = (root.join("remote.git"), root.join("work"));
+    std::fs::create_dir_all(&work).unwrap();
+    git_in(root, &["init", "--bare", "-q", remote.to_str().unwrap()]);
+    git_in(&work, &["init", "-q"]);
+    git_in(&work, &["remote", "add", "origin", remote.to_str().unwrap()]);
+    let dir = work.join(RUN).join("stories/01");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("agent-events.compact.jsonl.gz"), gzip(&fixture("accounting__claude-slept"))).unwrap();
+    git_in(&work, &["add", "-A"]);
+    git_in(&work, &["commit", "-q", "-m", "story 1"]);
+    git_in(&work, &["push", "-q", "origin", "HEAD:main"]);
+    (remote, work)
+}
+
+#[tokio::test]
+async fn a_pass_ingests_from_origin_main_only_when_something_was_pulled_or_a_fetch_is_due() {
+    use dbench::collector::pass;
+    let root = std::env::temp_dir().join(format!("dbench-pass-git-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let (remote, work) = published_repo(&root);
+    let cfg = collect_config(&root, Some(work.clone()), false);
+    let now = 1_790_000_000;
+    // Nothing pulled and no fetch due: the published tree is not read, and no database is made.
+    assert!(pass(&no_nodes(), &cfg, &cadence(), false, now).await.unwrap().is_empty());
+    assert!(!cfg.db.exists());
+    // A fetch is due: origin is fetched, origin/main is read and the story is in the database.
+    assert!(pass(&no_nodes(), &cfg, &cadence(), true, now).await.unwrap().is_empty());
+    assert_eq!(stories_in(&cfg.db), 1);
+    // Pull-only: the same due fetch ingests nothing.
+    let pull_only = dbench::collector::Config { no_ingest: true, db: root.join("pull-only.db"), ..cfg.clone() };
+    pass(&no_nodes(), &pull_only, &cadence(), true, now).await.unwrap();
+    assert!(!pull_only.db.exists());
+    // No repository configured and nothing to ingest from: a pass still runs.
+    let no_repo = dbench::collector::Config { repo: None, db: root.join("no-repo.db"), ..cfg.clone() };
+    pass(&no_nodes(), &no_repo, &cadence(), true, now).await.unwrap();
+    assert!(!no_repo.db.exists());
+    // A node named on the command line that the config does not have is reported by name, and the pass carries on.
+    let named = dbench::collector::Config { nodes: vec!["ghost".into()], ..cfg.clone() };
+    let summaries = pass(&no_nodes(), &named, &cadence(), true, now).await.unwrap();
+    assert_eq!(summaries.len(), 1);
+    assert_eq!((summaries[0].node.as_str(), summaries[0].reachable), ("ghost", false));
+    assert!(summaries[0].problems.iter().any(|p| p.contains("no node \"ghost\" in the config")), "{:?}", summaries[0].problems);
+    // A fetch that fails fails the pass: the rev read is never a stale one by accident.
+    std::fs::remove_dir_all(&remote).unwrap();
+    let err = pass(&no_nodes(), &cfg, &cadence(), true, now).await.unwrap_err();
+    assert!(format!("{err:#}").contains("git fetch"), "{err:#}");
+    // ...and one that is not due does not touch origin at all.
+    assert!(pass(&no_nodes(), &cfg, &cadence(), false, now).await.is_ok());
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[tokio::test]
+async fn a_pass_reading_the_working_tree_makes_the_database_and_names_a_database_it_cannot_open() {
+    use dbench::collector::pass;
+    let root = std::env::temp_dir().join(format!("dbench-pass-tree-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let tree = root.join("repo");
+    let dir = tree.join(RUN).join("stories/01");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("agent-events.compact.jsonl.gz"), gzip(&fixture("accounting__claude-slept"))).unwrap();
+    let cfg = collect_config(&root, Some(tree.clone()), true);
+    pass(&no_nodes(), &cfg, &cadence(), true, 1_790_000_000).await.unwrap();
+    assert_eq!(stories_in(&cfg.db), 1);
+    // The analytics file is brought up to date beside the warehouse after an ingest.
+    assert!(cfg.db.with_file_name("analytics.db").is_file());
+    // A database path with no parent to create and nothing to open there: the error names the path.
+    let root_db = dbench::collector::Config { db: PathBuf::from("/"), ..cfg.clone() };
+    let err = pass(&no_nodes(), &root_db, &cadence(), true, 1_790_000_000).await.unwrap_err();
+    assert!(format!("{err:#}").contains("open /"), "{err:#}");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+/// A story whose call has the largest token count there is beside one more cached token: adding them overflows.
+fn seed_story_with_token_counts(db: &std::path::Path, in_tok: i64, cache_tok: i64) {
+    std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+    let wh = Db::open(db).unwrap();
+    let c = &wh.conn;
+    c.execute("insert or ignore into runs(id) values (?1)", rusqlite::params![RUN]).unwrap();
+    c.execute("insert into stories(rel, run_id, stack, run, story) values (?1, ?2, 'q/w/v/os/m/llamacpp-pi', 'v2-r1', 1)", rusqlite::params![format!("{RUN}/stories/01"), RUN]).unwrap();
+    let sk = c.last_insert_rowid();
+    c.execute("insert into msgs(sk, idx, role, text_full) values (?1, 0, 'user', 'the task')", rusqlite::params![sk]).unwrap();
+    c.execute("insert into collection(sk, inputs_digest) values (?1, 'd1')", rusqlite::params![sk]).unwrap();
+    c.execute("insert into calls(sk, idx, rx, sent, in_tok, cache_tok, out_tok) values (?1, 0, 110.0, 100.0, ?2, ?3, 5)", rusqlite::params![sk, in_tok, cache_tok]).unwrap();
+}
+
+// The overflow is a panic only where overflow checks are on (a debug build, which is how the tests run).
+#[cfg(debug_assertions)]
+#[tokio::test]
+async fn a_failure_inside_the_analytics_layer_never_fails_the_pass() {
+    use dbench::collector::pass;
+    let root = std::env::temp_dir().join(format!("dbench-pass-analytics-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let tree = root.join("repo");
+    std::fs::create_dir_all(&tree).unwrap();
+    let now = 1_790_000_000;
+    // Control: an ordinary warehouse is analysed, and the analytics file appears beside it.
+    let ok = collect_config(&root.join("ok"), Some(tree.clone()), true);
+    seed_story_with_token_counts(&ok.db, 100, 900);
+    pass(&no_nodes(), &ok, &cadence(), true, now).await.unwrap();
+    assert!(ok.db.with_file_name("analytics.db").is_file(), "the control analyses the story");
+    // The same warehouse with token counts that overflow the analytics arithmetic: that thread panics, the pass is still Ok,
+    // and no analytics file is left claiming the story was analysed.
+    let bad = collect_config(&root.join("bad"), Some(tree.clone()), true);
+    seed_story_with_token_counts(&bad.db, i64::MAX, 1);
+    let summaries = pass(&no_nodes(), &bad, &cadence(), true, now).await.unwrap();
+    assert!(summaries.is_empty());
+    let analytics = bad.db.with_file_name("analytics.db");
+    let analysed: i64 = if analytics.exists() {
+        rusqlite::Connection::open(&analytics).unwrap().query_row("select count(*) from analytics_story", [], |r| r.get(0)).unwrap()
+    } else {
+        0
+    };
+    assert_eq!(analysed, 0, "nothing is recorded for a story whose analysis panicked");
+    assert_eq!(stories_in(&bad.db), 1, "the warehouse is untouched by it");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn candidates_leave_out_re_scores_reference_runs_archived_twins_and_what_has_no_story_log() {
+    use dbench::ingest::inputs::{candidates, lake_runs, GitSource, Published, TreeSource, ARCHIVED_MARKER};
+    use std::collections::BTreeSet;
+    let root = std::env::temp_dir().join(format!("dbench-ingest-cand-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let base = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi";
+    let old_base = "combinations/q/w/v/os/m/llamacpp-opencode/benchmarks/vidi";
+    // One published story, which stays a candidate. Its re-score copy is a published log too, and is not one.
+    published_story(&root, &format!("{base}/v2-r1"), "01");
+    published_story(&root, &format!("{base}/v2-r1/rescore/copy"), "01");
+    // A run archived under its new name, which the lake still knows by the old (-opencode) name: archived either way.
+    let archived = format!("{base}/canvas-pi-09");
+    std::fs::create_dir_all(root.join(&archived)).unwrap();
+    std::fs::write(root.join(&archived).join(ARCHIVED_MARKER), "{}").unwrap();
+    lake_story(&root, &format!("{old_base}/canvas-pi-09"), "01");
+    // Lake runs that are not candidates: a re-score copy, a reference model's run, a run with no stories directory.
+    lake_story(&root, &format!("{base}/v2-r2/rescore/copy"), "01");
+    lake_story(&root, "benchmarks/reference/vidi/opus-5.5/run-1", "01");
+    let bare = root.join("store/node-a").join(format!("{base}/v2-r3"));
+    std::fs::create_dir_all(&bare).unwrap();
+    std::fs::write(bare.join("collection.json"), r#"{"node": "node-a", "complete": true, "files": {}}"#).unwrap();
+    // A run whose stories directory holds one real story log, a directory that is not a story number, and a story with no log.
+    lake_story(&root, &format!("{base}/v2-r4"), "01");
+    let r4 = root.join("store/node-a").join(format!("{base}/v2-r4/stories"));
+    std::fs::create_dir_all(r4.join("notes")).unwrap();
+    std::fs::write(r4.join("notes/agent-events.jsonl"), "{}\n").unwrap();
+    std::fs::create_dir_all(r4.join("02")).unwrap();
+
+    let src = TreeSource { root: root.clone() };
+    let lake = lake_runs(&root.join("store")).unwrap();
+    assert!(lake.contains_key(&format!("{base}/v2-r3")) && lake.contains_key(&format!("{old_base}/canvas-pi-09")), "the fixture's lake holds them: {:?}", lake.keys());
+    assert_eq!(
+        candidates(&src, &lake).unwrap(),
+        BTreeSet::from([format!("{base}/v2-r1/stories/01"), format!("{base}/v2-r4/stories/01")])
+    );
+    // A source says what it is: its kind and where it reads from, and for git the revision.
+    assert_eq!(src.describe(), format!("tree {}", root.display()));
+    assert_eq!(GitSource::new(&root, "origin/main").describe(), format!("git {} origin/main", root.display()));
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
 // ---- the host's own load in each reading (9 Oct 2026): CPU, stalls, page cache, paging, busiest processes ----
 // The Strata run of 5 Oct fell from about 100 to about 25 tok/s with its GPU 100% busy at half its power, and no CPU or stall figure
 // had been recorded, so the host could not be ruled in or out. A reading now carries a `host` object; the warehouse keeps it in columns

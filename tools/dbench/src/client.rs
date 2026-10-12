@@ -1019,6 +1019,8 @@ pub async fn cmd_skip_story(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::job::Job;
+    use crate::progress::Progress;
 
     #[test]
     fn nodes_toml() {
@@ -1098,6 +1100,179 @@ mod tests {
             .unwrap();
         assert_eq!(detail.len() - activity - 1, ACTIVITY_LINES);
         assert_eq!(detail.last().unwrap(), "    f");
+    }
+
+    const CHILD_ENV: &str = "DBENCH_CLIENT_TEST_PRINTS_JOB_DETAIL";
+    const CASE_MARK: &str = "<<<CASE ";
+    const UPDATED_LINE: &str = "stories   (harness progress updated ";
+    const HISTORY_AT: u64 = 1_790_000_000;
+
+    fn job_view(spec: serde_json::Value, progress: Progress, edit: impl FnOnce(&mut Job)) -> JobView {
+        let spec: JobSpec = serde_json::from_value(spec).unwrap();
+        let mut job = Job::new("job-7".into(), spec, HISTORY_AT);
+        edit(&mut job);
+        JobView { job, progress }
+    }
+
+    fn views() -> Vec<(&'static str, JobView)> {
+        let full_spec = serde_json::json!({
+            "install_id": "fake-install", "pack": "benchmarks/vidi", "run_id": "v2-r7", "client": "claude", "record": true,
+            "scope": "canvas", "stories": [2, 3], "server_env": {"GPU_BACKEND": "vulkan", "SPEC_MTP": "1"},
+            "from_run": "combinations/c/benchmarks/vidi/v2-r1", "from_story": 2
+        });
+        let plain_spec = serde_json::json!({"install_id": "fake-install", "pack": "benchmarks/vidi", "run_id": "v2-r8", "client": "pi", "record": false});
+        let stories = |v: serde_json::Value| -> Vec<StoryProgress> { serde_json::from_value(v).unwrap() };
+        let full = Progress {
+            combination: Some("c".into()),
+            run_dir: Some("/repo/combinations/c/benchmarks/vidi/v2-r7".into()),
+            current_story: Some("3".into()),
+            stories: stories(serde_json::json!([
+                {"id": 1, "title": "One", "status": "DONE", "passed": 4, "total": 4},
+                {"id": 2, "title": "Two", "status": "PARTIAL", "ended_by": "operator", "reason": "stuck", "verdict": "amber", "passed": 1, "total": 5},
+                {"id": 3, "title": "Three", "status": "pending",
+                 "tasks": [{"n": 8, "title": "E2E", "type": "test:e2e", "tcs": ["TC-22"], "status": "written", "found": 7, "total": 7}],
+                 "baselines": [{"source": "other canvas-pi-01", "calls": 236, "status": "DONE"}],
+                 "recent_activity": ["bash: npx playwright test"]}
+            ])),
+            stories_updated_at: Some(now_secs() as f64),
+            log_tail: vec!["first line".into(), "second line".into()],
+            error: Some("progress.json: not a JSON object".into()),
+        };
+        let finished_only = Progress {
+            current_story: None,
+            stories: stories(serde_json::json!([{"id": 1, "title": "One", "status": "DONE", "passed": 4, "total": 4}])),
+            ..Default::default()
+        };
+        vec![
+            (
+                "everything",
+                job_view(full_spec, full, |j| {
+                    j.attempt = 2;
+                    j.harness = Some(crate::harness::Harness::Release { tag: "harness-v2026.10.01.2".into(), commit: "0123456789abcdef".into() });
+                    j.last_pull = Some(crate::job::PullRecord { at: HISTORY_AT, ok: true, detail: String::new() });
+                    j.state = JobState::Done { exit_code: 0 };
+                    j.note(HISTORY_AT, "machine unfit (exit 75); waiting 1800s, not counted as a restart");
+                    j.note(HISTORY_AT + 60, "harness exited 1 on attempt 1; restarting");
+                }),
+            ),
+            (
+                "nothing",
+                job_view(plain_spec.clone(), Progress::default(), |_| {}),
+            ),
+            (
+                "failed pull, finished stories only",
+                job_view(plain_spec, finished_only, |j| {
+                    j.last_pull = Some(crate::job::PullRecord { at: HISTORY_AT, ok: false, detail: "fatal: not a git repository".into() });
+                    j.harness = Some(crate::harness::Harness::Unreleased);
+                }),
+            ),
+        ]
+    }
+
+    /// The job detail the child process printed for each view, with the one time-dependent line made fixed.
+    fn printed_by_a_child_process(test: &str) -> Vec<String> {
+        let path = module_path!().split_once("::").map(|(_, rest)| rest).unwrap();
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([&format!("{path}::{test}"), "--exact", "--nocapture", "--test-threads=1"])
+            .env(CHILD_ENV, "1")
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout).into_owned();
+        assert!(out.status.success(), "{text}{}", String::from_utf8_lossy(&out.stderr));
+        let mut cases: Vec<String> = Vec::new();
+        for line in text.lines() {
+            if let Some((_, name)) = line.split_once(CASE_MARK) {
+                cases.push(format!("{}\n", name.trim_end_matches(">>>")));
+            } else if let Some(case) = cases.last_mut() {
+                if line.starts_with("test ") || line.starts_with("running ") {
+                    continue;
+                }
+                if line == "ok" || line.is_empty() {
+                    continue;
+                }
+                case.push_str(&if line.starts_with(UPDATED_LINE) { format!("{UPDATED_LINE}<elapsed> ago)") } else { line.to_string() });
+                case.push('\n');
+            }
+        }
+        cases
+    }
+
+    #[test]
+    fn a_job_detail_shows_every_field_the_job_and_its_progress_have_and_only_those() {
+        let test = "a_job_detail_shows_every_field_the_job_and_its_progress_have_and_only_those";
+        if std::env::var_os(CHILD_ENV).is_some() {
+            for (name, view) in views() {
+                println!("{CASE_MARK}{name}>>>");
+                print_job_detail("node-a", &view);
+            }
+            return;
+        }
+        let cases = printed_by_a_child_process(test);
+        assert_eq!(cases.len(), 3, "{cases:?}");
+        assert_eq!(
+            cases[0],
+            "everything
+job       job-7 on node-a
+state     done (exit 0)
+spec      install fake-install pack benchmarks/vidi run v2-r7 client claude record true scope canvas stories [2, 3]
+env       GPU_BACKEND=vulkan SPEC_MTP=1
+from run  combinations/c/benchmarks/vidi/v2-r1
+from story  2
+attempts  2
+harness   release harness-v2026.10.01.2 (01234567)
+git pull  ok
+run dir   /repo/combinations/c/benchmarks/vidi/v2-r7
+progress  progress.json: not a JSON object
+current   story 3
+stories   (harness progress updated <elapsed> ago)
+    1  DONE     One                                           accept 4/4
+    2  PARTIAL  Two                                           accept 1/5  verdict amber
+                ended by operator: stuck
+    3  pending  Three                                         tasks: 1 written
+  story 3 pending
+      N  STATUS      TYPE           TCS     TITLE
+      8  written     test:e2e       7/7     E2E
+    baselines
+      DONE       236 calls  other canvas-pi-01
+    recent activity
+      bash: npx playwright test
+history
+  2026-09-21T14:13:20Z  machine unfit (exit 75); waiting 1800s, not counted as a restart
+  2026-09-21T14:14:20Z  harness exited 1 on attempt 1; restarting
+log (last 2 lines)
+  first line
+  second line
+"
+        );
+        // A job with nothing but its spec: no env, no reference run, no harness, no pull, no stories, no history.
+        assert_eq!(
+            cases[1],
+            "nothing
+job       job-7 on node-a
+state     queued
+spec      install fake-install pack benchmarks/vidi run v2-r8 client pi record false
+attempts  0
+current   story -
+log (last 0 lines)
+"
+        );
+        // A pull that failed says so with git's words; stories known only from metrics.json say the harness wrote no progress.json,
+        // and a story that is neither running nor current has no detail below it.
+        assert_eq!(
+            cases[2],
+            "failed pull, finished stories only
+job       job-7 on node-a
+state     queued
+spec      install fake-install pack benchmarks/vidi run v2-r8 client pi record false
+attempts  0
+harness   UNRELEASED: the checkout's own harness, as main has it
+git pull  FAILED: fatal: not a git repository
+current   story -
+stories   (finished only: the harness writes no progress.json)
+    1  DONE     One                                           accept 4/4
+log (last 0 lines)
+"
+        );
     }
 
     #[test]

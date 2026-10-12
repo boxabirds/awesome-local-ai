@@ -657,6 +657,34 @@ mod tests {
     }
 
     #[test]
+    fn run_listing_skips_installs_that_file_no_runs_and_works_without_a_share_dir() {
+        let root = temp_dir("runs-skips");
+        let repo = root.join("repo");
+        let share = root.join("share");
+        std::fs::create_dir_all(&repo).unwrap();
+        // No share dir at all: only the combinations are listed (here none).
+        assert_eq!(list_runs(&repo, &share), Vec::<String>::new());
+        // An install directory without an install.env.
+        std::fs::create_dir_all(share.join("half-installed")).unwrap();
+        // A RUN_BASE that is empty, and one whose directory does not exist on this machine.
+        std::fs::create_dir_all(share.join("empty-base")).unwrap();
+        std::fs::write(share.join("empty-base").join(INSTALL_ENV), "RUN_BASE=\"\"\n").unwrap();
+        std::fs::create_dir_all(share.join("absent-base")).unwrap();
+        std::fs::write(share.join("absent-base").join(INSTALL_ENV), "RUN_BASE=\"benchmarks/reference/vidi/never-run\"\n").unwrap();
+        // A RUN_BASE with one run and one directory that is not a run (no run.json).
+        std::fs::create_dir_all(share.join("opus")).unwrap();
+        std::fs::write(share.join("opus").join(INSTALL_ENV), "RUN_BASE=\"benchmarks/reference/vidi/opus-5.5\"\n").unwrap();
+        let base = repo.join("benchmarks/reference/vidi/opus-5.5");
+        std::fs::create_dir_all(base.join("run-1")).unwrap();
+        std::fs::write(base.join("run-1").join(RUN_MARKER), "{}").unwrap();
+        std::fs::create_dir_all(base.join("stray")).unwrap();
+        // A file in the share dir beside the installs is no install either.
+        std::fs::write(share.join("README"), "x").unwrap();
+        assert_eq!(list_runs(&repo, &share), ["benchmarks/reference/vidi/opus-5.5/run-1"]);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
     fn run_status_is_lenient() {
         let root = temp_dir("status");
         assert!(run_status(&root).is_none());

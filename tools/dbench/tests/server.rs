@@ -271,8 +271,19 @@ struct Server {
     http: reqwest::Client,
 }
 
+/// How long a stopped server may take to exit on SIGTERM before it is killed.
+const SERVER_STOP_DEADLINE: Duration = Duration::from_secs(5);
+
 impl Drop for Server {
+    /// SIGTERM, so the server returns from main and the coverage profile of its run is written (a SIGKILLed
+    /// process writes none); SIGKILL only if it does not go.
     fn drop(&mut self) {
+        // SAFETY: kill(2) on our own child's pid.
+        unsafe { libc::kill(self.child.id() as i32, libc::SIGTERM) };
+        let start = Instant::now();
+        while matches!(self.child.try_wait(), Ok(None)) && start.elapsed() < SERVER_STOP_DEADLINE {
+            std::thread::sleep(POLL);
+        }
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
@@ -2107,4 +2118,98 @@ async fn collect_refetches_a_file_the_node_rewrote_and_backfills_a_run_that_has_
     assert!(ok, "{err}");
     assert_eq!(std::fs::read(store.join(NODE_NAME).join(GROW_RUN).join("stories/01/agent-events.jsonl")).unwrap(), b"{\"_rx\": 1790000002.0}\n");
     assert_eq!(read_collection(&store, GROW_RUN)["files"]["stories/01/agent-events.jsonl"]["refetches"], 2);
+}
+
+/// `git -C dir args`, for the temp repos these tests make.
+fn git_run(dir: &std::path::Path, args: &[&str]) {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_collect_pass_in_git_mode_skips_runs_archived_on_origin_main_and_ingests_what_it_pulled_without_a_fetch() {
+    use dbench::collector::{pass, Cadence, Config};
+    let env = setup();
+    let store = env.root.0.join("lake");
+    let db = env.root.0.join("insights/conversations.db");
+    let base = "combinations/test/combo/fake/benchmarks/growpack";
+    let (kept, archived) = (format!("{base}/run-keep"), format!("{base}/run-old"));
+    for run in [&kept, &archived] {
+        let dir = env.repo.join(run);
+        std::fs::create_dir_all(dir.join("stories/01")).unwrap();
+        std::fs::write(dir.join("run.json"), "{}").unwrap();
+        std::fs::write(dir.join("run-status.json"), r#"{"state": "finished", "at": "2026-10-01T00:00:00Z"}"#).unwrap();
+        std::fs::write(dir.join("stories/01/agent-events.jsonl"), "{\"_rx\": 1790000000.0, \"type\": \"x\"}\n").unwrap();
+    }
+    // The archived run's marker is published on origin/main; the node's checkout is the repository the collector reads.
+    std::fs::write(env.repo.join(&archived).join(dbench::ingest::inputs::ARCHIVED_MARKER), "{}").unwrap();
+    let remote = env.root.0.join("remote.git");
+    git_run(&env.root.0, &["init", "--bare", "-q", remote.to_str().unwrap()]);
+    git_run(&env.repo, &["init", "-q"]);
+    git_run(&env.repo, &["remote", "add", "origin", remote.to_str().unwrap()]);
+    git_run(&env.repo, &["add", &format!("{archived}/{}", dbench::ingest::inputs::ARCHIVED_MARKER)]);
+    git_run(&env.repo, &["commit", "-q", "-m", "archive run-old"]);
+    git_run(&env.repo, &["push", "-q", "origin", "HEAD:main"]);
+
+    let srv = start(&env, false);
+    let ctx = dbench::client::Ctx {
+        nodes: [(NODE_NAME.to_string(), dbench::client::NodeEntry { url: srv.base.clone(), token: Some(srv.token.clone()) })].into(),
+        collect: Default::default(),
+        json: false,
+    };
+    let cfg = Config { store: store.clone(), db: db.clone(), repo: Some(env.repo.clone()), worktree: false, api: None, nodes: vec![], runs: vec![], no_ingest: false };
+    let zero = Duration::from_millis(0);
+    let cadence = Cadence { running_poll: zero, finished_recheck: zero, settle_grace: zero };
+    // fetch = false: the ingest happens because a run changed, and reads origin/main as the checkout has it.
+    let summaries = pass(&ctx, &cfg, &cadence, false, 1_790_000_100).await.unwrap();
+    let pulled: Vec<&str> = summaries[0].runs.iter().map(|r| r.run.as_str()).collect();
+    assert_eq!(pulled, [kept.as_str()], "the archived run is not pulled: {summaries:?}");
+    assert!(store.join(NODE_NAME).join(&kept).join("collection.json").is_file());
+    assert!(!store.join(NODE_NAME).join(&archived).exists(), "nothing of an archived run reaches the lake");
+    let wh = dbench::ingest::db::Db::open_read_only(&db).unwrap();
+    let rels: Vec<String> = wh.conn.prepare("select rel from stories order by rel").unwrap().query_map([], |r| r.get(0)).unwrap().map(|r| r.unwrap()).collect();
+    assert_eq!(rels, [format!("{kept}/stories/01")]);
+    drop(wh);
+    // The run settles and completes on the next pass (grace 0); once it has, a pass pulls nothing, and with no fetch due the
+    // published tree is not read again (the database file is not touched).
+    pass(&ctx, &cfg, &cadence, false, 1_790_000_150).await.unwrap();
+    let before = std::fs::metadata(&db).unwrap().modified().unwrap();
+    pass(&ctx, &cfg, &cadence, false, 1_790_000_200).await.unwrap();
+    assert_eq!(std::fs::metadata(&db).unwrap().modified().unwrap(), before);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_run_listing_puts_the_newest_run_status_first_and_breaks_ties_and_gaps_by_name() {
+    let env = setup();
+    let base = "combinations/test/combo/fake/benchmarks/fakepack";
+    // (run, run-status `at`): none for the runs that have not written a status yet.
+    let runs = [
+        ("r-old", Some("2026-10-02T09:00:00Z")),
+        ("r-new", Some("2026-10-03T09:00:00Z")),
+        ("r-tie-b", Some("2026-10-02T09:00:00Z")),
+        ("r-tie-a", Some("2026-10-02T09:00:00Z")),
+        ("r-none-b", None),
+        ("r-none-a", None),
+    ];
+    for (run, at) in runs {
+        let dir = env.repo.join(base).join(run);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("run.json"), "{}").unwrap();
+        if let Some(at) = at {
+            std::fs::write(dir.join("run-status.json"), format!(r#"{{"state": "finished", "at": "{at}"}}"#)).unwrap();
+        }
+    }
+    let srv = start(&env, false);
+    let listed = srv.get("/v1/runs").await;
+    let order: Vec<&str> = listed.as_array().unwrap().iter().map(|r| r["run"].as_str().unwrap().rsplit('/').next().unwrap()).collect();
+    assert_eq!(order, ["r-new", "r-old", "r-tie-a", "r-tie-b", "r-none-a", "r-none-b"], "{listed:#}");
+    let new = &listed[0];
+    assert_eq!((new["run_status"]["state"].as_str(), new["run_status"]["at"].as_str()), (Some("finished"), Some("2026-10-03T09:00:00Z")));
+    assert!(new["job"].is_null() && listed[5]["run_status"].is_null());
 }

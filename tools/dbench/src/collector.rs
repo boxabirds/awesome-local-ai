@@ -597,6 +597,109 @@ mod tests {
         assert!(store_dir(store, "../x", "combinations/a/benchmarks/p/r1").is_none());
     }
 
+    fn config(repo: Option<PathBuf>, worktree: bool) -> Config {
+        Config { store: PathBuf::from("/lake"), db: PathBuf::from("/db"), repo, worktree, api: None, nodes: vec![], runs: vec![], no_ingest: false }
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("dbench-collector-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn git(dir: &Path, args: &[&str]) {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    }
+
+    const ARCHIVED_COMBINATION_RUN: &str = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/canvas-01";
+    const ARCHIVED_REFERENCE_RUN: &str = "benchmarks/reference/vidi/opus-5.5/run-2";
+    const KEPT_RUN: &str = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1";
+
+    fn mark_archived(root: &Path) {
+        for run in [ARCHIVED_COMBINATION_RUN, ARCHIVED_REFERENCE_RUN] {
+            std::fs::create_dir_all(root.join(run)).unwrap();
+            std::fs::write(root.join(run).join(crate::ingest::inputs::ARCHIVED_MARKER), "{}").unwrap();
+        }
+        std::fs::create_dir_all(root.join(KEPT_RUN)).unwrap();
+        std::fs::write(root.join(KEPT_RUN).join("run.json"), "{}").unwrap();
+    }
+
+    #[test]
+    fn the_archived_runs_come_from_the_working_tree_or_from_origin_main_and_none_known_means_none_skipped() {
+        let both = BTreeSet::from([ARCHIVED_COMBINATION_RUN.to_string(), ARCHIVED_REFERENCE_RUN.to_string()]);
+        // No repository configured: nothing is known, nothing is skipped.
+        assert_eq!(archived_runs(&config(None, false)), BTreeSet::new());
+        // The working tree (--worktree), combinations and reference runs alike.
+        let tree = scratch("archived-tree");
+        mark_archived(&tree);
+        assert_eq!(archived_runs(&config(Some(tree.clone()), true)), both);
+        // origin/main of a git repository: only what is committed there counts, and the working tree's own marker does not.
+        let remote = scratch("archived-remote");
+        let work = scratch("archived-work");
+        git(&remote, &["init", "--bare", "-q"]);
+        git(&work, &["init", "-q"]);
+        git(&work, &["remote", "add", "origin", remote.to_str().unwrap()]);
+        mark_archived(&work);
+        git(&work, &["add", "-A"]);
+        git(&work, &["commit", "-q", "-m", "archive two runs"]);
+        git(&work, &["push", "-q", "origin", "HEAD:main"]);
+        let unpushed = work.join(KEPT_RUN).join(crate::ingest::inputs::ARCHIVED_MARKER);
+        std::fs::write(&unpushed, "{}").unwrap();
+        assert_eq!(archived_runs(&config(Some(work.clone()), false)), both);
+        assert_eq!(archived_runs(&config(Some(work.clone()), true)), BTreeSet::from([ARCHIVED_COMBINATION_RUN.to_string(), ARCHIVED_REFERENCE_RUN.to_string(), KEPT_RUN.to_string()]));
+        // A directory that is not a repository cannot be read: none known (the message goes to stderr), none skipped.
+        let plain = scratch("archived-plain");
+        assert_eq!(archived_runs(&config(Some(plain.clone()), false)), BTreeSet::new());
+        for d in [tree, remote, work, plain] {
+            std::fs::remove_dir_all(d).unwrap();
+        }
+    }
+
+    fn collect_args(extra: &[&str]) -> CollectArgs {
+        let mut argv = vec!["dbench", "collect"];
+        argv.extend(extra);
+        match <crate::cli::Cli as clap::Parser>::try_parse_from(argv).unwrap().cmd {
+            crate::cli::Cmd::Collect(a) => a,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    fn ctx_with(collect: crate::client::CollectEntry) -> Ctx {
+        Ctx { nodes: BTreeMap::new(), collect, json: false }
+    }
+
+    #[test]
+    fn collect_settings_come_from_the_command_line_then_nodes_toml_and_the_records_repo_is_required_to_ingest() {
+        let file = crate::client::CollectEntry { store: Some("/f/lake".into()), db: Some("/f/db".into()), repo: Some("/f/repo".into()), api: Some("127.0.0.1:9".into()) };
+        let c = resolve(&ctx_with(file.clone()), &collect_args(&[])).unwrap();
+        assert_eq!((c.store, c.db, c.repo, c.api), ("/f/lake".into(), "/f/db".into(), Some("/f/repo".into()), Some("127.0.0.1:9".to_string())));
+        // The command line wins over the file, and "none" turns the API off.
+        let c = resolve(&ctx_with(file), &collect_args(&["--store", "/c/lake", "--db", "/c/db", "--repo", "/c/repo", "--api", "none", "--node", "n1", "--run", "r1", "--worktree"])).unwrap();
+        assert_eq!((c.store, c.db, c.repo, c.api, c.nodes, c.runs, c.worktree, c.no_ingest), ("/c/lake".into(), "/c/db".into(), Some("/c/repo".into()), None, vec!["n1".to_string()], vec!["r1".to_string()], true, false));
+        // The API defaults to the built-in address.
+        let only_paths = crate::client::CollectEntry { store: Some("/f/lake".into()), db: Some("/f/db".into()), repo: Some("/f/repo".into()), api: None };
+        assert_eq!(resolve(&ctx_with(only_paths), &collect_args(&[])).unwrap().api.as_deref(), Some(crate::cli::DEFAULT_API_BIND));
+        // Without a repository there is nothing to ingest from, unless ingest is off.
+        let no_repo = crate::client::CollectEntry { store: Some("/f/lake".into()), db: Some("/f/db".into()), repo: None, api: None };
+        let err = resolve(&ctx_with(no_repo.clone()), &collect_args(&[])).unwrap_err().to_string();
+        assert!(err.contains("--repo") && err.contains("--no-ingest"), "{err}");
+        assert!(resolve(&ctx_with(no_repo), &collect_args(&["--no-ingest"])).unwrap().no_ingest);
+        // The lake and the database are required in either case.
+        let err = resolve(&ctx_with(Default::default()), &collect_args(&["--no-ingest"])).unwrap_err().to_string();
+        assert!(err.contains("--store"), "{err}");
+        let only_store = crate::client::CollectEntry { store: Some("/f/lake".into()), ..Default::default() };
+        let err = resolve(&ctx_with(only_store), &collect_args(&["--no-ingest"])).unwrap_err().to_string();
+        assert!(err.contains("--db"), "{err}");
+    }
+
     #[test]
     fn collection_json_round_trips_and_has_no_error_field() {
         let mut c = Collection { node: "n".into(), run: "r".into(), complete: true, first_collected_at: 1, collected_at: 2, settled_at: Some(2), dbench_version: "v".into(), ..Default::default() };

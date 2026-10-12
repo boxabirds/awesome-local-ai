@@ -31,3 +31,7 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "io-util", "time", "sync", "net", "signal"] }
 # Parsing only (nodes.toml, checks.toml): no Display, no toml_edit's writer.
 toml = { version = "0.8", default-features = false, features = ["parse"] }
+
+[dev-dependencies]
+# start_paused: a test of the 120 s git pull timeout that does not wait 120 s (runner.rs tests).
+tokio = { version = "1", features = ["test-util"] }

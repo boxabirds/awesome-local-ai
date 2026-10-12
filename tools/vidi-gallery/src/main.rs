@@ -1099,4 +1099,298 @@ mod tests {
             assert!(ws.join(kept).is_file(), "{kept} should stay");
         }
     }
+
+    // ---------- where the private checkout is, and which pack version it is on ----------
+
+    #[test]
+    fn the_private_checkout_is_the_repos_sibling_and_a_repo_with_no_parent_has_none() {
+        assert_eq!(private_repo(std::path::Path::new("/work/awesome-local-ai")), PathBuf::from("/work/awesome-local-ai-bench-private"));
+        assert_eq!(private_repo(std::path::Path::new("/")), PathBuf::new());
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("vidi-gallery-main-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn git(dir: &std::path::Path, args: &[&str]) {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    }
+
+    #[test]
+    fn the_pack_version_is_the_nearest_tag_of_the_private_checkout_and_empty_when_there_is_none() {
+        let dir = scratch("version");
+        // Not a repository: no version.
+        assert_eq!(private_version(&dir), "");
+        git(&dir, &["init", "-q"]);
+        git(&dir, &["commit", "-q", "--allow-empty", "-m", "first"]);
+        // A repository with no tag: no version either.
+        assert_eq!(private_version(&dir), "");
+        git(&dir, &["tag", "vidi-v2.0-pre1"]);
+        git(&dir, &["commit", "-q", "--allow-empty", "-m", "second"]);
+        git(&dir, &["tag", "vidi-v2.0-pre2"]);
+        git(&dir, &["commit", "-q", "--allow-empty", "-m", "third"]);
+        assert_eq!(private_version(&dir), "vidi-v2.0-pre2", "the nearest tag, not the first");
+        assert_eq!(runs::family(&private_version(&dir)), "vidi-v2");
+        assert_eq!(private_version(&dir.join("missing")), "");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ---------- a build whose preparation failed is not recorded ----------
+
+    #[tokio::test]
+    async fn a_build_that_could_not_be_prepared_has_each_of_its_stories_marked_failed_and_nothing_is_recorded() {
+        let mut f = fixture();
+        const NEXT: u64 = STORY + 1;
+        // Two stories reviewed on build 5; neither has a recording.
+        Arc::get_mut(&mut f.app).unwrap().stories = vec![
+            stories::Story { id: NEXT, review_build: NEXT, ..Default::default() },
+            stories::Story { id: NEXT + 1, review_build: NEXT, ..Default::default() },
+        ];
+        let run = f.app.rb(KEY).unwrap();
+        f.app.prep.lock().await.insert(story_slug(&run, NEXT), "failed: npm install exited 1".into());
+        record_build(&f.app, &run, NEXT).await;
+        let rec = f.app.rec.lock().await.clone();
+        for story in [NEXT, NEXT + 1] {
+            assert_eq!(rec.get(&rec_key(&run, story)).map(String::as_str), Some("failed: its build could not be prepared"), "story {story}");
+            assert!(!recorded(&f.app, &run, story));
+        }
+        // A build never prepared at all is the same.
+        let other = f.app.rec.lock().await.len();
+        record_build(&f.app, &run, NEXT + 7).await;
+        assert_eq!(f.app.rec.lock().await.len(), other, "no story is reviewed on a build nothing names");
+    }
+
+    // ---------- recording one story ----------
+
+    const RECORD_STORY: u64 = 5;
+
+    /// A fixture whose acceptance suite has (or lacks) the story's spec, with `ports` free for recordings.
+    fn recording_fixture(with_spec: bool, ports: Vec<u16>) -> Fixture {
+        let mut f = fixture();
+        let app = Arc::get_mut(&mut f.app).unwrap();
+        app.rec_ports = tokio::sync::Mutex::new(ports);
+        app.build_order = vec![1, 2, 3, 4, RECORD_STORY];
+        let spec = app.acceptance.join(format!("tests/story-{RECORD_STORY:02}.spec.ts"));
+        if with_spec {
+            std::fs::create_dir_all(spec.parent().unwrap()).unwrap();
+            std::fs::write(&spec, "// the story's held-out tests").unwrap();
+        }
+        f.app.review_builds.write().unwrap()[KEY].story_status.insert(2, "PARTIAL".into());
+        f
+    }
+
+    #[tokio::test]
+    async fn a_recording_that_fails_every_attempt_is_reported_failed_with_its_reason_and_waits_for_a_free_port() {
+        let f = recording_fixture(false, Vec::new());
+        let run = f.app.rb(KEY).unwrap();
+        let ws = f.dir.join("ws");
+        let (app, run2, ws2) = (f.app.clone(), run.clone(), ws.clone());
+        let task = tokio::spawn(async move { record_story(&app, &run2, RECORD_STORY, &ws2).await });
+        // No port is free: the recording has not started, and says nothing yet.
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+        assert!(!task.is_finished());
+        assert_eq!(f.app.rec.lock().await.get(&rec_key(&run, RECORD_STORY)), None);
+        const PORT: u16 = 45871;
+        f.app.rec_ports.lock().await.push(PORT);
+        task.await.unwrap();
+        let state = f.app.rec.lock().await.get(&rec_key(&run, RECORD_STORY)).cloned().unwrap();
+        assert_eq!(state, format!("failed: the held-out suite has no tests/story-{RECORD_STORY:02}.spec.ts"));
+        assert_eq!(*f.app.rec_ports.lock().await, vec![PORT], "the port is given back");
+        assert!(!recorded(&f.app, &run, RECORD_STORY));
+    }
+
+    /// The marker that tells a re-run of this test binary it is the child of an isolated test.
+    const ISOLATED_ENV: &str = "VIDI_GALLERY_TEST_ISOLATED_CHILD";
+
+    /// Run the named test again in a process of its own (see the same helper in dbench's runner tests): the body changes the
+    /// process's PATH, which no other test may see. True in the child, which runs the body; false in the parent, once the child passed.
+    fn in_own_process(name: &str) -> bool {
+        if std::env::var_os(ISOLATED_ENV).is_some() {
+            return true;
+        }
+        let path = module_path!().split_once("::").map(|(_, rest)| rest).unwrap_or(module_path!());
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([&format!("{path}::{name}"), "--exact", "--nocapture", "--test-threads=1"])
+            .env(ISOLATED_ENV, "1")
+            .output()
+            .unwrap();
+        let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(out.status.success() && text.contains("1 passed"), "{text}");
+        false
+    }
+
+    /// Two ports in a row that nothing listens on.
+    fn free_port_pair() -> u16 {
+        loop {
+            let a = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+            if a < u16::MAX && std::net::TcpListener::bind(("127.0.0.1", a + 1)).is_ok() {
+                return a;
+            }
+        }
+    }
+
+    const PASSING_REPORT: &str = r#"{"suites": [{"specs": [{"title": "a note can be dragged", "tests": [{"results": [{"status": "passed", "attachments": []}]}]}]}]}"#;
+
+    #[tokio::test]
+    async fn a_recording_is_retried_after_a_failed_attempt_and_runs_the_suite_with_the_story_workspace_port_and_processed_stories() {
+        const NAME: &str = "a_recording_is_retried_after_a_failed_attempt_and_runs_the_suite_with_the_story_workspace_port_and_processed_stories";
+        if !in_own_process(NAME) {
+            return;
+        }
+        let port = free_port_pair();
+        let f = recording_fixture(true, vec![port]);
+        let run = f.app.rb(KEY).unwrap();
+        let ws = f.dir.join("ws");
+        std::fs::create_dir_all(&ws).unwrap();
+        // A stand-in for npx, using only the shell's own commands: it logs what it was given; the first attempt dies without a
+        // report, the second writes one.
+        let bin = f.dir.join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let (log, mark) = (f.dir.join("npx.log"), f.dir.join("npx.mark"));
+        let script = bin.join("npx");
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\necho \"$PROCESSED_STORIES|$WORKSPACE|$ACCEPT_PORT|$*\" >> {log}\nif [ ! -f {mark} ]; then : > {mark}; exit 1; fi\nprintf '%s' '{PASSING_REPORT}' > \"$ACCEPT_JSON\"\nexit 0\n",
+                log = log.display(),
+                mark = mark.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        std::env::set_var("PATH", &bin);
+
+        record_story(&f.app, &run, RECORD_STORY, &ws).await;
+
+        let state = f.app.rec.lock().await.get(&rec_key(&run, RECORD_STORY)).cloned().unwrap();
+        assert_eq!(state, "done");
+        let calls = std::fs::read_to_string(&log).unwrap();
+        let want = format!("1:DONE,2:PARTIAL,3:DONE,4:DONE,{RECORD_STORY}:DONE|{}|{port}|playwright test tests/story-{RECORD_STORY:02}.spec.ts --config {}", ws.display(), f.app.record_config.display());
+        assert_eq!(calls.lines().collect::<Vec<_>>(), [want.as_str(), want.as_str()], "two attempts, the same call");
+        assert_eq!(*f.app.rec_ports.lock().await, vec![port], "the port is given back");
+        assert!(recorded(&f.app, &run, RECORD_STORY), "a finished, valid recording now exists");
+        // Asked again, it does not run the suite a third time.
+        record_story(&f.app, &run, RECORD_STORY, &ws).await;
+        assert_eq!(std::fs::read_to_string(&log).unwrap().lines().count(), 2);
+    }
+
+    // ---------- a build's work on a story ----------
+
+    #[tokio::test]
+    async fn the_tasks_of_a_story_carry_the_status_the_harness_recorded_and_the_commits_that_name_them() {
+        let mut f = fixture();
+        let run_dir = f.dir.join("run");
+        std::fs::create_dir_all(run_dir.join(format!("stories/{STORY:02}"))).unwrap();
+        std::fs::write(
+            run_dir.join("metrics.json"),
+            serde_json::json!({"processed": [{"id": STORY, "tasks": [{"n": 1, "status": "verified"}, {"n": 2, "status": "written"}]}]}).to_string(),
+        )
+        .unwrap();
+        // The build's history: a commit before the story, then three that name tasks.
+        let app = Arc::get_mut(&mut f.app).unwrap();
+        app.stories = vec![stories::Story {
+            id: STORY,
+            review_build: STORY,
+            tasks: vec![
+                stories::Task { n: 1, title: "Notes".into(), kind: "impl".into(), implements: vec!["notes.drag".into()] },
+                stories::Task { n: 2, title: "Sync".into(), kind: "impl".into(), implements: vec![] },
+                stories::Task { n: 3, title: "Polish".into(), kind: "test".into(), implements: vec![] },
+            ],
+            ..Default::default()
+        }];
+        let mut run = app.rb(KEY).unwrap();
+        let checkout = checkout_dir(app, &run, STORY);
+        std::fs::create_dir_all(&checkout).unwrap();
+        git(&checkout, &["init", "-q"]);
+        let mut commit = |subject: &str| {
+            git(&checkout, &["commit", "-q", "--allow-empty", "-m", subject]);
+            let out = std::process::Command::new("git").arg("-C").arg(&checkout).args(["rev-parse", "HEAD"]).output().unwrap();
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        };
+        let before = commit("scaffold");
+        let first = commit("story 4 task 1: drag a note");
+        commit("story 4 task 2: share the board");
+        let head = commit("story 4 tasks done: task 1 and task 2 polished");
+        std::fs::write(run_dir.join(format!("stories/{STORY:02}/base-commit")), format!("{before}\n")).unwrap();
+        run.path = run_dir.clone();
+        run.story_commits.insert(STORY, head.clone());
+        *app.review_builds.write().unwrap() = vec![run];
+        let short = |sha: &str| -> String {
+            let out = std::process::Command::new("git").arg("-C").arg(&checkout).args(["rev-parse", "--short", sha]).output().unwrap();
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        };
+
+        let (status, got) = body(api_review_tasks(State(f.app.clone()), UrlPath((STORY, KEY))).await.into_response()).await;
+        assert_eq!(status, StatusCode::OK, "{got}");
+        let v = json(&got);
+        assert_eq!(v["status_recorded"], true);
+        let tasks = v["tasks"].as_array().unwrap();
+        assert_eq!(tasks.len(), 3);
+        assert_eq!((tasks[0]["n"].as_u64(), tasks[0]["title"].as_str(), tasks[0]["kind"].as_str(), tasks[0]["status"].as_str()), (Some(1), Some("Notes"), Some("impl"), Some("verified")));
+        assert_eq!(tasks[0]["implements"], serde_json::json!(["notes.drag"]));
+        assert_eq!(tasks[0]["commits"], serde_json::json!(["story 4 task 1: drag a note", "story 4 tasks done: task 1 and task 2 polished"]));
+        assert_eq!((tasks[1]["status"].as_str(), tasks[1]["commits"].as_array().map(Vec::len)), (Some("written"), Some(2)));
+        assert_eq!((tasks[2]["status"].as_str(), tasks[2]["commits"].as_array().map(Vec::len)), (Some(""), Some(0)), "a task the harness has no status for, and no commit names");
+        // The story's own commits only (not the scaffold before its base), oldest first.
+        let commits: Vec<(&str, &str)> = v["commits"].as_array().unwrap().iter().map(|c| (c["hash"].as_str().unwrap(), c["subject"].as_str().unwrap())).collect();
+        assert_eq!(commits.len(), 3);
+        assert_eq!(commits[0], (short(&first).as_str(), "story 4 task 1: drag a note"));
+        assert_eq!(commits[2], (short(&head).as_str(), "story 4 tasks done: task 1 and task 2 polished"));
+
+        // With no base-commit recorded, the build's whole history up to the story's commit is the story's.
+        std::fs::remove_file(run_dir.join(format!("stories/{STORY:02}/base-commit"))).unwrap();
+        let (_, got) = body(api_review_tasks(State(f.app.clone()), UrlPath((STORY, KEY))).await.into_response()).await;
+        let subjects: Vec<String> = json(&got)["commits"].as_array().unwrap().iter().map(|c| c["subject"].as_str().unwrap().to_string()).collect();
+        assert_eq!(subjects.first().map(String::as_str), Some("scaffold"));
+        assert_eq!(subjects.len(), 4);
+
+        // A story with no commit recorded, no spec tasks and no status: nothing, and it says the status was not recorded.
+        let (status, got) = body(api_review_tasks(State(f.app.clone()), UrlPath((STORY + 5, KEY))).await.into_response()).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json(&got), serde_json::json!({"tasks": [], "commits": [], "status_recorded": false}));
+        // A build with no checkout lists the tasks but no commits.
+        std::fs::remove_dir_all(checkout.join(".git")).unwrap();
+        let (_, got) = body(api_review_tasks(State(f.app.clone()), UrlPath((STORY, KEY))).await.into_response()).await;
+        let v = json(&got);
+        assert_eq!((v["tasks"].as_array().map(Vec::len), v["commits"].as_array().map(Vec::len)), (Some(3), Some(0)));
+
+        // Not a build at all.
+        let (status, got) = body(api_review_tasks(State(f.app.clone()), UrlPath((STORY, 9))).await.into_response()).await;
+        assert_eq!((status, json(&got)["error"].as_str().map(String::from)), (StatusCode::NOT_FOUND, Some("no such build".to_string())));
+    }
+
+    #[tokio::test]
+    async fn when_git_cannot_be_run_the_tasks_are_still_listed_with_no_commits() {
+        const NAME: &str = "when_git_cannot_be_run_the_tasks_are_still_listed_with_no_commits";
+        if !in_own_process(NAME) {
+            return;
+        }
+        let mut f = fixture();
+        let app = Arc::get_mut(&mut f.app).unwrap();
+        app.stories = vec![stories::Story {
+            id: STORY,
+            review_build: STORY,
+            tasks: vec![stories::Task { n: 1, title: "Notes".into(), kind: "impl".into(), implements: vec![] }],
+            ..Default::default()
+        }];
+        let mut run = app.rb(KEY).unwrap();
+        run.story_commits.insert(STORY, "0123456789abcdef".into());
+        std::fs::create_dir_all(checkout_dir(app, &run, STORY).join(".git")).unwrap();
+        *app.review_builds.write().unwrap() = vec![run];
+        std::env::set_var("PATH", f.dir.join("no-such-dir"));
+        let (status, got) = body(api_review_tasks(State(f.app.clone()), UrlPath((STORY, KEY))).await.into_response()).await;
+        assert_eq!(status, StatusCode::OK, "{got}");
+        let v = json(&got);
+        assert_eq!((v["tasks"].as_array().map(Vec::len), v["commits"].as_array().map(Vec::len), v["status_recorded"].as_bool()), (Some(1), Some(0), Some(false)));
+    }
 }

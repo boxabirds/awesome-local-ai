@@ -675,4 +675,324 @@ mod missing_resources_tests {
         );
         assert_eq!(missing_resources_reason("exit 3\n"), None);
     }
+
+    use super::*;
+    use crate::cli::ServerConfig;
+    use crate::job::{AgentClient, Job, JobSpec};
+    use crate::server::Inner;
+    use std::collections::{BTreeMap, VecDeque};
+    use std::path::{Path, PathBuf};
+
+    const INSTALL_ID: &str = "fake-install";
+    const PACK: &str = "fakepack";
+    const COMBINATION: &str = "test/combo";
+    const JOB: &str = "job-1";
+    const RUN_ID: &str = "run-1";
+    const MAX_RESTARTS: u32 = 2;
+    const RESTART_BACKOFF: Duration = Duration::from_millis(250);
+    const UNFIT_BACKOFF: Duration = Duration::from_millis(350);
+    const CANCEL_GRACE: Duration = Duration::from_millis(500);
+    const TREE_POLL: Duration = Duration::from_millis(50);
+    const NOW: u64 = 1_790_000_000;
+    const EXECUTABLE: u32 = 0o755;
+    /// A harness that reports what it was given and exits 0.
+    const REPORTING_HARNESS: &str = "echo \"args: $*\"\necho \"path-head: ${PATH%%:*}\"\necho \"gpu: ${GPU_BACKEND:-unset}\"\nexit 0\n";
+    /// How many times the stolen-reap scenario may be tried before it is called a failure (see `wait_failing_is_logged`).
+    const REAP_ATTEMPTS: u32 = 40;
+    /// The marker that tells a re-run of this test binary it is the child of an isolated test.
+    const ISOLATED_ENV: &str = "DBENCH_RUNNER_TEST_ISOLATED_CHILD";
+    /// File descriptors that may still be opened once the limit is set: the job log, and no copy of it.
+    const FDS_LEFT: i32 = 1;
+
+    struct Rig {
+        root: PathBuf,
+        st: Arc<Shared>,
+    }
+
+    impl Drop for Rig {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    impl Rig {
+        fn new(tag: &str, harness_body: &str, configure: impl FnOnce(&mut ServerConfig, &Path)) -> Rig {
+            let root = std::env::temp_dir().join(format!("dbench-runner-{tag}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&root);
+            let (repo, home, share) = (root.join("repo"), root.join("home"), root.join("share"));
+            let harness = repo.join(PACK).join("harness");
+            std::fs::create_dir_all(&harness).unwrap();
+            std::fs::create_dir_all(home.join("jobs")).unwrap();
+            std::fs::create_dir_all(share.join(INSTALL_ID)).unwrap();
+            std::fs::write(harness.join("run.sh"), format!("#!/usr/bin/env bash\n{harness_body}")).unwrap();
+            std::fs::write(share.join(INSTALL_ID).join("install.env"), format!("INSTALL_ID=\"{INSTALL_ID}\"\nCOMBINATION=\"{COMBINATION}\"\n")).unwrap();
+            let repo = repo.canonicalize().unwrap();
+            let mut cfg = ServerConfig {
+                bind: "127.0.0.1:0".into(),
+                repo,
+                jobs_dir: home.join("jobs"),
+                releases_dir: home.join("releases"),
+                home,
+                share_dir: share,
+                bench_home: root.join("bench-home"),
+                path_prepend: vec![],
+                max_restarts: MAX_RESTARTS,
+                pull: false,
+                allow_unreleased: true,
+                restart_backoff: RESTART_BACKOFF,
+                unfit_backoff: UNFIT_BACKOFF,
+                cancel_grace: CANCEL_GRACE,
+                tree_poll: TREE_POLL,
+            };
+            configure(&mut cfg, &root);
+            let st = Arc::new(Shared {
+                cfg,
+                token: "token".into(),
+                boot_time: None,
+                inner: Mutex::new(Inner { jobs: HashMap::new(), queue: VecDeque::new(), current: None, hold: None }),
+                wake: tokio::sync::Notify::new(),
+            });
+            Rig { root, st }
+        }
+
+        /// A queued job on the checkout's own harness (so no release is looked for).
+        fn queue(&self, install: &str, pack: &str) {
+            let spec = JobSpec {
+                install_id: install.into(),
+                combination: None,
+                pack: pack.into(),
+                scope: None,
+                stories: None,
+                run_id: RUN_ID.into(),
+                client: AgentClient::Pi,
+                record: true,
+                server_env: BTreeMap::from([("GPU_BACKEND".to_string(), "vulkan".to_string())]),
+                from_run: None,
+                from_story: None,
+            };
+            let mut job = Job::new(JOB.into(), spec, NOW);
+            job.harness = Some(Harness::Unreleased);
+            self.st.lock().jobs.insert(JOB.into(), job);
+        }
+
+        fn job(&self) -> Job {
+            self.st.lock().jobs.get(JOB).cloned().unwrap()
+        }
+
+        fn log(&self) -> String {
+            std::fs::read_to_string(self.st.log_path(JOB)).unwrap_or_default()
+        }
+    }
+
+    #[tokio::test]
+    async fn a_job_that_exits_zero_is_done_and_the_harness_got_its_arguments_path_and_server_env() {
+        let bin = |_: &mut ServerConfig, root: &Path| std::fs::create_dir_all(root.join("bin")).unwrap();
+        let rig = Rig::new("done", REPORTING_HARNESS, |cfg, root| {
+            bin(cfg, root);
+            cfg.path_prepend = vec![root.join("bin")];
+        });
+        rig.queue(INSTALL_ID, PACK);
+        assert_eq!(run_one(&rig.st, JOB).await, None);
+        let job = rig.job();
+        assert_eq!((job.state.clone(), job.attempt), (JobState::Done { exit_code: 0 }, 1), "{}", rig.log());
+        let log = rig.log();
+        assert!(log.contains(&format!("args: {INSTALL_ID} --run-id {RUN_ID} --client pi --record")), "{log}");
+        assert!(log.contains(&format!("path-head: {}", rig.root.join("bin").display())), "{log}");
+        assert!(log.contains("gpu: vulkan"), "{log}");
+        assert!(log.contains("harness exited 0; job done"), "{log}");
+        // The state reached the disk, not only the table.
+        assert_eq!(crate::store::load_jobs(&rig.st.cfg.jobs_dir).unwrap()[0].state, JobState::Done { exit_code: 0 });
+        // A job no longer in the table is not run.
+        rig.st.lock().jobs.remove(JOB);
+        assert_eq!(run_one(&rig.st, JOB).await, None);
+    }
+
+    #[tokio::test]
+    async fn a_job_whose_install_has_gone_fails_naming_the_missing_install_env_and_runs_nothing() {
+        let rig = Rig::new("noinstall", REPORTING_HARNESS, |_, _| {});
+        rig.queue("vanished-install", PACK);
+        assert_eq!(run_one(&rig.st, JOB).await, None);
+        let job = rig.job();
+        let missing = install_env_path(&rig.st.cfg.share_dir, "vanished-install");
+        assert_eq!(job.state, JobState::Failed { reason: format!("{} missing", missing.display()), exit_code: None });
+        assert_eq!(job.attempt, 0);
+        assert!(rig.log().contains(&format!("failed: {} missing", missing.display())), "{}", rig.log());
+        assert!(!rig.log().contains("attempt 1"), "{}", rig.log());
+    }
+
+    #[tokio::test]
+    async fn a_pack_with_no_harness_entry_fails_the_job_naming_the_pack_and_the_directory_searched() {
+        let rig = Rig::new("nopack", REPORTING_HARNESS, |_, _| {});
+        rig.queue(INSTALL_ID, "emptypack");
+        assert_eq!(run_one(&rig.st, JOB).await, None);
+        let job = rig.job();
+        assert_eq!(job.state, JobState::Failed { reason: format!("no harness for pack emptypack in {}", rig.st.cfg.repo.display()), exit_code: None });
+        assert_eq!(job.attempt, 0);
+    }
+
+    #[tokio::test]
+    async fn a_job_log_that_cannot_be_opened_fails_the_job_before_the_harness_starts() {
+        let rig = Rig::new("nolog", REPORTING_HARNESS, |_, _| {});
+        rig.queue(INSTALL_ID, PACK);
+        // A directory where the log should be: it can be neither created nor appended to.
+        std::fs::create_dir(rig.st.log_path(JOB)).unwrap();
+        assert_eq!(run_one(&rig.st, JOB).await, None);
+        let job = rig.job();
+        match &job.state {
+            JobState::Failed { reason, exit_code: None } => assert!(reason.starts_with("open log: "), "{reason}"),
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(job.attempt, 0);
+    }
+
+    #[tokio::test]
+    async fn a_job_cancelled_while_it_was_being_prepared_is_left_cancelled_and_nothing_starts() {
+        let rig = Rig::new("cancelled", REPORTING_HARNESS, |_, _| {});
+        rig.queue(INSTALL_ID, PACK);
+        rig.st.update(JOB, |j, _| j.state = JobState::Cancelled);
+        assert_eq!(run_one(&rig.st, JOB).await, None);
+        let job = rig.job();
+        assert_eq!((job.state, job.attempt), (JobState::Cancelled, 0));
+        assert!(!rig.log().contains("attempt 1"), "{}", rig.log());
+    }
+
+    /// Run the named test again in a process of its own and report whether this is that process. Tests that must change
+    /// the whole process (its PATH, its descriptor limit) do it there, so no other test sees it. The caller returns when
+    /// this says false: the child has run the body and the parent has checked that it passed.
+    fn in_own_process(name: &str) -> bool {
+        if std::env::var_os(ISOLATED_ENV).is_some() {
+            return true;
+        }
+        let path = module_path!().split_once("::").map(|(_, rest)| rest).unwrap();
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([&format!("{path}::{name}"), "--exact", "--nocapture", "--test-threads=1"])
+            .env(ISOLATED_ENV, "1")
+            .output()
+            .unwrap();
+        let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(out.status.success() && text.contains("1 passed"), "{text}");
+        false
+    }
+
+    #[tokio::test]
+    async fn without_bash_on_the_path_the_job_fails_saying_it_could_not_spawn_it() {
+        if !in_own_process("without_bash_on_the_path_the_job_fails_saying_it_could_not_spawn_it") {
+            return;
+        }
+        let rig = Rig::new("nobash", REPORTING_HARNESS, |_, _| {});
+        rig.queue(INSTALL_ID, PACK);
+        std::env::set_var("PATH", rig.root.join("no-such-dir"));
+        let ran = run_one(&rig.st, JOB).await;
+        let job = rig.job();
+        assert_eq!(ran, None);
+        match &job.state {
+            JobState::Failed { reason, exit_code: None } => assert!(reason.starts_with("spawn bash: "), "{reason}"),
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(job.attempt, 0, "an attempt that never started is not counted");
+        assert!(rig.log().contains("attempt 1: bash "), "the attempt was announced: {}", rig.log());
+    }
+
+    #[tokio::test]
+    async fn when_the_job_log_cannot_be_duplicated_for_the_harness_the_job_fails_saying_so() {
+        if !in_own_process("when_the_job_log_cannot_be_duplicated_for_the_harness_the_job_fails_saying_so") {
+            return;
+        }
+        let rig = Rig::new("nodup", REPORTING_HARNESS, |_, _| {});
+        rig.queue(INSTALL_ID, PACK);
+        // Leave room for one more descriptor: the log opens, and the copy of it that stdout needs does not.
+        let mut limit = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+        // SAFETY: plain system calls on this process's own descriptors and limits.
+        let ran = unsafe {
+            assert_eq!(libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit), 0);
+            let lowest_free = libc::dup(0);
+            libc::close(lowest_free);
+            let saved = limit;
+            limit.rlim_cur = (lowest_free + FDS_LEFT) as libc::rlim_t;
+            assert_eq!(libc::setrlimit(libc::RLIMIT_NOFILE, &limit), 0);
+            let ran = run_one(&rig.st, JOB).await;
+            assert_eq!(libc::setrlimit(libc::RLIMIT_NOFILE, &saved), 0);
+            ran
+        };
+        assert_eq!(ran, None);
+        assert_eq!(rig.job().state, JobState::Failed { reason: "duplicate log handle".into(), exit_code: None });
+        assert_eq!(rig.job().attempt, 0);
+    }
+
+    #[tokio::test]
+    async fn a_harness_whose_exit_cannot_be_waited_for_is_logged_and_counted_as_a_crash_to_restart() {
+        // Something else reaps the harness before the runner can wait for it: the wait then fails (no such child).
+        // Who reaps first is a race between this thread and the runtime's signal handling, so the scenario is repeated
+        // until the wait has failed once; a harness that sleeps gives the thief time to be waiting before it exits.
+        const SLEEPING_HARNESS: &str = "sleep 0.4\nexit 0\n";
+        for attempt in 0..REAP_ATTEMPTS {
+            let rig = Rig::new(&format!("reap{attempt}"), SLEEPING_HARNESS, |_, _| {});
+            rig.queue(INSTALL_ID, PACK);
+            let st = rig.st.clone();
+            let thief = std::thread::spawn(move || {
+                let pid = loop {
+                    if let JobState::Running { pid, .. } = st.lock().jobs.get(JOB).unwrap().state {
+                        break pid;
+                    }
+                    std::thread::sleep(Duration::from_millis(1));
+                };
+                let mut status = 0;
+                // SAFETY: waitpid on the pid of the harness this job started.
+                unsafe { libc::waitpid(pid, &mut status, 0) };
+            });
+            let wait = run_one(&rig.st, JOB).await;
+            thief.join().unwrap();
+            if !rig.log().contains("wait failed: ") {
+                continue;
+            }
+            assert_eq!(wait, Some(RESTART_BACKOFF), "{}", rig.log());
+            let job = rig.job();
+            assert_eq!((job.state.clone(), job.attempt), (JobState::Queued, 1), "{}", rig.log());
+            assert!(rig.log().contains("harness exited -1; restarting in 0.25s"), "{}", rig.log());
+            assert!(job.history.iter().any(|n| n.text == "harness exited -1 on attempt 1; restarting"), "{:?}", job.history);
+            assert_eq!(rig.st.lock().queue.front().map(String::as_str), Some(JOB));
+            return;
+        }
+        panic!("the wait never failed in {REAP_ATTEMPTS} attempts");
+    }
+
+    /// An executable `git` in `dir` that runs `body`.
+    fn fake_git(dir: &Path, body: &str) {
+        std::fs::create_dir_all(dir).unwrap();
+        let path = dir.join("git");
+        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+        std::fs::set_permissions(&path, std::os::unix::fs::PermissionsExt::from_mode(EXECUTABLE)).unwrap();
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_git_pull_that_does_not_finish_in_time_is_recorded_as_timed_out_and_the_job_runs_on() {
+        let rig = Rig::new("pulltimeout", REPORTING_HARNESS, |cfg, root| {
+            fake_git(&root.join("bin"), "exec sleep 600");
+            cfg.path_prepend = vec![root.join("bin")];
+        });
+        rig.queue(INSTALL_ID, PACK);
+        git_pull(&rig.st, JOB).await;
+        let job = rig.job();
+        let detail = format!("timed out after {}s", GIT_PULL_TIMEOUT.as_secs());
+        let pull = job.last_pull.clone().unwrap();
+        assert_eq!((pull.ok, pull.detail.as_str()), (false, detail.as_str()));
+        assert!(job.history.iter().any(|n| n.text == format!("git pull --ff-only failed; ran on the existing checkout: {detail}")), "{:?}", job.history);
+        assert!(rig.log().contains(&format!("git pull --ff-only: FAILED (running anyway): {detail}")), "{}", rig.log());
+    }
+
+    #[tokio::test]
+    async fn without_git_on_the_path_the_pull_is_recorded_as_failed_to_run_and_the_job_runs_on() {
+        if !in_own_process("without_git_on_the_path_the_pull_is_recorded_as_failed_to_run_and_the_job_runs_on") {
+            return;
+        }
+        let rig = Rig::new("nogit", REPORTING_HARNESS, |_, _| {});
+        rig.queue(INSTALL_ID, PACK);
+        std::env::set_var("PATH", rig.root.join("no-such-dir"));
+        git_pull(&rig.st, JOB).await;
+        let job = rig.job();
+        let pull = job.last_pull.clone().unwrap();
+        assert!(!pull.ok && pull.detail.starts_with("could not run git: "), "{pull:?}");
+        assert!(job.history.iter().any(|n| n.text.starts_with("git pull --ff-only failed; ran on the existing checkout: could not run git: ")), "{:?}", job.history);
+        assert!(rig.log().contains("git pull --ff-only: FAILED (running anyway): could not run git: "), "{}", rig.log());
+    }
 }

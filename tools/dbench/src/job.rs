@@ -591,6 +591,18 @@ mod tests {
         let _ = std::fs::remove_dir_all(&outside);
     }
 
+    #[test]
+    fn a_reference_run_that_is_a_file_not_a_directory_is_no_such_directory() {
+        let root = std::env::temp_dir().join(format!("dbench-job-ref-file-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let root = root.canonicalize().unwrap();
+        std::fs::write(root.join("a-file"), "not a run").unwrap();
+        let why = reference_run_problem(&root, "a-file").expect("a file is not a run");
+        assert_eq!(why, format!("reference run a-file: no such directory in {}", root.display()));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     fn from_story_spec() -> JobSpec {
         let mut s = spec();
         s.from_run = Some(REFERENCE_RUN.into());
