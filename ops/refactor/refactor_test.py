@@ -684,36 +684,85 @@ def test_the_fates_report_is_written_and_counts_each_state(tmp_path):
     assert report["exit_code"] == R.EXIT_FAIL and report["counts"]["kept"] == 1
 
 
-# ---- coverage proof: 100% lines and branches of the touched files, or no proof ----------------------------------------------
+# ---- coverage proof (task 1.14): canned data through an injected runner ---------------------------------------------------
 
-def coverage_result(tmp_path: Path, measured: dict) -> R.Result:
-    root = make_root(tmp_path, touched=FATE_TOUCHED)
-    return R.check_coverage(root, measured)
-
-
-def test_tc40_full_line_and_branch_coverage_of_every_touched_file_passes(tmp_path):
-    result = coverage_result(tmp_path, {"python": {"src/a.py": R.FileCoverage(10, 10, 4, 4)}})
-    assert result.exit_code == R.EXIT_OK, result.problems
+COVERED = '[[entry]]\nfile = "src/a.py"\nfunction = "record"\nlanguage = "python"\nclasses = ["C"]\n'
+COVERED_RS = '[[entry]]\nfile = "src/a.rs"\nfunction = "pull"\nlanguage = "rust"\nclasses = ["B"]\n'
+COVERED_SH = '[[entry]]\nfile = "src/a.sh"\nfunction = "<script>"\nlanguage = "shell"\nclasses = ["B"]\n'
 
 
-def test_tc41_one_missed_line_or_branch_is_named_with_its_counts(tmp_path):
-    result = coverage_result(tmp_path, {"python": {"src/a.py": R.FileCoverage(10, 9, 4, 3)}})
-    assert codes(result) == ["E-LINES-UNCOVERED", "E-BRANCHES-UNCOVERED"]
+def canned(**per_language):
+    """A coverage runner returning canned per-file data, or raising what a real one raises."""
+    def run(root, language, spec):
+        outcome = per_language[language]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+    return run
 
 
-def test_tc42_a_touched_file_the_tool_did_not_report_is_undecidable_not_a_pass(tmp_path):
-    result = coverage_result(tmp_path, {"python": {}})
-    assert result.exit_code == R.EXIT_ERROR and codes(result) == ["E-COVERAGE-UNKNOWN"]
+def coverage_result(tmp_path: Path, touched: str, **per_language) -> R.Result:
+    return R.check_coverage(make_root(tmp_path, touched=touched), canned(**per_language))
 
 
-def test_tc43_a_language_with_no_coverage_output_at_all_is_undecidable(tmp_path):
-    result = coverage_result(tmp_path, {})
-    assert result.exit_code == R.EXIT_ERROR and codes(result) == ["E-COVERAGE-UNKNOWN"]
+def test_tc21_boundary_9999_of_10000_lines_fails_and_exactly_all_of_them_passes(tmp_path):
+    below = coverage_result(tmp_path / "a", COVERED, python={"src/a.py": R.FileCoverage(10000, 9999, 0, 0)})
+    assert below.exit_code == R.EXIT_FAIL
+    assert [(p.code, p.subject) for p in below.problems] == [("E-BELOW", "src/a.py")] and "9999 of 10000 lines" in below.problems[0].detail
+    full = coverage_result(tmp_path / "b", COVERED, python={"src/a.py": R.FileCoverage(10000, 10000, 0, 0)})
+    assert full.exit_code == R.EXIT_OK and full.problems == []
+
+
+def test_lines_and_branches_are_checked_independently(tmp_path):
+    lines_only = coverage_result(tmp_path / "a", COVERED, python={"src/a.py": R.FileCoverage(10, 9, 4, 4)})
+    branches_only = coverage_result(tmp_path / "b", COVERED, python={"src/a.py": R.FileCoverage(10, 10, 4, 3)})
+    assert "9 of 10 lines" in lines_only.problems[0].detail and "branches" not in lines_only.problems[0].detail
+    assert "3 of 4 branches" in branches_only.problems[0].detail and "lines" not in branches_only.problems[0].detail
 
 
 def test_a_file_with_no_branches_is_fully_covered_on_branches(tmp_path):
-    result = coverage_result(tmp_path, {"python": {"src/a.py": R.FileCoverage(3, 3, 0, 0)}})
+    assert coverage_result(tmp_path, COVERED, python={"src/a.py": R.FileCoverage(3, 3, 0, 0)}).exit_code == R.EXIT_OK
+
+
+def test_a_touched_file_absent_from_the_data_is_unmeasured(tmp_path):
+    result = coverage_result(tmp_path, COVERED, python={})
+    assert result.exit_code == R.EXIT_FAIL and [(p.code, p.subject) for p in result.problems] == [("E-FILE-UNMEASURED", "src/a.py")]
+
+
+def test_tc24_a_missing_coverage_tool_is_exit_2_naming_it(tmp_path):
+    result = coverage_result(tmp_path, COVERED_RS, rust=R.ToolMissing("cargo llvm-cov"))
+    assert result.exit_code == R.EXIT_ERROR
+    assert [(p.code, p.subject) for p in result.problems] == [("E-TOOL-MISSING", "rust")] and "cargo llvm-cov" in result.problems[0].detail
+
+
+def test_tc25_a_red_suite_is_exit_2_and_never_a_proof(tmp_path):
+    result = coverage_result(tmp_path, COVERED, python=R.SuiteRed("1 failed"))
+    assert result.exit_code == R.EXIT_ERROR and [p.code for p in result.problems] == ["E-SUITE-RED"]
+
+
+def test_tc26_shell_without_kcov_is_reported_not_measured_while_other_languages_still_decide(tmp_path):
+    passing = coverage_result(tmp_path / "a", COVERED + COVERED_SH, python={"src/a.py": R.FileCoverage(5, 5, 0, 0)}, shell=R.NotMeasured("kcov is not available on macOS"))
+    assert passing.exit_code == R.EXIT_OK and passing.data["not_measured"] == {"shell": "kcov is not available on macOS"}
+    failing = coverage_result(tmp_path / "b", COVERED + COVERED_SH, python={"src/a.py": R.FileCoverage(5, 4, 0, 0)}, shell=R.NotMeasured("x"))
+    assert failing.exit_code == R.EXIT_FAIL and failing.data["not_measured"] == {"shell": "x"}
+
+
+def test_a_language_with_no_touched_files_is_not_run(tmp_path):
+    result = coverage_result(tmp_path, COVERED, python={"src/a.py": R.FileCoverage(1, 1, 0, 0)})      # no rust key: a call would KeyError
     assert result.exit_code == R.EXIT_OK
+
+
+COVERAGE_PY = {"files": {"minipy/core.py": {"summary": {"num_statements": 10, "covered_lines": 9, "num_branches": 4, "covered_branches": 3}}}}
+LLVM = {"data": [{"files": [{"filename": "/r/rs/mini/src/lib.rs", "summary": {"lines": {"count": 8, "covered": 8}, "branches": {"count": 2, "covered": 1}}}]}]}
+VITEST = {"total": {}, "/r/ts/src/core.ts": {"lines": {"total": 5, "covered": 5}, "branches": {"total": 2, "covered": 2}}}
+KCOV = {"files": [{"file": "/r/tests/x.sh", "covered_lines": "7", "total_lines": "9"}]}
+
+
+def test_the_four_tools_json_shapes_are_read_into_per_file_counts_relative_to_the_repository():
+    assert R.parse_coverage_py("py", COVERAGE_PY) == {"py/minipy/core.py": R.FileCoverage(10, 9, 4, 3)}
+    assert R.parse_llvm_cov(Path("/r"), LLVM) == {"rs/mini/src/lib.rs": R.FileCoverage(8, 8, 2, 1)}
+    assert R.parse_vitest_summary(Path("/r"), VITEST) == {"ts/src/core.ts": R.FileCoverage(5, 5, 2, 2)}
+    assert R.parse_kcov(Path("/r"), KCOV) == {"tests/x.sh": R.FileCoverage(9, 7, 0, 0)}
 
 
 # ---- idle guard: nothing moves on a machine that is running a story ---------------------------------------------------------
@@ -778,19 +827,6 @@ def test_check_fates_and_check_stubs_run_from_the_command_line(tmp_path):
     assert cli(root, "check-stubs") == R.EXIT_FAIL          # not a stub yet
     write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
     assert cli(root, "check-stubs") == R.EXIT_OK
-
-
-def test_check_coverage_reads_the_neutral_coverage_file(tmp_path):
-    root = make_root(tmp_path, touched=FATE_TOUCHED)
-    write(root, "ops/refactor/reports/coverage-input.json", json.dumps({"python": {"src/a.py": [10, 10, 4, 4]}}))
-    assert cli(root, "check-coverage") == R.EXIT_OK
-    write(root, "ops/refactor/reports/coverage-input.json", json.dumps({"python": {"src/a.py": [10, 9, 4, 4]}}))
-    assert cli(root, "check-coverage") == R.EXIT_FAIL
-
-
-def test_check_coverage_with_no_input_file_is_undecidable(tmp_path):
-    root = make_root(tmp_path, touched=FATE_TOUCHED)
-    assert cli(root, "check-coverage") == R.EXIT_ERROR
 
 
 def test_report_deletion_reads_the_neutral_results_file(tmp_path):
@@ -1152,3 +1188,93 @@ def test_tc20_the_stage_is_checked_before_and_after_every_move_including_each_re
         assert stage_of(root) == before
         R.move_stage(root, to, justifiers_all(justifier))
         assert stage_of(root) == after
+
+
+def test_the_printed_report_says_which_languages_were_not_measured(capsys):
+    result = R.Result()
+    result.data = {"not_measured": {"shell": "kcov is not available on macOS"}}
+    R.print_result("check-coverage", result)
+    assert "not measured  shell  kcov is not available on macOS" in capsys.readouterr().out
+
+
+# ---- integration: coverage through the real tools on the mini project (task 1.15) ---------------------------------------------
+
+def fresh_mini(tmp_path: Path) -> Path:
+    """A private copy of the mini project that shares the already-installed TypeScript dependencies."""
+    root = tmp_path / "mini"
+    shutil.copytree(MINI, root, ignore=MINI_IGNORED)
+    os.symlink(MINI_DEPS, root / "ts" / "node_modules")
+    return root
+
+
+MINI_DEPS = None
+
+
+@pytest.fixture(scope="module")
+def coverage_tools(mini):
+    """Skips, with a recorded reason, when a real coverage tool is absent; never passes silently."""
+    missing = [name for name, probe in (("cargo-llvm-cov", ["cargo", "llvm-cov", "--version"]), ("bun", ["bun", "--version"]),
+                                        ("uv", ["uv", "--version"])) if subprocess.run(probe, capture_output=True).returncode != 0]
+    if missing:
+        pytest.skip(f"coverage tools not installed: {', '.join(missing)}")
+    global MINI_DEPS
+    MINI_DEPS = mini / "ts" / "node_modules"
+
+
+def coverage_run(root: Path) -> tuple[subprocess.CompletedProcess, dict]:
+    done = tool(root, "check-coverage")
+    report = root / "ops/refactor/reports/coverage.json"
+    return done, (json.loads(report.read_text()) if report.exists() else {})
+
+
+def test_tc18_tc22_tc23_every_touched_file_at_100_in_python_rust_and_typescript_passes(coverage_tools, tmp_path):
+    root = fresh_mini(tmp_path)
+    done, report = coverage_run(root)
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    assert set(report["measured"]) == {"py/minipy/core.py", "rs/mini/src/lib.rs", "ts/src/core.ts"}
+    assert all(c[0] == c[1] and c[2] == c[3] for c in report["measured"].values())      # lines and branches both fully hit
+    assert report["measured"]["rs/mini/src/lib.rs"][2] > 0                              # the Rust branches really were counted
+
+
+def test_tc19_one_uncovered_line_fails_listing_the_line(coverage_tools, tmp_path):
+    root = fresh_mini(tmp_path)
+    core = root / "py/minipy/core.py"
+    core.write_text(core.read_text() + "\n\ndef never_called():\n    return 'uncovered'\n")
+    touched = root / "ops/refactor/touched_set.toml"
+    touched.write_text(touched.read_text() + '\n[[entry]]\nlanguage = "python"\nfile = "py/minipy/core.py"\nfunction = "never_called"\nclasses = ["A"]\n')
+    done, report = coverage_run(root)
+    problem = report["problems"][0]
+    assert done.returncode == R.EXIT_FAIL and problem["code"] == "E-BELOW" and problem["subject"] == "py/minipy/core.py"
+    last = len(core.read_text().splitlines())
+    assert f"line {last}" in problem["detail"]
+
+
+def test_tc20_one_untaken_branch_with_every_line_covered_fails_listing_the_branch(coverage_tools, tmp_path):
+    root = fresh_mini(tmp_path)
+    core = root / "py/minipy/core.py"
+    core.write_text(core.read_text() + "\n\ndef branchy(flag):\n    if flag:\n        marker = 1\n    return 2\n")
+    (root / "py/test_core.py").write_text((root / "py/test_core.py").read_text() +
+                                          "\n\ndef test_branchy_with_the_flag_set():\n    from minipy.core import branchy\n    assert branchy(True) == 2\n")
+    touched = root / "ops/refactor/touched_set.toml"
+    touched.write_text(touched.read_text() + '\n[[entry]]\nlanguage = "python"\nfile = "py/minipy/core.py"\nfunction = "branchy"\nclasses = ["A"]\n')
+    done, report = coverage_run(root)
+    detail = report["problems"][0]["detail"]
+    assert done.returncode == R.EXIT_FAIL and "branches" in detail and "lines" not in detail
+    assert "->" in detail                                                              # the untaken arc, source line to target line
+
+
+def test_tc25_a_failing_test_gives_suite_red_and_exit_2(coverage_tools, tmp_path):
+    root = fresh_mini(tmp_path)
+    test = root / "py/test_core.py"
+    test.write_text(test.read_text() + "\n\ndef test_that_fails():\n    assert False\n")
+    done, report = coverage_run(root)
+    assert done.returncode == R.EXIT_ERROR and report["problems"][0]["code"] == "E-SUITE-RED"
+
+
+def test_tc24_the_missing_tool_is_exit_2_naming_it_through_the_real_command(coverage_tools, tmp_path):
+    root = fresh_mini(tmp_path)
+    rt = root / "ops/refactor/runners.toml"
+    rt.write_text(rt.read_text().replace('"llvm-cov"', '"llvm-cov-not-installed"'))
+    done, report = coverage_run(root)
+    assert done.returncode == R.EXIT_ERROR and {p["code"] for p in report["problems"]} == {"E-TOOL-MISSING"}
+    assert "llvm-cov-not-installed" in report["problems"][0]["detail"]

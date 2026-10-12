@@ -1,0 +1,23 @@
+[[entry]]
+language = "python"
+file = "py/minipy/core.py"
+function = "record"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "py/minipy/core.py"
+function = "run_dir"
+classes = ["A"]
+
+[[entry]]
+language = "rust"
+file = "rs/mini/src/lib.rs"
+function = "count_lines"
+classes = ["B"]
+
+[[entry]]
+language = "typescript"
+file = "ts/src/core.ts"
+function = "titleOf"
+classes = ["C"]

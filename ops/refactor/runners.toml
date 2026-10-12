@@ -20,3 +20,25 @@ command = ["bun", "x", "vitest", "list", "--json"]
 
 [shell]
 glob = "tests/*-test.sh"
+
+# How check-coverage runs each suite under its coverage tool. "{out}" is the file the tool writes its JSON to, "{outdir}"
+# the folder for a tool that names its own file (then "file" says which one to read).
+
+[python.coverage]
+format = "coverage-py"
+command = [
+  "uv", "run", "--quiet",
+  "--with", "pytest", "--with", "pytest-cov", "--with", "hypothesis", "--with", "httpx",
+  "--with", "uvicorn", "--with", "starlette", "--with", "fastapi",
+  "pytest", "-q", "-p", "no:cacheprovider", "--cov=.", "--cov-branch", "--cov-report=json:{out}",
+]
+
+[rust.coverage]
+format = "llvm-cov"
+command = ["cargo", "+nightly", "llvm-cov", "--workspace", "--json", "--branch", "--output-path", "{out}"]
+
+# Needs @vitest/coverage-v8 in tools/benchmarker/package.json, which task 1.28 adds; until then this reports E-SUITE-RED.
+[typescript.coverage]
+format = "vitest-summary"
+command = ["bun", "x", "vitest", "run", "--coverage.enabled", "--coverage.provider=v8", "--coverage.reporter=json-summary", "--coverage.reportsDirectory={outdir}"]
+file = "coverage-summary.json"

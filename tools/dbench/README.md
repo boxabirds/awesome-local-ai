@@ -32,6 +32,20 @@ newer Rust, change `channel` there and run the checks. Why the two profiles: doc
 
 On a Linux box, `cargo build --profile dist` works natively. TLS is rustls, so there's no OpenSSL.
 
+### Coverage (the refactor tool, `ops/refactor/`)
+
+`ops/refactor/refactor.py check-coverage` proves 100% line and branch coverage of the touched Rust files with
+`cargo llvm-cov`. Install it once per machine, together with the nightly toolchain that branch coverage needs:
+
+```sh
+cargo install cargo-llvm-cov --locked
+rustup toolchain install nightly --profile minimal
+rustup component add llvm-tools-preview --toolchain nightly      # the pinned toolchain gets it from tools/rust-toolchain.toml
+```
+
+Branch coverage is an unstable llvm feature, so the tool runs `cargo +nightly llvm-cov --branch`. Without the tool the
+check exits 2 with `E-TOOL-MISSING` naming it; it never passes by default.
+
 ## Run the server
 
 ```sh

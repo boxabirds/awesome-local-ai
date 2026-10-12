@@ -24,6 +24,7 @@ import itertools
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -622,24 +623,113 @@ class FileCoverage:
     lines_hit: int
     branches: int
     branches_hit: int
+    missing_lines: tuple = ()          # line numbers, where the tool reports them
+    missing_branches: tuple = ()       # (from line, to line) arcs, where the tool reports them
 
 
-Measured = dict[str, dict[str, FileCoverage]]   # language -> file -> coverage, as the language's own tool reported it
+class ToolMissing(Exception):
+    """A coverage tool is not installed: exit 2 naming it."""
 
 
-def check_coverage(root: Path, measured: Measured) -> Result:
-    """Fail on any missed line or branch; a touched file the coverage tool did not report is undecidable, never a pass."""
+class SuiteRed(Exception):
+    """The suite failed under coverage: a red suite is never accepted as a proof (exit 2)."""
+
+
+class NotMeasured(Exception):
+    """This language cannot be measured here (kcov on macOS): reported as not measured, never as passed."""
+
+
+CoverageRunner = Callable[[Path, str, dict], dict[str, FileCoverage]]
+COVERAGE_OUT = "{out}"           # replaced in a coverage command by the file the tool must write its JSON to
+COVERAGE_OUTDIR = "{outdir}"     # or by the folder, for a tool that picks the file name itself (spec "file" names it)
+
+
+def parse_coverage_py(folder: str, report: dict) -> dict[str, FileCoverage]:
+    """`coverage json` / pytest-cov: keys are relative to the folder the run was made in."""
+    return {f"{folder}/{file}": FileCoverage(s["num_statements"], s["covered_lines"], s["num_branches"], s["covered_branches"],
+                                             tuple(body.get("missing_lines", ())), tuple(tuple(a) for a in body.get("missing_branches", ())))
+            for file, body in report["files"].items() for s in [body["summary"]]}
+
+
+def relative(root: Path, name: str) -> str:
+    return Path(name).resolve().relative_to(root.resolve()).as_posix()
+
+
+def parse_llvm_cov(root: Path, report: dict) -> dict[str, FileCoverage]:
+    return {relative(root, f["filename"]): FileCoverage(f["summary"]["lines"]["count"], f["summary"]["lines"]["covered"],
+                                                        f["summary"]["branches"]["count"], f["summary"]["branches"]["covered"])
+            for f in report["data"][0]["files"]}
+
+
+def parse_vitest_summary(root: Path, report: dict) -> dict[str, FileCoverage]:
+    return {relative(root, file): FileCoverage(c["lines"]["total"], c["lines"]["covered"], c["branches"]["total"], c["branches"]["covered"])
+            for file, c in report.items() if file != "total"}
+
+
+def parse_kcov(root: Path, report: dict) -> dict[str, FileCoverage]:
+    """kcov measures lines only, so branches are 0 of 0."""
+    return {relative(root, f["file"]): FileCoverage(int(f["total_lines"]), int(f["covered_lines"]), 0, 0) for f in report["files"]}
+
+
+def run_coverage(root: Path, language: str, spec: dict) -> dict[str, FileCoverage]:
+    """Run one language's suite under its coverage tool and read the per-file counts it wrote."""
+    if language == "shell":
+        raise NotMeasured("no shell coverage tool is configured here (kcov runs on Linux only)")
+    outdir = root / REPORTS_DIR / f"coverage-{language}"
+    shutil.rmtree(outdir, ignore_errors=True)
+    outdir.mkdir(parents=True)
+    out = outdir / spec.get("file", "coverage.json")       # a tool that writes a folder names the file it writes there
+    command = [part.replace(COVERAGE_OUT, str(out)).replace(COVERAGE_OUTDIR, str(outdir)) for part in spec["command"]]
+    try:
+        done = subprocess.run(command, cwd=root / spec["dir"], capture_output=True, text=True)
+    except (FileNotFoundError, NotADirectoryError) as exc:
+        raise ToolMissing(command[0]) from exc
+    missing = re.search(r"no such command: .(\S+?).$", done.stderr, re.M)
+    if missing:
+        raise ToolMissing(f"{command[0]} {missing.group(1)}")
+    if done.returncode != EXIT_OK or not out.exists():
+        tail = " | ".join((done.stderr or done.stdout).strip().splitlines()[-ERROR_TAIL_LINES:])
+        raise SuiteRed(f"{' '.join(command[:3])} exited {done.returncode}: {tail}")
+    report = json.loads(out.read_text())
+    return {"coverage-py": lambda: parse_coverage_py(spec["dir"], report),
+            "llvm-cov": lambda: parse_llvm_cov(root, report),
+            "vitest-summary": lambda: parse_vitest_summary(root, report)}[spec["format"]]()
+
+
+def check_coverage(root: Path, runner: CoverageRunner = run_coverage) -> Result:
+    """100% of lines and of branches for every touched file, measured by running each language's suite under its tool."""
     result = Result()
-    files = sorted({(e["language"], e["file"]) for e in read_toml(root / TOUCHED_FILE).get("entry", [])})
-    for language, file in files:
-        cov = measured.get(language, {}).get(file)
-        if cov is None:
-            result.error("E-COVERAGE-UNKNOWN", file, f"{language}: the coverage tool reported nothing for this file")
+    specs = read_toml(root / RUNNERS_FILE)
+    files: dict[str, list[str]] = {}
+    for e in read_toml(root / TOUCHED_FILE).get("entry", []):
+        files.setdefault(e["language"], [])
+        if e["file"] not in files[e["language"]]:
+            files[e["language"]].append(e["file"])
+    not_measured: dict[str, str] = {}
+    measured_counts: dict[str, list[int]] = {}
+    for language, touched in sorted(files.items()):
+        try:
+            measured = runner(root, language, specs.get(language, {}).get("coverage", {}) | {"dir": specs.get(language, {}).get("dir", ".")})
+        except NotMeasured as exc:
+            not_measured[language] = str(exc)
             continue
-        if cov.lines_hit < cov.lines:
-            result.fail("E-LINES-UNCOVERED", file, f"{cov.lines_hit} of {cov.lines} lines")
-        if cov.branches_hit < cov.branches:
-            result.fail("E-BRANCHES-UNCOVERED", file, f"{cov.branches_hit} of {cov.branches} branches")
+        except ToolMissing as exc:
+            result.error("E-TOOL-MISSING", language, f"{exc} is not installed")
+            continue
+        except SuiteRed as exc:
+            result.error("E-SUITE-RED", language, str(exc))
+            continue
+        for file in touched:
+            cov = measured.get(file)
+            if cov is None:
+                result.fail("E-FILE-UNMEASURED", file, f"{language}: the coverage tool reported nothing for this file")
+                continue
+            short = [f"{cov.lines_hit} of {cov.lines} lines ({', '.join(f'line {n}' for n in cov.missing_lines)})".replace(" ()", "")] if cov.lines_hit < cov.lines else []
+            short += [f"{cov.branches_hit} of {cov.branches} branches ({', '.join(f'{a}->{b}' for a, b in cov.missing_branches)})".replace(" ()", "")] if cov.branches_hit < cov.branches else []
+            measured_counts[file] = [cov.lines, cov.lines_hit, cov.branches, cov.branches_hit]
+            if short:
+                result.fail("E-BELOW", file, "; ".join(short))
+    result.data = {"not_measured": not_measured, "measured": measured_counts}
     write_report(root, "coverage", result)
     return result
 
@@ -743,18 +833,9 @@ def list_tests(root: Path) -> dict[str, set[str]]:
 
 # ---- inputs the runners' adapters write (neutral JSON), and the machine probe -------------------------------------------
 
-COVERAGE_INPUT = REPORTS_DIR / "coverage-input.json"   # {language: {file: [lines, lines_hit, branches, branches_hit]}}
 RESULTS_INPUT = REPORTS_DIR / "results-input.json"     # {"outcomes": {qualified test id: outcome}, "missing": [language]}
 PARITY_REPORT = REPORTS_DIR / "parity.json"
 IDLE_PROBE_ENV = "REFACTOR_IDLE_PROBE"                 # a command that prints one running story per line
-
-
-def load_measured(root: Path) -> Measured:
-    path = root / COVERAGE_INPUT
-    if not path.exists():
-        return {}
-    raw = json.loads(path.read_text())
-    return {lang: {file: FileCoverage(*counts) for file, counts in files.items()} for lang, files in raw.items()}
 
 
 def load_results(root: Path) -> Results | None:
@@ -811,7 +892,7 @@ def default_justifiers(lister: Lister) -> dict[tuple[str, str], Justifier]:
 
     return {
         ("Inventory", "Matrices"): lambda root: merged(check_register(root, lister), check_touched(root)),
-        ("Matrices", "Proved"): lambda root: merged(matrices(root), check_coverage(root, load_measured(root))),
+        ("Matrices", "Proved"): lambda root: merged(matrices(root), check_coverage(root)),
         ("Proved", "Deleted"): check_stubs,
         ("Deleted", "RedContracts"): red_contracts,
         ("RedContracts", "Reimplemented"): suite_green,
@@ -826,6 +907,8 @@ def print_result(name: str, result: Result) -> None:
     print(f"{name}: {status}")
     for p in result.problems:
         print(f"  {p.code}  {p.subject}  {p.detail}".rstrip())
+    for language, why in result.data.get("not_measured", {}).items():
+        print(f"  not measured  {language}  {why}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -836,7 +919,7 @@ def main(argv: list[str] | None = None) -> int:
                        ("check-touched-set", "the committed touched set equals the scan"),
                        ("check-stubs", "every touched function is a stub"),
                        ("check-fates", "every assigned test has exactly one fate"),
-                       ("check-coverage", f"100% line and branch coverage from {COVERAGE_INPUT}"),
+                       ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every touched file"),
                        ("report-deletion", f"every assigned test failed against the stubs, from {RESULTS_INPUT}"),
                        ("check-idle", "no story is running on this machine")):
         sub.add_parser(name, help=text)
@@ -852,7 +935,7 @@ def main(argv: list[str] | None = None) -> int:
         "check-touched-set": lambda: check_touched(root),
         "check-stubs": lambda: check_stubs(root),
         "check-fates": lambda: check_fates(root),
-        "check-coverage": lambda: check_coverage(root, load_measured(root)),
+        "check-coverage": lambda: check_coverage(root),
         "check-idle": lambda: check_idle(probe_running_stories),
     }
     try:

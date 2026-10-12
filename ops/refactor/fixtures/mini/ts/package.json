@@ -2,5 +2,8 @@
   "name": "mini-ts",
   "private": true,
   "type": "module",
-  "devDependencies": { "vitest": "^5.0.2" }
+  "devDependencies": {
+    "vitest": "^5.0.2",
+    "@vitest/coverage-v8": "^5.0.2"
+  }
 }

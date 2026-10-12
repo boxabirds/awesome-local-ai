@@ -6,6 +6,7 @@
 [toolchain]
 channel = "1.98.0"
 profile = "minimal"
-components = ["clippy"]
+# llvm-tools-preview: ops/refactor/refactor.py check-coverage measures Rust coverage with cargo llvm-cov.
+components = ["clippy", "llvm-tools-preview"]
 # build-linux.sh cross-builds dbench for the Linux bench machines from a Mac.
 targets = ["x86_64-unknown-linux-gnu"]
