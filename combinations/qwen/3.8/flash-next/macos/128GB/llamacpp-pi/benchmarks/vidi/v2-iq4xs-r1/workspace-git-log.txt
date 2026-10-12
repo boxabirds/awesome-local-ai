@@ -1,3 +1,46 @@
+commit c696c79b971d2c4946b2b5f276992ab1f3a9eef7
+agent  Mon Oct 12 05:20:53 2026 +0000
+
+    story 11: Sketch freehand with a pen
+
+
+ NOTES.md                                | 186 ++++++++
+ PROGRESS.md                             |  12 +-
+ src/client/board/BoardScreen.tsx        |  61 ++-
+ src/client/board/BoardToolbar.tsx       |  21 +
+ src/client/canvas/BoardViewport.tsx     |  73 +--
+ src/client/canvas/navigationGestures.ts |  93 ++++
+ src/client/canvas/testHooks.ts          |  10 +
+ src/client/objects/StrokeObject.tsx     | 132 ++++++
+ src/client/objects/objectAtPoint.ts     |  12 +-
+ src/client/objects/registry.tsx         |  35 +-
+ src/client/styles.css                   |  31 ++
+ src/client/tools/PenTool.tsx            | 316 +++++++++++++
+ src/client/tools/PenToolbar.tsx         |  72 +++
+ src/client/tools/useActiveTool.ts       |  16 +-
+ src/client/tools/usePenOptions.ts       |  63 +++
+ src/shared/board-model.ts               |   9 +-
+ src/shared/config.ts                    |  62 +++
+ src/shared/geometry/simplify.ts         | 129 ++++++
+ src/shared/objects/stroke.ts            | 282 +++++++++++
+ tests/component/PenTool.test.tsx        | 414 +++++++++++++++++
+ tests/component/StrokeObject.test.tsx   | 447 ++++++++++++++++++
+ tests/component/elementPointers.ts      |  24 +-
+ tests/component/penKit.tsx              | 147 ++++++
+ tests/e2e/connectors.spec.ts            |  15 +-
+ tests/e2e/helpers/pageErrors.ts         |  40 ++
+ tests/e2e/pen.spec.ts                   | 799 ++++++++++++++++++++++++++++++++
+ tests/fixtures/pen-paths.ts             | 171 +++++++
+ tests/unit/stroke-model.test.ts         | 390 ++++++++++++++++
+ 28 files changed, 3975 insertions(+), 87 deletions(-)
+commit e8b76eef5a9c840d81eb540c1fc86e64320af393
+vidi-agent  Mon Oct 12 04:02:26 2026 +0100
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 31 +++++++------------------------
+ 1 file changed, 7 insertions(+), 24 deletions(-)
 commit 7df5123dba4cf90aff49c92199f08ad79cc1b1a7
 agent  Mon Oct 12 02:53:59 2026 +0000
 
