@@ -396,7 +396,7 @@ def check_matrix(root: Path, use_case: str, lister: Lister) -> Result:
 # every allowed move, with the checks that justify it (names for the record; the checks are wired in default_justifiers)
 ALLOWED_MOVES: dict[tuple[str, str], str] = {
     ("Inventory", "Matrices"): "check-register, check-touched-set",
-    ("Matrices", "Proved"): "check-matrix U1 to U14, check-coverage",
+    ("Matrices", "Proved"): "check-matrix (the use cases use_cases.toml requires), check-coverage",
     ("Proved", "Deleted"): "check-stubs",
     BACK_EDGE: "report-deletion: an assigned test passed",
     ("Deleted", "RedContracts"): "report-deletion, fates (every old test has a fate; every new contract test seen red)",

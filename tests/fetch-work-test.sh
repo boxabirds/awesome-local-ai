@@ -43,10 +43,10 @@ run host "$RUN" extra
 assert_eq "three arguments are too many" "2" "$RC"
 
 echo "a fetch"
-run quintus "$RUN/"
+run node-a "$RUN/"
 assert_eq "it succeeds (a trailing slash on the run is ignored)" "0" "$RC"
-assert_ok "it says what it fetches and from where" contains "$OUT" "fetching quintus:.vidi-bench/work/"
-assert_ok "the rsync source is the long name on the host" contains "$(cat "$TMP/rsync.log")" "quintus:.vidi-bench/work/"
+assert_ok "it says what it fetches and from where" contains "$OUT" "fetching node-a:.vidi-bench/work/"
+assert_ok "the rsync source is the long name on the host" contains "$(cat "$TMP/rsync.log")" "node-a:.vidi-bench/work/"
 assert_ok "node_modules, dist and .wrangler are not copied" contains "$(cat "$TMP/rsync.log")" "--exclude node_modules --exclude dist --exclude .wrangler"
 local_dir="$(ls -d "$TMP"/home/.w/*/ | head -1)"
 assert_ok "the folder is ~/.w/<id>" test -d "$local_dir/workspace/.git"
@@ -55,14 +55,14 @@ assert_ok "the last commits are shown" contains "$OUT" "first story"
 assert_ok "it says how to continue" contains "$OUT" "run.sh … --run-id run-2 will continue from the next unfinished story"
 
 echo "a local copy"
-run quintus "$RUN"
+run node-a "$RUN"
 # fetch again into the same home: it refuses to overwrite
-HOME="$TMP/home" VIDI_WORK_ROOT="$TMP/home/.w" PATH="$TMP/bin:$PATH" FAKE_RSYNC_LOG="$TMP/rsync.log" bash "$SCRIPT" quintus "$RUN" >"$TMP/out" 2>"$TMP/err"; rc=$?
+HOME="$TMP/home" VIDI_WORK_ROOT="$TMP/home/.w" PATH="$TMP/bin:$PATH" FAKE_RSYNC_LOG="$TMP/rsync.log" bash "$SCRIPT" node-a "$RUN" >"$TMP/out" 2>"$TMP/err"; rc=$?
 assert_eq "an existing local copy is not overwritten (exit 1)" "1" "$rc"
 assert_ok "and says so" contains "$(cat "$TMP/err")" "already exists here; not overwriting"
 
 echo "rsync fails"
-FAIL=1 run quintus "$RUN"
+FAIL=1 run node-a "$RUN"
 assert_ok "a failing rsync stops the script (set -e)" test "$RC" -ne 0
 assert_ok "and does not claim to be done" test -z "$(echo "$OUT" | grep '^done:')"
 

@@ -10,7 +10,7 @@ What a Spark would add to the question of how many agents a model server carries
 | Compute | "Up to 1,000 TOPS inference and up to 1 PFLOP at FP4 precision with sparsity" (*advertised*); no dense FP4, FP8 or BF16 figures found | not compared |
 | Network | ConnectX-7 with two QSFP ports; "up to 200 Gbps" is a third party's figure (LMSYS), not NVIDIA's page | none |
 
-The two have the same memory-bandwidth class, so single-stream decode should be in the same class (tritus runs Flash-Next at about 38 tok/s). The Spark's difference is compute and the CUDA software stack. No source compares them directly.
+The two have the same memory-bandwidth class, so single-stream decode should be in the same class (the Strix Halo box runs Flash-Next at about 38 tok/s). The Spark's difference is compute and the CUDA software stack. No source compares them directly.
 
 ## Two units
 
@@ -42,7 +42,7 @@ The forum author says concurrent figures moved +/-30% between runs; Ollama's 8-w
 
 ## What it means in practice (derived)
 
-- **Capacity** is the same 128 GB as tritus, so the same arithmetic applies (see `memory-model.md`): roughly five to nine sessions at 192k, depending on the quant, before cache and activations, assuming about 115 GiB usable.
+- **Capacity** is the same 128 GB as the Strix Halo box, so the same arithmetic applies (see `memory-model.md`): roughly five to nine sessions at 192k, depending on the quant, before cache and activations, assuming about 115 GiB usable.
 - **Throughput** may improve more with batching than on Strix Halo, if a batching engine can run Flash-Next on it. That is the first thing to measure.
 - Two Sparks as two independent servers double the capacity; linked, they run bigger models, not faster ones.
 

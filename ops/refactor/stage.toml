@@ -1,7 +1,13 @@
-stage = "Matrices"
+stage = "Proved"
 
 [[move]]
 from = "Inventory"
 to = "Matrices"
 at = "2026-10-12T16:48:27+00:00"
 justified_by = "check-register, check-touched-set"
+
+[[move]]
+from = "Matrices"
+to = "Proved"
+at = "2026-10-12T22:00:53+00:00"
+justified_by = "check-matrix U1 to U14, check-coverage"

@@ -8,7 +8,7 @@ This decides which concurrency case a client produces. A **fresh** subagent star
 |---|---|---|---|
 | **Claude Code** | fresh: "Each subagent starts with a fresh, isolated context window. It doesn't see your conversation history" | **yes**: "inherits the entire conversation so far... same system prompt, tools, model, and message history"; on by default in interactive sessions, off with `-p` and in the SDK; `/subtask <task>` starts one | 20 concurrent by default (`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`); nesting to three layers |
 | **pi** | no subagents in the core (secondary sources). The Earendil example extension: "Each subagent runs in a separate `pi` process", isolated context | opt-in only, in a community package: `initialContext: "parent"` clones the parent's snapshot; the page says "this is expensive" | the example extension: "limited to 8 tasks, 4 concurrent"; output returned is capped at 50 KB |
-| **OpenCode 1.x** (we ran 1.18.30; this Mac has 1.0.134; gruntus 1.18.31) | fresh: "Each agent invocation starts with a fresh context unless you provide task_id to resume the same subagent session" | **no** | parallel calls in one message are encouraged; `background=true` needs `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true`; depth 1 |
+| **OpenCode 1.x** (we ran 1.18.30; this Mac has 1.0.134; the RTX 4090 box 1.18.31) | fresh: "Each agent invocation starts with a fresh context unless you provide task_id to resume the same subagent session" | **no** | parallel calls in one message are encouraged; `background=true` needs `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true`; depth 1 |
 | **OpenCode 2** (v2.0.x; `opencode upgrade --major` since 1.19.0) | fresh: subagents "run with fresh context in foreground or background child sessions" | **no** (the docs do not mention inheriting) | `experimental.subagent_depth` default 1; the General agent "cannot launch more subagents"; no concurrency limit documented |
 
 ## Claude Code (`https://code.claude.com/docs/en/sub-agents`, advertised)
@@ -40,7 +40,7 @@ This decides which concurrency case a client produces. A **fresh** subagent star
 ## What this means for our measurements
 
 - OpenCode never forks the parent's context, so its subagents share only the system prompt and tool definitions (about 10k tokens for the main agent in our traffic). Scenarios A and A2 in `design.md` mirror it. Claude Code's fork and pi's `parent` mode are scenario B.
-- Hidden title and compaction calls add requests on the same server. In the tritus log, two prompts of about 570 tokens that generated 28 and 65 tokens look like titles, and a 120,562-token prompt that generated 3,397 tokens looks like a compaction (*inferred*, not confirmed).
+- Hidden title and compaction calls add requests on the same server. In the the Strix Halo box log, two prompts of about 570 tokens that generated 28 and 65 tokens look like titles, and a 120,562-token prompt that generated 3,397 tokens looks like a compaction (*inferred*, not confirmed).
 - **Benchmarking implication:** moving the OpenCode series to OpenCode 2 is a new client with a new server API and event contract. Per the repository's rule that every client needs its own parser, the harness's OpenCode parser would need a recorded OpenCode 2 stream and tests before any series. Our `gufo-opencode` series ran 1.18.30; v1.19.0 no longer updates automatically.
 
 ## Not found

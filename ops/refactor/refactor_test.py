@@ -1822,10 +1822,10 @@ def test_tc58_anything_that_is_not_a_status_of_the_named_node_is_unparseable_nev
 
 def test_tc59_a_trimmed_capture_of_real_dbench_status_output_is_parsed_and_the_exit_follows_its_content():
     text = CAPTURE.read_text()
-    busy = R.guard_idle("quintus", text)
+    busy = R.guard_idle("node-a", text)
     assert busy.exit_code == R.EXIT_FAIL and busy.problems[0].subject == "vidi-v2-iq4xs-llamacpp-r2" and "story 5" in busy.problems[0].detail
-    assert R.guard_idle("tritus", text).exit_code == R.EXIT_OK          # queued and done only (the node is held)
-    assert R.guard_idle("macbook-air", text).exit_code == R.EXIT_OK
+    assert R.guard_idle("node-b", text).exit_code == R.EXIT_OK          # queued and done only (the node is held)
+    assert R.guard_idle("node-c", text).exit_code == R.EXIT_OK
     assert R.guard_idle("not-in-the-capture", text).exit_code == R.EXIT_ERROR
 
 
@@ -1850,13 +1850,13 @@ def with_stand_in_dbench(tmp_path: Path, **env) -> dict:
 
 def test_tc57_a_dbench_that_exits_non_zero_is_exit_2_unreachable(tmp_path):
     root = make_root(tmp_path)
-    done = tool(root, "guard-idle", "quintus", env=with_stand_in_dbench(tmp_path, STAND_IN_UNREACHABLE="1"))
+    done = tool(root, "guard-idle", "node-a", env=with_stand_in_dbench(tmp_path, STAND_IN_UNREACHABLE="1"))
     assert done.returncode == R.EXIT_ERROR and "E-UNREACHABLE" in done.stdout
 
 
 def test_a_dbench_that_is_not_installed_is_also_unreachable(tmp_path):
     root = make_root(tmp_path)
-    done = tool(root, "guard-idle", "quintus", env={**os.environ, "PATH": "/usr/bin:/bin"})
+    done = tool(root, "guard-idle", "node-a", env={**os.environ, "PATH": "/usr/bin:/bin"})
     assert done.returncode == R.EXIT_ERROR and "E-UNREACHABLE" in done.stdout
 
 
@@ -1877,13 +1877,13 @@ def run_switch(tmp_path: Path, node: str) -> tuple[subprocess.CompletedProcess, 
 
 
 def test_tc60_and_w2_a_switch_script_that_calls_the_guard_first_stops_before_touching_any_file_while_a_story_runs(tmp_path):
-    done, work = run_switch(tmp_path, "quintus")                 # the real capture has a story running on quintus
+    done, work = run_switch(tmp_path, "node-a")                 # the real capture has a story running on node-a
     assert done.returncode == R.EXIT_FAIL and "E-MACHINE-BUSY" in done.stdout and "story 5" in done.stdout
     assert sorted(p.name for p in work.iterdir()) == ["keep.txt"] and (work / "keep.txt").read_text() == "untouched"
 
 
 def test_w2_negative_with_an_idle_status_the_same_script_proceeds(tmp_path):
-    done, work = run_switch(tmp_path, "tritus")
+    done, work = run_switch(tmp_path, "node-b")
     assert done.returncode == 0 and (work / "changed.txt").read_text() == "changed\n"
 
 
@@ -1941,9 +1941,9 @@ def test_w1_the_whole_method_in_order_then_a_planted_passing_test_sends_the_stag
 
 
 def test_w2_a_switch_script_asks_the_guard_first_and_stops_while_a_story_runs_and_proceeds_when_idle(tmp_path):
-    busy, work = run_switch(tmp_path / "busy", "quintus")
+    busy, work = run_switch(tmp_path / "busy", "node-a")
     assert busy.returncode != 0 and "E-MACHINE-BUSY" in busy.stdout and not (work / "changed.txt").exists()
-    idle, work = run_switch(tmp_path / "idle", "tritus")
+    idle, work = run_switch(tmp_path / "idle", "node-b")
     assert idle.returncode == 0 and (work / "changed.txt").exists()
 
 

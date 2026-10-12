@@ -21,7 +21,7 @@ passes against the stubs (the tool does it itself). `stage` alone prints the sta
 | move | justified by |
 |---|---|
 | Inventory to Matrices | `check-register` and `check-touched-set` |
-| Matrices to Proved | `check-matrix` for U1 to U14 and `check-coverage` |
+| Matrices to Proved | `check-matrix` for the use cases `use_cases.toml` requires (U1) and `check-coverage` |
 | Proved to Deleted | `check-stubs` |
 | Deleted to RedContracts | the deletion report passed; `fates` (every old test has a fate, every new contract test seen failing) |
 | RedContracts to Reimplemented | the whole suite is green (`run-suites`) |
@@ -63,7 +63,7 @@ passes against the stubs (the tool does it itself). `stage` alone prints the sta
 A script that lays out, installs or switches a bench machine must **call `guard-idle` first and stop on any non-zero
 exit**, before it changes a file:
 
-    uv run ops/refactor/refactor.py guard-idle quintus || exit $?
+    uv run ops/refactor/refactor.py guard-idle node-a || exit $?
 
 Exit 1 means a story is running (the output names the job and the story); exit 2 means the node could not be asked or
 the answer was not a status. Neither is "idle". Nothing moves on a machine while a story runs on it.

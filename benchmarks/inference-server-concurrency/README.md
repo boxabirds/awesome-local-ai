@@ -18,7 +18,7 @@ The unit that matters is **sustained concurrent agents**: the largest N for whic
 | [`memory-model.md`](memory-model.md) | which parts of a session are shared and which grow per session, for the dense 27B and for Flash-Next, with the numbers we have |
 | [`subagent-context.md`](subagent-context.md) | how Claude Code, pi, OpenCode 1.x and OpenCode 2 hand context to subagents, and how many they run at once |
 | [`dgx-spark.md`](dgx-spark.md) | what a DGX Spark (one or two) would add, from NVIDIA's pages and third-party measurements |
-| [`tritus-observations-20261011.md`](tritus-observations-20261011.md) | what 11 hours of a gufo server's own log say: how busy it was, how requests queued, draft depth, cold starts, and a simulation of N agents sharing it |
+| [`strix-halo-observations-20261011.md`](strix-halo-observations-20261011.md) | what 11 hours of a gufo server's own log say: how busy it was, how requests queued, draft depth, cold starts, and a simulation of N agents sharing it |
 | [`scripts/analyse_gufo_log.py`](scripts/analyse_gufo_log.py) | the exploratory script that produced those figures (it is not the future tool) |
 
 ## How to read the numbers

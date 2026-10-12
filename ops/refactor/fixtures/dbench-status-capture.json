@@ -1,5 +1,5 @@
 {
-  "quintus": [
+  "node-a": [
     {
       "id": "vidi-v2-iq4xs-llamacpp-r2",
       "spec": {
@@ -46,7 +46,7 @@
       }
     }
   ],
-  "tritus": [
+  "node-b": [
     {
       "id": "vidi-v2-stratastrix-again1-r1",
       "spec": {
@@ -88,7 +88,7 @@
       }
     }
   ],
-  "macbook-air": [
+  "node-c": [
     {
       "id": "vidi-v2-sonnet-d-r6",
       "spec": {

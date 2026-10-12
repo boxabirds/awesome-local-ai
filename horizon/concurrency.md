@@ -3,11 +3,11 @@
 **Status:** open question (11 Oct 2026). Design and background written; nothing built or run. The owner wants a practical baseline of **concurrent subagents** per machine, with the same model throughout, in two cases: fresh unrelated agents (separate projects) and subagents forked from a parent's context.
 **Where it could run:** the Strix Halo box, the M5 Max, the RTX 4090 machine, and one or two DGX Sparks if bought. It would be compared across machines and engines on the same scenarios.
 
-All the material is in [`benchmarks/inference-server-concurrency/`](../benchmarks/inference-server-concurrency/README.md): the proposed general tool (`design.md`), what each engine's docs claim (`engines.md`), the per-session memory model for the 27B and Flash-Next (`memory-model.md`), how Claude Code, pi and OpenCode hand context to subagents (`subagent-context.md`), the Spark (`dgx-spark.md`) and 11 hours of a gufo server's log (`tritus-observations-20261011.md`).
+All the material is in [`benchmarks/inference-server-concurrency/`](../benchmarks/inference-server-concurrency/README.md): the proposed general tool (`design.md`), what each engine's docs claim (`engines.md`), the per-session memory model for the 27B and Flash-Next (`memory-model.md`), how Claude Code, pi and OpenCode hand context to subagents (`subagent-context.md`), the Spark (`dgx-spark.md`) and 11 hours of a gufo server's log (`strix-halo-observations-20261011.md`).
 
 ## What is known
 
-- On tritus an agent that is working keeps the server about 62% busy, so two agents sharing it one request at a time each take about 1.4x as long (a simulation, not a measurement). A real concurrent decode (`--sessions N` in gufo, `-np` in llama.cpp) is unmeasured on our hardware.
+- On the Strix Halo box an agent that is working keeps the server about 62% busy, so two agents sharing it one request at a time each take about 1.4x as long (a simulation, not a measurement). A real concurrent decode (`--sessions N` in gufo, `-np` in llama.cpp) is unmeasured on our hardware.
 - Each extra session costs its own KV cache: 24 KiB per token for Flash-Next (measured on gufo), so 4.5 GiB at 192k; two or three sessions is the ceiling on a 128 GB box.
 - OpenCode's subagents start fresh and never fork the parent; Claude Code and pi (opt-in) can fork. Forks are where prefix sharing decides the cost.
 - No source shows prefix-cache hits on Flash-Next's linear-attention layers, or MTP and prefix caching together under batching, on any engine.

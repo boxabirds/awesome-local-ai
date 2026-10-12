@@ -1,6 +1,6 @@
-# What 11 hours of a gufo server's log say (tritus, 11 Oct 2026)
+# What 11 hours of a gufo server's log say (the Strix Halo box, 11 Oct 2026)
 
-**Setup.** The Strix Halo box (tritus), gufo as pinned by the `gufo-pi` combination, Qwen3.8-Flash-Next UD-Q4_K_XL with the shared MTP head, started with `--context 196608 --sessions 1 --draft-tokens 7`, driven by one person's OpenCode (and possibly other clients; the log names none). No benchmark was running. The log is `podman logs` of the container: 257 completed requests between 08:37 and 19:44 on the machine's clock. **It is a single server's traffic under one person's use, not a designed experiment.** The figures below are reproduced by [`scripts/analyse_gufo_log.py`](scripts/analyse_gufo_log.py) on that log; the log itself is operational data and is not in this repository.
+**Setup.** The Strix Halo box, gufo as pinned by the `gufo-pi` combination, Qwen3.8-Flash-Next UD-Q4_K_XL with the shared MTP head, started with `--context 196608 --sessions 1 --draft-tokens 7`, driven by one person's OpenCode (and possibly other clients; the log names none). No benchmark was running. The log is `podman logs` of the container: 257 completed requests between 08:37 and 19:44 on the machine's clock. **It is a single server's traffic under one person's use, not a designed experiment.** The figures below are reproduced by [`scripts/analyse_gufo_log.py`](scripts/analyse_gufo_log.py) on that log; the log itself is operational data and is not in this repository.
 
 ## How busy it was
 

@@ -17,7 +17,7 @@ Reported per scenario and per context size, with the whole curve (N = 1, 2, 3 â€
 | **B** | one parent prefilled once to P tokens, then N children that each add a different task and carry on | the parent's whole context (50k to 150k) | Claude Code's fork; pi's `parent` mode |
 | overlay | the extra calls a client makes on its own: a title near each session's start, a compaction near the window limit | none | OpenCode's hidden title, summary and compaction agents |
 
-A **turn** is one agent step: an incremental prefill (median about 900 tokens in our traffic, p90 about 7,500), a generation (median 207 tokens, p90 966, with rare runaways to the 32,768 limit), and a think gap (median 0 s, p90 4 s for an autonomous agent). These are from [`tritus-observations-20261011.md`](tritus-observations-20261011.md) and should be refreshed from more traffic.
+A **turn** is one agent step: an incremental prefill (median about 900 tokens in our traffic, p90 about 7,500), a generation (median 207 tokens, p90 966, with rare runaways to the 32,768 limit), and a think gap (median 0 s, p90 4 s for an autonomous agent). These are from [`strix-halo-observations-20261011.md`](strix-halo-observations-20261011.md) and should be refreshed from more traffic.
 
 ## What it measures
 
@@ -44,9 +44,9 @@ Default to **synthetic, token-exact and unique per agent** (so no accidental cac
 
 | Machine | Engines worth trying first |
 |---|---|
-| Strix Halo box (tritus) | gufo (`--sessions N`), llama.cpp (`-np`) |
-| M5 Max (quintus) | mlx-serve (`--max-concurrent`) |
-| RTX 4090 (gruntus) | llama.cpp (`-np`), SGLang or vLLM if they run our model |
+| Strix Halo box | gufo (`--sessions N`), llama.cpp (`-np`) |
+| M5 Max | mlx-serve (`--max-concurrent`) |
+| RTX 4090 | llama.cpp (`-np`), SGLang or vLLM if they run our model |
 | DGX Spark, if bought | llama.cpp (supports Flash-Next), then vLLM or SGLang (advertised for Flash-Next, not for the Spark) |
 
 Runs that stop a machine's server (to restart with more sessions) need the owner's approval each time.
@@ -56,7 +56,7 @@ Runs that stop a machine's server (to restart with more sessions) need the owner
 1. The latency limit L (candidate: twice a solo turn).
 2. Context sizes (candidate: 64k and 128k, then 192k).
 3. Prompts: synthetic by default, with replay later?
-4. First engines (candidate: llama.cpp on the Spark, gufo and llama.cpp on tritus).
+4. First engines (candidate: llama.cpp on the Spark, gufo and llama.cpp on the Strix Halo box).
 5. Language (candidate: Rust).
 6. Which client to mirror first (candidate: scenarios A and A2, then B, with the hidden-call overlay on any).
 
