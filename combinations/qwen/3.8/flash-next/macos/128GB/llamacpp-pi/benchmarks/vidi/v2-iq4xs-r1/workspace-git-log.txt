@@ -1,3 +1,51 @@
+commit 905e2d50cd3a146e747752b9f4c69dd03937a748
+vidi-agent  Mon Oct 12 01:25:08 2026 +0100
+
+    harness: snapshot after story 9 (uncommitted agent work)
+
+
+ PROGRESS.md                             |  10 +-
+ src/client/board/BoardScreen.tsx        | 207 +++++++++++++-----
+ src/client/board/BoardToolbar.tsx       |  25 +++
+ src/client/board/SelectionBar.tsx       |  33 ++-
+ src/client/board/SelectionOverlay.tsx   |  18 +-
+ src/client/board/useBoardDoc.ts         |  10 +-
+ src/client/board/useBoardKeys.ts        |  48 +++-
+ src/client/board/useTool.ts             |  31 +++
+ src/client/canvas/BoardViewport.tsx     |   4 +
+ src/client/canvas/testHooks.ts          |   2 +
+ src/client/objects/StickyText.ts        | 105 +--------
+ src/client/objects/TextEditor.tsx       | 125 +++++++++++
+ src/client/objects/TextObject.tsx       | 124 +++++++++++
+ src/client/objects/TextToolbar.tsx      |  82 +++++++
+ src/client/objects/registry.tsx         |  29 +++
+ src/client/objects/textLayout.ts        | 159 ++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  68 ++++++
+ src/shared/board-model.ts               |  60 ++---
+ src/shared/config.ts                    |  27 +++
+ src/shared/objects/text.ts              | 260 ++++++++++++++++++++++
+ src/shared/origins.ts                   |   9 +
+ src/shared/text-edit.ts                 | 105 +++++++++
+ tests/component/TextBoxSync.test.tsx    | 101 +++++++++
+ tests/component/TextObject.test.tsx     | 268 +++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 160 ++++++++++++++
+ tests/component/UndoBoundaries.test.tsx |   1 +
+ tests/component/board-page.test.tsx     |   2 +-
+ tests/component/load-failed.test.tsx    |   4 +-
+ tests/e2e/text.spec.ts                  | 374 ++++++++++++++++++++++++++++++++
+ tests/unit/board-model.test.ts          |   2 +-
+ tests/unit/text-layout.test.ts          | 114 ++++++++++
+ tests/unit/text-model.test.ts           | 197 +++++++++++++++++
+ tests/unit/undo-history.test.ts         |   2 +-
+ 33 files changed, 2575 insertions(+), 191 deletions(-)
+commit c2e1dc54c871e04146fbf13b0272afc76cb1ddef
+vidi-agent  Mon Oct 12 00:11:56 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 33 +++++++++++----------------------
+ 1 file changed, 11 insertions(+), 22 deletions(-)
 commit 6ce12a3ed0ecb7baad919512e083c60d376c25c5
 agent  Sun Oct 11 23:04:44 2026 +0000
 

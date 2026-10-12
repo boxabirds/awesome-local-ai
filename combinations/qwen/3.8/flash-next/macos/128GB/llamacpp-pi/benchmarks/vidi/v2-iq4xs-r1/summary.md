@@ -6,17 +6,20 @@ Model `qwen3.8-flash-next`, scope `canvas`, effort `low`, client pi 0.87.1, host
 
 New work is the story's own held-out tests. Regressions are earlier stories' held-out tests that passed before this story and fail after it; repairs the reverse. Cumulative is every held-out test for the stories built so far ([evaluation policy](../../../../../../../../../../benchmarks/spec-bench/EVALUATION-POLICY.md)). Cumulative can grow by more than the new work: some earlier tests need a later story's feature and are skipped until it exists.
 
-| Story | New work | Regressions | Repairs | Cumulative |
-|---|---|---|---|---|
-| 1 | 6/6 | 0 | 0 | 6/6 |
-| 2 | 0/10 | 0 | 0 | 6/20 |
-| 3 | 0/7 | 0 | 0 | 6/27 |
-| 4 | 1/4 | 0 | 0 | 7/31 |
-| 5 | 4/5 | 0 | 0 | 11/36 |
-| 7 | 0/8 | 0 | 0 | 11/44 |
-| 8 | 1/7 | 0 | 0 | 12/51 |
+Setup fallbacks are held-out tests whose setup reached its state by the documented flow after an undocumented alternate flow failed (rule 8); the failure is counted once, as a finding.
 
-**New work** 12/47, **regressions** 0, **repairs** 0, **cumulative** 12/51.
+| Story | New work | Regressions | Repairs | Cumulative | Setup fallbacks |
+|---|---|---|---|---|---|
+| 1 | 6/6 | 0 | 0 | 6/6 | 0 |
+| 2 | 0/10 | 0 | 0 | 6/20 | 0 |
+| 3 | 0/7 | 0 | 0 | 6/27 | 0 |
+| 4 | 1/4 | 0 | 0 | 7/31 | 0 |
+| 5 | 4/5 | 0 | 0 | 11/36 | 0 |
+| 7 | 0/8 | 0 | 0 | 11/44 | 0 |
+| 8 | 1/7 | 0 | 0 | 12/51 | 0 |
+| 9 | 5/6 | 0 | 0 | 17/57 | 1 |
+
+**New work** 17/53, **regressions** 0, **repairs** 0, **cumulative** 17/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +30,13 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE | 139.6 | None | None | None | — | — | green | 11/36 |  | 0 / 0 | 3 | — | throttled 92%, server peak 92 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 59.3 | None | None | None | — | — | green | 11/44 |  | 0 / 1 | 1 | — | throttled 97%, server peak 92 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 146.6 | None | None | None | — | — | green | 12/51 |  | 0 / 1 | 3 | — | throttled 97%, server peak 92 GB |
+| 9 | Write free text anywhere on the board | PARTIAL (red) | 65.6 | None | None | None | — | — | red | 17/57 |  | 0 / 1 | 2 | — | throttled 84%, server peak 92 GB |
 
-**Totals:** 7 stories, 677 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/7, final acceptance 12/51, stalled 0, partial 0, 17178 lines in src+tests.
+**Totals:** 8 stories, 743 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/8, final acceptance 17/57, stalled 0, partial 1, 19562 lines in src+tests.
+
+### Stories ended early (PARTIAL) and what was built on them
+
+- **Story 9 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] (implementation: [2, 4, 6, 8]), held-out 5/6 (floor 0.333).
 
 ## How it happened
 
@@ -43,6 +51,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 2935 / 275 | `SharePanel.tsx` (172), `styles.css` (151), `index.ts` (134), `BoardPage.tsx` (108), `PROGRESS.md` (98), `board-store.ts` (93), +14 more |
 | 7 | 1 by the agent | 3083 / 129 | `useTransformGesture.ts` (331), `board-model.ts` (212), `geometry.ts` (180), `BoardScreen.tsx` (147), `SelectionOverlay.tsx` (133), `useBoardKeys.ts` (131), +9 more |
 | 8 | 4 by the agent | 2536 / 212 | `useUndo.ts` (152), `undo.ts` (150), `NOTES.md` (122), `StickyTextEditor.tsx` (99), `BoardScreen.tsx` (62), `useBoardKeys.ts` (60), +7 more |
+| 9 | harness snapshot (agent left work uncommitted) | 2575 / 191 | `text.ts` (260), `BoardScreen.tsx` (207), `textLayout.ts` (159), `TextEditor.tsx` (125), `TextObject.tsx` (124), `StickyText.ts` (105), +16 more |
 
 ### Earlier stories broken or fixed
 
