@@ -717,3 +717,91 @@ def test_tc59_a_running_story_refuses_and_names_it(tmp_path):
 def test_tc60_a_probe_that_cannot_tell_is_undecidable(tmp_path):
     result = R.check_idle(lambda: None)
     assert result.exit_code == R.EXIT_ERROR and codes(result) == ["E-IDLE-UNKNOWN"]
+
+
+# ---- justifiers and the command line ----------------------------------------------------------------------------------
+
+def cli(root: Path, *args: str) -> int:
+    return R.main(["--root", str(root), *args])
+
+
+def test_tc44_advance_inventory_to_matrices_needs_the_register_and_the_touched_set_to_hold(tmp_path, monkeypatch):
+    root = make_root(tmp_path, assignments=SIX_ASSIGNED)
+    monkeypatch.setattr(R, "list_tests", lister(python=SIX_LISTED))
+    assert cli(root, "advance", "Matrices") == R.EXIT_OK
+    assert R.read_stage(root) == "Matrices"
+
+
+def test_tc45_advance_with_the_register_broken_refuses_and_the_stage_stays(tmp_path, monkeypatch):
+    root = make_root(tmp_path, assignments=SIX_ASSIGNED)
+    monkeypatch.setattr(R, "list_tests", lister(python=SIX_LISTED + ["d.py::extra"]))
+    assert cli(root, "advance", "Matrices") == R.EXIT_FAIL
+    assert R.read_stage(root) == "Inventory"
+
+
+def test_advancing_two_stages_at_once_is_refused_with_exit_1(tmp_path):
+    root = make_root(tmp_path)
+    assert cli(root, "advance", "Proved") == R.EXIT_FAIL
+
+
+def test_stage_prints_the_current_stage(tmp_path, capsys):
+    root = make_root(tmp_path)
+    assert cli(root, "stage") == R.EXIT_OK
+    assert capsys.readouterr().out.strip() == "Inventory"
+
+
+def test_a_corrupt_stage_file_is_exit_1_and_is_left_as_it_is(tmp_path):
+    root = make_root(tmp_path)
+    write(root, "ops/refactor/stage.toml", "stage = [")
+    assert cli(root, "stage") == R.EXIT_ERROR
+    assert (root / "ops/refactor/stage.toml").read_text() == "stage = ["
+
+
+def test_check_fates_and_check_stubs_run_from_the_command_line(tmp_path):
+    root = make_root(tmp_path, assignments=FATE_ASSIGNMENTS, touched=FATE_TOUCHED)
+    assert cli(root, "check-fates") == R.EXIT_FAIL          # three assigned tests, no fates
+    write(root, "src/a.py", "def record():\n    return 1\n")
+    assert cli(root, "check-stubs") == R.EXIT_FAIL          # not a stub yet
+    write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
+    assert cli(root, "check-stubs") == R.EXIT_OK
+
+
+def test_check_coverage_reads_the_neutral_coverage_file(tmp_path):
+    root = make_root(tmp_path, touched=FATE_TOUCHED)
+    write(root, "ops/refactor/reports/coverage-input.json", json.dumps({"python": {"src/a.py": [10, 10, 4, 4]}}))
+    assert cli(root, "check-coverage") == R.EXIT_OK
+    write(root, "ops/refactor/reports/coverage-input.json", json.dumps({"python": {"src/a.py": [10, 9, 4, 4]}}))
+    assert cli(root, "check-coverage") == R.EXIT_FAIL
+
+
+def test_check_coverage_with_no_input_file_is_undecidable(tmp_path):
+    root = make_root(tmp_path, touched=FATE_TOUCHED)
+    assert cli(root, "check-coverage") == R.EXIT_ERROR
+
+
+def test_report_deletion_reads_the_neutral_results_file(tmp_path):
+    root = make_root(tmp_path, assignments='[assignments]\nU1 = ["python:t_a"]\n', touched=FATE_TOUCHED)
+    write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
+    write(root, "ops/refactor/reports/results-input.json", json.dumps({"outcomes": {"python:t_a": R.FAILED_STUB}, "missing": []}))
+    assert cli(root, "report-deletion") == R.EXIT_OK
+    write(root, "ops/refactor/reports/results-input.json", json.dumps({"outcomes": {"python:t_a": R.PASSED}, "missing": []}))
+    assert cli(root, "report-deletion") == R.EXIT_FAIL
+
+
+def test_check_idle_uses_the_machine_probe(tmp_path, monkeypatch):
+    root = make_root(tmp_path)
+    monkeypatch.setattr(R, "probe_running_stories", lambda: [])
+    assert cli(root, "check-idle") == R.EXIT_OK
+    monkeypatch.setattr(R, "probe_running_stories", lambda: ["run x story 1"])
+    assert cli(root, "check-idle") == R.EXIT_FAIL
+    monkeypatch.setattr(R, "probe_running_stories", lambda: None)
+    assert cli(root, "check-idle") == R.EXIT_ERROR
+
+
+def test_a_deletion_advance_is_refused_until_the_stubs_are_in(tmp_path):
+    root = make_root(tmp_path, touched=FATE_TOUCHED)
+    write(root, "ops/refactor/stage.toml", 'stage = "Proved"\n')
+    write(root, "src/a.py", "def record():\n    return 1\n")
+    assert cli(root, "advance", "Deleted") == R.EXIT_FAIL
+    write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
+    assert cli(root, "advance", "Deleted") == R.EXIT_OK

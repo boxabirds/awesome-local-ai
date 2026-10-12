@@ -24,6 +24,7 @@ import itertools
 import json
 import os
 import re
+import subprocess
 import sys
 import tomllib
 from datetime import datetime, timezone
@@ -640,10 +641,88 @@ def list_tests(root: Path) -> dict[str, set[str]]:
     return {}
 
 
+# ---- inputs the runners' adapters write (neutral JSON), and the machine probe -------------------------------------------
+
+COVERAGE_INPUT = REPORTS_DIR / "coverage-input.json"   # {language: {file: [lines, lines_hit, branches, branches_hit]}}
+RESULTS_INPUT = REPORTS_DIR / "results-input.json"     # {"outcomes": {qualified test id: outcome}, "missing": [language]}
+PARITY_REPORT = REPORTS_DIR / "parity.json"
+IDLE_PROBE_ENV = "REFACTOR_IDLE_PROBE"                 # a command that prints one running story per line
+
+
+def load_measured(root: Path) -> Measured:
+    path = root / COVERAGE_INPUT
+    if not path.exists():
+        return {}
+    raw = json.loads(path.read_text())
+    return {lang: {file: FileCoverage(*counts) for file, counts in files.items()} for lang, files in raw.items()}
+
+
+def load_results(root: Path) -> Results | None:
+    path = root / RESULTS_INPUT
+    if not path.exists():
+        return None
+    raw = json.loads(path.read_text())
+    return Results(outcomes=raw.get("outcomes", {}), missing=set(raw.get("missing", [])))
+
+
+def probe_running_stories() -> list[str] | None:
+    """Running stories on this machine, or None when it cannot be told (no probe command configured, or it failed)."""
+    command = os.environ.get(IDLE_PROBE_ENV)
+    if not command:
+        return None
+    done = subprocess.run(command, shell=True, capture_output=True, text=True)
+    return [line for line in done.stdout.splitlines() if line.strip()] if done.returncode == 0 else None
+
+
+def merged(*results: Result) -> Result:
+    out = Result()
+    for r in results:
+        out.exit_code = max(out.exit_code, r.exit_code)
+        out.problems += r.problems
+    return out
+
+
+def default_justifiers(lister: Lister) -> dict[tuple[str, str], Justifier]:
+    def matrices(root: Path) -> Result:
+        return merged(*(check_matrix(root, u, lister) for u in read_toml(root / USE_CASES_FILE).get("use_cases", {})))
+
+    def red_contracts(root: Path) -> Result:
+        report = root / REPORTS_DIR / "deletion.json"
+        held = Result()
+        if not report.exists() or json.loads(report.read_text()).get("exit_code") != EXIT_OK:
+            held.fail("E-NO-DELETION-REPORT", str(report.relative_to(root)), "report-deletion has not passed")
+        return merged(held, check_fates(root))
+
+    def suite_green(root: Path) -> Result:
+        found = Result()
+        results = load_results(root)
+        if results is None:
+            found.error("E-RESULTS-MISSING", str(RESULTS_INPUT), "no suite result to read")
+        elif results.missing or any(o != PASSED for o in results.outcomes.values()):
+            found.fail("E-SUITE-NOT-GREEN", str(RESULTS_INPUT), "the whole suite must pass")
+        return found
+
+    def parity(root: Path) -> Result:
+        found = Result()
+        path = root / PARITY_REPORT
+        if not path.exists() or json.loads(path.read_text()).get("exit_code") != EXIT_OK:
+            found.fail("E-NO-PARITY", str(PARITY_REPORT), "the comparison has not passed")
+        return found
+
+    return {
+        ("Inventory", "Matrices"): lambda root: merged(check_register(root, lister), check_touched(root)),
+        ("Matrices", "Proved"): lambda root: merged(matrices(root), check_coverage(root, load_measured(root))),
+        ("Proved", "Deleted"): check_stubs,
+        ("Deleted", "RedContracts"): red_contracts,
+        ("RedContracts", "Reimplemented"): suite_green,
+        ("Reimplemented", "Compared"): parity,
+    }
+
+
 # ---- command line -----------------------------------------------------------------------------------------------------
 
 def print_result(name: str, result: Result) -> None:
-    status = "ok" if result.exit_code == EXIT_OK else "FAILED"
+    status = {EXIT_OK: "ok", EXIT_FAIL: "FAILED", EXIT_ERROR: "UNDECIDED"}[result.exit_code]
     print(f"{name}: {status}")
     for p in result.problems:
         print(f"  {p.code}  {p.subject}  {p.detail}".rstrip())
@@ -653,13 +732,55 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="the repository root (default: the current directory)")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("check-register", help="every test in exactly one use case")
+    for name, text in (("check-register", "every test in exactly one use case"),
+                       ("propose-touched", "print the touched set the scan derives"),
+                       ("check-touched", "the committed touched set equals the scan"),
+                       ("check-stubs", "every touched function is a stub"),
+                       ("check-fates", "every assigned test has exactly one fate"),
+                       ("check-coverage", f"100% line and branch coverage from {COVERAGE_INPUT}"),
+                       ("report-deletion", f"every assigned test failed against the stubs, from {RESULTS_INPUT}"),
+                       ("check-idle", "no story is running on this machine"),
+                       ("stage", "print the current stage")):
+        sub.add_parser(name, help=text)
+    sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
+    sub.add_parser("advance", help="move to the next stage if its check passes").add_argument("to")
     args = parser.parse_args(argv)
-    if args.command == "check-register":
-        result = check_register(args.root, list_tests)
-        print_result("check-register", result)
-        return result.exit_code
-    return EXIT_ERROR
+    root = args.root
+    lister = list_tests                                   # looked up at call time so tests can replace it
+    simple = {
+        "check-register": lambda: check_register(root, lister),
+        "check-touched": lambda: check_touched(root),
+        "check-stubs": lambda: check_stubs(root),
+        "check-fates": lambda: check_fates(root),
+        "check-coverage": lambda: check_coverage(root, load_measured(root)),
+        "check-idle": lambda: check_idle(probe_running_stories),
+    }
+    try:
+        if args.command == "stage":
+            print(read_stage(root))
+            return EXIT_OK
+        if args.command == "propose-touched":
+            for e in propose_touched(root):
+                print(f"{e.language}  {e.file}::{e.function}  {','.join(e.classes)}")
+            return EXIT_OK
+        if args.command == "check-matrix":
+            result = check_matrix(root, args.use_case, lister)
+        elif args.command == "report-deletion":
+            results = load_results(root)
+            if results is None:
+                result = Result()
+                result.error("E-RESULTS-MISSING", str(RESULTS_INPUT), "no results to read")
+            else:
+                result = report_deletion(root, results)
+        elif args.command == "advance":
+            result = move_stage(root, args.to, default_justifiers(lister))
+        else:
+            result = simple[args.command]()
+    except StageFileCorrupt as exc:
+        print(f"{STAGE_FILE}: corrupt, left as it is: {exc}")
+        return EXIT_ERROR
+    print_result(args.command, result)
+    return result.exit_code
 
 
 if __name__ == "__main__":
