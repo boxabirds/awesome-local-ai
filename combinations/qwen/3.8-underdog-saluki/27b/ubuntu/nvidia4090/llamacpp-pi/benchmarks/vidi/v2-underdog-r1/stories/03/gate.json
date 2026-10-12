@@ -1,0 +1,59 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.5,
+      "tail": "\nadded 212 packages, and audited 213 packages in 2s\n\n43 packages are looking for funding\n  run `npm fund` for details\n\n10 vulnerabilities (1 low, 1 moderate, 6 high, 2 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm warn deprecated @cloudflare/vitest-pool-workers@0.12.21: @cloudflare/vitest-pool-workers has been renamed to @cloudflare/vitest-plugin. This package will not receive future updates.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v6.4.4 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 80 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.26 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-DRDHnYM6.css  \u001b[39m\u001b[1m\u001b[2m  3.38 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  1.05 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-CWCXcl59.js   \u001b[39m\u001b[1m\u001b[2m303.09 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 94.92 kB\u001b[22m\n\u001b[32m\u2713 built in 614ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 2,
+      "seconds": 0.9,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\ntests/integration/routing.test.ts(10,22): error TS2307: Cannot find module 'cloudflare:test' or its corresponding type declarations.\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/2f48cf658f/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 26\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 23\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 179\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m50 passed\u001b[39m\u001b[22m\u001b[90m (50)\u001b[39m\n\u001b[2m   Start at \u001b[22m 06:45:23\n\u001b[2m   Duration \u001b[22m 389ms\u001b[2m (transform 138ms, setup 0ms, collect 241ms, tests 243ms, environment 1ms, prepare 262ms)\u001b[22m\n\n",
+      "passed": 50,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.w/2f48cf658f/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 78\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 53\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 79\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 114\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 187\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m31 passed\u001b[39m\u001b[22m\u001b[90m (31)\u001b[39m\n\u001b[2m   Start at \u001b[22m 06:45:24\n\u001b[2m   Duration \u001b[22m 675ms\u001b[2m (transform 150ms, setup 0ms, collect 720ms, tests 511ms, environment 810ms, prepare 287ms)\u001b[22m\n\n",
+      "passed": 31,
+      "failed": 0
+    },
+    "test:integration": {
+      "cmd": "npm run test:integration",
+      "exit": 1,
+      "seconds": 0.9,
+      "tail": "nfo] No compatibility date was provided for project 2, defaulting to latest supported date 2026-03-10.\n[vpw:debug] Adding `enable_nodejs_tty_module` compatibility flag during tests as this feature is needed to support the Vitest runner.\n[vpw:debug] Adding `enable_nodejs_fs_module` compatibility flag during tests as this feature is needed to support the Vitest runner.\n[vpw:debug] Adding `enable_nodejs_http_modules` compatibility flag during tests as this feature is needed to support the Vitest runner.\n[vpw:debug] Adding `enable_nodejs_perf_hooks_module` compatibility flag during tests as this feature is needed to support the Vitest runner.\n[vpw:info] Starting isolated runtimes for 2...\n \u001b[31m\u276f\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/routing.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[31m1 failed\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 18\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m\u2713\u001b[39m worker routing (TC-04, TC-05, TC-06)\u001b[2m > \u001b[22mTC-04: GET /api/rooms/bad!id with Upgrade returns 400 (no instance created)\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m\u2713\u001b[39m worker routing (TC-04, TC-05, TC-06)\u001b[2m > \u001b[22mTC-05: GET /api/rooms/<valid> without Upgrade returns 426\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n\u001b[31m   \u001b[31m\u00d7\u001b[31m worker routing (TC-04, TC-05, TC-06)\u001b[2m > \u001b[22mTC-06: GET /b/<valid> serves the SPA asset (200 index.html)\u001b[39m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n\u001b[31m     \u2192 Incorrect type for Promise: the Promise did not resolve to 'Response'.\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m   Start at \u001b[22m 06:45:25\n\u001b[2m   Duration \u001b[22m 639ms\u001b[2m (transform 24ms, setup 0ms, collect 30ms, tests 18ms, environment 0ms, prepare 53ms)\u001b[22m\n\n[vpw:debug] Shutting down runtimes...\n[vpw:debug] Disposing remote proxy sessions...\nworkerd/io/worker.c++:2441: info: uncaught exception; source = Uncaught (in promise); stack = TypeError: Incorrect type for Promise: the Promise did not resolve to 'Response'.\nworkerd/io/io-context.c++:435: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: jsg.TypeError: Incorrect type for Promise: the Promise did not resolve to 'Response'.\nstack: ~/.w/2f48cf658f/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2cfbe50 ~/.w/2f48cf658f/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2cfca8e ~/.w/2f48cf658f/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@4f03c2a ~/.w/2f48cf658f/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2b0c760 ~/.w/2f48cf658f/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2b0cd90\n\n\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\u001b[1m\u001b[41m Failed Tests 1 \u001b[49m\u001b[22m\u001b[31m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/routing.test.ts\u001b[2m > \u001b[22mworker routing (TC-04, TC-05, TC-06)\u001b[2m > \u001b[22mTC-06: GET /b/<valid> serves the SPA asset (200 index.html)\n\u001b[31m\u001b[1mTypeError\u001b[22m: Incorrect type for Promise: the Promise did not resolve to 'Response'.\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/integration/routing.test.ts:\u001b[2m51:17\u001b[22m\u001b[39m\n    \u001b[90m 49| \u001b[39m    // instead of dispatching to the user worker (whose `undefined` re\u2026\n    \u001b[90m 50| \u001b[39m    \u001b[90m// otherwise be a rejected Promise<undefined>).\u001b[39m\n    \u001b[90m 51| \u001b[39m    const res = await fetchViaWorker(`/b/${validId}`, { 'Sec-Fetch-Mod\u2026\n    \u001b[90m   | \u001b[39m                \u001b[31m^\u001b[39m\n    \u001b[90m 52| \u001b[39m    \u001b[34mexpect\u001b[39m(res\u001b[33m.\u001b[39mstatus)\u001b[33m.\u001b[39m\u001b[34mtoBe\u001b[39m(\u001b[34m200\u001b[39m)\u001b[33m;\u001b[39m\n    \u001b[90m 53| \u001b[39m    \u001b[35mconst\u001b[39m body \u001b[33m=\u001b[39m \u001b[35mawait\u001b[39m res\u001b[33m.\u001b[39m\u001b[34mtext\u001b[39m()\u001b[33m;\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/1]\u23af\u001b[22m\u001b[39m\n\n",
+      "passed": 2,
+      "failed": 1
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 1,
+      "seconds": 60.3,
+      "tail": "\n> vidi6@0.1.0 test:e2e\n> playwright test --project=chromium\n\n\nError: Timed out waiting 60000ms from config.webServer.\n\n\n[WebServer] \u2718 [ERROR] Your Worker depends on the following Durable Objects, which are not exported in your entrypoint file: BoardRoom.\n[WebServer] \n[WebServer]   You should export these objects from your entrypoint, src/worker/index.ts.\n[WebServer] \n[WebServer] \n",
+      "passed": null,
+      "failed": null
+    }
+  },
+  "all_green": false
+}
