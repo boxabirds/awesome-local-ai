@@ -28,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
+from xml.etree import ElementTree
 from datetime import datetime, timezone
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -467,6 +468,19 @@ class Results:
     """What the runners reported for one run against the stubs: outcome per qualified test id, and languages with no result file."""
     outcomes: dict[str, str] = field(default_factory=dict)
     missing: set[str] = field(default_factory=set)
+    file_failures: set[str] = field(default_factory=set)         # "language:file" whose whole file failed before any test ran
+    rust_names: dict[str, str] = field(default_factory=dict)     # cargo's json names tests but not their binary: outcome by name
+
+    def outcome_of(self, test: str) -> str | None:
+        """Exact result, else a whole-file failure, else (Rust) the result of the test of that name."""
+        if test in self.outcomes:
+            return self.outcomes[test]
+        language, _, rest = test.partition(":")
+        if f"{language}:{rest.split('::')[0]}" in self.file_failures:
+            return FAILED_OTHER
+        if language == "rust":
+            return self.rust_names.get(rest.split("::", 1)[1]) if "::" in rest else None
+        return None
 
 
 RUST_STUB = re.compile(r"^(?:todo|unimplemented)!\s*\(.*\)\s*;?$", re.S)
@@ -477,15 +491,16 @@ SCRIPT_STUB = re.compile(rf"^exit\s+{SHELL_STUB_CODE}\s*;?$")
 
 
 def brace_body(text: str) -> str | None:
-    """The text between the first { and its matching }; None when there is none."""
-    start = text.find("{")
-    if start < 0:
+    """The text inside the brace block that closes the function (not the first brace: a parameter or return type may hold
+    braces of its own); None when the function does not end in a block."""
+    end = text.rstrip().rfind("}")
+    if end < 0 or text.rstrip()[end:] != "}":
         return None
     depth = 0
-    for i in range(start, len(text)):
-        depth += {"{": 1, "}": -1}.get(text[i], 0)
+    for i in range(end, -1, -1):
+        depth += {"}": 1, "{": -1}.get(text[i], 0)
         if depth == 0:
-            return text[start + 1:i].strip()
+            return text[i + 1:end].strip()
     return None
 
 
@@ -555,7 +570,7 @@ def report_deletion(root: Path, results: Results) -> Result:
     for test in sorted(assigned):
         if test.split(":", 1)[0] in results.missing:
             continue
-        outcome = results.outcomes.get(test)
+        outcome = results.outcome_of(test)
         if outcome is None:
             result.fail("E-RESULTS-MISSING", test, "no result for an assigned test")
         elif outcome == PASSED:
@@ -563,7 +578,8 @@ def report_deletion(root: Path, results: Results) -> Result:
             result.fail("E-ASSIGNED-PASSED", test, "the test passes against the stubs: rewrite it")
         elif outcome == FAILED_OTHER:
             result.fail("E-STUB-FAILS-TO-IMPORT", test, "it failed, but not for the stub's reason: a broken import proves nothing about assertions")
-    for test, outcome in sorted(results.outcomes.items()):
+    assigned_rust_names = {t.split(":", 1)[1].split("::", 1)[1] for t in assigned if t.startswith("rust:") and "::" in t}
+    for test, outcome in sorted({**results.outcomes, **{f"rust:{n}": o for n, o in results.rust_names.items() if n not in assigned_rust_names}}.items()):
         if test not in assigned and test not in unfit and outcome in (FAILED_STUB, FAILED_OTHER):
             result.fail("E-OUTSIDE-FAILED", test, "a test outside the touched set failed: the partition is not MECE")
     if passed_assigned and read_stage(root) == "Deleted":
@@ -572,6 +588,125 @@ def report_deletion(root: Path, results: Results) -> Result:
         result.data = {"assigned_failed": sorted(assigned)}
     write_report(root, "deletion", result)
     return result
+
+
+# ---- result readers: each runner's own format, classified as passed, failed for the stub, or failed for anything else -----
+
+STUB_REASON = {                       # what a failure must say to be "for the stub's reason"
+    "python": re.compile(r"NotImplementedError"),
+    "rust": re.compile(r"not (yet )?implemented"),
+    "typescript": re.compile(r"not implemented", re.I),
+    "shell": re.compile(rf"\b{SHELL_STUB_CODE}\b"),
+}
+RESULTS_EXT = {"junit": "xml", "cargo-json": "jsonl", "vitest-json": "json", "shell-exit": "json"}
+
+
+def classify_failure(language: str, text: str) -> str:
+    return FAILED_STUB if STUB_REASON[language].search(text) else FAILED_OTHER
+
+
+def parse_junit(folder: str, xml_text: str) -> tuple[dict[str, str], set[str]]:
+    """pytest --junitxml with junit_family=xunit1 (which names the file). A collection error becomes a whole-file failure."""
+    outcomes: dict[str, str] = {}
+    file_failures: set[str] = set()
+    for case in ElementTree.fromstring(xml_text).iter("testcase"):
+        failure = next((c for c in case if c.tag in ("failure", "error")), None)
+        text = f"{failure.get('message', '')} {failure.text or ''}" if failure is not None else ""
+        if failure is not None and failure.get("message") == "collection failure":
+            file_failures.add(qualified("python", f"{folder}/{case.get('name')}.py"))
+            continue
+        module = case.get("classname", "").split(".")[0]
+        classes = case.get("classname", "").split(".")[1:]
+        file = case.get("file") or f"{module}.py"
+        test_id = qualified("python", "::".join([f"{folder}/{file}", *classes, case.get("name", "")]))
+        outcomes[test_id] = PASSED if failure is None else classify_failure("python", text)
+    return outcomes, file_failures
+
+
+def parse_cargo_json(text: str) -> dict[str, str]:
+    """cargo +nightly test -- -Z unstable-options --format json: one event per line; the binary is not named."""
+    outcomes: dict[str, str] = {}
+    for line in text.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") == "test" and event.get("event") in ("ok", "failed"):
+            outcomes[event["name"]] = PASSED if event["event"] == "ok" else classify_failure("rust", event.get("stdout", ""))
+    return outcomes
+
+
+def parse_vitest_json(root: Path, text: str) -> dict[str, str]:
+    outcomes: dict[str, str] = {}
+    for file in json.loads(text)["testResults"]:
+        rel = relative(root, file["name"])
+        for test in file["assertionResults"]:
+            title = " > ".join([*test["ancestorTitles"], test["title"]])
+            failed = test["status"] != "passed"
+            outcomes[qualified("typescript", f"{rel}::{title}")] = classify_failure("typescript", " ".join(test["failureMessages"])) if failed else PASSED
+    return outcomes
+
+
+def parse_shell_results(text: str) -> dict[str, str]:
+    return {qualified("shell", script): PASSED if body["code"] == 0 else classify_failure("shell", body["output"])
+            for script, body in json.loads(text).items()}
+
+
+def results_path(root: Path, language: str, spec: dict) -> Path:
+    return root / REPORTS_DIR / f"results-{language}.{RESULTS_EXT[spec['format']]}"
+
+
+def run_suites(root: Path) -> Result:
+    """Run each language's suite with its result output switched on. Failing tests are the data here, so this exits 0 unless a
+    runner cannot be started at all."""
+    result = Result()
+    for language, spec in read_toml(root / RUNNERS_FILE).items():
+        results = spec.get("results")
+        if results is None:
+            continue
+        out = results_path(root, language, results)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.unlink(missing_ok=True)
+        try:
+            if language == "shell":
+                runs = {}
+                for script in sorted(p for p in root.glob(spec["glob"]) if p.is_file()):
+                    done = subprocess.run(["bash", str(script)], cwd=root, capture_output=True, text=True)
+                    runs[script.relative_to(root).as_posix()] = {"code": done.returncode, "output": done.stdout + done.stderr}
+                out.write_text(json.dumps(runs, indent=JSON_INDENT))
+                continue
+            command = [part.replace(COVERAGE_OUT, str(out)) for part in results["command"]]
+            done = subprocess.run(command, cwd=root / spec["dir"], capture_output=True, text=True)
+            if language == "rust":
+                out.write_text(done.stdout)
+        except (FileNotFoundError, NotADirectoryError) as exc:
+            result.error("E-TOOL-MISSING", language, f"cannot run {exc.filename or language}")
+    return result
+
+
+def read_results(root: Path) -> Results:
+    """Read whatever result files exist; a language that has a results command but no file is missing."""
+    found = Results()
+    for language, spec in read_toml(root / RUNNERS_FILE).items():
+        results = spec.get("results")
+        if results is None:
+            continue
+        path = results_path(root, language, results)
+        if not path.exists():
+            found.missing.add(language)
+            continue
+        text = path.read_text()
+        if language == "python":
+            outcomes, file_failures = parse_junit(spec["dir"], text)
+            found.outcomes.update(outcomes)
+            found.file_failures |= file_failures
+        elif language == "rust":
+            found.rust_names.update(parse_cargo_json(text))
+        elif language == "typescript":
+            found.outcomes.update(parse_vitest_json(root, text))
+        elif language == "shell":
+            found.outcomes.update(parse_shell_results(text))
+    return found
 
 
 # ---- fates: every assigned test ends in exactly one state -----------------------------------------------------------
@@ -852,17 +987,8 @@ def list_tests(root: Path) -> dict[str, set[str]]:
 
 # ---- inputs the runners' adapters write (neutral JSON), and the machine probe -------------------------------------------
 
-RESULTS_INPUT = REPORTS_DIR / "results-input.json"     # {"outcomes": {qualified test id: outcome}, "missing": [language]}
 PARITY_REPORT = REPORTS_DIR / "parity.json"
 IDLE_PROBE_ENV = "REFACTOR_IDLE_PROBE"                 # a command that prints one running story per line
-
-
-def load_results(root: Path) -> Results | None:
-    path = root / RESULTS_INPUT
-    if not path.exists():
-        return None
-    raw = json.loads(path.read_text())
-    return Results(outcomes=raw.get("outcomes", {}), missing=set(raw.get("missing", [])))
 
 
 def probe_running_stories() -> list[str] | None:
@@ -895,11 +1021,11 @@ def default_justifiers(lister: Lister) -> dict[tuple[str, str], Justifier]:
 
     def suite_green(root: Path) -> Result:
         found = Result()
-        results = load_results(root)
-        if results is None:
-            found.error("E-RESULTS-MISSING", str(RESULTS_INPUT), "no suite result to read")
-        elif results.missing or any(o != PASSED for o in results.outcomes.values()):
-            found.fail("E-SUITE-NOT-GREEN", str(RESULTS_INPUT), "the whole suite must pass")
+        results = read_results(root)
+        for language in sorted(results.missing):
+            found.error("E-RESULTS-MISSING", language, "no suite result to read: run `run-suites` first")
+        if any(o != PASSED for o in [*results.outcomes.values(), *results.rust_names.values()]) or results.file_failures:
+            found.fail("E-SUITE-NOT-GREEN", "suite", "the whole suite must pass")
         return found
 
     def parity(root: Path) -> Result:
@@ -939,7 +1065,8 @@ def main(argv: list[str] | None = None) -> int:
                        ("check-stubs", "every touched function is a stub"),
                        ("check-fates", "every assigned test has exactly one fate"),
                        ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every touched file"),
-                       ("report-deletion", f"every assigned test failed against the stubs, from {RESULTS_INPUT}"),
+                       ("report-deletion", "every assigned test failed against the stubs, read from the files run-suites wrote"),
+                       ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)"),
                        ("check-idle", "no story is running on this machine")):
         sub.add_parser(name, help=text)
     build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
@@ -956,6 +1083,7 @@ def main(argv: list[str] | None = None) -> int:
         "check-fates": lambda: check_fates(root),
         "check-coverage": lambda: check_coverage(root),
         "check-idle": lambda: check_idle(probe_running_stories),
+        "run-suites": lambda: run_suites(root),
     }
     try:
         if args.command == "stage" and args.to is None:
@@ -971,12 +1099,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "check-matrix":
             result = check_matrix(root, args.use_case, lister)
         elif args.command == "report-deletion":
-            results = load_results(root)
-            if results is None:
-                result = Result()
-                result.error("E-RESULTS-MISSING", str(RESULTS_INPUT), "no results to read")
-            else:
-                result = report_deletion(root, results)
+            result = report_deletion(root, read_results(root))
         elif args.command == "stage":
             result = move_stage(root, args.to, default_justifiers(lister))
         else:

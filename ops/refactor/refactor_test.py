@@ -829,15 +829,6 @@ def test_check_fates_and_check_stubs_run_from_the_command_line(tmp_path):
     assert cli(root, "check-stubs") == R.EXIT_OK
 
 
-def test_report_deletion_reads_the_neutral_results_file(tmp_path):
-    root = make_root(tmp_path, assignments='[assignments]\nU1 = ["python:t_a"]\n', touched=FATE_TOUCHED)
-    write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
-    write(root, "ops/refactor/reports/results-input.json", json.dumps({"outcomes": {"python:t_a": R.FAILED_STUB}, "missing": []}))
-    assert cli(root, "report-deletion") == R.EXIT_OK
-    write(root, "ops/refactor/reports/results-input.json", json.dumps({"outcomes": {"python:t_a": R.PASSED}, "missing": []}))
-    assert cli(root, "report-deletion") == R.EXIT_FAIL
-
-
 def test_check_idle_uses_the_machine_probe(tmp_path, monkeypatch):
     root = make_root(tmp_path)
     monkeypatch.setattr(R, "probe_running_stories", lambda: [])
@@ -1325,3 +1316,183 @@ def test_without_kcov_on_the_path_shell_is_not_measured_and_the_check_still_deci
     assert shutil.which("kcov") is None
     result = R.check_coverage(root)
     assert result.exit_code == R.EXIT_OK and list(result.data["not_measured"]) == ["shell"]
+
+
+# ---- stubs: the boundaries of task 1.16 ---------------------------------------------------------------------------------------
+
+def test_boundary_a_single_touched_function_that_is_a_stub_passes(tmp_path):
+    root = make_code_root(tmp_path, {"src/a.py": 'def only():\n    raise NotImplementedError\n'}, touched=entry("python", "src/a.py", "only", '"B"'))
+    assert R.check_stubs(root).exit_code == R.EXIT_OK
+
+
+def test_boundary_an_empty_touched_set_has_nothing_to_stub_and_passes(tmp_path):
+    assert R.check_stubs(make_root(tmp_path)).exit_code == R.EXIT_OK
+
+
+@pytest.mark.parametrize("language,file,body", [
+    ("rust", "src/c.rs", "fn pull() {\n    // todo\n}\n"),
+    ("shell", "src/x.sh", "pull() {\n  # nothing yet\n}\n"),
+    ("typescript", "src/s.ts", "export function pull() {\n  // nothing yet\n}\n"),
+])
+def test_boundary_a_function_whose_body_is_only_a_comment_is_not_a_stub(tmp_path, language, file, body):
+    root = make_code_root(tmp_path, {file: body}, touched=entry(language, file, "pull", '"B"'))
+    result = R.check_stubs(root)
+    assert result.exit_code == R.EXIT_FAIL and [p.code for p in result.problems] == ["E-NOT-STUB"]
+
+
+# ---- result readers: canned output in each runner's real format (task 1.5) -------------------------------------------------
+
+JUNIT = """<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" tests="4">
+<testcase classname="test_core" name="test_a" file="test_core.py" line="3"><failure message="NotImplementedError: deleted">trace</failure></testcase>
+<testcase classname="test_core.TestC" name="test_b[x-1]" file="test_core.py" line="9" />
+<testcase classname="test_core" name="test_c" file="test_core.py" line="12"><failure message="assert 1 == 2">trace</failure></testcase>
+<testcase classname="" name="test_broken"><error message="collection failure">SyntaxError: invalid syntax</error></testcase>
+</testsuite></testsuites>"""
+CARGO_JSON = "\n".join(json.dumps(e) for e in [
+    {"type": "suite", "event": "started", "test_count": 3},
+    {"type": "test", "event": "started", "name": "tests::a"},
+    {"type": "test", "name": "tests::a", "event": "failed", "stdout": "thread 'tests::a' panicked at src/lib.rs:4:5:\nnot yet implemented\n"},
+    {"type": "test", "name": "tests::b", "event": "ok"},
+    {"type": "test", "name": "tests::c", "event": "failed", "stdout": "assertion failed: x"},
+    {"type": "suite", "event": "failed", "passed": 1, "failed": 2},
+])
+VITEST_JSON = json.dumps({"testResults": [{"name": "/r/ts/src/core.test.ts", "assertionResults": [
+    {"ancestorTitles": ["a run"], "title": "shows it", "fullName": "a run shows it", "status": "failed", "failureMessages": ["Error: not implemented"]},
+    {"ancestorTitles": [], "title": "plain", "fullName": "plain", "status": "passed", "failureMessages": []},
+    {"ancestorTitles": [], "title": "other", "fullName": "other", "status": "failed", "failureMessages": ["expected 1 to be 2"]},
+]}]})
+SHELL_JSON = json.dumps({"tests/one-test.sh": {"code": 1, "output": "  FAIL true succeeds\\n  expected: exit 0\\n  actual:   exit 99"},
+                         "tests/two-test.sh": {"code": 0, "output": "all 2 checks passed"},
+                         "tests/three-test.sh": {"code": 1, "output": "syntax error near unexpected token"}})
+
+
+def test_the_junit_reader_gives_ids_with_the_runner_folder_and_names_the_stub_failures():
+    outcomes, file_failures = R.parse_junit("py", JUNIT)
+    assert outcomes == {"python:py/test_core.py::test_a": R.FAILED_STUB, "python:py/test_core.py::TestC::test_b[x-1]": R.PASSED,
+                        "python:py/test_core.py::test_c": R.FAILED_OTHER}
+    assert file_failures == {"python:py/test_broken.py"}
+
+
+def test_the_cargo_json_reader_gives_outcomes_by_test_name_and_names_the_stub_failures():
+    assert R.parse_cargo_json(CARGO_JSON) == {"tests::a": R.FAILED_STUB, "tests::b": R.PASSED, "tests::c": R.FAILED_OTHER}
+
+
+def test_the_vitest_json_reader_joins_the_titles_the_way_vitest_list_does(tmp_path):
+    outcomes = R.parse_vitest_json(Path("/r"), VITEST_JSON)
+    assert outcomes == {"typescript:ts/src/core.test.ts::a run > shows it": R.FAILED_STUB,
+                        "typescript:ts/src/core.test.ts::plain": R.PASSED, "typescript:ts/src/core.test.ts::other": R.FAILED_OTHER}
+
+
+def test_the_shell_reader_treats_a_99_in_the_output_as_the_stub_and_zero_as_passed():
+    assert R.parse_shell_results(SHELL_JSON) == {"shell:tests/one-test.sh": R.FAILED_STUB, "shell:tests/two-test.sh": R.PASSED,
+                                                 "shell:tests/three-test.sh": R.FAILED_OTHER}
+
+
+def test_a_syntax_error_in_a_test_file_marks_each_assigned_test_of_that_file_failed_other(tmp_path):
+    root = deletion_root(tmp_path)
+    write(root, "ops/refactor/assignments.toml", '[assignments]\nU1 = ["python:py/test_broken.py::test_x", "python:py/test_broken.py::test_y"]\n')
+    broken = R.Results(outcomes={}, file_failures={"python:py/test_broken.py"})
+    result = R.report_deletion(root, broken)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-STUB-FAILS-TO-IMPORT", "python:py/test_broken.py::test_x"),
+                                                              ("E-STUB-FAILS-TO-IMPORT", "python:py/test_broken.py::test_y")]
+
+
+def test_a_rust_assigned_test_is_matched_to_its_outcome_by_name(tmp_path):
+    root = deletion_root(tmp_path)
+    write(root, "ops/refactor/assignments.toml", '[assignments]\nU1 = ["rust:rs/mini/src/lib.rs::tests::a"]\n')
+    assert R.report_deletion(root, R.Results(outcomes={}, rust_names={"tests::a": R.FAILED_STUB})).exit_code == R.EXIT_OK
+    assert [p.code for p in R.report_deletion(root, R.Results(outcomes={}, rust_names={"tests::a": R.PASSED})).problems] == ["E-ASSIGNED-PASSED"]
+
+
+# ---- integration: the whole-suite deletion report on the mini project (task 1.17, TC-30 to TC-32, TC-34) -------------------
+
+STUBBED = {
+    "py/minipy/core.py": "def record(items, limit):\n    raise NotImplementedError(\"deleted\")\n\n\ndef run_dir(data_root, run_id):\n    raise NotImplementedError(\"deleted\")\n",
+    "rs/mini/src/lib.rs": ("pub fn count_lines(_listing: &str) -> usize {\n    todo!()\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n"
+                           "    #[test]\n    fn an_empty_listing_has_no_lines() {\n        assert_eq!(count_lines(\"\"), 0);\n    }\n\n"
+                           "    #[test]\n    fn a_listing_counts_its_lines() {\n        assert_eq!(count_lines(\"a\\nb\"), 2);\n    }\n}\n"),
+    "ts/src/core.ts": "export function titleOf(run: { title?: string }): string {\n  throw new Error(\"not implemented: deleted\")\n}\n",
+}
+SIX_ASSIGNED_MINI = """[assignments]
+U1 = ["python:py/test_core.py::test_record_keeps_only_what_fits_under_the_limit", "python:py/test_core.py::test_run_dir_joins_the_root_and_the_run_id"]
+U2 = ["rust:rs/mini/src/lib.rs::tests::an_empty_listing_has_no_lines", "rust:rs/mini/src/lib.rs::tests::a_listing_counts_its_lines"]
+U3 = ["typescript:ts/src/core.test.ts::a run with a title shows it", "typescript:ts/src/core.test.ts::a run without a title is untitled"]
+"""
+
+
+def stubbed_mini(tmp_path: Path) -> Path:
+    root = fresh_mini(tmp_path)
+    for rel, text in STUBBED.items():
+        (root / rel).write_text(text)
+    (root / "ops/refactor/assignments.toml").write_text(SIX_ASSIGNED_MINI)
+    (root / "ops/refactor/stage.toml").write_text('stage = "Deleted"\n')
+    return root
+
+
+def delete_report(root: Path) -> tuple[subprocess.CompletedProcess, dict]:
+    ran = tool(root, "run-suites")
+    assert ran.returncode == R.EXIT_OK, ran.stdout + ran.stderr
+    done = tool(root, "report-deletion")
+    report = root / "ops/refactor/reports/deletion.json"
+    return done, (json.loads(report.read_text()) if report.exists() else {})
+
+
+def test_tc30_all_six_assigned_tests_fail_for_the_stub_and_the_exit_is_0(coverage_tools, tmp_path):
+    done, report = delete_report(stubbed_mini(tmp_path))
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    assert len(report["assigned_failed"]) == 6
+
+
+def test_tc31_and_w1_an_assigned_test_that_passes_is_refused_by_name_and_the_stage_goes_back_to_proved(coverage_tools, tmp_path):
+    root = stubbed_mini(tmp_path)
+    test = root / "py/test_core.py"
+    test.write_text(test.read_text().replace("assert record([\"a\", \"b\", \"c\"], 2) == [\"a\", \"b\"]", "assert True"))
+    done, report = delete_report(root)
+    assert done.returncode == R.EXIT_FAIL
+    assert [(p["code"], p["subject"]) for p in report["problems"]] == [
+        ("E-ASSIGNED-PASSED", "python:py/test_core.py::test_record_keeps_only_what_fits_under_the_limit")]
+    assert (root / "ops/refactor/stage.toml").read_text().startswith('stage = "Proved"')
+
+
+def test_tc32_an_unassigned_test_that_fails_means_the_partition_is_not_mece(coverage_tools, tmp_path):
+    root = stubbed_mini(tmp_path)
+    (root / "tests/three-test.sh").write_text("#!/usr/bin/env bash\nexit 1\n")
+    done, report = delete_report(root)
+    assert done.returncode == R.EXIT_FAIL
+    assert [(p["code"], p["subject"]) for p in report["problems"]] == [("E-OUTSIDE-FAILED", "shell:tests/three-test.sh")]
+
+
+def test_tc34_a_syntax_error_in_a_test_file_is_stub_fails_to_import_not_a_pass(coverage_tools, tmp_path):
+    root = stubbed_mini(tmp_path)
+    (root / "py/test_core.py").write_text("def test_x(:\n    pass\n")
+    done, report = delete_report(root)
+    assert done.returncode == R.EXIT_FAIL
+    assert {p["code"] for p in report["problems"]} == {"E-STUB-FAILS-TO-IMPORT"}
+    assert {p["subject"] for p in report["problems"]} == {
+        "python:py/test_core.py::test_record_keeps_only_what_fits_under_the_limit", "python:py/test_core.py::test_run_dir_joins_the_root_and_the_run_id"}
+
+
+def test_tc33_through_the_process_a_runner_that_wrote_no_result_file_is_refused(coverage_tools, tmp_path):
+    root = stubbed_mini(tmp_path)
+    done = tool(root, "report-deletion")                      # run-suites was never run: no result files exist
+    report = json.loads((root / "ops/refactor/reports/deletion.json").read_text())
+    assert done.returncode == R.EXIT_FAIL and "E-RESULTS-MISSING" in {p["code"] for p in report["problems"]}
+
+
+def test_a_typescript_stub_with_braces_in_its_parameter_and_return_types_is_still_a_stub(tmp_path):
+    src = ('export function titleOf(run: { title?: string }): Promise<{ ok: boolean }> {\n'
+           '  throw new Error("not implemented");\n}\n')
+    root = make_code_root(tmp_path, {"src/s.ts": src}, touched=entry("typescript", "src/s.ts", "titleOf", '"C"'))
+    assert R.check_stubs(root).exit_code == R.EXIT_OK
+
+
+def test_a_typescript_function_with_braces_in_its_types_and_a_real_body_is_not_a_stub(tmp_path):
+    src = 'export function titleOf(run: { title?: string }): string {\n  return run.title ?? "x";\n}\n'
+    root = make_code_root(tmp_path, {"src/s.ts": src}, touched=entry("typescript", "src/s.ts", "titleOf", '"C"'))
+    assert [p.code for p in R.check_stubs(root).problems] == ["E-NOT-STUB"]
+
+
+def test_a_rust_stub_with_a_where_clause_and_generic_braces_is_still_a_stub(tmp_path):
+    src = 'pub fn pull<T>(x: T) -> Vec<T>\nwhere\n    T: Clone,\n{\n    todo!()\n}\n'
+    root = make_code_root(tmp_path, {"src/c.rs": src}, touched=entry("rust", "src/c.rs", "pull", '"B"'))
+    assert R.check_stubs(root).exit_code == R.EXIT_OK

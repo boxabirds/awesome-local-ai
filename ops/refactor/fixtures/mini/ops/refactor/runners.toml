@@ -31,3 +31,18 @@ file = "coverage-summary.json"
 [shell.coverage]
 format = "kcov"
 file = "kcov-merged/coverage.json"
+
+[python.results]
+format = "junit"
+command = ["uv", "run", "--quiet", "--with", "pytest", "pytest", "-q", "-p", "no:cacheprovider", "-o", "junit_family=xunit1", "--junitxml={out}"]
+
+[rust.results]
+format = "cargo-json"
+command = ["cargo", "+nightly", "test", "--workspace", "--", "-Z", "unstable-options", "--format", "json"]
+
+[typescript.results]
+format = "vitest-json"
+command = ["bun", "x", "vitest", "run", "--reporter=json", "--outputFile={out}"]
+
+[shell.results]
+format = "shell-exit"

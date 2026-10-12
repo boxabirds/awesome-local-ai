@@ -46,3 +46,27 @@ file = "coverage-summary.json"
 [shell.coverage]
 format = "kcov"
 file = "kcov-merged/coverage.json"
+
+# How run-suites runs each suite with its result output on, for report-deletion (and the whole-suite-green move).
+# {out} is the file under ops/refactor/reports. cargo prints its json on stdout, which run-suites saves; its json test output
+# is unstable, so it runs on the nightly toolchain. The python junit family must be xunit1 so a test carries its file.
+
+[python.results]
+format = "junit"
+command = [
+  "uv", "run", "--quiet",
+  "--with", "pytest", "--with", "hypothesis", "--with", "httpx",
+  "--with", "uvicorn", "--with", "starlette", "--with", "fastapi",
+  "pytest", "-q", "-p", "no:cacheprovider", "-o", "junit_family=xunit1", "--junitxml={out}",
+]
+
+[rust.results]
+format = "cargo-json"
+command = ["cargo", "+nightly", "test", "--workspace", "--", "-Z", "unstable-options", "--format", "json"]
+
+[typescript.results]
+format = "vitest-json"
+command = ["bun", "x", "vitest", "run", "--reporter=json", "--outputFile={out}"]
+
+[shell.results]
+format = "shell-exit"
