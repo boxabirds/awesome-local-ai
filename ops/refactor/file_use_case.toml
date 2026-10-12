@@ -22,10 +22,12 @@
 "benchmarks/spec-bench/harness/test_provenance.py" = "U1"
 "benchmarks/spec-bench/harness/test_tagsuite.py" = "U1"
 "benchmarks/spec-bench/harness/test_u1_matrix.py" = "U1"
+"benchmarks/spec-bench/harness/test_size_limits.py" = "U1"
 # U7 the monitor reads records
 "ops/monitor/test_monitor.py" = "U7"
 # U8 a judge package goes out and results come back
 "benchmarks/spec-bench/harness/test_judge.py" = "U8"
+"benchmarks/spec-bench/harness/test_judge_collect.py" = "U8"
 # U9 a job references another run
 "benchmarks/spec-bench/harness/test_logscan.py" = "U9"
 "benchmarks/spec-bench/harness/test_progress.py" = "U9"
