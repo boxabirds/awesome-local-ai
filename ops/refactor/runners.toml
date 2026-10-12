@@ -1,0 +1,22 @@
+# The four runners the tool lists tests from (task 1.1): the folder each runs in and the command that lists its tests.
+# The python command carries the same --with packages as the "harness unit suite" check in tools/dbench/checks.toml.
+
+[python]
+dir = "benchmarks/spec-bench/harness"
+command = [
+  "uv", "run", "--quiet",
+  "--with", "pytest", "--with", "hypothesis", "--with", "httpx",
+  "--with", "uvicorn", "--with", "starlette", "--with", "fastapi",
+  "pytest", "--collect-only", "-q", "-p", "no:cacheprovider",
+]
+
+[rust]
+dir = "tools"
+command = ["cargo", "test", "--workspace", "--", "--list"]
+
+[typescript]
+dir = "tools/benchmarker"
+command = ["bun", "x", "vitest", "list", "--json"]
+
+[shell]
+glob = "tests/*-test.sh"

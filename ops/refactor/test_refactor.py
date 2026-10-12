@@ -838,300 +838,6 @@ def test_a_named_function_matching_a_pattern_too_lists_both_classes_once(tmp_pat
     assert proposed(root) == {("src/a.py", "f"): ["A", "C"]}
 
 
-# ---- python adapter: the tests that execute a touched function, from coverage contexts ----------------------------------
-
-PY_SOURCE = "def record():\n    x = 1\n    return x\n\n\ndef other():\n    return 2\n"
-
-
-def test_function_lines_are_the_def_through_its_last_line():
-    assert R.python_function_lines(PY_SOURCE, "record") == {1, 2, 3}
-    assert R.python_function_lines(PY_SOURCE, "other") == {6, 7}
-
-
-def test_function_lines_of_a_method_use_the_dotted_name():
-    src = "class C:\n    def m(self):\n        return 1\n"
-    assert R.python_function_lines(src, "C.m") == {2, 3}
-
-
-def test_function_lines_of_a_missing_function_is_none():
-    assert R.python_function_lines(PY_SOURCE, "ghost") is None
-
-
-def test_a_test_whose_context_hit_a_line_of_the_function_touches_it():
-    contexts = {"2": ["test_a.py::test_one|run"], "7": ["test_b.py::test_two|run"]}
-    assert R.tests_touching(contexts, {1, 2, 3}) == {"python:test_a.py::test_one"}
-
-
-def test_setup_and_teardown_contexts_and_the_empty_context_are_not_tests():
-    contexts = {"2": ["", "test_a.py::test_one|setup", "test_a.py::test_one|teardown", "test_a.py::test_one|run"]}
-    assert R.tests_touching(contexts, {2}) == {"python:test_a.py::test_one"}
-
-
-def test_a_setup_only_hit_is_not_a_test_touching_the_function():
-    assert R.tests_touching({"2": ["test_a.py::test_one|setup"]}, {2}) == set()
-
-
-def test_parametrised_ids_keep_their_brackets():
-    assert R.tests_touching({"2": ["test_a.py::test_p[a-1]|run"]}, {2}) == {"python:test_a.py::test_p[a-1]"}
-
-
-def test_the_touched_python_tests_are_the_union_over_every_touched_function(tmp_path):
-    root = make_code_root(tmp_path, {"src/a.py": PY_SOURCE}, touched=(
-        '[[entry]]\nlanguage = "python"\nfile = "src/a.py"\nfunction = "record"\nclasses = ["A"]\n'
-        '[[entry]]\nlanguage = "python"\nfile = "src/a.py"\nfunction = "other"\nclasses = ["A"]\n'))
-    coverage = {"files": {"src/a.py": {"contexts": {"2": ["t.py::one|run"], "7": ["t.py::two|run"]}}}}
-    assert R.python_touching_tests(root, coverage) == {"python:t.py::one", "python:t.py::two"}
-
-
-def test_a_touched_python_file_missing_from_the_coverage_data_is_undecidable(tmp_path):
-    root = make_code_root(tmp_path, {"src/a.py": PY_SOURCE}, touched=(
-        '[[entry]]\nlanguage = "python"\nfile = "src/a.py"\nfunction = "record"\nclasses = ["A"]\n'))
-    with pytest.raises(R.AdapterError):
-        R.python_touching_tests(root, {"files": {}})
-
-
-def test_function_lines_find_a_function_nested_inside_another_by_the_name_the_scan_gives_it():
-    src = "def outer():\n    def inner():\n        return 1\n    return inner\n"
-    assert R.python_function_lines(src, "inner") == {2, 3}
-
-
-def test_function_lines_find_a_function_nested_in_a_method_under_the_class_prefix():
-    src = "class C:\n    def m(self):\n        def helper():\n            return 1\n        return helper\n"
-    assert R.python_function_lines(src, "C.helper") == {3, 4}
-
-
-# ---- the register reads the adapters' output --------------------------------------------------------------------------
-
-def test_list_tests_reads_the_touched_tests_file_the_adapters_wrote(tmp_path):
-    root = make_root(tmp_path)
-    write(root, "ops/refactor/reports/touched-tests.json", json.dumps({"python": ["a.py::t1"], "rust": ["m::t2"]}))
-    assert R.list_tests(root) == {"python": {"a.py::t1"}, "rust": {"m::t2"}}
-
-
-def test_list_tests_without_the_file_is_an_adapter_error(tmp_path):
-    with pytest.raises(R.AdapterError):
-        R.list_tests(make_root(tmp_path))
-
-
-TWO_TOUCHED = (
-    '[[entry]]\nlanguage = "python"\nfile = "h/a.py"\nfunction = "record"\nclasses = ["A"]\n'
-    '[[entry]]\nlanguage = "python"\nfile = "m/b.py"\nfunction = "scan"\nclasses = ["B"]\n')
-
-
-def two_sources(tmp_path: Path):
-    root = make_code_root(tmp_path, {"h/a.py": PY_SOURCE, "m/b.py": "def scan():\n    return 1\n"}, touched=TWO_TOUCHED)
-    h = write(tmp_path, "h.json", json.dumps({"files": {"a.py": {"contexts": {"2": ["t.py::one|run"]}}}}))
-    m = write(tmp_path, "m.json", json.dumps({"files": {"b.py": {"contexts": {"2": ["t.py::two|run"]}}}}))
-    return root, h, m
-
-
-def test_adapt_python_merges_several_sources_and_makes_ids_unique_by_their_folder(tmp_path):
-    root, h, m = two_sources(tmp_path)
-    write(root, "ops/refactor/reports/touched-tests.json", json.dumps({"rust": ["m::t2"]}))
-    assert cli(root, "adapt-python", f"h/={h}", f"m/={m}") == R.EXIT_OK
-    stored = json.loads((root / "ops/refactor/reports/touched-tests.json").read_text())
-    assert stored == {"rust": ["m::t2"], "python": ["h/t.py::one", "m/t.py::two"]}
-
-
-def test_adapt_python_with_a_source_missing_is_exit_2_and_writes_nothing(tmp_path):
-    root, h, _ = two_sources(tmp_path)
-    assert cli(root, "adapt-python", f"h/={h}") == R.EXIT_ERROR
-    assert not (root / "ops/refactor/reports/touched-tests.json").exists()
-
-
-def test_check_register_with_no_adapter_output_is_exit_2(tmp_path):
-    assert cli(make_root(tmp_path), "check-register") == R.EXIT_ERROR
-
-
-# ---- assign by file: one reviewed table, expanded into the register ----------------------------------------------------
-
-def assign_root(tmp_path: Path, mapping: str, tests: dict) -> Path:
-    root = make_root(tmp_path)
-    write(root, "ops/refactor/file_use_case.toml", mapping)
-    write(root, "ops/refactor/reports/touched-tests.json", json.dumps(tests))
-    return root
-
-
-def test_assign_by_file_expands_each_test_to_its_files_use_case(tmp_path):
-    root = assign_root(tmp_path, '[python]\n"h/a.py" = "U1"\n"h/b.py" = "U2"\n',
-                       {"python": ["h/a.py::t1", "h/a.py::t2", "h/b.py::t1"]})
-    assert cli(root, "assign-by-file") == R.EXIT_OK
-    written = tomllib_load(root / "ops/refactor/assignments.toml")["assignments"]
-    assert written == {"U1": ["python:h/a.py::t1", "python:h/a.py::t2"], "U2": ["python:h/b.py::t1"]}
-    assert cli(root, "check-register") == R.EXIT_OK
-
-
-def tomllib_load(path: Path) -> dict:
-    import tomllib
-    return tomllib.loads(path.read_text())
-
-
-def test_assign_by_file_with_an_unmapped_file_is_refused_and_writes_nothing(tmp_path):
-    root = assign_root(tmp_path, '[python]\n"h/a.py" = "U1"\n', {"python": ["h/a.py::t1", "h/c.py::t1"]})
-    before = (root / "ops/refactor/assignments.toml").read_text()
-    assert cli(root, "assign-by-file") == R.EXIT_FAIL
-    assert (root / "ops/refactor/assignments.toml").read_text() == before
-
-
-def test_assign_by_file_to_an_unknown_use_case_is_refused(tmp_path):
-    root = assign_root(tmp_path, '[python]\n"h/a.py" = "U99"\n', {"python": ["h/a.py::t1"]})
-    assert cli(root, "assign-by-file") == R.EXIT_FAIL
-
-
-def test_assign_by_file_keeps_the_unfit_decisions_already_recorded(tmp_path):
-    root = assign_root(tmp_path, '[python]\n"h/a.py" = "U1"\n', {"python": ["h/a.py::t1", "h/a.py::odd"]})
-    write(root, "ops/refactor/assignments.toml",
-          '[[unfit]]\ntest = "python:h/a.py::odd"\ndecision = "retire"\nreason = "fits no actor"\n')
-    assert cli(root, "assign-by-file") == R.EXIT_OK
-    written = tomllib_load(root / "ops/refactor/assignments.toml")
-    assert written["assignments"] == {"U1": ["python:h/a.py::t1"]} and written["unfit"][0]["test"] == "python:h/a.py::odd"
-    assert cli(root, "check-register") == R.EXIT_OK
-
-
-# ---- rust adapter: which tests belong to the touched files (from `cargo test -- --list`) -------------------------------
-
-RUST_TOUCHED = (
-    '[[entry]]\nlanguage = "rust"\nfile = "tools/dbench/src/collector.rs"\nfunction = "pass"\nclasses = ["C"]\n'
-    '[[entry]]\nlanguage = "rust"\nfile = "tools/dbench/src/ingest/inputs.rs"\nfunction = "candidates"\nclasses = ["B"]\n')
-
-CARGO_LIST = """\
-     Running unittests src/lib.rs (target/debug/deps/dbench-3c9e3c3b1e939def)
-collector::tests::copies_a_run: test
-collector::tests::skips_a_complete_run: test
-events::tests::parses_an_event: test
-ingest::inputs::tests::reads_a_whole_log: test
-ingest::mod_less::tests::nothing: test
-
-2 tests, 0 benchmarks
-     Running tests/server.rs (target/debug/deps/server-607e7965d4855fd8)
-serves_a_run_file: test
-lists_machines: test
-     Running tests/label.rs (target/debug/deps/label-5db19efd581a89c8)
-renders_a_label: test
-   Doc-tests dbench
-"""
-
-
-def rust_root(tmp_path: Path) -> Path:
-    root = make_code_root(tmp_path, {
-        "tools/dbench/src/collector.rs": "pub fn pass() {}\n",
-        "tools/dbench/src/events.rs": "pub fn parse() {}\n",
-        "tools/dbench/src/ingest/inputs.rs": "pub fn candidates() {}\n",
-        "tools/dbench/tests/server.rs": "use dbench::collector::pass;\n#[test]\nfn serves_a_run_file() {}\n",
-        "tools/dbench/tests/label.rs": "#[test]\nfn renders_a_label() {}\n",
-    }, touched=RUST_TOUCHED)
-    return root
-
-
-def test_unit_tests_of_a_touched_module_are_in_and_of_an_untouched_module_are_out(tmp_path):
-    root = rust_root(tmp_path)
-    found = R.rust_touching_tests(root, CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
-    assert "tools/dbench/src/lib.rs::collector::tests::copies_a_run" in found
-    assert "tools/dbench/src/lib.rs::events::tests::parses_an_event" not in found
-
-
-def test_a_nested_module_path_resolves_to_its_file(tmp_path):
-    root = rust_root(tmp_path)
-    found = R.rust_touching_tests(root, CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
-    assert "tools/dbench/src/lib.rs::ingest::inputs::tests::reads_a_whole_log" in found
-
-
-def test_an_integration_test_file_that_names_a_touched_module_is_in_and_one_that_does_not_is_out(tmp_path):
-    root = rust_root(tmp_path)
-    found = R.rust_touching_tests(root, CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
-    assert "tools/dbench/tests/server.rs::serves_a_run_file" in found
-    assert not any(t.startswith("tools/dbench/tests/label.rs") for t in found)
-
-
-def test_a_unit_test_whose_module_has_no_file_is_an_adapter_error(tmp_path):
-    with pytest.raises(R.AdapterError):
-        R.rust_touching_tests(rust_root(tmp_path), CARGO_LIST)      # ingest::mod_less has no file
-
-
-def test_doc_tests_and_summary_lines_are_not_tests(tmp_path):
-    root = rust_root(tmp_path)
-    found = R.rust_touching_tests(root, CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
-    assert all("Doc-tests" not in t and "benchmarks" not in t for t in found)
-
-
-def test_adapt_rust_stores_the_rust_key_and_keeps_python(tmp_path):
-    root = rust_root(tmp_path)
-    write(root, "ops/refactor/reports/touched-tests.json", json.dumps({"python": ["x.py::t"]}))
-    listing = write(tmp_path, "list.txt", CARGO_LIST.replace("ingest::mod_less::tests::nothing: test\n", ""))
-    assert cli(root, "adapt-rust", str(listing)) == R.EXIT_OK
-    stored = json.loads((root / "ops/refactor/reports/touched-tests.json").read_text())
-    assert stored["python"] == ["x.py::t"] and len(stored["rust"]) == 5
-
-
-def test_adapt_rust_on_an_unresolvable_module_is_exit_2_and_writes_nothing(tmp_path):
-    root = rust_root(tmp_path)
-    listing = write(tmp_path, "list.txt", CARGO_LIST)
-    assert cli(root, "adapt-rust", str(listing)) == R.EXIT_ERROR
-    assert not (root / "ops/refactor/reports/touched-tests.json").exists()
-
-
-def test_assign_by_file_uses_the_longest_matching_key_so_a_module_can_differ_from_its_file(tmp_path):
-    root = assign_root(tmp_path, '[rust]\n"c/src/lib.rs" = "U3"\n"c/src/lib.rs::ingest" = "U4"\n',
-                       {"rust": ["c/src/lib.rs::collector::tests::a", "c/src/lib.rs::ingest::inputs::tests::b"]})
-    assert cli(root, "assign-by-file") == R.EXIT_OK
-    written = tomllib_load(root / "ops/refactor/assignments.toml")["assignments"]
-    assert written == {"U3": ["rust:c/src/lib.rs::collector::tests::a"], "U4": ["rust:c/src/lib.rs::ingest::inputs::tests::b"]}
-
-
-# ---- typescript adapter: vitest list + playwright list ---------------------------------------------------------------
-
-TS_TOUCHED = (
-    '[[entry]]\nlanguage = "typescript"\nfile = "tools/b/server/domain.ts"\nfunction = "findRuns"\nclasses = ["A"]\n'
-    '[[entry]]\nlanguage = "typescript"\nfile = "tools/b/server/main.ts"\nfunction = "start"\nclasses = ["C"]\n')
-
-
-def ts_root(tmp_path: Path) -> Path:
-    return make_code_root(tmp_path, {
-        "tools/b/server/domain.ts": "export function findRuns() {}\n",
-        "tools/b/server/main.ts": "export function start() {}\n",
-        "tools/b/server/domain.test.ts": 'import { findRuns } from "./domain"\n',
-        "tools/b/shared/view.test.ts": 'import { thing } from "../server/domain"\n',
-        "tools/b/shared/other.test.ts": 'import { x } from "./stats"\n',
-    }, touched=TS_TOUCHED)
-
-
-def vitest_json(root: Path, *rows: tuple[str, str]) -> str:
-    return json.dumps([{"name": name, "file": str(root / file), "location": {"line": 1, "column": 1}} for file, name in rows])
-
-
-PW_LIST = "Listing tests:\n  activity.spec.ts:11:1 › the tab leads to it\n  run.spec.ts:5:3 › links › a flag can be read\nTotal: 2 tests in 2 files\n"
-
-
-def test_a_vitest_file_named_for_or_importing_a_touched_module_is_in_and_an_unrelated_one_is_out(tmp_path):
-    root = ts_root(tmp_path)
-    listing = vitest_json(root, ("tools/b/server/domain.test.ts", "finds runs"), ("tools/b/shared/view.test.ts", "shows a run"),
-                          ("tools/b/shared/other.test.ts", "adds"))
-    assert R.typescript_touching_tests(root, listing, "") == {"tools/b/server/domain.test.ts::finds runs", "tools/b/shared/view.test.ts::shows a run"}
-
-
-def test_every_playwright_test_is_in_because_it_drives_the_whole_app_through_the_server(tmp_path):
-    root = ts_root(tmp_path)
-    found = R.typescript_touching_tests(root, "[]", PW_LIST, e2e_dir="tools/b/e2e")
-    assert found == {"tools/b/e2e/activity.spec.ts::the tab leads to it", "tools/b/e2e/run.spec.ts::links › a flag can be read"}
-
-
-def test_a_vitest_file_outside_the_repository_is_an_adapter_error(tmp_path):
-    root = ts_root(tmp_path)
-    bad = json.dumps([{"name": "x", "file": "/elsewhere/a.test.ts", "location": {}}])
-    with pytest.raises(R.AdapterError):
-        R.typescript_touching_tests(root, bad, "")
-
-
-def test_adapt_typescript_stores_the_typescript_key_and_keeps_the_rest(tmp_path):
-    root = ts_root(tmp_path)
-    write(root, "ops/refactor/reports/touched-tests.json", json.dumps({"rust": ["m::t"]}))
-    vitest = write(tmp_path, "v.json", vitest_json(root, ("tools/b/server/domain.test.ts", "finds runs")))
-    playwright = write(tmp_path, "p.txt", PW_LIST)
-    assert cli(root, "adapt-typescript", str(vitest), str(playwright), "--e2e-dir", "tools/b/e2e") == R.EXIT_OK
-    stored = json.loads((root / "ops/refactor/reports/touched-tests.json").read_text())
-    assert stored["rust"] == ["m::t"] and len(stored["typescript"]) == 3
-
-
 # ---- script-level stubs (approved 12 Oct 2026): a script with no functions is stubbed as a whole ----------------------------
 
 SCRIPT_ENTRY = '[[entry]]\nfile = "src/go.sh"\nfunction = "<script>"\nlanguage = "shell"\nclasses = ["B"]\n'
@@ -1159,3 +865,162 @@ def test_a_script_that_exits_with_another_code_or_has_functions_left_is_not_a_st
 
 def test_an_empty_script_is_not_a_stub(tmp_path):
     assert codes(script_stub_result(tmp_path, "#!/bin/sh\n")) == ["E-NOT-STUB"]
+
+
+# ---- the four real runners list their tests (task 1.1; TC-09 is the mini-project test in 1.10) -----------------------
+
+PYTEST_OUT = """\
+test_a.py::test_one
+test_a.py::TestC::test_m[x-1]
+sub/test_b.py::test_two
+
+3 tests collected in 0.01s
+"""
+CARGO_OUT = """\
+     Running unittests src/lib.rs (target/debug/deps/dbench-3c9e3c3b1e939def)
+collector::tests::copies_a_run: test
+events::tests::parses_an_event: test
+
+2 tests, 0 benchmarks
+     Running tests/server.rs (target/debug/deps/server-607e7965d4855fd8)
+serves_a_run_file: test
+   Doc-tests dbench
+"""
+
+
+def test_pytest_collect_output_gives_ids_with_the_runner_folder(tmp_path):
+    assert R.parse_pytest("h", PYTEST_OUT) == {"h/test_a.py::test_one", "h/test_a.py::TestC::test_m[x-1]", "h/sub/test_b.py::test_two"}
+
+
+def test_pytest_collection_errors_are_an_adapter_error_not_a_smaller_list(tmp_path):
+    with pytest.raises(R.AdapterError, match="test_x.py"):
+        R.parse_pytest("h", "test_a.py::test_one\nERROR test_x.py - ImportError\n1 test collected, 1 error\n")
+
+
+def test_cargo_list_output_gives_file_qualified_ids_and_skips_doc_tests_and_summaries(tmp_path):
+    root = make_root(tmp_path)
+    write(root, "w/dbench/Cargo.toml", '[package]\nname = "dbench"\n')
+    assert R.parse_cargo_list(root, "w", CARGO_OUT) == {
+        "w/dbench/src/lib.rs::collector::tests::copies_a_run", "w/dbench/src/lib.rs::events::tests::parses_an_event",
+        "w/dbench/tests/server.rs::serves_a_run_file"}
+
+
+def test_cargo_list_with_a_binary_that_has_no_member_folder_is_an_adapter_error(tmp_path):
+    with pytest.raises(R.AdapterError, match="dbench"):
+        R.parse_cargo_list(make_root(tmp_path), "w", CARGO_OUT)
+
+
+def test_vitest_json_gives_file_qualified_ids(tmp_path):
+    root = make_root(tmp_path)
+    rows = [{"name": "a > b", "file": str(root / "t/x.test.ts"), "location": {}}]
+    assert R.parse_vitest(root, json.dumps(rows)) == {"t/x.test.ts::a > b"}
+
+
+def test_vitest_output_that_is_not_json_is_an_adapter_error(tmp_path):
+    with pytest.raises(R.AdapterError):
+        R.parse_vitest(make_root(tmp_path), "not json")
+
+
+def runners(root: Path, text: str) -> None:
+    write(root, "ops/refactor/runners.toml", text)
+
+
+def test_a_runner_whose_program_is_not_installed_is_an_error_naming_it(tmp_path):
+    root = make_root(tmp_path)
+    runners(root, '[python]\ndir = "."\ncommand = ["no-such-program-xyz", "--collect-only"]\n')
+    with pytest.raises(R.AdapterError, match="no-such-program-xyz"):
+        R.list_tests(root)
+
+
+def test_a_runner_that_exits_non_zero_is_an_error_not_an_empty_list(tmp_path):
+    root = make_root(tmp_path)
+    runners(root, '[python]\ndir = "."\ncommand = ["sh", "-c", "echo boom >&2; exit 3"]\n')
+    with pytest.raises(R.AdapterError, match="boom"):
+        R.list_tests(root)
+
+
+def test_shell_tests_are_the_scripts_matching_the_glob(tmp_path):
+    root = make_root(tmp_path)
+    runners(root, '[shell]\nglob = "tests/*-test.sh"\n')
+    write(root, "tests/a-test.sh", "")
+    write(root, "tests/lib.sh", "")
+    assert R.list_tests(root) == {"shell": {"tests/a-test.sh"}}
+
+
+def test_a_language_with_no_runner_configured_is_absent_from_the_lists(tmp_path):
+    root = make_root(tmp_path)
+    runners(root, "")
+    assert R.list_tests(root) == {}
+
+
+def test_no_runners_file_is_an_adapter_error(tmp_path):
+    with pytest.raises(R.AdapterError, match="runners.toml"):
+        R.list_tests(make_root(tmp_path))
+
+
+def test_rust_headers_on_stderr_stay_in_order_with_the_tests_on_stdout(tmp_path):
+    root = make_root(tmp_path)
+    write(root, "w/dbench/Cargo.toml", '[package]\nname = "dbench"\n')
+    script = ("echo '     Running unittests src/lib.rs (target/debug/deps/dbench-3c9e3c3b1e939def)' >&2; "
+              "echo 'collector::tests::a: test'; "
+              "echo '     Running tests/server.rs (target/debug/deps/server-607e7965d4855fd8)' >&2; "
+              "echo 'serves: test'")
+    runners(root, f'[rust]\ndir = "w"\ncommand = ["sh", "-c", {json.dumps(script)}]\n')
+    assert R.list_tests(root) == {"rust": {"w/dbench/src/lib.rs::collector::tests::a", "w/dbench/tests/server.rs::serves"}}
+
+
+# ---- integration: the mini project, run as a process with the real runners (task 1.10, TC-09) ---------------------------------
+
+import os
+import shutil
+import subprocess
+import sys
+
+TOOL = Path(__file__).parent / "refactor.py"
+MINI = Path(__file__).parent / "fixtures" / "mini"
+MINI_IGNORED = shutil.ignore_patterns("target", "node_modules", "__pycache__", ".pytest_cache", "reports")
+MINI_IDS = {
+    "python": {"py/test_core.py::test_record_keeps_only_what_fits_under_the_limit", "py/test_core.py::test_run_dir_joins_the_root_and_the_run_id"},
+    "rust": {"rs/mini/src/lib.rs::tests::an_empty_listing_has_no_lines", "rs/mini/src/lib.rs::tests::a_listing_counts_its_lines"},
+    "typescript": {"ts/src/core.test.ts::a run with a title shows it", "ts/src/core.test.ts::a run without a title is untitled"},
+    "shell": {"tests/one-test.sh", "tests/two-test.sh"},
+}
+
+
+@pytest.fixture(scope="module")
+def mini(tmp_path_factory) -> Path:
+    """A private copy of the mini project with its TypeScript dependencies installed (the real runners need them)."""
+    root = tmp_path_factory.mktemp("mini") / "mini"
+    shutil.copytree(MINI, root, ignore=MINI_IGNORED)
+    subprocess.run(["bun", "install"], cwd=root / "ts", check=True, capture_output=True)
+    return root
+
+
+def tool(root: Path, *args: str, env: dict | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, str(TOOL), "--root", str(root), *args], capture_output=True, text=True,
+                          env=env if env is not None else os.environ)
+
+
+def test_tc09_the_four_real_runners_list_eight_tests_in_the_expected_formats_and_the_register_holds(mini):
+    done = tool(mini, "check-register")
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    report = json.loads((mini / "ops/refactor/reports/register.json").read_text())
+    assert {lang: set(ids) for lang, ids in report["listed"].items()} == MINI_IDS
+
+
+def test_tc09_negative_a_runner_missing_from_the_path_is_exit_2_naming_it_not_a_silent_zero(mini):
+    no_cargo = os.pathsep.join(d for d in os.environ["PATH"].split(os.pathsep) if not (Path(d) / "cargo").exists())
+    done = tool(mini, "check-register", env={**os.environ, "PATH": no_cargo})
+    assert done.returncode == R.EXIT_ERROR and "cargo" in done.stdout
+
+
+def snapshot(root: Path) -> dict[str, bytes]:
+    skip = {"target", "node_modules", "__pycache__", ".pytest_cache", "reports"}
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(root.rglob("*"))
+            if p.is_file() and not skip & set(p.relative_to(root).parts)}
+
+
+def test_check_register_writes_nothing_outside_the_reports_folder(mini):
+    before = snapshot(mini)
+    assert tool(mini, "check-register").returncode == R.EXIT_OK
+    assert snapshot(mini) == before

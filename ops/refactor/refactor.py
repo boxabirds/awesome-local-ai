@@ -143,7 +143,8 @@ def check_register(root: Path, lister: Lister) -> Result:
             result.fail("E-NO-TESTS", language, "the touched set has files in this language and no runner lists a test")
 
     result.data = {"counts": {u: len(t) for u, t in sorted(assignments.get("assignments", {}).items()) if u in use_cases},
-                   "unfit": [dict(e) for e in unfit]}
+                   "unfit": [dict(e) for e in unfit],
+                   "listed": {lang: sorted(ids) for lang, ids in sorted(listed_by_language.items())}}
     write_report(root, "register", result)
     return result
 
@@ -651,255 +652,88 @@ def check_idle(probe: Callable[[], list[str] | None]) -> Result:
     return result
 
 
-# ---- python adapter: which tests execute a touched function (coverage contexts) --------------------------------------
+# ---- the real runners: every test the repository has, as the runners list it ------------------------------------------
+
+RUNNERS_FILE = REFACTOR_DIR / "runners.toml"
+PYTEST_ID = re.compile(r"^(\S+\.py::\S.*)$")
+PYTEST_ERROR = re.compile(r"^ERROR\s+(\S+)")
+CARGO_RUNNING = re.compile(r"^\s*Running (unittests )?(\S+) \(target/debug/deps/([A-Za-z0-9_]+?)-[0-9a-f]+\)")
+CARGO_TEST_LINE = re.compile(r"^(\S+): test$")
+ERROR_TAIL_LINES = 5       # how much of a failing runner's stderr is quoted in the error
+
 
 class AdapterError(Exception):
-    """A runner's output cannot be read: the command turns this into exit 2, never a pass."""
+    """A runner or its output cannot be used: the command turns this into exit 2, never a pass and never a shorter list."""
 
 
-CONTEXT_PHASE = "|run"        # coverage's per-test context is "<nodeid>|run", "|setup" or "|teardown"
+def parse_pytest(folder: str, output: str) -> set[str]:
+    errors = [m.group(1) for line in output.splitlines() if (m := PYTEST_ERROR.match(line))]
+    if errors:
+        raise AdapterError(f"pytest could not collect: {', '.join(errors)}")
+    return {f"{folder}/{m.group(1)}" for line in output.splitlines() if (m := PYTEST_ID.match(line))}
 
 
-def python_function_lines(text: str, name: str) -> set[int] | None:
-    """Lines from the def line through its last line, named as the scan names it (class prefixes only; a nested def
-    keeps its plain name); a class name alone gives the whole class. None if absent."""
-    def walk(node: ast.AST, prefix: str) -> set[int] | None:
-        for child in ast.iter_child_nodes(node):
-            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                full = prefix + child.name
-                if full == name:
-                    return set(range(child.lineno, child.end_lineno + 1))
-                found = walk(child, full + "." if isinstance(child, ast.ClassDef) else prefix)
-            else:
-                found = walk(child, prefix)
-            if found is not None:
-                return found
-        return None
-    return walk(ast.parse(text), "")
-
-
-def tests_touching(contexts: dict[str, list[str]], lines: set[int]) -> set[str]:
-    """Qualified ids of the tests whose run phase executed any of the lines."""
-    found = set()
-    for line, names in contexts.items():
-        if int(line) in lines:
-            found |= {qualified("python", n[: -len(CONTEXT_PHASE)]) for n in names if n.endswith(CONTEXT_PHASE)}
-    return found
-
-
-def python_touching_tests(root: Path, coverage: dict) -> set[str]:
-    """Union over the touched Python functions; a touched file the coverage data lacks makes the answer unknowable."""
+def parse_cargo_list(root: Path, folder: str, output: str) -> set[str]:
+    """`cargo test -- --list` output: unit tests by the file of their binary, integration tests by their own file."""
     found: set[str] = set()
-    for e in read_toml(root / TOUCHED_FILE).get("entry", []):
-        if e["language"] != "python":
+    entry, member = "", ""
+    for line in output.splitlines():
+        running = CARGO_RUNNING.match(line)
+        if running:
+            unit, file, binary = running.groups()
+            if unit:       # integration test binaries belong to the member of the unit binary listed just before them
+                member = next((m for m in (binary, binary.replace("_", "-")) if (root / folder / m / "Cargo.toml").exists()), None)
+                if member is None:
+                    raise AdapterError(f"{folder}: no workspace member folder for the test binary {binary}")
+            entry = f"{folder}/{member}/{file}"
             continue
-        data = coverage.get("files", {}).get(e["file"])
-        if data is None:
-            raise AdapterError(f"{e['file']}: no coverage data (the file was never imported by the run)")
-        lines = python_function_lines((root / e["file"]).read_text(), e["function"])
-        if lines is None:
-            raise AdapterError(f"{e['file']}::{e['function']}: no such function")
-        found |= tests_touching(data.get("contexts", {}), lines)
+        test = CARGO_TEST_LINE.match(line)
+        if test and entry:
+            found.add(f"{entry}::{test.group(1)}")
     return found
 
 
-TOUCHED_TESTS = REPORTS_DIR / "touched-tests.json"   # {language: [test ids]} written by the adapters, one language at a time
+def parse_vitest(root: Path, output: str) -> set[str]:
+    try:
+        rows = json.loads(output)
+        return {f"{Path(r['file']).resolve().relative_to(root.resolve()).as_posix()}::{r['name']}" for r in rows}
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        raise AdapterError(f"vitest list output is not usable: {exc}") from exc
+
+
+def run_listing(command: list[str], cwd: Path, language: str) -> str:
+    try:
+        done = subprocess.run(command, cwd=cwd, stdout=subprocess.PIPE, text=True,
+                              stderr=subprocess.STDOUT if language == "rust" else subprocess.PIPE)   # cargo prints headers on stderr
+    except (FileNotFoundError, NotADirectoryError) as exc:
+        raise AdapterError(f"{language}: cannot run {command[0]}: {exc}") from exc
+    if done.returncode != EXIT_OK:
+        tail = " | ".join((done.stderr or done.stdout).strip().splitlines()[-ERROR_TAIL_LINES:])
+        raise AdapterError(f"{language}: {' '.join(command[:3])} exited {done.returncode}: {tail}")
+    return done.stdout
 
 
 def list_tests(root: Path) -> dict[str, set[str]]:
-    """The tests that execute the touched set, as the per-language adapters last wrote them."""
-    path = root / TOUCHED_TESTS
-    if not path.exists():
-        raise AdapterError(f"{TOUCHED_TESTS} does not exist: run the adapters (adapt-python, ...) first")
-    return {language: set(ids) for language, ids in json.loads(path.read_text()).items()}
-
-
-def adapt_python(root: Path, sources: list[tuple[str, Path]]) -> Result:
-    """Read `coverage json --show-contexts` outputs, one per folder a run was made in (file keys and test ids are relative
-    to that folder, so both get the folder as a prefix), and store the Python tests that execute the touched functions.
-    Nothing is written unless every touched file was measured."""
-    result = Result()
-    merged_files: dict[str, dict] = {}
-    for prefix, coverage_json in sources:
-        for file, body in json.loads(coverage_json.read_text()).get("files", {}).items():
-            contexts = {line: [prefix + n if n else n for n in names] for line, names in body.get("contexts", {}).items()}
-            merged_files[prefix + file] = {"contexts": contexts}
-    try:
-        tests = python_touching_tests(root, {"files": merged_files})
-    except AdapterError as exc:
-        result.error("E-ADAPTER", "coverage", str(exc))
-        return result
-    path = root / TOUCHED_TESTS
-    current = json.loads(path.read_text()) if path.exists() else {}
-    current["python"] = sorted(t.split(":", 1)[1] for t in tests)
-    atomic_write(path, json.dumps(current, indent=JSON_INDENT, sort_keys=True) + "\n")
-    result.data = {"python": len(tests)}
-    return result
-
-
-FILE_USE_CASE_FILE = REFACTOR_DIR / "file_use_case.toml"   # [language] "<test file>" = "U<n>": the reviewed table behind assignments.toml
-
-
-def toml_string(value: str) -> str:
-    return json.dumps(value)        # a JSON string is a valid TOML basic string
-
-
-def render_assignments(assigned: dict[str, list[str]], unfit: list[dict]) -> str:
-    lines = ["# Written by `refactor.py assign-by-file` from file_use_case.toml; unfit entries are kept as recorded.", "", "[assignments]"]
-    for use_case in sorted(assigned):
-        body = ", ".join(toml_string(t) for t in sorted(assigned[use_case]))
-        lines.append(f"{use_case} = [{body}]")
-    for entry in unfit:
-        lines += ["", "[[unfit]]"] + [f"{k} = {toml_string(v)}" for k, v in entry.items()]
-    return "\n".join(lines) + "\n"
-
-
-def assign_by_file(root: Path) -> Result:
-    """Every touched test goes to the use case of its test file; a test file with no entry, or an entry naming an unknown
-    use case, stops the whole step with assignments.toml untouched. Tests already listed unfit are left to that list."""
-    result = Result()
-    use_cases = set(read_toml(root / USE_CASES_FILE).get("use_cases", {}))
-    table = read_toml(root / FILE_USE_CASE_FILE)
-    unfit = read_toml(root / ASSIGNMENTS_FILE).get("unfit", [])
-    unfit_tests = {e.get("test") for e in unfit}
-    for language, files in table.items():
-        for file, use_case in files.items():
-            if use_case not in use_cases:
-                result.fail("E-UNKNOWN-USE-CASE", f"{language}:{file}", use_case)
-    assigned: dict[str, list[str]] = {}
-    for language, ids in sorted(list_tests(root).items()):
-        for test_id in sorted(ids):
-            test = qualified(language, test_id)
-            if test in unfit_tests:
-                continue
-            parts = test_id.split("::")
-            keys = ["::".join(parts[:n]) for n in range(len(parts) - 1, 0, -1)]      # the longest prefix first
-            use_case = next((table[language][k] for k in keys if k in table.get(language, {})), None)
-            if use_case is None:
-                result.fail("E-FILE-UNMAPPED", parts[0], f"{language}: no entry in {FILE_USE_CASE_FILE}")
-            elif use_case in use_cases:
-                assigned.setdefault(use_case, []).append(test)
-    if result.exit_code == EXIT_OK:
-        atomic_write(root / ASSIGNMENTS_FILE, render_assignments(assigned, unfit))
-        result.data = {"counts": {u: len(t) for u, t in sorted(assigned.items())}}
-    write_report(root, "assign-by-file", result)
-    return result
-
-
-# ---- rust adapter: which tests belong to the touched files ------------------------------------------------------------
-
-RUST_RUNNING = re.compile(r"^\s*Running (unittests )?(\S+) \(target/debug/deps/([A-Za-z0-9_]+?)-[0-9a-f]+\)")
-RUST_TEST_LINE = re.compile(r"^(\S+): test$")
-RUST_SKIP_STEMS = {"main", "lib", "mod"}
-
-
-def rust_module_file(root: Path, crate_dir: str, entry_file: str, module: list[str]) -> str | None:
-    """The source file that holds a unit test's module: the longest module prefix that has a file (the rest is inline)."""
-    if not module:
-        return f"{crate_dir}/{entry_file}"
-    for end in range(len(module), 0, -1):
-        base = f"{crate_dir}/src/{'/'.join(module[:end])}"
-        for candidate in (f"{base}.rs", f"{base}/mod.rs"):
-            if (root / candidate).exists():
-                return candidate
-    return None
-
-
-def rust_touching_tests(root: Path, listing: str) -> set[str]:
-    """Tests of `cargo test -- --list` output that belong to a touched file: a unit test by its module's file, an
-    integration test by whether its text names a touched module. A static rule; report-deletion corrects it with facts."""
-    touched_files = {e["file"] for e in read_toml(root / TOUCHED_FILE).get("entry", []) if e["language"] == "rust"}
-    stems = {Path(f).stem if Path(f).stem not in RUST_SKIP_STEMS else Path(f).parent.name for f in touched_files}
-    found: set[str] = set()
-    crate_dir, kind, entry_file, integration_text = "", "", "", ""
-    for line in listing.splitlines():
-        running = RUST_RUNNING.match(line)
-        if running:
-            unit, entry_file, binary = running.group(1), running.group(2), running.group(3)
-            if unit:
-                crate_dir = f"tools/{binary.replace('_', '-')}"
-                if not (root / crate_dir).is_dir():
-                    raise AdapterError(f"{crate_dir}: no such crate folder (binary {binary})")
-            kind = "unit" if unit else "integration"
-            integration_text = "" if unit else (root / crate_dir / entry_file).read_text() if (root / crate_dir / entry_file).exists() else ""
+    """Every test the four runners list, by language, read from ops/refactor/runners.toml (a language not listed is not run)."""
+    config = read_toml(root / RUNNERS_FILE)
+    if not (root / RUNNERS_FILE).exists():
+        raise AdapterError(f"{RUNNERS_FILE} does not exist: it names each language's runner")
+    found: dict[str, set[str]] = {}
+    for language, spec in config.items():
+        if language == "shell":
+            found[language] = {p.relative_to(root).as_posix() for p in sorted(root.glob(spec["glob"])) if p.is_file()}
             continue
-        test = RUST_TEST_LINE.match(line)
-        if not test or not kind:
-            continue
-        name = test.group(1)
-        if kind == "unit":
-            segments = name.split("::")
-            module = segments[: segments.index("tests")] if "tests" in segments else segments[:-1]
-            file = rust_module_file(root, crate_dir, entry_file, module)
-            if file is None:
-                raise AdapterError(f"{crate_dir}: no source file for the module of test {name}")
-            if file in touched_files:
-                found.add(f"{crate_dir}/{entry_file}::{name}")
-        elif any(re.search(rf"\b{re.escape(stem)}\b", integration_text) for stem in stems):
-            found.add(f"{crate_dir}/{entry_file}::{name}")
+        folder = spec["dir"]
+        output = run_listing(spec["command"], root / folder, language)
+        if language == "python":
+            found[language] = parse_pytest(folder, output)
+        elif language == "rust":
+            found[language] = parse_cargo_list(root, folder, output)
+        elif language == "typescript":
+            found[language] = parse_vitest(root, output)
+        else:
+            raise AdapterError(f"{RUNNERS_FILE}: unknown language {language}")
     return found
-
-
-def adapt_rust(root: Path, listing: Path) -> Result:
-    result = Result()
-    try:
-        tests = rust_touching_tests(root, listing.read_text())
-    except AdapterError as exc:
-        result.error("E-ADAPTER", str(listing), str(exc))
-        return result
-    path = root / TOUCHED_TESTS
-    current = json.loads(path.read_text()) if path.exists() else {}
-    current["rust"] = sorted(tests)
-    atomic_write(path, json.dumps(current, indent=JSON_INDENT, sort_keys=True) + "\n")
-    result.data = {"rust": len(tests)}
-    return result
-
-
-# ---- typescript adapter: vitest list and playwright list -----------------------------------------------------------------
-
-PLAYWRIGHT_LINE = re.compile(r"^\s+(\S+\.(?:spec|test)\.ts):\d+:\d+ › (.+)$")
-E2E_DIR_DEFAULT = "tools/benchmarker/e2e"
-
-
-def typescript_touching_tests(root: Path, vitest_json: str, playwright_list: str, e2e_dir: str = E2E_DIR_DEFAULT) -> set[str]:
-    """Vitest tests whose file is named for, or imports, a touched module; every Playwright test, because each one drives the
-    whole app through the server. A static rule; report-deletion corrects it with facts."""
-    stems = {Path(e["file"]).stem for e in read_toml(root / TOUCHED_FILE).get("entry", []) if e["language"] == "typescript"}
-    root_resolved = root.resolve()
-    found: set[str] = set()
-    touching: dict[str, bool] = {}
-    for row in json.loads(vitest_json):
-        try:
-            rel = Path(row["file"]).resolve().relative_to(root_resolved).as_posix()
-        except ValueError:
-            raise AdapterError(f"{row['file']}: a vitest file outside the repository") from None
-        if rel not in touching:
-            text = (root / rel).read_text() if (root / rel).exists() else ""
-            named = Path(rel).name.split(".")[0] in stems
-            imported = any(re.search(rf"""["'](?:[^"']*/)?{re.escape(stem)}(?:\.ts)?["']""", text) for stem in stems)
-            touching[rel] = named or imported
-        if touching[rel]:
-            found.add(f"{rel}::{row['name']}")
-    for line in playwright_list.splitlines():
-        m = PLAYWRIGHT_LINE.match(line)
-        if m:
-            found.add(f"{e2e_dir}/{m.group(1)}::{m.group(2)}")
-    return found
-
-
-def adapt_typescript(root: Path, vitest_json: Path, playwright_list: Path, e2e_dir: str) -> Result:
-    result = Result()
-    try:
-        tests = typescript_touching_tests(root, vitest_json.read_text(), playwright_list.read_text(), e2e_dir)
-    except AdapterError as exc:
-        result.error("E-ADAPTER", str(vitest_json), str(exc))
-        return result
-    path = root / TOUCHED_TESTS
-    current = json.loads(path.read_text()) if path.exists() else {}
-    current["typescript"] = sorted(tests)
-    atomic_write(path, json.dumps(current, indent=JSON_INDENT, sort_keys=True) + "\n")
-    result.data = {"typescript": len(tests)}
-    return result
 
 
 # ---- inputs the runners' adapters write (neutral JSON), and the machine probe -------------------------------------------
@@ -1005,15 +839,6 @@ def main(argv: list[str] | None = None) -> int:
         sub.add_parser(name, help=text)
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("advance", help="move to the next stage if its check passes").add_argument("to")
-    sub.add_parser("assign-by-file", help=f"expand {FILE_USE_CASE_FILE} into assignments.toml")
-    sub.add_parser("adapt-rust", help="store the Rust tests of the touched files, from `cargo test --workspace -- --list` output").add_argument("listing", type=Path)
-    ts = sub.add_parser("adapt-typescript", help="store the TypeScript tests of the touched files, from `vitest list --json` and `playwright test --list`")
-    ts.add_argument("vitest_json", type=Path)
-    ts.add_argument("playwright_list", type=Path)
-    ts.add_argument("--e2e-dir", default=E2E_DIR_DEFAULT)
-    adapt = sub.add_parser("adapt-python", help="store the Python tests that execute the touched set, from coverage contexts")
-    adapt.add_argument("sources", nargs="+", metavar="FOLDER=FILE",
-                       help="the folder (relative to the repository root, with a trailing /) a coverage run was made in, and its JSON")
     args = parser.parse_args(argv)
     root = args.root
     lister = list_tests                                   # looked up at call time so tests can replace it
@@ -1042,14 +867,6 @@ def main(argv: list[str] | None = None) -> int:
                 result.error("E-RESULTS-MISSING", str(RESULTS_INPUT), "no results to read")
             else:
                 result = report_deletion(root, results)
-        elif args.command == "adapt-typescript":
-            result = adapt_typescript(root, args.vitest_json, args.playwright_list, args.e2e_dir)
-        elif args.command == "adapt-rust":
-            result = adapt_rust(root, args.listing)
-        elif args.command == "assign-by-file":
-            result = assign_by_file(root)
-        elif args.command == "adapt-python":
-            result = adapt_python(root, [(folder, Path(file)) for folder, _, file in (src.partition("=") for src in args.sources)])
         elif args.command == "advance":
             result = move_stage(root, args.to, default_justifiers(lister))
         else:

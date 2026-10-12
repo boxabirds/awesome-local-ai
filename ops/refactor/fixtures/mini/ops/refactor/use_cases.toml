@@ -1,0 +1,19 @@
+# The fourteen use cases of the data-separation refactor, by actor (docs/designs/operational-data-separation.md,
+# "Refactoring method", step 1). Each existing test is assigned to exactly one of them (assignments.toml); a test that
+# fits none is listed as unfit with a decision. Fixed by the PRD of story 1: not a place to add a fifteenth.
+
+[use_cases]
+U1 = "the harness records a story"
+U2 = "the node serves run files"
+U3 = "the collector fills the lake"
+U4 = "the ingest fills the warehouse and analytics"
+U5 = "the benchmarker shows state"
+U6 = "the gallery reviews builds"
+U7 = "the monitor reads records"
+U8 = "a judge package goes out and results come back"
+U9 = "a job references another run (known-good, baselines)"
+U10 = "finalize and rescore write the score of record"
+U11 = "export"
+U12 = "backup and restore"
+U13 = "node setup"
+U14 = "the release gate"

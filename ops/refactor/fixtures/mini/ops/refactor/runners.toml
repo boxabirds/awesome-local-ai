@@ -1,0 +1,14 @@
+[python]
+dir = "py"
+command = ["uv", "run", "--quiet", "--with", "pytest", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
+
+[rust]
+dir = "rs"
+command = ["cargo", "test", "--workspace", "--", "--list"]
+
+[typescript]
+dir = "ts"
+command = ["bun", "x", "vitest", "list", "--json"]
+
+[shell]
+glob = "tests/*-test.sh"
