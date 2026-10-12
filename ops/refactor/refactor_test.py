@@ -69,6 +69,7 @@ def test_tc02_a_test_in_no_use_case_is_unassigned(tmp_path):
 def test_tc03_a_test_under_two_use_cases_is_a_duplicate_naming_both(tmp_path):
     root = make_root(tmp_path, SIX_ASSIGNED.replace('U2 = ["python:b.py::t1"', 'U2 = ["python:a.py::t1", "python:b.py::t1"'))
     result = R.check_register(root, lister(python=SIX_LISTED))
+    assert result.exit_code == R.EXIT_FAIL
     dup = [p for p in result.problems if p.code == "E-DUPLICATE"]
     assert len(dup) == 1 and dup[0].subject == "python:a.py::t1" and "U1" in dup[0].detail and "U2" in dup[0].detail
 
@@ -76,13 +77,15 @@ def test_tc03_a_test_under_two_use_cases_is_a_duplicate_naming_both(tmp_path):
 def test_tc04_an_assignment_that_no_runner_lists_is_stale(tmp_path):
     root = make_root(tmp_path, SIX_ASSIGNED)
     result = R.check_register(root, lister(python=SIX_LISTED[:-1]))
+    assert result.exit_code == R.EXIT_FAIL
     assert [(p.code, p.subject) for p in result.problems] == [("E-STALE", "python:c.py::t2")]
 
 
 def test_tc05_an_assignment_under_an_unknown_use_case_is_refused(tmp_path):
     root = make_root(tmp_path, SIX_ASSIGNED + 'U15 = ["python:d.py::t1"]\n')
     result = R.check_register(root, lister(python=SIX_LISTED + ["d.py::t1"]))
-    assert "E-UNKNOWN-USE-CASE" in codes(result) and result.exit_code == R.EXIT_FAIL
+    assert result.exit_code == R.EXIT_FAIL
+    assert [(p.code, p.subject) for p in result.problems if p.code == "E-UNKNOWN-USE-CASE"] == [("E-UNKNOWN-USE-CASE", "U15")]
 
 
 def test_tc06_an_unfit_test_with_a_decision_and_a_reason_is_accepted_and_reported(tmp_path):
@@ -98,14 +101,23 @@ def test_tc07_an_unfit_entry_without_a_valid_decision_and_a_reason_is_refused(tm
     unfit = f'\n[[unfit]]\ntest = "python:d.py::t1"\ndecision = "{decision}"\nreason = "{reason}"\n'
     root = make_root(tmp_path, SIX_ASSIGNED + unfit)
     result = R.check_register(root, lister(python=SIX_LISTED + ["d.py::t1"]))
-    assert "E-UNFIT-NO-DECISION" in codes(result) and result.exit_code == R.EXIT_FAIL
+    assert result.exit_code == R.EXIT_FAIL
+    assert [(p.code, p.subject) for p in result.problems if p.code == "E-UNFIT-NO-DECISION"] == [("E-UNFIT-NO-DECISION", "python:d.py::t1")]
 
 
 def test_tc08_a_language_with_touched_files_and_no_listed_tests_is_refused(tmp_path):
     touched = '[[entry]]\nlanguage = "rust"\nfile = "tools/dbench/src/collect.rs"\nfunction = "pull"\nclasses = ["B"]\n'
     root = make_root(tmp_path, SIX_ASSIGNED, touched)
     result = R.check_register(root, lister(python=SIX_LISTED))
+    assert result.exit_code == R.EXIT_FAIL
     assert [(p.code, p.subject) for p in result.problems] == [("E-NO-TESTS", "rust")]
+
+
+def test_boundary_the_fourteenth_use_case_is_accepted_and_the_fifteenth_is_not(tmp_path):
+    fourteenth = make_root(tmp_path / "a", SIX_ASSIGNED + 'U14 = ["python:d.py::t1"]\n')
+    assert R.check_register(fourteenth, lister(python=SIX_LISTED + ["d.py::t1"])).exit_code == R.EXIT_OK
+    fifteenth = make_root(tmp_path / "b", SIX_ASSIGNED + 'U15 = ["python:d.py::t1"]\n')
+    assert R.check_register(fifteenth, lister(python=SIX_LISTED + ["d.py::t1"])).exit_code == R.EXIT_FAIL
 
 
 def test_tc10_a_failing_check_writes_its_report_and_leaves_assignments_untouched(tmp_path):
