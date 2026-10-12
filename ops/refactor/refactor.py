@@ -389,7 +389,7 @@ ALLOWED_MOVES: dict[tuple[str, str], str] = {
     ("Matrices", "Proved"): "check-matrix U1 to U14, check-coverage",
     ("Proved", "Deleted"): "check-stubs",
     BACK_EDGE: "report-deletion: an assigned test passed",
-    ("Deleted", "RedContracts"): "report-deletion, check-fates",
+    ("Deleted", "RedContracts"): "report-deletion, fates (every old test has a fate; every new contract test seen red)",
     ("RedContracts", "Reimplemented"): "the whole suite is green",
     ("Reimplemented", "Compared"): "reports/parity.json written by the parity story",
 }
@@ -1055,7 +1055,7 @@ def default_justifiers(lister: Lister) -> dict[tuple[str, str], Justifier]:
         held = Result()
         if not report.exists() or json.loads(report.read_text()).get("exit_code") != EXIT_OK:
             held.fail("E-NO-DELETION-REPORT", str(report.relative_to(root)), "report-deletion has not passed")
-        return merged(held, check_fates(root))
+        return merged(held, check_fates(root), check_contracts(root, read_results(root)))
 
     def suite_green(root: Path) -> Result:
         found = Result()

@@ -1648,3 +1648,81 @@ def test_tc44_one_of_three_already_passing_is_not_red_and_is_named(coverage_tool
     report = json.loads((root / "ops/refactor/reports/contracts.json").read_text())
     assert done.returncode == R.EXIT_FAIL
     assert [(p["code"], p["subject"]) for p in report["problems"]] == [("E-CONTRACT-NOT-RED", f"python:{NEW_PY}")]
+
+
+# ---- stage: entering RedContracts needs the contracts seen red (task 1.7) ----------------------------------------------------
+
+def red_contracts_root(tmp_path: Path, contract_result: str) -> Path:
+    root = deletion_root(tmp_path)           # stage Deleted, one assigned test, a stub in place
+    write(root, "ops/refactor/reports/deletion.json", json.dumps({"exit_code": 0, "problems": []}))
+    write(root, "ops/refactor/assignments.toml", '[assignments]\nU1 = ["python:t_a"]\n')
+    write(root, "ops/refactor/fates.toml", fate_block("python:t_a", "kept"))
+    write(root, "ops/refactor/new_contracts.toml", '[areas]\nonly = "the only area"\n[[contract]]\narea = "only"\ntest = "python:n.py::new"\n')
+    write(root, "ops/refactor/runners.toml", '[python]\ndir = "."\ncommand = ["true"]\n[python.results]\nformat = "junit"\ncommand = ["true"]\n')
+    body = '<failure message="x">t</failure>' if contract_result == "fails" else ""
+    write(root, "ops/refactor/reports/results-python.xml",
+          f'<testsuites><testcase classname="n" name="new" file="n.py">{body}</testcase></testsuites>')
+    return root
+
+
+def test_the_move_into_red_contracts_needs_every_new_contract_test_seen_failing(tmp_path):
+    ok = red_contracts_root(tmp_path / "a", "fails")
+    assert cli(ok, "stage", "RedContracts") == R.EXIT_OK and stage_of(ok) == "RedContracts"
+    not_red = red_contracts_root(tmp_path / "b", "passes")
+    assert cli(not_red, "stage", "RedContracts") == R.EXIT_FAIL and stage_of(not_red) == "Deleted"
+
+
+# ---- integration: justified moves and atomic writes (task 1.21, TC-48 and TC-53) --------------------------------------------
+
+MINI_TEST = "python:py/test_core.py::test_record_keeps_only_what_fits_under_the_limit"
+
+
+def mini_at_matrices(tmp_path: Path) -> Path:
+    """The mini project at stage Matrices with a one-cell matrix for each of the fourteen use cases."""
+    root = fresh_mini(tmp_path)
+    (root / "ops/refactor/stage.toml").write_text('stage = "Matrices"\n')
+    for n in range(1, 15):
+        (root / f"ops/refactor/matrices/U{n}.toml").parent.mkdir(exist_ok=True)
+        (root / f"ops/refactor/matrices/U{n}.toml").write_text(f'[dimensions]\nonly = ["x"]\n\n[[cell]]\nat = ["x"]\ntest = "{MINI_TEST}"\n')
+    return root
+
+
+def test_tc48_a_move_from_matrices_to_proved_while_coverage_fails_is_not_justified_and_the_stage_stays(coverage_tools, tmp_path):
+    root = mini_at_matrices(tmp_path)
+    core = root / "py/minipy/core.py"
+    core.write_text(core.read_text() + "\n\ndef never_called():\n    return 'uncovered'\n")
+    touched = root / "ops/refactor/touched_set.toml"
+    touched.write_text(touched.read_text() + '\n[[entry]]\nlanguage = "python"\nfile = "py/minipy/core.py"\nfunction = "never_called"\nclasses = ["A"]\n')
+    done = tool(root, "stage", "Proved")
+    assert done.returncode == R.EXIT_FAIL and "E-NOT-JUSTIFIED" in done.stdout and "E-BELOW" in done.stdout
+    assert (root / "ops/refactor/stage.toml").read_text() == 'stage = "Matrices"\n'
+
+
+def test_tc48_positive_with_the_matrices_and_coverage_green_the_same_move_succeeds(coverage_tools, tmp_path):
+    root = mini_at_matrices(tmp_path)
+    done = tool(root, "stage", "Proved")
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    assert tool(root, "stage").stdout.strip() == "Proved"
+
+
+KILL_POINTS = {
+    "before the data is flushed": "os.fsync",
+    "before the rename": "os.replace",
+    "just after the rename": "after-replace",
+}
+
+
+@pytest.mark.parametrize("where", sorted(KILL_POINTS))
+def test_tc53_killed_at_each_point_of_the_write_the_file_is_whole_old_or_whole_new_never_partial(tmp_path, where):
+    target = tmp_path / "stage.toml"
+    old, new = 'stage = "Inventory"\n', 'stage = "Matrices"\n' + "# padding to make a partial write visible\n" * 200
+    target.write_text(old)
+    point = KILL_POINTS[where]
+    kill = "os.kill(os.getpid(), signal.SIGKILL)"
+    patch = (f"_real = os.replace\ndef _replace(*a, **k):\n    _real(*a, **k)\n    {kill}\nos.replace = _replace\n" if point == "after-replace"
+             else f"os.{point.split('.')[1]} = lambda *a, **k: {kill}\n")
+    script = ("import os, signal, sys, pathlib\nsys.path.insert(0, %r)\nimport refactor as R\n%s"
+              "R.atomic_write(pathlib.Path(%r), %r)\n" % (str(Path(R.__file__).parent), patch, str(target), new))
+    proc = subprocess.run([sys.executable, "-c", script])
+    assert proc.returncode != 0
+    assert target.read_text() in (old, new)
