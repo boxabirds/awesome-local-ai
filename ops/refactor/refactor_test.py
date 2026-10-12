@@ -2110,3 +2110,22 @@ def test_a_branch_target_written_as_jump_to_line_is_shown_as_a_plain_arc(tmp_pat
     result = coverage_result(tmp_path, entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD},
                              python={"src/a.py": lines(ALL_HIT, [(3, "0:jump to line 4", True), (3, "0:jump to line 5", False)])})
     assert result.problems[0].detail == "1 of 2 branches (3->5)"
+
+
+def test_check_coverage_can_be_limited_to_one_language_and_runs_no_other(tmp_path):
+    touched = entry_toml("python", "src/a.py", "record") + entry_toml("rust", "src/a.rs", "pull")
+    root = make_root(tmp_path, touched=touched)
+    write(root, "src/a.py", PY_RECORD); write(root, "src/a.rs", RS_PULL)
+    ran = []
+    def runner(root, language, spec):
+        ran.append(language)
+        return {"src/a.py": lines(ALL_HIT)} if language == "python" else {}
+    result = R.check_coverage(root, runner, languages={"python"})
+    assert ran == ["python"] and result.exit_code == R.EXIT_OK
+    assert list(result.data["measured"]) == ["src/a.py::record"]
+
+
+def test_the_command_line_takes_language_and_rejects_one_the_tool_does_not_know(tmp_path):
+    root = make_root(tmp_path)
+    with pytest.raises(SystemExit):
+        cli(root, "check-coverage", "--language", "cobol")

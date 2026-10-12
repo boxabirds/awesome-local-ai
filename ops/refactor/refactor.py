@@ -903,14 +903,15 @@ def run_coverage(root: Path, language: str, spec: dict) -> dict[str, FileLines]:
     return parse_lcov(root, spec["dir"], out.read_text())
 
 
-def check_coverage(root: Path, runner: CoverageRunner = run_coverage) -> Result:
+def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages: set[str] | None = None) -> Result:
     """100% of the lines and of the branches inside every touched function, measured by running each language's suite under its
     tool (the owner approved the function level on 12 Oct 2026: the refactor deletes functions, not files)."""
     result = Result()
     specs = read_toml(root / RUNNERS_FILE)
     touched: dict[str, list[dict]] = {}
     for e in read_toml(root / TOUCHED_FILE).get("entry", []):
-        touched.setdefault(e["language"], []).append(e)
+        if languages is None or e["language"] in languages:
+            touched.setdefault(e["language"], []).append(e)
     not_measured: dict[str, str] = {}
     measured_counts: dict[str, list[int]] = {}
     for language, entries in sorted(touched.items()):
@@ -1342,6 +1343,7 @@ def main(argv: list[str] | None = None) -> int:
     build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
     sub.choices["fates"].add_argument("--render", help="write the fates table (Markdown) to this path")
     sub.add_parser("guard-idle", help="exit 0 when no job is running on the node (from `dbench status --json NODE`), 1 naming the job and story, 2 when unknown").add_argument("node")
+    sub.choices["check-coverage"].add_argument("--language", choices=LANGUAGES, action="append", help="measure only this language (repeatable)")
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("stage", help="print the current stage; with a stage name, move to it if its justifying check passes").add_argument("to", nargs="?")
     args = parser.parse_args(argv)
@@ -1352,7 +1354,7 @@ def main(argv: list[str] | None = None) -> int:
         "check-touched-set": lambda: check_touched(root),
         "check-stubs": lambda: check_stubs(root),
         "fates": lambda: merged(check_fates(root), check_contracts(root, read_results(root))),
-        "check-coverage": lambda: check_coverage(root),
+        "check-coverage": lambda: check_coverage(root, languages=set(args.language) if args.language else None),
         "run-suites": lambda: run_suites(root),
         "measure-touch": lambda: measure_touch(root),
     }
