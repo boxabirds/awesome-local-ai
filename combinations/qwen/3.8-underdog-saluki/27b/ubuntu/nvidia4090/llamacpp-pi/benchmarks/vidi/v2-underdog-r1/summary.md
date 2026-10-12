@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 3/5 | 0 | 19 | 22/36 |
 | 7 | 1/8 | 0 | 0 | 23/44 |
 | 8 | 5/7 | 1 | 4 | 31/51 |
+| 9 | 2/6 | 0 | 2 | 35/57 |
 
-**New work** 23/47, **regressions** 18, **repairs** 23, **cumulative** 31/51.
+**New work** 25/53, **regressions** 18, **repairs** 25, **cumulative** 35/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | PARTIAL (red), on partial 3 | 237.0 | None | None | None | — | — | red | 22/36 |  | 3 / 0 | 13 | — | throttled 0%, server peak 26 GB |
 | 7 | Select, move, resize and delete several objects at once | PARTIAL (red), on partial 3, 5 | 18.0 | None | None | None | — | — | red | 23/44 |  | 0 / 1 | 0 | — | throttled 0%, server peak 26 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | PARTIAL (red), on partial 3, 5, 7 | 240.0 | None | None | None | — | — | red | 31/51 |  | 0 / 0 | 14 | — | throttled 0%, server peak 26 GB |
+| 9 | Write free text anywhere on the board | PARTIAL (red), on partial 3, 5, 7, 8 | 110.9 | None | None | None | — | — | red | 35/57 |  | 0 / 1 | 8 | — | throttled 0%, server peak 26 GB |
 
-**Totals:** 7 stories, 747 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/7, final acceptance 31/51, stalled 1, partial 4, 12378 lines in src+tests.
+**Totals:** 8 stories, 858 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/8, final acceptance 35/57, stalled 1, partial 5, 14960 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -40,6 +42,8 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 7, built on partial 3, 5: held-out tests on the partial base 6/24; partial story's tests fixed 1, regressed 0; 0 stub-like lines added to src/.
 - **Story 8 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **red**: gate red, tasks not verified [2, 5, 6, 7, 8, 9, 10, 11] (implementation: [2, 8, 10]), held-out 5/7 (floor 0.0).
 - Story 8, built on partial 3, 5, 7: held-out tests on the partial base 14/31; partial story's tests fixed 5, regressed 1; 0 stub-like lines added to src/.
+- **Story 9 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] (implementation: [2, 4, 6, 8]), held-out 2/6 (floor 0.333).
+- Story 9, built on partial 3, 5, 7, 8: held-out tests on the partial base 18/37; partial story's tests fixed 7, regressed 1; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -54,6 +58,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | harness snapshot (agent left work uncommitted) | 2715 / 290 | `board-room.ts` (368), `board-store.ts` (276), `Board.tsx` (196), `App.tsx` (177), `styles.css` (175), `SharePanel.tsx` (156), +21 more |
 | 7 | — | 0 / 0 | — |
 | 8 | harness snapshot (agent left work uncommitted) | 5018 / 357 | `useTransformGesture.ts` (299), `board-model.ts` (250), `geometry.ts` (204), `Board.tsx` (194), `StickyNote.tsx` (189), `useBoardKeys.ts` (161), +20 more |
+| 9 | harness snapshot (agent left work uncommitted) | 2850 / 268 | `TextEditor.tsx` (221), `StickyTextEditor.tsx` (177), `text.ts` (167), `textLayout.ts` (126), `TextObject.tsx` (117), `useTransformGesture.ts` (100), +17 more |
 
 ### Earlier stories broken or fixed
 
@@ -67,6 +72,8 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 4: 0/4 → 1/4; fixed 1
 - **Story 8 broke 1, fixed 4** earlier held-out tests (harness: snapshot after story 8 (uncommitted agent work)). Source files it changed most: `useTransformGesture.ts` (299), `board-model.ts` (250), `geometry.ts` (204), `Board.tsx` (194), `StickyNote.tsx` (189), `useBoardKeys.ts` (161), +20 more.
   - story 7: 1/8 → 4/8; broke 1; fixed 4.
+- **Story 9 broke 0, fixed 2** earlier held-out tests (harness: snapshot after story 9 (uncommitted agent work)). Source files it changed most: `TextEditor.tsx` (221), `StickyTextEditor.tsx` (177), `text.ts` (167), `textLayout.ts` (126), `TextObject.tsx` (117), `useTransformGesture.ts` (100), +17 more.
+  - story 7: 4/8 → 6/8; fixed 2
 
 ### Interruptions and dead time
 

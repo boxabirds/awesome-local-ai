@@ -1,3 +1,54 @@
+commit ae6a5b4b39f260db014580899d61c812164c0347
+vidi-agent  Mon Oct 12 18:16:21 2026 +0100
+
+    harness: snapshot after story 9 (uncommitted agent work)
+
+
+ PROGRESS.md                             |   2 +-
+ src/client/board/Board.tsx              |  74 ++++++-
+ src/client/board/SelectionBar.tsx       |  91 +++++++--
+ src/client/board/SelectionOverlay.tsx   |  18 +-
+ src/client/board/Toolbar.tsx            |  56 +++++-
+ src/client/board/useBoardDoc.ts         |   2 +
+ src/client/board/useTool.ts             |  67 +++++++
+ src/client/board/useTransformGesture.ts | 100 ++++++++--
+ src/client/canvas/BoardViewport.tsx     |  22 ++-
+ src/client/identity/names.ts            |  24 +++
+ src/client/identity/useIdentity.ts      |  70 +++++++
+ src/client/objects/StickyText.ts        |  64 +-----
+ src/client/objects/StickyTextEditor.tsx | 177 +++--------------
+ src/client/objects/TextEditor.tsx       | 221 +++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 117 +++++++++++
+ src/client/objects/TextToolbar.tsx      |  64 ++++++
+ src/client/objects/registry.tsx         |  27 ++-
+ src/client/objects/textLayout.ts        | 126 ++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  96 +++++++++
+ src/client/styles.css                   |  93 +++++++++
+ src/shared/config.ts                    |  25 +++
+ src/shared/objects/text.ts              | 167 ++++++++++++++++
+ src/shared/text-edit.ts                 |  61 ++++++
+ tests/component/StickyNote.test.tsx     |   3 +-
+ tests/component/TextBoxSync.test.tsx    | 123 ++++++++++++
+ tests/component/TextObject.test.tsx     | 328 +++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 253 ++++++++++++++++++++++++
+ tests/e2e/diag.spec.ts                  |  28 +++
+ tests/e2e/pgtest.spec.ts                |   3 +-
+ tests/e2e/text.spec.ts                  | 336 ++++++++++++++++++++++++++++++++
+ tests/e2e/tmp-app.tsx                   |   6 +
+ tests/e2e/tmp-resize.spec.ts            |   4 +-
+ tests/e2e/undo.spec.ts                  |   4 +-
+ tests/fixtures/texts.ts                 |   6 +
+ tests/unit/text-model.test.ts           | 158 +++++++++++++++
+ tests/unit/textLayout.test.ts           | 102 ++++++++++
+ 36 files changed, 2850 insertions(+), 268 deletions(-)
+commit 26f36a949746aa39cdfe0ceb97a080807b566bc9
+vidi-agent  Mon Oct 12 16:18:48 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit f646214c9904b794ff1c285d9a7011e90c54d7a3
 vidi-agent  Mon Oct 12 16:18:33 2026 +0100
 
