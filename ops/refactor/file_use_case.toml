@@ -21,6 +21,7 @@
 "benchmarks/spec-bench/harness/test_agent_world.py" = "U1"
 "benchmarks/spec-bench/harness/test_provenance.py" = "U1"
 "benchmarks/spec-bench/harness/test_tagsuite.py" = "U1"
+"benchmarks/spec-bench/harness/test_u1_matrix.py" = "U1"
 # U7 the monitor reads records
 "ops/monitor/test_monitor.py" = "U7"
 # U8 a judge package goes out and results come back
@@ -55,9 +56,11 @@
 "tools/dbench/tests/release.rs" = "U14"
 "tools/dbench/tests/server.rs" = "U2"
 "tools/vidi-gallery/src/main.rs" = "U6"
+"tools/vidi-gallery/tests/gallery.rs" = "U6"
 
 [typescript]
 # U5 the benchmarker shows state: its server tests and every end-to-end spec
+"tools/benchmarker/server/main.test.ts" = "U5"
 "tools/benchmarker/e2e/activity-page.spec.ts" = "U5"
 "tools/benchmarker/e2e/benchmarker.spec.ts" = "U5"
 "tools/benchmarker/e2e/breadcrumb-pinned.spec.ts" = "U5"

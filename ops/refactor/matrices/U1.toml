@@ -10,3 +10,91 @@ heldout_title = ["present", "absent"]
 size = ["under", "over"]
 results_root = ["set and valid", "unset", "a git checkout", "inside one"]
 run_position = ["inside root", "outside"]
+
+[[cell]]
+at = ["*", "*", "*", "*", "*", "*", "a git checkout", "*"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_a_checkout_the_process_may_not_record_in_is_refused"
+
+[[cell]]
+at = ["*", "*", "*", "*", "*", "*", "set and valid", "outside"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_a_run_outside_a_valid_root_is_refused"
+
+[[cell]]
+at = ["*", "*", "*", "*", "*", "*", "unset", "outside"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_a_run_outside_the_default_root_is_refused"
+
+[[cell]]
+at = ["*", "*", "*", "*", "*", "*", "inside one", "outside"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_a_run_outside_a_root_inside_a_checkout_is_refused_for_being_outside"
+
+[[cell]]
+at = ["*", "*", "*", "*", "*", "*", "inside one", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_a_root_that_is_not_the_top_of_a_checkout_is_refused"
+
+[[cell]]
+at = ["*", "*", "*", "*", "*", "*", "unset", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_with_the_root_unset_the_default_root_records_like_a_valid_one"
+
+[[cell]]
+at = ["*", "*", "present", "present", "present", "under", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[present-present-present-under]"
+
+[[cell]]
+at = ["*", "*", "present", "present", "present", "over", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[present-present-present-over]"
+
+[[cell]]
+at = ["*", "*", "present", "present", "absent", "under", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[present-present-absent-under]"
+
+[[cell]]
+at = ["*", "*", "present", "present", "absent", "over", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[present-present-absent-over]"
+
+[[cell]]
+at = ["*", "*", "present", "absent", "present", "under", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[present-absent-present-under]"
+
+[[cell]]
+at = ["*", "*", "present", "absent", "present", "over", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[present-absent-present-over]"
+
+[[cell]]
+at = ["*", "*", "present", "absent", "absent", "under", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[present-absent-absent-under]"
+
+[[cell]]
+at = ["*", "*", "present", "absent", "absent", "over", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[present-absent-absent-over]"
+
+[[cell]]
+at = ["*", "*", "absent", "present", "present", "under", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[absent-present-present-under]"
+
+[[cell]]
+at = ["*", "*", "absent", "present", "present", "over", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[absent-present-present-over]"
+
+[[cell]]
+at = ["*", "*", "absent", "present", "absent", "under", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[absent-present-absent-under]"
+
+[[cell]]
+at = ["*", "*", "absent", "present", "absent", "over", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[absent-present-absent-over]"
+
+[[cell]]
+at = ["*", "*", "absent", "absent", "present", "under", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[absent-absent-present-under]"
+
+[[cell]]
+at = ["*", "*", "absent", "absent", "present", "over", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[absent-absent-present-over]"
+
+[[cell]]
+at = ["*", "*", "absent", "absent", "absent", "under", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[absent-absent-absent-under]"
+
+[[cell]]
+at = ["*", "*", "absent", "absent", "absent", "over", "set and valid", "inside root"]
+test = "python:benchmarks/spec-bench/harness/test_u1_matrix.py::test_u1_records_in_a_valid_root[absent-absent-absent-over]"
