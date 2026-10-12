@@ -1,0 +1,104 @@
+# What counts as "touched" by the operational-data-separation refactor, by class (docs/designs/operational-data-separation.md,
+# sections A to E and "Refactoring method"). A function whose text matches a pattern of a class is proposed for the
+# touched set under that class; check-touched fails if the committed set differs from the scan.
+#   A  identity: run ids and run paths derived from a git checkout
+#   B  node side: reads other runs or inputs through git (fetch, tree listing, origin/main)
+#   C  host side and the record path: commits, pushes, rebases
+#   D  held-out detail, audits and judges: only where the source moves (decided entry by entry)
+#   E  the two repositories: names of the private repository and the layout of a checkout
+#   W  git inside the agent's own workspace: out of scope by decision; its functions are never in the set
+
+[sources]
+python = [
+  "benchmarks/spec-bench/harness/*.py",
+  "ops/monitor/*.py",
+  "ops/backup/*.py",
+]
+rust = [
+  "tools/dbench/src/**/*.rs",
+  "tools/vidi-gallery/src/**/*.rs",
+]
+typescript = [
+  "tools/benchmarker/server/*.ts",
+  "tools/benchmarker/shared/*.ts",
+]
+shell = [
+  "benchmarks/spec-bench/harness/*.sh",
+  "lib/*.sh",
+  "setup-node.sh",
+]
+exclude = ["test_*.py", "conftest.py", "*.test.ts"]
+
+[classes.A]
+patterns = [
+  'relative_to\(REPO_ROOT',
+  'RUN_RE\b',
+  'work_dir_name|work_id\b',
+  '-opencode/',
+]
+
+[classes.B]
+patterns = [
+  '''git['", \[]+(fetch|pull|ls-tree|cat-file|show|ls-files|log)\b''',
+  'Command::new\("git"\)[\s\S]{0,300}?"(fetch|pull|ls-tree|cat-file|show|ls-files|log)"',
+  'origin/main',
+  'git_pull',
+]
+
+[classes.C]
+patterns = [
+  '''git['", \[]+(add|commit|push|rebase|reset|checkout)\b''',
+  'Command::new\("git"\)[\s\S]{0,300}?"(add|commit|push|rebase)"',
+  'push_with_rebase|record_story|record_private',
+]
+
+[classes.D]
+patterns = [
+  'copy_private|private_copy|repo_of\b',
+]
+
+[classes.E]
+patterns = [
+  'awesome-local-ai-bench-private',
+  'private_repo|private_version',
+]
+
+[classes.W]
+functions = ["setup_workspace", "restore_spec", "begin_progress_file", "story_finished", "bundle"]
+
+# Functions the design names that a text pattern cannot see: they resolve a run's location or read other runs
+# without calling git. Each is checked to exist (E-NAMED-MISSING), so a rename cannot drop one silently.
+[named]
+A = [
+  "tools/benchmarker/server/domain.ts::findRuns",
+]
+B = [
+  "benchmarks/spec-bench/harness/drive.py::known_good_base",
+  "benchmarks/spec-bench/harness/progress.py::baselines",
+  "benchmarks/spec-bench/harness/logscan.py::known_runs",
+  "benchmarks/spec-bench/harness/roots.py::off_limits",
+  "tools/dbench/src/job.rs::reference_run_problem",
+  "tools/dbench/src/job.rs::harness_args",
+  "tools/dbench/src/collect.rs::list_runs",
+  "tools/dbench/src/collect.rs::is_run_dir",
+  "tools/dbench/src/collect.rs::rel_of",
+  "tools/dbench/src/progress.rs::resolve_run_dir",
+  "tools/dbench/src/progress.rs::run_dir",
+  "tools/dbench/src/server.rs::job_run_rel",
+  "tools/dbench/src/server.rs::list_runs",
+]
+C = [
+  "benchmarks/spec-bench/harness/drive.py::replay_onto_remote",
+  "benchmarks/spec-bench/harness/drive.py::_rebase_in_progress",
+  "benchmarks/spec-bench/harness/drive.py::refuse",
+  "tools/dbench/src/ingest/mod.rs::cmd_ingest",
+  "tools/dbench/src/collector.rs::archived_runs",
+  "tools/vidi-gallery/src/runs.rs::discover",
+  "tools/vidi-gallery/src/runs.rs::load",
+  "tools/vidi-gallery/src/runs.rs::run_or_private",
+  "tools/vidi-gallery/src/runs.rs::scope_size",
+  "tools/vidi-gallery/src/runs.rs::judges",
+]
+E = [
+  "tools/vidi-gallery/src/main.rs::private_version",
+]

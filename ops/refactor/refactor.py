@@ -164,6 +164,7 @@ class Classes:
     exclude: list[str]
     patterns: dict[str, list[re.Pattern]]
     workspace_functions: set[str]
+    named: dict[str, list[str]]       # class -> ["file::function"] the design names, whether or not a pattern matches
 
 
 def load_classes(root: Path) -> Classes:
@@ -176,6 +177,7 @@ def load_classes(root: Path) -> Classes:
         patterns={name: [re.compile(p, re.S) for p in body.get("patterns", [])]
                   for name, body in classes.items() if name != WORKSPACE_CLASS},
         workspace_functions=set(classes.get(WORKSPACE_CLASS, {}).get("functions", [])),
+        named={c: list(names) for c, names in cfg.get("named", {}).items()},
     )
 
 
@@ -197,6 +199,7 @@ class Func:
 
 RUST_FN = re.compile(r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)")
 TS_FN = re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)|^\s*(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s*)?\(")
+RUST_TEST_MODULE = re.compile(r"^#\[cfg\(test\)\]", re.M)   # the trailing test module and everything after it is test code
 SHELL_FN = re.compile(r"^\s*(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{")
 
 
@@ -254,7 +257,7 @@ def functions_of(language: str, text: str) -> list[Func]:
     if language == "python":
         return python_functions(text)
     if language == "rust":
-        return boundary_functions(text, RUST_FN, MODULE_LEVEL)
+        return boundary_functions(RUST_TEST_MODULE.split(text, maxsplit=1)[0], RUST_FN, MODULE_LEVEL)
     if language == "typescript":
         return boundary_functions(text, TS_FN, MODULE_LEVEL)
     return boundary_functions(text, SHELL_FN, SCRIPT_LEVEL)
@@ -266,7 +269,9 @@ def scan(root: Path, cfg: Classes) -> dict[tuple[str, str], dict[str, list[str]]
     for language, rel in source_files(root, cfg):
         found: dict[str, list[str]] = {}
         for func in functions_of(language, (root / rel).read_text()):
-            matched = sorted(name for name, pats in cfg.patterns.items() if any(p.search(func.text) for p in pats))
+            matched = {name for name, pats in cfg.patterns.items() if any(p.search(func.text) for p in pats)}
+            matched |= {c for c, names in cfg.named.items() if f"{rel}::{func.name}" in names}
+            matched = sorted(matched)
             found[func.name] = sorted(set(found.get(func.name, [])) | set(matched))
         out[(language, rel)] = found
     return out
@@ -287,7 +292,7 @@ def check_touched(root: Path) -> Result:
     """The committed touched_set.toml equals the derivation after the owner's recorded decisions (excluded entries)."""
     result = Result()
     cfg = load_classes(root)
-    known = set(cfg.patterns) | {WORKSPACE_CLASS}
+    known = set(cfg.patterns) | set(cfg.named) | {WORKSPACE_CLASS}
     touched = read_toml(root / TOUCHED_FILE)
     scanned = scan(root, cfg)
     listed = set()
@@ -304,6 +309,11 @@ def check_touched(root: Path) -> Result:
             result.fail("E-STALE-ENTRY", subject, "no such function in the file")
         if "D" in e.get("classes", []) and not e.get("move", "").strip():
             result.fail("E-D-WITHOUT-MOVE", subject, "a class D entry needs a note of where its source moves to")
+    for c, names in cfg.named.items():
+        for name in names:
+            file, _, function = name.partition("::")
+            if not any(function in funcs for (_, rel), funcs in scanned.items() if rel == file):
+                result.fail("E-NAMED-MISSING", name, f"class {c}: the design names a function that is not in the file")
     for e in touched.get("excluded", []):
         listed.add((e["language"], e["file"], e["function"]))
         if not e.get("reason", "").strip():

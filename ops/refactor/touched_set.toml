@@ -1,0 +1,710 @@
+# Derived by `refactor.py propose-touched` on the date of the commit, then decided entry by entry.
+# check-touched fails if this differs from a fresh scan.
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/credentials.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "_merged_tree"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "_private_commit"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "_rebase_in_progress"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "combination_label"
+classes = ["A"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "known_good_base"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "link_work_dir"
+classes = ["A"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "loc"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "main"
+classes = ["A", "C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "mirror"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "push_with_rebase"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "record_private"
+classes = ["B", "C", "D"]
+move = "deleted: nothing is recorded into git any more (design B, drive.py)"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "record_refusal"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "record_story"
+classes = ["C", "E"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "refuse"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "replay_onto_remote"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "setup_workspace_from"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "untrack_private"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "work_dir_for"
+classes = ["A"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "work_dir_name"
+classes = ["A"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "work_id"
+classes = ["A"]
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/export_goldens.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/finalize.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/finalize.py"
+function = "rec"
+classes = ["C"]
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "copy_private"
+classes = ["D"]
+move = "deleted: held-out detail stays in the run dir and is collected into the lake (design D)"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "find"
+classes = ["D"]
+move = "reads the run dir, else the lake (design D)"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "fingerprints"
+classes = ["E"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "private_copy"
+classes = ["D", "E"]
+move = "deleted: the private copy goes with copy_private (design D)"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "private_repo"
+classes = ["E"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "redact_staged"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "repo_of"
+classes = ["C", "D"]
+move = "deleted: the private repository is no longer a record target (design D)"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "result_dirs"
+classes = ["D"]
+move = "reads the run dir, else the lake (design D)"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "staged_problems"
+classes = ["B"]
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/history.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/history.py"
+function = "parse_git_log"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/judge.py"
+function = "commits_oldest_first"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/judge.py"
+function = "record_workspace"
+classes = ["C"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/judge.py"
+function = "work_dir_name"
+classes = ["A"]
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/judge_collect.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/judge_collect.py"
+function = "load_results"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/logscan.py"
+function = "_Known.is_id"
+classes = ["A"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/logscan.py"
+function = "known_runs"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/logscan.py"
+function = "work_id"
+classes = ["A"]
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/packdir.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/progress.py"
+function = "baselines"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/prove_sandbox.py"
+function = "observe"
+classes = ["A"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/prove_sandbox.py"
+function = "observe_browser"
+classes = ["A"]
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/publicise.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/publicise.py"
+function = "fingerprints"
+classes = ["E"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/publicise.py"
+function = "is_own_work"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/publicise.py"
+function = "over_limit"
+classes = ["B"]
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/record_event.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/record_event.py"
+function = "record"
+classes = ["C"]
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/roots.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/roots.py"
+function = "off_limits"
+classes = ["B"]
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/tagsuite.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/tagsuite.py"
+function = "checkout_of"
+classes = ["C"]
+
+[[excluded]]
+language = "python"
+file = "ops/backup/backup.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[excluded]]
+language = "python"
+file = "ops/monitor/monitor.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "ops/monitor/monitor.py"
+function = "collect_repo"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "ops/monitor/monitor.py"
+function = "commit_detections"
+classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "ops/monitor/monitor.py"
+function = "git_json"
+classes = ["B"]
+
+[[excluded]]
+language = "python"
+file = "ops/monitor/triage.py"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "python"
+file = "ops/monitor/triage.py"
+function = "commit_and_push"
+classes = ["C"]
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/analytics/context.rs"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/cli.rs"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/cli.rs"
+function = "from"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/client.rs"
+function = "print_job_detail"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collect.rs"
+function = "is_run_dir"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collect.rs"
+function = "list_runs"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collect.rs"
+function = "rel_of"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collector.rs"
+function = "archived_runs"
+classes = ["B", "C"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collector.rs"
+function = "pass"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collector.rs"
+function = "resolve"
+classes = ["B"]
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/harness.rs"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/harness.rs"
+function = "remote_main"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/harness.rs"
+function = "tag_commit"
+classes = ["B"]
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "candidates"
+classes = ["A"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "describe"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/mod.rs"
+function = "cmd_ingest"
+classes = ["C"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/job.rs"
+function = "harness_args"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/job.rs"
+function = "reference_run_problem"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/progress.rs"
+function = "resolve_run_dir"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/progress.rs"
+function = "run_dir"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/release.rs"
+function = "changes"
+classes = ["B"]
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/runner.rs"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/runner.rs"
+function = "git_pull"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/runner.rs"
+function = "run_one"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/server.rs"
+function = "job_run_rel"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/server.rs"
+function = "list_runs"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "api_review_tasks"
+classes = ["B"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "api_runs"
+classes = ["E"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "main"
+classes = ["E"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "private_repo"
+classes = ["E"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "private_version"
+classes = ["E"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "record_build"
+classes = ["C"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "record_story"
+classes = ["C"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/runs.rs"
+function = "discover"
+classes = ["C"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/runs.rs"
+function = "judges"
+classes = ["C", "E"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/runs.rs"
+function = "load"
+classes = ["C"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/runs.rs"
+function = "private_of"
+classes = ["E"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/runs.rs"
+function = "run_or_private"
+classes = ["C"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/runs.rs"
+function = "scope_size"
+classes = ["C", "E"]
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/sync.rs"
+function = "sync_repo"
+classes = ["B"]
+
+[[excluded]]
+language = "shell"
+file = "benchmarks/spec-bench/harness/fetch-work.sh"
+function = "<script>"
+reason = "script body, not a function: delete-first for a whole script is an open decision (see ops/refactor/README.md); until it is decided the script is covered by its own shell test under U8 or U13"
+
+[[excluded]]
+language = "shell"
+file = "benchmarks/spec-bench/harness/judge-setup.sh"
+function = "<script>"
+reason = "script body, not a function: delete-first for a whole script is an open decision (see ops/refactor/README.md); until it is decided the script is covered by its own shell test under U8 or U13"
+
+[[excluded]]
+language = "shell"
+file = "benchmarks/spec-bench/harness/judge-submit.sh"
+function = "<script>"
+reason = "script body, not a function: delete-first for a whole script is an open decision (see ops/refactor/README.md); until it is decided the script is covered by its own shell test under U8 or U13"
+
+[[excluded]]
+language = "shell"
+file = "benchmarks/spec-bench/harness/setup-node.sh"
+function = "<script>"
+reason = "script body, not a function: delete-first for a whole script is an open decision (see ops/refactor/README.md); until it is decided the script is covered by its own shell test under U8 or U13"
+
+[[excluded]]
+language = "typescript"
+file = "tools/benchmarker/server/domain.ts"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/domain.ts"
+function = "findRuns"
+classes = ["A"]
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/domain.ts"
+function = "said"
+classes = ["A"]
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/main.ts"
+function = "loadFixture"
+classes = ["E"]
+
+[[excluded]]
+language = "typescript"
+file = "tools/benchmarker/server/sources.ts"
+function = "<module>"
+reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/sources.ts"
+function = "git"
+classes = ["B"]

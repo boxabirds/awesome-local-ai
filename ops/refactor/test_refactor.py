@@ -805,3 +805,34 @@ def test_a_deletion_advance_is_refused_until_the_stubs_are_in(tmp_path):
     assert cli(root, "advance", "Deleted") == R.EXIT_FAIL
     write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
     assert cli(root, "advance", "Deleted") == R.EXIT_OK
+
+
+# ---- found by running the scan on the real repository: test code and functions the design names --------------------------
+
+def test_a_rust_function_inside_the_trailing_test_module_is_never_proposed(tmp_path):
+    root = make_code_root(tmp_path, {"src/a.rs": (
+        'fn fetch_it() {\n    Command::new("git").args(["fetch"]);\n}\n\n'
+        '#[cfg(test)]\nmod tests {\n    fn a_test_that_runs_git() {\n        Command::new("git").args(["fetch"]);\n    }\n}\n')})
+    assert [e.function for e in R.propose_touched(root)] == ["fetch_it"]
+
+
+def named_root(tmp_path: Path, named: str) -> Path:
+    root = make_code_root(tmp_path, {"src/a.py": "def resolve_dir(run):\n    return run\n\ndef other():\n    return 1\n"})
+    write(root, "ops/refactor/classes.toml", CLASSES + named)
+    return root
+
+
+def test_a_function_the_design_names_is_proposed_under_its_class_without_matching_a_pattern(tmp_path):
+    root = named_root(tmp_path, '\n[named]\nA = ["src/a.py::resolve_dir"]\n')
+    assert proposed(root) == {("src/a.py", "resolve_dir"): ["A"]}
+
+
+def test_a_named_function_that_does_not_exist_is_refused_by_check_touched(tmp_path):
+    root = named_root(tmp_path, '\n[named]\nA = ["src/a.py::no_such_function"]\n')
+    assert "E-NAMED-MISSING" in codes(R.check_touched(root))
+
+
+def test_a_named_function_matching_a_pattern_too_lists_both_classes_once(tmp_path):
+    root = make_code_root(tmp_path, {"src/a.py": "def f():\n    run(['git', 'commit'])\n"})
+    write(root, "ops/refactor/classes.toml", CLASSES + '\n[named]\nA = ["src/a.py::f"]\n')
+    assert proposed(root) == {("src/a.py", "f"): ["A", "C"]}
