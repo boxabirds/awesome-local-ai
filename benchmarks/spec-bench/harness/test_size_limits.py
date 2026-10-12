@@ -78,3 +78,20 @@ def test_the_privacy_test_takes_its_limits_from_the_same_table():
     text = PRIVACY_TEST.read_text()
     assert "publicise.py\" over-limit" in text or "publicise.py over-limit" in text
     assert "limit_for" not in text                          # no second table to drift from this one
+
+
+def test_over_limit_called_in_process_lists_tracked_records_over_their_own_limit(tmp_path):
+    """The same table as above, read by calling publicise.over_limit (not the command line): a record is listed with its size
+    and its kind's limit; one at the limit, a documentation file, an untracked file and a tracked file since deleted are not."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    _sized(tmp_path / RUN / "summary.md", 600 * KB)                      # over the flat 512 KB
+    _sized(tmp_path / RUN / "metrics.json", 600 * KB)                    # metrics.json is allowed 2 MB
+    _sized(tmp_path / RUN / "notes.md", 512 * KB)                        # exactly at the limit is within it
+    _sized(tmp_path / "benchmarks/docs/guide/index.html", 700 * KB)      # documentation: no record limit
+    _sized(tmp_path / RUN / "gone.md", 700 * KB)                         # tracked, then deleted from the tree
+    _sized(tmp_path / "elsewhere/big.md", 700 * KB)                      # not under a benchmarks record path
+    _sized(tmp_path / RUN / "untracked.md", 700 * KB)
+    subprocess.run(["git", "add", "--", f"{RUN}/summary.md", f"{RUN}/metrics.json", f"{RUN}/notes.md", f"{RUN}/gone.md",
+                    "benchmarks/docs/guide/index.html", "elsewhere/big.md"], cwd=tmp_path, check=True)
+    (tmp_path / RUN / "gone.md").unlink()
+    assert publicise.over_limit(tmp_path) == [(f"{RUN}/summary.md", 600 * KB, 512 * KB)]

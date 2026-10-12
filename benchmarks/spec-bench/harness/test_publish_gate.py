@@ -965,3 +965,66 @@ def test_I11_a_file_named_after_the_machine_is_refused_and_the_refusal_does_not_
     assert not res["committed"] and [r["why"] for r in res["refused"]] == [heldout.MACHINE_NAME], res
     assert NODE not in json.dumps(res)
     assert NODE in (run / pub.PUBLISH_REFUSED).read_text()
+
+
+# ---------- the checks that fail closed, called directly ----------
+
+SECRET_LINE = "DEEPSEEK_API_KEY=abcdefgh12345678\n"
+SECRET_MARKED = "DEEPSEEK_API_KEY=[redacted: 16 characters]\n"
+
+
+def test_D10_a_staged_list_that_cannot_be_read_fails_closed_with_git_s_own_reason(tmp_path):
+    repo, _ = cloned(tmp_path, "public")
+    (repo / ".git" / "index").write_bytes(b"not an index")
+    problems = heldout.staged_problems(repo, RUN_REL, G, {TITLE}, names=set())
+    assert len(problems) == 1
+    assert problems[0]["file"] == RUN_REL and problems[0]["fingerprint"] is None
+    assert problems[0]["why"].startswith(f"{heldout.CHECK_FAILED}: ") and "index file" in problems[0]["why"]
+
+
+def test_D11_a_staged_file_whose_content_cannot_be_read_fails_closed_and_the_others_are_still_checked(tmp_path):
+    repo, _ = cloned(tmp_path, "public")
+    write(repo / RUN_REL / "run-status.json", TITLE)
+    git(repo, "add", "--", RUN_REL)
+    # an entry the index lists but `git show :path` cannot print: a commit object that is not in this repository
+    git(repo, "update-index", "--add", "--cacheinfo", f"160000,{'1' * 40},{RUN_REL}/sub")
+    problems = heldout.staged_problems(repo, RUN_REL, G, {TITLE}, names=set())
+    assert problems == [
+        {"file": f"{RUN_REL}/run-status.json", "why": heldout.HELD_OUT, "fingerprint": TITLE},
+        {"file": f"{RUN_REL}/sub", "why": f"{heldout.CHECK_FAILED}: could not read the staged file", "fingerprint": None}]
+
+
+def test_D12_redact_staged_redacts_the_index_and_the_file_and_names_what_it_found_never_the_value(tmp_path):
+    repo, _ = cloned(tmp_path, "public")
+    write(repo / RUN_REL / "log.txt", "before\n" + SECRET_LINE)
+    write(repo / RUN_REL / "clean.txt", "nothing here\n")
+    write(repo / RUN_REL / pub.HELDOUT_DETAIL, SECRET_LINE)           # private: never committed, so never scanned
+    git(repo, "add", "-f", "--", RUN_REL)
+    found, problems = heldout.redact_staged(repo, RUN_REL, G)
+    assert (found, problems) == (["DEEPSEEK_API_KEY"], [])
+    assert git(repo, "show", f":{RUN_REL}/log.txt") == "before\n" + SECRET_MARKED
+    assert (repo / RUN_REL / "log.txt").read_text() == "before\n" + SECRET_MARKED
+    assert (repo / RUN_REL / "clean.txt").read_text() == "nothing here\n"
+    assert (repo / RUN_REL / pub.HELDOUT_DETAIL).read_text() == SECRET_LINE
+
+
+def test_D13_redact_staged_fails_closed_when_the_list_cannot_be_read(tmp_path):
+    repo, _ = cloned(tmp_path, "public")
+    (repo / ".git" / "index").write_bytes(b"not an index")
+    found, problems = heldout.redact_staged(repo, RUN_REL, G)
+    assert found == []
+    assert len(problems) == 1 and problems[0]["file"] == RUN_REL and problems[0]["fingerprint"] is None
+    assert problems[0]["why"].startswith(f"{heldout.CHECK_FAILED}: the credential scan could not list the staged files: ")
+    assert "index file" in problems[0]["why"]
+
+
+def test_D14_redact_staged_fails_closed_when_the_redacted_file_cannot_be_staged_again(tmp_path):
+    repo, _ = cloned(tmp_path, "public")
+    write(repo / RUN_REL / "log.txt", SECRET_LINE)
+    git(repo, "add", "--", RUN_REL)
+    (repo / ".git" / "index.lock").write_text("")                        # git add cannot take the index
+    found, problems = heldout.redact_staged(repo, RUN_REL, G)
+    assert found == ["DEEPSEEK_API_KEY"]
+    assert problems == [{"file": RUN_REL, "fingerprint": None, "why": f"{heldout.CHECK_FAILED}: a file redacted by the "
+                         "credential scan could not be staged again"}]
+    assert git(repo, "show", f":{RUN_REL}/log.txt") == SECRET_LINE         # the index still holds it: the commit is refused

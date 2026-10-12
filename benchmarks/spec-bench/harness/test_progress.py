@@ -312,6 +312,20 @@ def test_baselines_leave_out_known_good_runs(tmp_path):
     got = [b["source"] for b in progress.baselines(tmp_path, 3, tmp_path / "elsewhere")]
     assert got == ["some/stack full-01"]
 
+def test_baselines_leave_out_the_run_itself_unreadable_records_and_stories_that_did_not_finish(tmp_path):
+    runs = tmp_path / "combinations" / "some" / "stack" / "benchmarks" / "vidi"
+    finished = {"3": {"finished": 1, "accept": {"by_story": {"03": {"passed": 7, "total": 7}}}}}
+    _write(runs / "a-this-run" / "metrics.json", {"stories": finished})       # the run being asked about
+    (runs / "b-corrupt").mkdir(parents=True)
+    (runs / "b-corrupt" / "metrics.json").write_text("{not json")
+    _write(runs / "c-unfinished" / "metrics.json", {"stories": {"3": {"finished": 0}}})
+    _write(runs / "d-other-story" / "metrics.json", {"stories": {"4": {"finished": 1}}})
+    _write(runs / "e-good" / "metrics.json", {"stories": finished, "processed": [{"id": 3, "status": "PARTIAL"}]})
+    got = progress.baselines(tmp_path, 3, runs / "a-this-run")
+    assert [(b["source"], b["status"], b["accept"]) for b in got] == [
+        ("some/stack e-good", "PARTIAL", {"passed": 7, "total": 7})]
+
+
 def test_evidence_survives_bytes_that_are_not_utf8(tmp_path):
     # Story 12 (images) crashed the harness: a file git diffs as text carried a PNG-like 0x89 byte,
     # and the harness decoded git's output strictly (canvas-pi-02 on the 4090).

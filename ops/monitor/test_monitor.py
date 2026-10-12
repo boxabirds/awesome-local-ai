@@ -9,7 +9,13 @@ from __future__ import annotations
 
 import copy
 import json
+import os
+import stat
+import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 import monitor
 import triage
@@ -421,3 +427,201 @@ def test_the_detail_names_no_machine_and_no_home_directory_after_the_ticks_redac
     labels = {"node-a": "RTX 4090"}
     text = json.dumps(monitor.redact(d, labels))
     assert "node-a" not in text and "/srv/backup" not in text
+
+
+# ---- real git repositories: the commit detector, git_json, collect_repo, triage.commit_and_push ------------------------
+
+OWNER = "The Owner"
+RUN_DIR = "combinations/x/benchmarks/vidi/r1"
+
+
+def git(repo: Path, *args: str) -> str:
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+    r = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, env=env, check=True)
+    return r.stdout
+
+
+def make_clone(tmp_path: Path) -> Path:
+    """A working clone `repo` of a bare `origin` (branch main), owner identity set, one commit pushed."""
+    bare, repo = tmp_path / "origin.git", tmp_path / "repo"
+    git(tmp_path, "init", "-q", "--bare", "-b", "main", str(bare))
+    git(tmp_path, "clone", "-q", str(bare), str(repo))
+    git(repo, "config", "user.name", OWNER)
+    git(repo, "config", "user.email", "owner@example.invalid")
+    git(repo, "checkout", "-q", "-b", "main")
+    commit_files(repo, {"README.md": "x\n", "benchmarks/vidi/pack.txt": "the pack\n"}, "first")  # git archive needs both paths
+    return repo
+
+
+def commit_files(repo: Path, files: dict[str, str], message: str, push: bool = True) -> str:
+    for rel, text in files.items():
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(text)
+        git(repo, "add", "--", rel)
+    git(repo, "commit", "-q", "-m", message)
+    if push:
+        git(repo, "push", "-q", "origin", "main")
+    return git(repo, "rev-parse", "HEAD").strip()
+
+
+def fake_uv(tmp_path: Path, monkeypatch, body: str) -> None:
+    """A stand-in `uv` first on PATH, so no test runs the real one."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    uv = bin_dir / "uv"
+    uv.write_text("#!/bin/sh\n" + body + "\n")
+    uv.chmod(uv.stat().st_mode | stat.S_IXUSR)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+
+
+def in_repo(monkeypatch, repo: Path) -> None:
+    """monitor.sh with its working directory fixed to `repo` (its default is the real checkout, bound at import)."""
+    real = monitor.sh
+    monkeypatch.setattr(monitor, "sh", lambda cmd, timeout=90, cwd=repo: real(cmd, timeout, cwd))
+
+
+def test_two_fixture_paths_in_one_commit_are_one_detection():
+    log = ("aaaaaaa1|The Owner|vidi x v2-r1: story 1 done\ncombinations/kat/a/benchmarks/kat/r1/metrics.json\n"
+           "combinations/kat/a/benchmarks/kat/r1/finalize.json\n")
+    dets = monitor.commit_detections(log, OWNER)
+    assert [d["id"] for d in dets] == ["commit_fixture_path:aaaaaaa1"]
+    assert dets[0]["detail"] == "aaaaaaa1 adds combinations/kat/a/benchmarks/kat/r1/metrics.json"
+
+
+def test_git_json_reads_a_file_of_origin_main_and_gives_none_when_missing_or_not_json(tmp_path, monkeypatch):
+    repo = make_clone(tmp_path)
+    commit_files(repo, {"good.json": '{"a": 1}', "bad.json": "not json"}, "records")
+    in_repo(monkeypatch, repo)
+    assert monitor.git_json("good.json") == {"a": 1}
+    assert monitor.git_json("bad.json") is None
+    assert monitor.git_json("absent.json") is None
+
+
+def test_collect_repo_reports_a_failed_fetch_and_stops(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    git(tmp_path, "init", "-q", str(repo))               # no origin to fetch from
+    in_repo(monkeypatch, repo)
+    st: dict = {"head": "abc"}
+    dets: list[dict] = []
+    monitor.collect_repo(st, dets)
+    assert [d["kind"] for d in dets] == ["git_fetch_failed"] and dets[0]["detail"]
+    assert st == {"head": "abc"}
+
+
+def test_collect_repo_first_sight_and_an_unmoved_head_raise_nothing(tmp_path, monkeypatch):
+    repo = make_clone(tmp_path)
+    head = git(repo, "rev-parse", "HEAD").strip()
+    in_repo(monkeypatch, repo)
+    st: dict = {}
+    dets: list[dict] = []
+    monitor.collect_repo(st, dets)
+    assert st == {"head": head} and dets == []
+    monitor.collect_repo(st, dets)                        # same head again
+    assert st == {"head": head} and dets == []
+
+
+def test_collect_repo_a_change_outside_the_harness_and_the_records_checks_nothing_more(tmp_path, monkeypatch):
+    repo = make_clone(tmp_path)
+    before = git(repo, "rev-parse", "HEAD").strip()
+    after = commit_files(repo, {"notes.md": "y\n"}, "notes")
+    monkeypatch.setattr(monitor, "STATE_DIR", tmp_path / "state")
+    in_repo(monkeypatch, repo)
+    st, dets = {"head": before}, []
+    monitor.collect_repo(st, dets)
+    assert st["head"] == after and dets == []
+    assert not (tmp_path / "state" / "export").exists()  # no import check for a non-harness change
+
+
+def test_collect_repo_checks_a_harness_change_imports_and_reads_the_changed_runs(tmp_path, monkeypatch):
+    repo = make_clone(tmp_path)
+    before = git(repo, "rev-parse", "HEAD").strip()
+    harness = "benchmarks/spec-bench/harness/drive.py"
+    commit_files(repo, {harness: "VALUE = 1\n",
+                        f"{RUN_DIR}/metrics.json": json.dumps({"stories": {}}),
+                        f"{RUN_DIR}/finalize.json": json.dumps({"rescore": "failed", "attempts": 2, "reason_kind": "tool",
+                                                                 "needs_person": True, "reason": "no uv"}),
+                        "combinations/x/benchmarks/vidi/r2/metrics.json": "not json"}, "story done")
+    after = git(repo, "rev-parse", "HEAD").strip()
+    fake_uv(tmp_path, monkeypatch, f'shift 3\nexec "{sys.executable}" "$@"')
+    monkeypatch.setattr(monitor, "STATE_DIR", tmp_path / "state")
+    in_repo(monkeypatch, repo)
+    st, dets = {"head": before}, []
+    monitor.collect_repo(st, dets)
+    assert st["head"] == after
+    assert [d["kind"] for d in dets] == ["run_not_scored"]       # the import worked; r2's unreadable metrics are skipped
+    assert dets[0]["id"] == f"run_not_scored:{RUN_DIR}:failed:2" and dets[0]["urgent"] is True
+    assert (tmp_path / "state" / "export" / "benchmarks/spec-bench/harness/drive.py").is_file()
+
+
+def test_collect_repo_flags_a_harness_that_no_longer_imports(tmp_path, monkeypatch):
+    repo = make_clone(tmp_path)
+    before = git(repo, "rev-parse", "HEAD").strip()
+    after = commit_files(repo, {"benchmarks/spec-bench/harness/drive.py": "raise ImportError('broken')\n"}, "harness")
+    fake_uv(tmp_path, monkeypatch, f'shift 3\nexec "{sys.executable}" "$@"')
+    monkeypatch.setattr(monitor, "STATE_DIR", tmp_path / "state")
+    in_repo(monkeypatch, repo)
+    st, dets = {"head": before}, []
+    monitor.collect_repo(st, dets)
+    assert [d["kind"] for d in dets] == ["harness_import_fails"] and dets[0]["urgent"] is True
+    assert dets[0]["id"] == f"harness_import_fails:{after[:8]}" and "broken" in dets[0]["detail"]
+
+
+# ---- triage.commit_and_push -----------------------------------------------------------------------------------------
+
+def triage_repo(tmp_path: Path, monkeypatch, privacy_script: str) -> Path:
+    repo = make_clone(tmp_path)
+    commit_files(repo, {"ops/anomaly-tracking.md": "# tracking\n",
+                        "tests/privacy-test.sh": privacy_script}, "tracking and the privacy test")
+    (repo / "benchmarks/spec-bench/harness").mkdir(parents=True)
+    monkeypatch.setattr(triage, "REPO", repo)
+    return repo
+
+
+PRIVACY_PASSES = "echo 'all 12 checks passed'\n"
+PRIVACY_FAILS = "echo 'leak found in a file'\nexit 1\n"
+
+
+def test_commit_and_push_does_nothing_when_the_tracking_file_is_unchanged(tmp_path, monkeypatch):
+    repo = triage_repo(tmp_path, monkeypatch, PRIVACY_PASSES)
+    assert triage.commit_and_push() == "no change to the file"
+    assert git(repo, "log", "--format=%s", "-1").strip() == "tracking and the privacy test"
+
+
+def test_commit_and_push_discards_an_edit_the_privacy_test_rejects(tmp_path, monkeypatch):
+    repo = triage_repo(tmp_path, monkeypatch, PRIVACY_FAILS)
+    (repo / "ops/anomaly-tracking.md").write_text("# tracking\nsecret\n")
+    result = triage.commit_and_push()
+    assert result == "privacy test failed; the edit was discarded: leak found in a file\n"
+    assert (repo / "ops/anomaly-tracking.md").read_text() == "# tracking\n"
+    assert git(repo, "log", "--format=%s", "-1").strip() == "tracking and the privacy test"
+
+
+def test_commit_and_push_rejects_an_exit_0_privacy_run_that_does_not_say_checks_passed(tmp_path, monkeypatch):
+    repo = triage_repo(tmp_path, monkeypatch, "echo 'nothing ran'\n")
+    (repo / "ops/anomaly-tracking.md").write_text("# tracking\nmore\n")
+    assert triage.commit_and_push().startswith("privacy test failed; the edit was discarded: nothing ran")
+    assert (repo / "ops/anomaly-tracking.md").read_text() == "# tracking\n"
+
+
+def test_commit_and_push_reports_a_commit_that_git_refuses(tmp_path, monkeypatch):
+    repo = triage_repo(tmp_path, monkeypatch, PRIVACY_PASSES)
+    hook = repo / ".git/hooks/pre-commit"
+    hook.write_text("#!/bin/sh\necho 'hook says no' >&2\nexit 1\n")
+    hook.chmod(hook.stat().st_mode | stat.S_IXUSR)
+    (repo / "ops/anomaly-tracking.md").write_text("# tracking\nmore\n")
+    result = triage.commit_and_push()
+    assert result.startswith("commit failed: ") and "hook says no" in result
+    assert git(repo, "log", "--format=%s", "-1").strip() == "tracking and the privacy test"
+
+
+def test_commit_and_push_commits_only_the_tracking_file_and_reports_the_push(tmp_path, monkeypatch):
+    repo = triage_repo(tmp_path, monkeypatch, PRIVACY_PASSES)
+    (repo / "ops/anomaly-tracking.md").write_text("# tracking\nmore\n")
+    (repo / "other.txt").write_text("someone else's staged work\n")
+    git(repo, "add", "--", "other.txt")
+    fake_uv(tmp_path, monkeypatch, "echo 'pushed to origin/main'")
+    result = triage.commit_and_push()
+    assert result == "committed; push: pushed to origin/main"
+    assert git(repo, "log", "--format=%s", "-1").strip() == "ops: anomaly tracking: unattended triage of the monitor's new detections"
+    assert git(repo, "show", "--name-only", "--format=", "HEAD").split() == ["ops/anomaly-tracking.md"]
+    assert git(repo, "diff", "--cached", "--name-only").split() == ["other.txt"]

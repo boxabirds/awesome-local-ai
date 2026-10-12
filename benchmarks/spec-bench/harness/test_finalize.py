@@ -827,3 +827,49 @@ def test_a_rescore_in_progress_is_stopped_when_this_process_is_told_to_end(tmp_p
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
         signal.signal(signal.SIGTERM, before)
     assert marker.exists() and not (run / finalize.STATUS).exists()
+
+
+# ---------- the record that repair_run makes of a repair (finalize._recorder, reached through repair_run) ----------
+
+def stale_run_with_recorder(tmp_path, monkeypatch, answers: list[dict]):
+    """A run with one stale story, the pack left as it is, and drive.record_story replaced by a stand-in that answers
+    from `answers` and notes how it was called (a push to a remote is not what this tests)."""
+    import drive
+    run = run_with_stories(tmp_path, {"3": accounted(version=0)}, logs=("3",))
+    fake_backfill(monkeypatch, {"3": accounted()}, [])
+    monkeypatch.setattr(drive, "set_pack", lambda pack: None)
+    calls = []
+
+    def record_story(repo_root, run_, message, **kw):
+        calls.append((repo_root, run_, message))
+        return answers[len(calls) - 1]
+    monkeypatch.setattr(drive, "record_story", record_story)
+    return run, calls
+
+
+def test_repair_run_records_the_repair_under_the_runs_name_and_says_nothing_when_it_was_pushed(tmp_path, monkeypatch, capsys):
+    import drive
+    run, calls = stale_run_with_recorder(tmp_path, monkeypatch, [{"pushed": True}])
+    new = finalize.repair_run(run, "benchmarks/vidi", record=True)
+    assert new["repair"]["repaired"] == ["3"]
+    assert calls == [(drive.REPO_ROOT, run, f"{drive.PK.name} {drive.combination_label(run)} {run.name}: records repaired: story 3")]
+    assert capsys.readouterr().err == ""
+
+
+def test_repair_run_reports_on_stderr_a_record_that_was_not_pushed_with_the_reason(tmp_path, monkeypatch, capsys):
+    run, calls = stale_run_with_recorder(tmp_path, monkeypatch, [{"pushed": False, "error": "non-fast-forward"}])
+    finalize.repair_run(run, "benchmarks/vidi", record=True)
+    assert len(calls) == 1
+    assert capsys.readouterr().err == "finalize: not pushed: non-fast-forward\n"
+
+
+def test_repair_run_reports_a_record_not_pushed_even_when_no_reason_is_given(tmp_path, monkeypatch, capsys):
+    run, calls = stale_run_with_recorder(tmp_path, monkeypatch, [{"pushed": False}])
+    finalize.repair_run(run, "benchmarks/vidi", record=True)
+    assert capsys.readouterr().err == "finalize: not pushed: \n"
+
+
+def test_repair_run_without_record_repairs_and_commits_nothing(tmp_path, monkeypatch):
+    run, calls = stale_run_with_recorder(tmp_path, monkeypatch, [])
+    new = finalize.repair_run(run, "benchmarks/vidi")
+    assert new["repair"]["repaired"] == ["3"] and calls == []

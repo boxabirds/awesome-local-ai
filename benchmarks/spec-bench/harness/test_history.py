@@ -63,6 +63,13 @@ def test_the_workspace_log_parses_into_commits_with_their_files():
     assert cs[2]["files"] == []
 
 
+def test_text_before_the_first_commit_line_is_ignored_and_an_empty_log_has_no_commits():
+    preamble = "warning: something git printed first\n some/path | 9 +++\n\n"
+    assert history.parse_git_log(preamble + LOG) == history.parse_git_log(LOG)
+    assert [c["hash"] for c in history.parse_git_log(preamble + LOG)] == ["bbbb", "aaaa", "0000"]
+    assert history.parse_git_log(preamble) == [] and history.parse_git_log("") == []
+
+
 def fake_run(tmp_path: Path) -> Path:
     """Two stories. Story 2 breaks one of story 1's tests and fixes the other."""
     run = tmp_path / "run"
