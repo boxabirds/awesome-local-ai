@@ -1,0 +1,15 @@
+# The contract areas of the PRD (story 1, method.new_contracts): every area needs at least one new test, and that test
+# must be seen to fail before the reimplementation (refactor.py fates). Contracts are added by the stories that build them.
+
+[areas]
+data_root = "the data root resolution"
+run_id_goldens = "the run identity goldens in four languages"
+allow_list = "the extended collection list and its file-name test"
+lake_ingest = "the lake-based ingest"
+lake_readers = "the lake-reading benchmarker, gallery and monitor"
+job_inputs = "the job inputs directory"
+export_step = "the export step"
+
+# [[contract]]
+# area = "data_root"
+# test = "python:benchmarks/spec-bench/harness/test_roots.py::test_..."

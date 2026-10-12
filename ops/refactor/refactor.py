@@ -23,6 +23,7 @@ import fnmatch
 import itertools
 import json
 import os
+import posixpath
 import re
 import shutil
 import subprocess
@@ -618,7 +619,7 @@ def parse_junit(folder: str, xml_text: str) -> tuple[dict[str, str], set[str]]:
         module = case.get("classname", "").split(".")[0]
         classes = case.get("classname", "").split(".")[1:]
         file = case.get("file") or f"{module}.py"
-        test_id = qualified("python", "::".join([f"{folder}/{file}", *classes, case.get("name", "")]))
+        test_id = qualified("python", "::".join([posixpath.normpath(f"{folder}/{file}"), *classes, case.get("name", "")]))
         outcomes[test_id] = PASSED if failure is None else classify_failure("python", text)
     return outcomes, file_failures
 
@@ -729,24 +730,60 @@ def check_fates(root: Path) -> Result:
             result.fail("E-FATE-UNKNOWN-TEST", test, "not an assigned test")
             continue
         if state not in FATE_STATES:
-            result.fail("E-FATE-STATE", test, f"{state!r}: states are {', '.join(FATE_STATES)}")
+            result.fail("E-FATE-INVALID", test, f"{state!r}: states are {', '.join(FATE_STATES)}")
             continue
         counts[state] += 1
         if state == "rewritten" and not fate.get("new_test"):
             result.fail("E-FATE-NO-NEW-TEST", test, "a rewritten test names the test that replaces it")
         if state == "retired":
             if fate.get("function") not in touched:
-                result.fail("E-FATE-RETIRED-NO-FUNCTION", test, "a retired test names the touched function retired with it")
+                result.fail("E-RETIRED-NO-FUNCTION", test, "a retired test names the touched function retired with it")
             if not fate.get("reason"):
                 result.fail("E-FATE-RETIRED-NO-REASON", test, "a retired test gives the reason")
     for test in sorted(assigned):
         if test not in seen:
-            result.fail("E-FATE-MISSING", test, "no fate")
+            result.fail("E-NO-FATE", test, "no fate")
     for test, n in sorted(seen.items()):
         if n > 1 and test in assigned:
             result.fail("E-FATE-MULTIPLE", test, f"{n} fates")
     result.data = {"counts": counts}
     write_report(root, "fates", result)
+    return result
+
+
+CONTRACTS_FILE = REFACTOR_DIR / "new_contracts.toml"
+
+
+def render_fates(root: Path) -> str:
+    """The table for the plan: each old test once, with its fate and what it became or what it was retired with."""
+    rows = ["| old test | fate | detail |", "|---|---|---|"]
+    for fate in read_toml(root / FATES_FILE).get("fate", []):
+        detail = {"kept": "unchanged", "rewritten": f"rewritten to `{fate.get('new_test', '')}`",
+                  "retired": f"retired with `{fate.get('function', '')}`: {fate.get('reason', '')}"}.get(fate.get("state", ""), "")
+        rows.append(f"| `{fate['test']}` | {fate.get('state', '')} | {detail} |")
+    return "\n".join(rows) + "\n"
+
+
+def check_contracts(root: Path, results: Results) -> Result:
+    """Every contract area of the PRD has a new test, and each new test has been seen to fail (a test never seen red proves nothing)."""
+    result = Result()
+    config = read_toml(root / CONTRACTS_FILE)
+    areas = set(config.get("areas", {}))
+    covered: set[str] = set()
+    for contract in config.get("contract", []):
+        area, test = contract.get("area", ""), contract.get("test", "")
+        if area not in areas:
+            result.fail("E-CONTRACT-AREA-UNKNOWN", test, f"area {area!r} is not one of the PRD's contract areas")
+            continue
+        covered.add(area)
+        outcome = results.outcome_of(test)
+        if outcome is None:
+            result.fail("E-RESULTS-MISSING", test, "no result: a new test with no run cannot be called red")
+        elif outcome == PASSED:
+            result.fail("E-CONTRACT-NOT-RED", test, f"area {area}: it passes before the reimplementation, so it proves nothing about it")
+    for area in sorted(areas - covered):
+        result.fail("E-CONTRACT-MISSING", area, "the area has no new test")
+    write_report(root, "contracts", result)
     return result
 
 
@@ -919,7 +956,8 @@ def parse_pytest(folder: str, output: str) -> set[str]:
     errors = [m.group(1) for line in output.splitlines() if (m := PYTEST_ERROR.match(line))]
     if errors:
         raise AdapterError(f"pytest could not collect: {', '.join(errors)}")
-    return {f"{folder}/{m.group(1)}" for line in output.splitlines() if (m := PYTEST_ID.match(line))}
+    return {posixpath.normpath(f"{folder}/{m.group(1).split('::')[0]}") + "::" + m.group(1).split("::", 1)[1]
+            for line in output.splitlines() if (m := PYTEST_ID.match(line))}
 
 
 def parse_cargo_list(root: Path, folder: str, output: str) -> set[str]:
@@ -1063,7 +1101,7 @@ def main(argv: list[str] | None = None) -> int:
     for name, text in (("check-register", "every test in exactly one use case"),
                        ("check-touched-set", "the committed touched set equals the scan"),
                        ("check-stubs", "every touched function is a stub"),
-                       ("check-fates", "every assigned test has exactly one fate"),
+                       ("fates", "every old test has one fate, every contract area a new test seen red; --render PATH writes the table"),
                        ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every touched file"),
                        ("report-deletion", "every assigned test failed against the stubs, read from the files run-suites wrote"),
                        ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)"),
@@ -1071,6 +1109,7 @@ def main(argv: list[str] | None = None) -> int:
         sub.add_parser(name, help=text)
     build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
     build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
+    sub.choices["fates"].add_argument("--render", help="write the fates table (Markdown) to this path")
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("stage", help="print the current stage; with a stage name, move to it if its justifying check passes").add_argument("to", nargs="?")
     args = parser.parse_args(argv)
@@ -1080,7 +1119,7 @@ def main(argv: list[str] | None = None) -> int:
         "check-register": lambda: check_register(root, lister),
         "check-touched-set": lambda: check_touched(root),
         "check-stubs": lambda: check_stubs(root),
-        "check-fates": lambda: check_fates(root),
+        "fates": lambda: merged(check_fates(root), check_contracts(root, read_results(root))),
         "check-coverage": lambda: check_coverage(root),
         "check-idle": lambda: check_idle(probe_running_stories),
         "run-suites": lambda: run_suites(root),
@@ -1089,6 +1128,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "stage" and args.to is None:
             print(read_stage(root))
             return EXIT_OK
+        if args.command == "fates" and args.render:
+            Path(args.render).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.render).write_text(render_fates(root))
         if args.command == "build-touched-set":
             if not args.propose:
                 print("build-touched-set: only --propose is supported; the committed set is changed by hand after review")

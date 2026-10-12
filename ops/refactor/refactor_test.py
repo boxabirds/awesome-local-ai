@@ -637,7 +637,7 @@ state = "kept"
 test = "python:t_b"
 state = "kept"
 ''')
-    assert sorted(codes(result)) == ["E-FATE-MISSING", "E-FATE-MULTIPLE"]
+    assert sorted(codes(result)) == sorted(["E-NO-FATE", "E-FATE-MULTIPLE"])
 
 
 def test_tc56_a_fate_for_an_unassigned_test_or_with_an_unknown_state_is_refused(tmp_path):
@@ -655,7 +655,7 @@ state = "deleted"
 test = "python:ghost"
 state = "kept"
 ''')
-    assert sorted(codes(result)) == ["E-FATE-STATE", "E-FATE-UNKNOWN-TEST"]
+    assert sorted(codes(result)) == sorted(["E-FATE-INVALID", "E-FATE-UNKNOWN-TEST"])
 
 
 def test_tc57_rewritten_needs_a_new_test_and_retired_needs_a_touched_function_and_a_reason(tmp_path):
@@ -673,7 +673,7 @@ test = "python:t_c"
 state = "retired"
 function = "src/a.py::record"
 ''')
-    assert sorted(codes(result)) == ["E-FATE-NO-NEW-TEST", "E-FATE-RETIRED-NO-FUNCTION", "E-FATE-RETIRED-NO-REASON"]
+    assert sorted(codes(result)) == sorted(["E-FATE-NO-NEW-TEST", "E-RETIRED-NO-FUNCTION", "E-FATE-RETIRED-NO-REASON"])
 
 
 def test_the_fates_report_is_written_and_counts_each_state(tmp_path):
@@ -822,7 +822,7 @@ def test_a_corrupt_stage_file_is_exit_2_names_its_code_and_is_left_as_it_is(tmp_
 
 def test_check_fates_and_check_stubs_run_from_the_command_line(tmp_path):
     root = make_root(tmp_path, assignments=FATE_ASSIGNMENTS, touched=FATE_TOUCHED)
-    assert cli(root, "check-fates") == R.EXIT_FAIL          # three assigned tests, no fates
+    assert cli(root, "fates") == R.EXIT_FAIL          # three assigned tests, no fates
     write(root, "src/a.py", "def record():\n    return 1\n")
     assert cli(root, "check-stubs") == R.EXIT_FAIL          # not a stub yet
     write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
@@ -1496,3 +1496,155 @@ def test_a_rust_stub_with_a_where_clause_and_generic_braces_is_still_a_stub(tmp_
     src = 'pub fn pull<T>(x: T) -> Vec<T>\nwhere\n    T: Clone,\n{\n    todo!()\n}\n'
     root = make_code_root(tmp_path, {"src/c.rs": src}, touched=entry("rust", "src/c.rs", "pull", '"B"'))
     assert R.check_stubs(root).exit_code == R.EXIT_OK
+
+
+# ---- fates and contract areas (tasks 1.6 and 1.18) ------------------------------------------------------------------------------
+
+FIVE = ["python:a.py::t1", "python:a.py::t2", "python:b.py::t1", "python:b.py::t2", "python:c.py::t1"]
+FIVE_ASSIGNED = "[assignments]\nU1 = [" + ", ".join(f'"{t}"' for t in FIVE) + "]\n"
+CONTRACT_AREAS = ("data_root", "run_id_goldens", "allow_list", "lake_ingest", "lake_readers", "job_inputs", "export_step")
+
+
+def fate_block(test: str, state: str, extra: str = "") -> str:
+    return f'[[fate]]\ntest = "{test}"\nstate = "{state}"\n{extra}'
+
+
+def fates_root(tmp_path: Path, fates: str, assigned: str = FIVE_ASSIGNED) -> Path:
+    root = make_root(tmp_path, assignments=assigned, touched=FATE_TOUCHED)
+    write(root, "ops/refactor/fates.toml", fates)
+    return root
+
+
+FIVE_FATES = "\n".join([
+    fate_block(FIVE[0], "kept"),
+    fate_block(FIVE[1], "rewritten", 'new_test = "python:a.py::t1_new"\n'),
+    fate_block(FIVE[2], "retired", 'function = "src/a.py::record"\nreason = "the function is deleted"\n'),
+    fate_block(FIVE[3], "kept"),
+    fate_block(FIVE[4], "rewritten", 'new_test = "python:c.py::t1_new"\n'),
+])
+
+
+def test_tc39_five_old_tests_with_five_fates_render_a_markdown_table_with_each_id_once(tmp_path):
+    root = fates_root(tmp_path, FIVE_FATES)
+    assert R.check_fates(root).exit_code == R.EXIT_OK
+    table = R.render_fates(root)
+    for test in FIVE:
+        assert table.count(f"`{test}`") == 1
+    assert table.splitlines()[0].startswith("| old test | fate |") and "retired with `src/a.py::record`" in table
+
+
+def test_tc40_an_old_test_with_no_fate_is_e_no_fate_naming_it(tmp_path):
+    root = fates_root(tmp_path, FIVE_FATES.replace(fate_block(FIVE[3], "kept"), ""))
+    result = R.check_fates(root)
+    assert result.exit_code == R.EXIT_FAIL and [(p.code, p.subject) for p in result.problems] == [("E-NO-FATE", FIVE[3])]
+
+
+def test_tc41_a_fate_of_maybe_is_invalid(tmp_path):
+    root = fates_root(tmp_path, FIVE_FATES.replace(fate_block(FIVE[0], "kept"), fate_block(FIVE[0], "maybe")))
+    assert [(p.code, p.subject) for p in R.check_fates(root).problems] == [("E-FATE-INVALID", FIVE[0])]
+
+
+def test_tc42_a_retired_test_without_the_deleted_function_it_covered_is_refused(tmp_path):
+    root = fates_root(tmp_path, FIVE_FATES.replace('function = "src/a.py::record"\n', ""))
+    assert [(p.code, p.subject) for p in R.check_fates(root).problems] == [("E-RETIRED-NO-FUNCTION", FIVE[2])]
+
+
+def test_boundary_one_old_test_only_and_every_fate_retired(tmp_path):
+    one = fates_root(tmp_path / "a", fate_block(FIVE[0], "kept"), '[assignments]\nU1 = ["python:a.py::t1"]\n')
+    assert R.check_fates(one).exit_code == R.EXIT_OK and R.render_fates(one).count("python:a.py::t1") == 1
+    retired = "\n".join(fate_block(t, "retired", 'function = "src/a.py::record"\nreason = "gone"\n') for t in FIVE)
+    assert R.check_fates(fates_root(tmp_path / "b", retired)).exit_code == R.EXIT_OK
+
+
+def contracts_root(tmp_path: Path, contracts: str) -> Path:
+    root = make_root(tmp_path)
+    areas = "[areas]\n" + "".join(f'{a} = "{a}"\n' for a in CONTRACT_AREAS)
+    write(root, "ops/refactor/new_contracts.toml", areas + contracts)
+    return root
+
+
+ALL_AREAS_COVERED = "".join(f'[[contract]]\narea = "{a}"\ntest = "python:n.py::{a}"\n' for a in CONTRACT_AREAS)
+
+
+def red(*tests: str, passed: tuple[str, ...] = ()) -> R.Results:
+    return R.Results(outcomes={**{f"python:n.py::{t}": R.FAILED_OTHER for t in tests}, **{f"python:n.py::{t}": R.PASSED for t in passed}})
+
+
+def test_tc45_a_contract_area_with_no_new_test_is_e_contract_missing_naming_the_area(tmp_path):
+    root = contracts_root(tmp_path, ALL_AREAS_COVERED.replace('area = "export_step"\ntest = "python:n.py::export_step"\n', 'area = "data_root"\ntest = "python:n.py::data_root_2"\n'))
+    result = R.check_contracts(root, red(*CONTRACT_AREAS, "data_root_2"))
+    assert result.exit_code == R.EXIT_FAIL and [(p.code, p.subject) for p in result.problems] == [("E-CONTRACT-MISSING", "export_step")]
+
+
+def test_every_area_covered_by_a_new_test_seen_failing_passes(tmp_path):
+    assert R.check_contracts(contracts_root(tmp_path, ALL_AREAS_COVERED), red(*CONTRACT_AREAS)).exit_code == R.EXIT_OK
+
+
+def test_tc44_a_new_test_that_already_passes_is_not_red_and_is_named(tmp_path):
+    root = contracts_root(tmp_path, ALL_AREAS_COVERED)
+    others = tuple(a for a in CONTRACT_AREAS if a != "lake_ingest")
+    result = R.check_contracts(root, red(*others, passed=("lake_ingest",)))
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CONTRACT-NOT-RED", "python:n.py::lake_ingest")]
+
+
+def test_a_new_test_with_no_result_cannot_be_called_red(tmp_path):
+    root = contracts_root(tmp_path, ALL_AREAS_COVERED)
+    result = R.check_contracts(root, red(*CONTRACT_AREAS[:-1]))
+    assert [(p.code, p.subject) for p in result.problems] == [("E-RESULTS-MISSING", "python:n.py::export_step")]
+
+
+def test_a_contract_naming_an_unknown_area_is_refused(tmp_path):
+    root = contracts_root(tmp_path, ALL_AREAS_COVERED + '[[contract]]\narea = "not_an_area"\ntest = "python:n.py::x"\n')
+    assert "E-CONTRACT-AREA-UNKNOWN" in codes(R.check_contracts(root, red(*CONTRACT_AREAS, "x")))
+
+
+def test_the_fates_command_checks_fates_and_contracts_and_renders_the_table_to_a_file(tmp_path, capsys):
+    root = fates_root(tmp_path, FIVE_FATES)
+    write(root, "ops/refactor/new_contracts.toml", "[areas]\n" + "".join(f'{a} = "{a}"\n' for a in CONTRACT_AREAS) + ALL_AREAS_COVERED)
+    write(root, "ops/refactor/reports/results-python.xml", "<testsuites>" + "".join(
+        f'<testcase classname="n" name="{a}" file="n.py"><failure message="x">t</failure></testcase>' for a in CONTRACT_AREAS) + "</testsuites>")
+    write(root, "ops/refactor/runners.toml", '[python]\ndir = "."\ncommand = ["true"]\n[python.results]\nformat = "junit"\ncommand = ["true"]\n')
+    assert cli(root, "fates", "--render", str(root / "plans/fates.md")) == R.EXIT_OK
+    assert (root / "plans/fates.md").read_text().count("python:a.py::t1") >= 1
+
+
+# ---- integration: new contracts must be seen red, with real runner results (task 1.19, TC-43 and TC-44) ----------------------
+
+SIX_OLD = ["python:py/test_core.py::test_record_keeps_only_what_fits_under_the_limit", "python:py/test_core.py::test_run_dir_joins_the_root_and_the_run_id",
+           "rust:rs/mini/src/lib.rs::tests::an_empty_listing_has_no_lines", "rust:rs/mini/src/lib.rs::tests::a_listing_counts_its_lines",
+           "typescript:ts/src/core.test.ts::a run with a title shows it", "typescript:ts/src/core.test.ts::a run without a title is untitled"]
+NEW_PY = "py/test_new.py::test_new_python_contract"
+NEW_RS = "rs/mini/src/lib.rs::tests::new_rust_contract"
+NEW_TS = "ts/src/core.test.ts::new ts contract"
+
+
+def mini_with_three_new_contracts(tmp_path: Path) -> Path:
+    root = stubbed_mini(tmp_path)
+    (root / "py/test_new.py").write_text("def test_new_python_contract():\n    from minipy.core import data_root\n    assert data_root('x') == 'x'\n")
+    lib = root / "rs/mini/src/lib.rs"
+    lib.write_text(lib.read_text().rstrip()[:-1] + '\n    #[test]\n    fn new_rust_contract() {\n        assert_eq!(count_lines("x"), 1);\n    }\n}\n')
+    ts = root / "ts/src/core.test.ts"
+    ts.write_text(ts.read_text() + '\ntest("new ts contract", () => {\n  expect(titleOf({})).toBe("untitled")\n})\n')
+    (root / "ops/refactor/fates.toml").write_text("".join(fate_block(t, "kept") + "\n" for t in SIX_OLD))
+    (root / "ops/refactor/new_contracts.toml").write_text(
+        '[areas]\npython_area = "p"\nrust_area = "r"\nts_area = "t"\n'
+        f'[[contract]]\narea = "python_area"\ntest = "python:{NEW_PY}"\n[[contract]]\narea = "rust_area"\ntest = "rust:{NEW_RS}"\n'
+        f'[[contract]]\narea = "ts_area"\ntest = "typescript:{NEW_TS}"\n')
+    return root
+
+
+def test_tc43_three_new_contract_tests_that_all_fail_before_reimplementation_give_exit_0(coverage_tools, tmp_path):
+    root = mini_with_three_new_contracts(tmp_path)
+    assert tool(root, "run-suites").returncode == R.EXIT_OK
+    done = tool(root, "fates")
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+
+
+def test_tc44_one_of_three_already_passing_is_not_red_and_is_named(coverage_tools, tmp_path):
+    root = mini_with_three_new_contracts(tmp_path)
+    (root / "py/test_new.py").write_text("def test_new_python_contract():\n    assert True\n")
+    assert tool(root, "run-suites").returncode == R.EXIT_OK
+    done = tool(root, "fates")
+    report = json.loads((root / "ops/refactor/reports/contracts.json").read_text())
+    assert done.returncode == R.EXIT_FAIL
+    assert [(p["code"], p["subject"]) for p in report["problems"]] == [("E-CONTRACT-NOT-RED", f"python:{NEW_PY}")]

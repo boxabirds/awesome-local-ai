@@ -1,0 +1,9 @@
+# One fate for every old (assigned) test: kept unchanged, rewritten to the new contract, or retired together with the
+# function it covered. `refactor.py fates --render plans/<file>.md` writes the table for the plan.
+#
+# [[fate]]
+# test = "python:benchmarks/spec-bench/harness/test_x.py::test_y"
+# state = "kept"                      # kept | rewritten | retired
+# new_test = "..."                    # rewritten: the test that replaces it
+# function = "path/to/file.py::name"  # retired: the touched function it covered
+# reason = "..."                      # retired: why
