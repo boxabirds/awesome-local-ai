@@ -888,3 +888,13 @@ def test_a_touched_python_file_missing_from_the_coverage_data_is_undecidable(tmp
         '[[entry]]\nlanguage = "python"\nfile = "src/a.py"\nfunction = "record"\nclasses = ["A"]\n'))
     with pytest.raises(R.AdapterError):
         R.python_touching_tests(root, {"files": {}})
+
+
+def test_function_lines_find_a_function_nested_inside_another_by_the_name_the_scan_gives_it():
+    src = "def outer():\n    def inner():\n        return 1\n    return inner\n"
+    assert R.python_function_lines(src, "inner") == {2, 3}
+
+
+def test_function_lines_find_a_function_nested_in_a_method_under_the_class_prefix():
+    src = "class C:\n    def m(self):\n        def helper():\n            return 1\n        return helper\n"
+    assert R.python_function_lines(src, "C.helper") == {3, 4}

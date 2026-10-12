@@ -656,14 +656,21 @@ CONTEXT_PHASE = "|run"        # coverage's per-test context is "<nodeid>|run", "
 
 
 def python_function_lines(text: str, name: str) -> set[int] | None:
-    """The line numbers from the def line through its last line, for a function or a Class.method; None if absent."""
-    node: ast.AST = ast.parse(text)
-    for part in name.split("."):
-        node = next((c for c in ast.iter_child_nodes(node)
-                     if isinstance(c, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and c.name == part), None)
-        if node is None:
-            return None
-    return set(range(node.lineno, node.end_lineno + 1))
+    """Lines from the def line through its last line, named as the scan names it (class prefixes only; a nested def
+    keeps its plain name); a class name alone gives the whole class. None if absent."""
+    def walk(node: ast.AST, prefix: str) -> set[int] | None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                full = prefix + child.name
+                if full == name:
+                    return set(range(child.lineno, child.end_lineno + 1))
+                found = walk(child, full + "." if isinstance(child, ast.ClassDef) else prefix)
+            else:
+                found = walk(child, prefix)
+            if found is not None:
+                return found
+        return None
+    return walk(ast.parse(text), "")
 
 
 def tests_touching(contexts: dict[str, list[str]], lines: set[int]) -> set[str]:
