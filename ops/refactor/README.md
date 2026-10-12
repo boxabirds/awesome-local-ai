@@ -35,7 +35,7 @@ passes against the stubs (the tool does it itself). `stage` alone prints the sta
 | `build-touched-set --propose` | prints the touched set the scan derives from `classes.toml`; never writes `touched_set.toml` |
 | `check-touched-set` | the committed `touched_set.toml` equals the scan, after the recorded exclusions |
 | `check-matrix U<n>` | the cross product of the dimensions in `matrices/U<n>.toml` has one test in every cell |
-| `check-coverage` | runs each suite under its coverage tool: 100% of lines and branches of every touched file |
+| `check-coverage` | runs each suite under its coverage tool: 100% of the lines and branches inside every touched *function* (lcov) |
 | `check-stubs` | every touched function (or whole script) is replaced by the stub of its language |
 | `run-suites` | runs each suite with result output on; failing tests are data, so it exits 0 |
 | `report-deletion` | every assigned test failed for the stub's reason; none passed; no test outside the set failed |
@@ -48,7 +48,7 @@ passes against the stubs (the tool does it itself). `stage` alone prints the sta
 | file | holds |
 |---|---|
 | `use_cases.toml` | U1 to U14, fixed by the PRD |
-| `runners.toml` | where each language's runner runs and the commands that list tests, measure coverage and write results |
+| `runners.toml` | where each language's runner runs and the commands that list tests, measure coverage (lcov) and write results |
 | `classes.toml` | the patterns of classes A to E and the class W functions that are never touched |
 | `touched_set.toml` | the touched functions, and the excluded matches with a reason each |
 | `assignments.toml` | each touched test under one use case; tests that fit none are `[[unfit]]` with a decision |

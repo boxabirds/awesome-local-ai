@@ -14,19 +14,16 @@ command = ["bun", "x", "vitest", "list", "--json"]
 glob = "tests/*-test.sh"
 
 [python.coverage]
-format = "coverage-py"
 command = ["uv", "run", "--quiet", "--with", "pytest", "--with", "pytest-cov", "pytest", "-q", "-p", "no:cacheprovider",
-           "--cov=.", "--cov-branch", "--cov-report=json:{out}"]
+           "--cov=.", "--cov-branch", "--cov-report=lcov:{out}"]
 
 [rust.coverage]
-format = "llvm-cov"
-command = ["cargo", "+nightly", "llvm-cov", "--workspace", "--json", "--branch", "--output-path", "{out}"]
+command = ["cargo", "+nightly", "llvm-cov", "--workspace", "--lcov", "--branch", "--output-path", "{out}"]
 
 [typescript.coverage]
-format = "vitest-summary"
-command = ["bun", "x", "vitest", "run", "--coverage.enabled", "--coverage.provider=v8", "--coverage.reporter=json-summary",
+command = ["bun", "x", "vitest", "run", "--coverage.enabled", "--coverage.provider=v8", "--coverage.reporter=lcovonly",
            "--coverage.reportsDirectory={outdir}"]
-file = "coverage-summary.json"
+file = "lcov.info"
 
 [shell.coverage]
 format = "kcov"

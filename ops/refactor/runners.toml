@@ -25,23 +25,20 @@ glob = "tests/*-test.sh"
 # the folder for a tool that names its own file (then "file" says which one to read).
 
 [python.coverage]
-format = "coverage-py"
 command = [
   "uv", "run", "--quiet",
   "--with", "pytest", "--with", "pytest-cov", "--with", "hypothesis", "--with", "httpx",
   "--with", "uvicorn", "--with", "starlette", "--with", "fastapi",
-  "pytest", "-q", "-p", "no:cacheprovider", "--cov=.", "--cov-branch", "--cov-report=json:{out}",
+  "pytest", "-q", "-p", "no:cacheprovider", "--cov=.", "--cov-branch", "--cov-report=lcov:{out}",
 ]
 
 [rust.coverage]
-format = "llvm-cov"
-command = ["cargo", "+nightly", "llvm-cov", "--workspace", "--json", "--branch", "--output-path", "{out}"]
+command = ["cargo", "+nightly", "llvm-cov", "--workspace", "--lcov", "--branch", "--output-path", "{out}"]
 
-# Needs @vitest/coverage-v8 in tools/benchmarker/package.json, which task 1.28 adds; until then this reports E-SUITE-RED.
+# Needs @vitest/coverage-v8 in tools/benchmarker/package.json (task 1.28).
 [typescript.coverage]
-format = "vitest-summary"
-command = ["bun", "x", "vitest", "run", "--coverage.enabled", "--coverage.provider=v8", "--coverage.reporter=json-summary", "--coverage.reportsDirectory={outdir}"]
-file = "coverage-summary.json"
+command = ["bun", "x", "vitest", "run", "--coverage.enabled", "--coverage.provider=v8", "--coverage.reporter=lcovonly", "--coverage.reportsDirectory={outdir}"]
+file = "lcov.info"
 
 [shell.coverage]
 format = "kcov"
@@ -88,8 +85,7 @@ dir = "ops/monitor"
 command = ["uv", "run", "--quiet", "--with", "pytest", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
 
 [python-monitor.coverage]
-format = "coverage-py"
-command = ["uv", "run", "--quiet", "--with", "pytest", "--with", "pytest-cov", "pytest", "-q", "-p", "no:cacheprovider", "--cov=.", "--cov-branch", "--cov-report=json:{out}"]
+command = ["uv", "run", "--quiet", "--with", "pytest", "--with", "pytest-cov", "pytest", "-q", "-p", "no:cacheprovider", "--cov=.", "--cov-branch", "--cov-report=lcov:{out}"]
 
 [python-monitor.results]
 format = "junit"

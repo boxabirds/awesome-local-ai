@@ -684,15 +684,18 @@ def test_the_fates_report_is_written_and_counts_each_state(tmp_path):
     assert report["exit_code"] == R.EXIT_FAIL and report["counts"]["kept"] == 1
 
 
-# ---- coverage proof (task 1.14): canned data through an injected runner ---------------------------------------------------
+# ---- coverage proof (tasks 1.4 and 1.14), at the level of the touched FUNCTIONS (owner-approved 12 Oct 2026) --------------------------
 
-COVERED = '[[entry]]\nfile = "src/a.py"\nfunction = "record"\nlanguage = "python"\nclasses = ["C"]\n'
-COVERED_RS = '[[entry]]\nfile = "src/a.rs"\nfunction = "pull"\nlanguage = "rust"\nclasses = ["B"]\n'
-COVERED_SH = '[[entry]]\nfile = "src/a.sh"\nfunction = "<script>"\nlanguage = "shell"\nclasses = ["B"]\n'
+def entry_toml(language: str, file: str, function: str) -> str:
+    return f'[[entry]]\nfile = "{file}"\nfunction = "{function}"\nlanguage = "{language}"\nclasses = ["C"]\n'
+
+
+PY_RECORD = "def record():\n    x = 1\n    if x:\n        return x\n    return 0\n\n\ndef elsewhere():\n    return 9\n"      # record is lines 1 to 5
+RS_PULL = "pub fn pull() {\n    let x = 1;\n    if x > 0 {\n        return;\n    }\n}\n\npub fn other() {\n    println!();\n}\n"      # pull is lines 1 to 7 (to the next fn)
 
 
 def canned(**per_language):
-    """A coverage runner returning canned per-file data, or raising what a real one raises."""
+    """A coverage runner returning canned per-file line data, or raising what a real one raises."""
     def run(root, language, spec):
         outcome = per_language[language]
         if isinstance(outcome, Exception):
@@ -701,68 +704,139 @@ def canned(**per_language):
     return run
 
 
-def coverage_result(tmp_path: Path, touched: str, **per_language) -> R.Result:
-    return R.check_coverage(make_root(tmp_path, touched=touched), canned(**per_language))
+def coverage_result(tmp_path: Path, touched: str, files: dict | None = None, **per_language) -> R.Result:
+    root = make_root(tmp_path, touched=touched)
+    for rel, text in (files or {}).items():
+        write(root, rel, text)
+    return R.check_coverage(root, canned(**per_language))
 
 
-def test_tc21_boundary_9999_of_10000_lines_fails_and_exactly_all_of_them_passes(tmp_path):
-    below = coverage_result(tmp_path / "a", COVERED, python={"src/a.py": R.FileCoverage(10000, 9999, 0, 0)})
-    assert below.exit_code == R.EXIT_FAIL
-    assert [(p.code, p.subject) for p in below.problems] == [("E-BELOW", "src/a.py")] and "9999 of 10000 lines" in below.problems[0].detail
-    full = coverage_result(tmp_path / "b", COVERED, python={"src/a.py": R.FileCoverage(10000, 10000, 0, 0)})
-    assert full.exit_code == R.EXIT_OK and full.problems == []
+def lines(hits: dict[int, int], branches=()):
+    return R.FileLines(dict(hits), list(branches))
+
+
+ALL_HIT = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 8: 0, 9: 0}      # record fully hit; the function after it not run at all
+
+
+def test_a_touched_function_with_every_line_and_branch_hit_passes_whatever_the_rest_of_the_file_does(tmp_path):
+    result = coverage_result(tmp_path, entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD},
+                             python={"src/a.py": lines(ALL_HIT, [(3, "0:4", True), (3, "0:5", True)])})
+    assert result.exit_code == R.EXIT_OK and result.problems == []                      # lines 8 and 9 (elsewhere) are unhit and do not matter
+    assert result.data["measured"] == {"src/a.py::record": [5, 5, 2, 2]}
+
+
+def test_tc21_one_uncovered_line_inside_the_function_fails_naming_function_and_line(tmp_path):
+    result = coverage_result(tmp_path, entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD},
+                             python={"src/a.py": lines({**ALL_HIT, 5: 0})})
+    assert result.exit_code == R.EXIT_FAIL
+    assert [(p.code, p.subject) for p in result.problems] == [("E-BELOW", "src/a.py::record")]
+    assert result.problems[0].detail == "4 of 5 lines (line 5)"
+
+
+def test_tc21_boundary_9999_of_10000_lines_fails_and_all_10000_pass(tmp_path):
+    big = "def big():\n" + "    x = 1\n" * 9999                                         # 10,000 lines
+    full = {n: 1 for n in range(1, 10001)}
+    almost = {**full, 7777: 0}
+    below = coverage_result(tmp_path / "a", entry_toml("python", "src/b.py", "big"), {"src/b.py": big}, python={"src/b.py": lines(almost)})
+    assert below.exit_code == R.EXIT_FAIL and below.problems[0].detail == "9999 of 10000 lines (line 7777)"
+    assert coverage_result(tmp_path / "b", entry_toml("python", "src/b.py", "big"), {"src/b.py": big}, python={"src/b.py": lines(full)}).exit_code == R.EXIT_OK
 
 
 def test_lines_and_branches_are_checked_independently(tmp_path):
-    lines_only = coverage_result(tmp_path / "a", COVERED, python={"src/a.py": R.FileCoverage(10, 9, 4, 4)})
-    branches_only = coverage_result(tmp_path / "b", COVERED, python={"src/a.py": R.FileCoverage(10, 10, 4, 3)})
-    assert "9 of 10 lines" in lines_only.problems[0].detail and "branches" not in lines_only.problems[0].detail
-    assert "3 of 4 branches" in branches_only.problems[0].detail and "lines" not in branches_only.problems[0].detail
+    only_branch = coverage_result(tmp_path / "a", entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD},
+                                  python={"src/a.py": lines(ALL_HIT, [(3, "0:4", True), (3, "0:5", False)])})
+    assert only_branch.problems[0].detail == "1 of 2 branches (3->5)"
+    both = coverage_result(tmp_path / "b", entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD},
+                           python={"src/a.py": lines({**ALL_HIT, 4: 0}, [(3, "0:4", False), (3, "0:5", True)])})
+    assert both.problems[0].detail == "4 of 5 lines (line 4); 1 of 2 branches (3->4)"
 
 
-def test_a_file_with_no_branches_is_fully_covered_on_branches(tmp_path):
-    assert coverage_result(tmp_path, COVERED, python={"src/a.py": R.FileCoverage(3, 3, 0, 0)}).exit_code == R.EXIT_OK
+def test_a_branch_outside_the_function_is_not_counted(tmp_path):
+    result = coverage_result(tmp_path, entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD},
+                             python={"src/a.py": lines(ALL_HIT, [(3, "0:4", True), (8, "0:9", False)])})
+    assert result.exit_code == R.EXIT_OK
 
 
-def test_a_touched_file_absent_from_the_data_is_unmeasured(tmp_path):
-    result = coverage_result(tmp_path, COVERED, python={})
-    assert result.exit_code == R.EXIT_FAIL and [(p.code, p.subject) for p in result.problems] == [("E-FILE-UNMEASURED", "src/a.py")]
+def test_a_function_with_no_measurable_line_or_a_file_the_tool_never_saw_is_unmeasured(tmp_path):
+    none = coverage_result(tmp_path / "a", entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD}, python={"src/a.py": lines({8: 1})})
+    assert [(p.code, p.subject) for p in none.problems] == [("E-FILE-UNMEASURED", "src/a.py::record")]
+    unseen = coverage_result(tmp_path / "b", entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD}, python={})
+    assert [(p.code, p.subject) for p in unseen.problems] == [("E-FILE-UNMEASURED", "src/a.py::record")]
+
+
+def test_a_touched_function_that_is_not_in_its_file_is_unmeasured_not_passed(tmp_path):
+    result = coverage_result(tmp_path, entry_toml("python", "src/a.py", "ghost"), {"src/a.py": PY_RECORD}, python={"src/a.py": lines(ALL_HIT)})
+    assert [p.code for p in result.problems] == ["E-FILE-UNMEASURED"]
+
+
+def test_a_rust_function_runs_from_its_fn_line_to_the_next_function(tmp_path):
+    hits = {1: 1, 2: 1, 3: 1, 4: 0, 8: 1, 9: 1}
+    result = coverage_result(tmp_path, entry_toml("rust", "src/a.rs", "pull"), {"src/a.rs": RS_PULL}, rust={"src/a.rs": lines(hits)})
+    assert result.problems[0].detail == "3 of 4 lines (line 4)"
+
+
+def test_two_rust_functions_of_one_name_are_both_checked(tmp_path):
+    src = "impl A {\n    fn new() {\n        1;\n    }\n}\nimpl B {\n    fn new() {\n        2;\n    }\n}\n"
+    result = coverage_result(tmp_path, entry_toml("rust", "src/a.rs", "new"), {"src/a.rs": src}, rust={"src/a.rs": lines({2: 1, 3: 1, 7: 1, 8: 0})})
+    assert result.problems[0].detail == "3 of 4 lines (line 8)"
+
+
+def test_a_shell_script_entry_is_the_whole_file(tmp_path):
+    src = "echo one\necho two\n"
+    result = coverage_result(tmp_path, entry_toml("shell", "src/a.sh", "<script>"), {"src/a.sh": src}, shell={"src/a.sh": lines({1: 1, 2: 0})})
+    assert result.problems[0].detail == "1 of 2 lines (line 2)"
 
 
 def test_tc24_a_missing_coverage_tool_is_exit_2_naming_it(tmp_path):
-    result = coverage_result(tmp_path, COVERED_RS, rust=R.ToolMissing("cargo llvm-cov"))
+    result = coverage_result(tmp_path, entry_toml("rust", "src/a.rs", "pull"), {"src/a.rs": RS_PULL}, rust=R.ToolMissing("cargo llvm-cov"))
     assert result.exit_code == R.EXIT_ERROR
     assert [(p.code, p.subject) for p in result.problems] == [("E-TOOL-MISSING", "rust")] and "cargo llvm-cov" in result.problems[0].detail
 
 
 def test_tc25_a_red_suite_is_exit_2_and_never_a_proof(tmp_path):
-    result = coverage_result(tmp_path, COVERED, python=R.SuiteRed("1 failed"))
+    result = coverage_result(tmp_path, entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD}, python=R.SuiteRed("1 failed"))
     assert result.exit_code == R.EXIT_ERROR and [p.code for p in result.problems] == ["E-SUITE-RED"]
 
 
 def test_tc26_shell_without_kcov_is_reported_not_measured_while_other_languages_still_decide(tmp_path):
-    passing = coverage_result(tmp_path / "a", COVERED + COVERED_SH, python={"src/a.py": R.FileCoverage(5, 5, 0, 0)}, shell=R.NotMeasured("kcov is not available on macOS"))
+    touched = entry_toml("python", "src/a.py", "record") + entry_toml("shell", "src/a.sh", "<script>")
+    files = {"src/a.py": PY_RECORD, "src/a.sh": "echo\n"}
+    passing = coverage_result(tmp_path / "a", touched, files, python={"src/a.py": lines(ALL_HIT)}, shell=R.NotMeasured("kcov is not available on macOS"))
     assert passing.exit_code == R.EXIT_OK and passing.data["not_measured"] == {"shell": "kcov is not available on macOS"}
-    failing = coverage_result(tmp_path / "b", COVERED + COVERED_SH, python={"src/a.py": R.FileCoverage(5, 4, 0, 0)}, shell=R.NotMeasured("x"))
+    failing = coverage_result(tmp_path / "b", touched, files, python={"src/a.py": lines({**ALL_HIT, 5: 0})}, shell=R.NotMeasured("x"))
     assert failing.exit_code == R.EXIT_FAIL and failing.data["not_measured"] == {"shell": "x"}
 
 
-def test_a_language_with_no_touched_files_is_not_run(tmp_path):
-    result = coverage_result(tmp_path, COVERED, python={"src/a.py": R.FileCoverage(1, 1, 0, 0)})      # no rust key: a call would KeyError
+def test_a_language_with_no_touched_functions_is_not_run(tmp_path):
+    result = coverage_result(tmp_path, entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD}, python={"src/a.py": lines(ALL_HIT)})   # no rust key: a call would KeyError
     assert result.exit_code == R.EXIT_OK
 
 
-COVERAGE_PY = {"files": {"minipy/core.py": {"summary": {"num_statements": 10, "covered_lines": 9, "num_branches": 4, "covered_branches": 3}}}}
-LLVM = {"data": [{"files": [{"filename": "/r/rs/mini/src/lib.rs", "summary": {"lines": {"count": 8, "covered": 8}, "branches": {"count": 2, "covered": 1}}}]}]}
-VITEST = {"total": {}, "/r/ts/src/core.ts": {"lines": {"total": 5, "covered": 5}, "branches": {"total": 2, "covered": 2}}}
-KCOV = {"files": [{"file": "/r/tests/x.sh", "covered_lines": "7", "total_lines": "9"}]}
+LCOV = """TN:
+SF:{root}/src/a.rs
+FN:1,pull
+DA:1,3
+DA:2,3
+DA:3,0
+BRDA:3,0,0,2
+BRDA:3,0,1,-
+end_of_record
+SF:{root}/src/b.rs
+DA:5,1
+end_of_record
+"""
 
 
-def test_the_four_tools_json_shapes_are_read_into_per_file_counts_relative_to_the_repository():
-    assert R.parse_coverage_py("py", COVERAGE_PY) == {"py/minipy/core.py": R.FileCoverage(10, 9, 4, 3)}
-    assert R.parse_llvm_cov(Path("/r"), LLVM) == {"rs/mini/src/lib.rs": R.FileCoverage(8, 8, 2, 1)}
-    assert R.parse_vitest_summary(Path("/r"), VITEST) == {"ts/src/core.ts": R.FileCoverage(5, 5, 2, 2)}
-    assert R.parse_kcov(Path("/r"), KCOV) == {"tests/x.sh": R.FileCoverage(9, 7, 0, 0)}
+def test_lcov_is_read_into_hit_counts_per_line_and_taken_branches_with_files_relative_to_the_repository():
+    data = R.parse_lcov(Path("/r"), "", LCOV.format(root="/r"))
+    assert data["src/a.rs"].lines == {1: 3, 2: 3, 3: 0}
+    assert data["src/a.rs"].branches == [(3, "0:0", True), (3, "0:1", False)]
+    assert data["src/b.rs"].lines == {5: 1}
+
+
+def test_lcov_from_a_run_made_in_a_folder_has_files_relative_to_that_folder():
+    text = "SF:pkg/core.py\nDA:1,1\nBRDA:3,0,4,1\nend_of_record\n"
+    assert R.parse_lcov(Path("/r"), "py", text)["py/pkg/core.py"].branches == [(3, "0:4", True)]
 
 
 # ---- justifiers and the command line ----------------------------------------------------------------------------------
@@ -1200,9 +1274,10 @@ def test_tc18_tc22_tc23_every_touched_file_at_100_in_python_rust_and_typescript_
     root = fresh_mini(tmp_path)
     done, report = coverage_run(root)
     assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
-    assert set(report["measured"]) == {"py/minipy/core.py", "rs/mini/src/lib.rs", "ts/src/core.ts"}
+    assert set(report["measured"]) == {"py/minipy/core.py::record", "py/minipy/core.py::run_dir", "rs/mini/src/lib.rs::count_lines", "ts/src/core.ts::titleOf"}
     assert all(c[0] == c[1] and c[2] == c[3] for c in report["measured"].values())      # lines and branches both fully hit
-    assert report["measured"]["rs/mini/src/lib.rs"][2] > 0                              # the Rust branches really were counted
+    assert report["measured"]["rs/mini/src/lib.rs::count_lines"][2] > 0                 # the Rust branches really were counted
+    assert report["measured"]["ts/src/core.ts::titleOf"][2] > 0                         # and the TypeScript ones
 
 
 def test_tc19_one_uncovered_line_fails_listing_the_line(coverage_tools, tmp_path):
@@ -1213,7 +1288,7 @@ def test_tc19_one_uncovered_line_fails_listing_the_line(coverage_tools, tmp_path
     touched.write_text(touched.read_text() + '\n[[entry]]\nlanguage = "python"\nfile = "py/minipy/core.py"\nfunction = "never_called"\nclasses = ["A"]\n')
     done, report = coverage_run(root)
     problem = report["problems"][0]
-    assert done.returncode == R.EXIT_FAIL and problem["code"] == "E-BELOW" and problem["subject"] == "py/minipy/core.py"
+    assert done.returncode == R.EXIT_FAIL and problem["code"] == "E-BELOW" and problem["subject"] == "py/minipy/core.py::never_called"
     last = len(core.read_text().splitlines())
     assert f"line {last}" in problem["detail"]
 
@@ -1284,7 +1359,7 @@ def test_with_kcov_every_shell_test_runs_under_it_then_the_results_are_merged_an
     calls = log.read_text().splitlines()
     assert any("tests/one-test.sh" in c for c in calls) and any("tests/two-test.sh" in c for c in calls)
     assert any(c.startswith("--merge") for c in calls)
-    assert [(p.code, p.subject) for p in result.problems] == [("E-BELOW", "tests/one-test.sh")] and "7 of 9 lines" in result.problems[0].detail
+    assert [(p.code, p.subject) for p in result.problems] == [("E-BELOW", "tests/one-test.sh::<script>")] and "7 of 9 lines" in result.problems[0].detail
     assert result.data["not_measured"] == {}
 
 
@@ -2029,3 +2104,9 @@ def test_check_register_on_the_mini_project_decides_over_the_six_touching_tests_
     data = json.loads((root / "ops/refactor/reports/register.json").read_text())
     assert sum(len(v) for v in data["listed"].values()) == 8
     assert {f"{lang}:{t}" for lang, ids in data["touching"].items() for t in ids} == MINI_SIX
+
+
+def test_a_branch_target_written_as_jump_to_line_is_shown_as_a_plain_arc(tmp_path):
+    result = coverage_result(tmp_path, entry_toml("python", "src/a.py", "record"), {"src/a.py": PY_RECORD},
+                             python={"src/a.py": lines(ALL_HIT, [(3, "0:jump to line 4", True), (3, "0:jump to line 5", False)])})
+    assert result.problems[0].detail == "1 of 2 branches (3->5)"

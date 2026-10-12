@@ -201,6 +201,7 @@ def source_files(root: Path, cfg: Classes) -> list[tuple[str, str]]:
 class Func:
     name: str
     text: str
+    start: int = 1          # the line the function starts on (1-based); python_functions leaves it at 1 (it only keeps own lines)
 
 
 RUST_FN = re.compile(r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)")
@@ -255,7 +256,7 @@ def boundary_functions(text: str, start: re.Pattern, top_level: str) -> list[Fun
     funcs.append(Func(top_level, "\n".join(head)))
     for i, (n, name) in enumerate(starts):
         end = starts[i + 1][0] if i + 1 < len(starts) else len(lines)
-        funcs.append(Func(name, "\n".join(lines[n:end])))
+        funcs.append(Func(name, "\n".join(lines[n:end]), start=n + 1))
     return funcs
 
 
@@ -795,13 +796,11 @@ def check_contracts(root: Path, results: Results) -> Result:
 # ---- coverage proof: 100% of lines and branches of every touched file -----------------------------------------------
 
 @dataclass
-class FileCoverage:
-    lines: int
-    lines_hit: int
-    branches: int
-    branches_hit: int
-    missing_lines: tuple = ()          # line numbers, where the tool reports them
-    missing_branches: tuple = ()       # (from line, to line) arcs, where the tool reports them
+class FileLines:
+    """One file's coverage as a tool reports it: hits per instrumented line, and each branch as (line, id, taken)."""
+    lines: dict[int, int]
+    branches: list[tuple[int, str, bool]] = field(default_factory=list)
+    totals: tuple[int, int] | None = None      # (lines, lines hit) when the tool gives only a file total (kcov)
 
 
 class ToolMissing(Exception):
@@ -816,39 +815,55 @@ class NotMeasured(Exception):
     """This language cannot be measured here (kcov on macOS): reported as not measured, never as passed."""
 
 
-CoverageRunner = Callable[[Path, str, dict], dict[str, FileCoverage]]
+CoverageRunner = Callable[[Path, str, dict], dict[str, FileLines]]
 COVERAGE_OUT = "{out}"           # replaced in a coverage command by the file the tool must write its JSON to
 COVERAGE_OUTDIR = "{outdir}"     # or by the folder, for a tool that picks the file name itself (spec "file" names it)
-
-
-def parse_coverage_py(folder: str, report: dict) -> dict[str, FileCoverage]:
-    """`coverage json` / pytest-cov: keys are relative to the folder the run was made in."""
-    return {f"{folder}/{file}": FileCoverage(s["num_statements"], s["covered_lines"], s["num_branches"], s["covered_branches"],
-                                             tuple(body.get("missing_lines", ())), tuple(tuple(a) for a in body.get("missing_branches", ())))
-            for file, body in report["files"].items() for s in [body["summary"]]}
 
 
 def relative(root: Path, name: str) -> str:
     return Path(name).resolve().relative_to(root.resolve()).as_posix()
 
 
-def parse_llvm_cov(root: Path, report: dict) -> dict[str, FileCoverage]:
-    return {relative(root, f["filename"]): FileCoverage(f["summary"]["lines"]["count"], f["summary"]["lines"]["covered"],
-                                                        f["summary"]["branches"]["count"], f["summary"]["branches"]["covered"])
-            for f in report["data"][0]["files"]}
+def parse_lcov(root: Path, folder: str, text: str) -> dict[str, FileLines]:
+    """lcov (pytest-cov, cargo llvm-cov, vitest all write it): SF file, DA line,hits, BRDA line,block,branch,taken."""
+    files: dict[str, FileLines] = {}
+    current: FileLines | None = None
+    for raw in text.splitlines():
+        if raw.startswith("SF:"):
+            path = Path(raw[3:])
+            name = relative(root, raw[3:]) if path.is_absolute() else posixpath.normpath(f"{folder}/{raw[3:]}" if folder else raw[3:])
+            current = files.setdefault(name, FileLines({}))
+        elif raw.startswith("DA:") and current is not None:
+            line, hits = raw[3:].split(",")[:2]
+            current.lines[int(line)] = int(hits)
+        elif raw.startswith("BRDA:") and current is not None:
+            line, block, branch, taken = raw[5:].split(",")
+            current.branches.append((int(line), f"{block}:{branch}", taken not in ("-", "0")))
+    return files
 
 
-def parse_vitest_summary(root: Path, report: dict) -> dict[str, FileCoverage]:
-    return {relative(root, file): FileCoverage(c["lines"]["total"], c["lines"]["covered"], c["branches"]["total"], c["branches"]["covered"])
-            for file, c in report.items() if file != "total"}
+def parse_kcov(root: Path, report: dict) -> dict[str, FileLines]:
+    """kcov's merged json has line totals per file only (no branches)."""
+    return {relative(root, f["file"]): FileLines({}, [], (int(f["total_lines"]), int(f["covered_lines"]))) for f in report["files"]}
 
 
-def parse_kcov(root: Path, report: dict) -> dict[str, FileCoverage]:
-    """kcov measures lines only, so branches are 0 of 0."""
-    return {relative(root, f["file"]): FileCoverage(int(f["total_lines"]), int(f["covered_lines"]), 0, 0) for f in report["files"]}
+def function_lines(root: Path, language: str, file: str, function: str) -> set[int] | None:
+    """The line numbers a touched function spans (a shell <script> is the whole file); None if the file has no such function."""
+    text = (root / file).read_text()
+    if function == SCRIPT_LEVEL:
+        return set(range(1, len(text.splitlines()) + 1))
+    if language == "python":
+        return python_function_lines(text, function)
+    funcs = [f for f in functions_of(language, text) if f.name == function]
+    if not funcs:
+        return None
+    lines: set[int] = set()
+    for f in funcs:
+        lines |= set(range(f.start, f.start + len(f.text.splitlines())))
+    return lines
 
 
-def run_kcov(root: Path, outdir: Path, spec: dict) -> dict[str, FileCoverage]:
+def run_kcov(root: Path, outdir: Path, spec: dict) -> dict[str, FileLines]:
     """Every shell test script runs under kcov, then the runs are merged and the merged json is read (Linux only)."""
     kcov = shutil.which("kcov")
     if kcov is None:
@@ -866,7 +881,7 @@ def run_kcov(root: Path, outdir: Path, spec: dict) -> dict[str, FileCoverage]:
     return parse_kcov(root, json.loads((outdir / spec.get("file", "kcov-merged/coverage.json")).read_text()))
 
 
-def run_coverage(root: Path, language: str, spec: dict) -> dict[str, FileCoverage]:
+def run_coverage(root: Path, language: str, spec: dict) -> dict[str, FileLines]:
     """Run one language's suite under its coverage tool and read the per-file counts it wrote."""
     outdir = root / REPORTS_DIR / f"coverage-{language}"
     shutil.rmtree(outdir, ignore_errors=True)
@@ -885,26 +900,22 @@ def run_coverage(root: Path, language: str, spec: dict) -> dict[str, FileCoverag
     if done.returncode != EXIT_OK or not out.exists():
         tail = " | ".join((done.stderr or done.stdout).strip().splitlines()[-ERROR_TAIL_LINES:])
         raise SuiteRed(f"{' '.join(command[:3])} exited {done.returncode}: {tail}")
-    report = json.loads(out.read_text())
-    return {"coverage-py": lambda: parse_coverage_py(spec["dir"], report),
-            "llvm-cov": lambda: parse_llvm_cov(root, report),
-            "vitest-summary": lambda: parse_vitest_summary(root, report)}[spec["format"]]()
+    return parse_lcov(root, spec["dir"], out.read_text())
 
 
 def check_coverage(root: Path, runner: CoverageRunner = run_coverage) -> Result:
-    """100% of lines and of branches for every touched file, measured by running each language's suite under its tool."""
+    """100% of the lines and of the branches inside every touched function, measured by running each language's suite under its
+    tool (the owner approved the function level on 12 Oct 2026: the refactor deletes functions, not files)."""
     result = Result()
     specs = read_toml(root / RUNNERS_FILE)
-    files: dict[str, list[str]] = {}
+    touched: dict[str, list[dict]] = {}
     for e in read_toml(root / TOUCHED_FILE).get("entry", []):
-        files.setdefault(e["language"], [])
-        if e["file"] not in files[e["language"]]:
-            files[e["language"]].append(e["file"])
+        touched.setdefault(e["language"], []).append(e)
     not_measured: dict[str, str] = {}
     measured_counts: dict[str, list[int]] = {}
-    for language, touched in sorted(files.items()):
+    for language, entries in sorted(touched.items()):
         try:
-            measured = {}
+            measured: dict[str, FileLines] = {}
             for key in [k for k in specs if runner_language(k) == language] or [language]:     # a language may have several runners
                 language_spec = specs.get(key, {})
                 measured |= runner(root, language, language_spec.get("coverage", {}) | {"dir": language_spec.get("dir", "."), "glob": language_spec.get("glob", "")})
@@ -917,16 +928,40 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage) -> Result:
         except SuiteRed as exc:
             result.error("E-SUITE-RED", language, str(exc))
             continue
-        for file in touched:
-            cov = measured.get(file)
-            if cov is None:
-                result.fail("E-FILE-UNMEASURED", file, f"{language}: the coverage tool reported nothing for this file")
+        for e in entries:
+            subject = f"{e['file']}::{e['function']}"
+            data = measured.get(e["file"])
+            span = function_lines(root, language, e["file"], e["function"]) if (root / e["file"]).exists() else None
+            if data is None or span is None:
+                result.fail("E-FILE-UNMEASURED", subject, f"{language}: the coverage tool reported nothing for this {'file' if data is None else 'function'}")
                 continue
-            short = [f"{cov.lines_hit} of {cov.lines} lines ({', '.join(f'line {n}' for n in cov.missing_lines)})".replace(" ()", "")] if cov.lines_hit < cov.lines else []
-            short += [f"{cov.branches_hit} of {cov.branches} branches ({', '.join(f'{a}->{b}' for a, b in cov.missing_branches)})".replace(" ()", "")] if cov.branches_hit < cov.branches else []
-            measured_counts[file] = [cov.lines, cov.lines_hit, cov.branches, cov.branches_hit]
+            if data.totals is not None:                                    # a tool that gives file totals only: fine for a whole script
+                if e["function"] != SCRIPT_LEVEL:
+                    result.fail("E-FILE-UNMEASURED", subject, f"{language}: the tool reports file totals only, not the lines of a function")
+                    continue
+                total, hit = data.totals
+                lines_missing, branches_missing, lines_n, branches_n = [], [], total, 0
+                lines_hit = hit
+            else:
+                executable = sorted(n for n in span if n in data.lines)
+                if not executable:
+                    result.fail("E-FILE-UNMEASURED", subject, f"{language}: no measurable line in this function")
+                    continue
+                lines_missing = [n for n in executable if data.lines[n] == 0]
+                lines_n, lines_hit = len(executable), len(executable) - len(lines_missing)
+                inside = [b for b in data.branches if b[0] in span]
+                branches_missing = [b for b in inside if not b[2]]
+                branches_n = len(inside)
+            branches_hit = branches_n - len(branches_missing)
+            measured_counts[subject] = [lines_n, lines_hit, branches_n, branches_hit]
+            short = []
+            if lines_hit < lines_n:
+                where = ", ".join(f"line {n}" for n in lines_missing)
+                short.append(f"{lines_hit} of {lines_n} lines" + (f" ({where})" if where else ""))
+            if branches_hit < branches_n:
+                short.append(f"{branches_hit} of {branches_n} branches (" + ", ".join(f"{line}->{bid.split(':', 1)[1].removeprefix('jump to line ')}" for line, bid, _ in branches_missing) + ")")
             if short:
-                result.fail("E-BELOW", file, "; ".join(short))
+                result.fail("E-BELOW", subject, "; ".join(short))
     result.data = {"not_measured": not_measured, "measured": measured_counts}
     write_report(root, "coverage", result)
     return result
