@@ -698,9 +698,85 @@ def python_touching_tests(root: Path, coverage: dict) -> set[str]:
     return found
 
 
+TOUCHED_TESTS = REPORTS_DIR / "touched-tests.json"   # {language: [test ids]} written by the adapters, one language at a time
+
+
 def list_tests(root: Path) -> dict[str, set[str]]:
-    """The real runners' test lists (filled in by the runner adapters below)."""
-    return {}
+    """The tests that execute the touched set, as the per-language adapters last wrote them."""
+    path = root / TOUCHED_TESTS
+    if not path.exists():
+        raise AdapterError(f"{TOUCHED_TESTS} does not exist: run the adapters (adapt-python, ...) first")
+    return {language: set(ids) for language, ids in json.loads(path.read_text()).items()}
+
+
+def adapt_python(root: Path, sources: list[tuple[str, Path]]) -> Result:
+    """Read `coverage json --show-contexts` outputs, one per folder a run was made in (file keys and test ids are relative
+    to that folder, so both get the folder as a prefix), and store the Python tests that execute the touched functions.
+    Nothing is written unless every touched file was measured."""
+    result = Result()
+    merged_files: dict[str, dict] = {}
+    for prefix, coverage_json in sources:
+        for file, body in json.loads(coverage_json.read_text()).get("files", {}).items():
+            contexts = {line: [prefix + n if n else n for n in names] for line, names in body.get("contexts", {}).items()}
+            merged_files[prefix + file] = {"contexts": contexts}
+    try:
+        tests = python_touching_tests(root, {"files": merged_files})
+    except AdapterError as exc:
+        result.error("E-ADAPTER", "coverage", str(exc))
+        return result
+    path = root / TOUCHED_TESTS
+    current = json.loads(path.read_text()) if path.exists() else {}
+    current["python"] = sorted(t.split(":", 1)[1] for t in tests)
+    atomic_write(path, json.dumps(current, indent=JSON_INDENT, sort_keys=True) + "\n")
+    result.data = {"python": len(tests)}
+    return result
+
+
+FILE_USE_CASE_FILE = REFACTOR_DIR / "file_use_case.toml"   # [language] "<test file>" = "U<n>": the reviewed table behind assignments.toml
+
+
+def toml_string(value: str) -> str:
+    return json.dumps(value)        # a JSON string is a valid TOML basic string
+
+
+def render_assignments(assigned: dict[str, list[str]], unfit: list[dict]) -> str:
+    lines = ["# Written by `refactor.py assign-by-file` from file_use_case.toml; unfit entries are kept as recorded.", "", "[assignments]"]
+    for use_case in sorted(assigned):
+        body = ", ".join(toml_string(t) for t in sorted(assigned[use_case]))
+        lines.append(f"{use_case} = [{body}]")
+    for entry in unfit:
+        lines += ["", "[[unfit]]"] + [f"{k} = {toml_string(v)}" for k, v in entry.items()]
+    return "\n".join(lines) + "\n"
+
+
+def assign_by_file(root: Path) -> Result:
+    """Every touched test goes to the use case of its test file; a test file with no entry, or an entry naming an unknown
+    use case, stops the whole step with assignments.toml untouched. Tests already listed unfit are left to that list."""
+    result = Result()
+    use_cases = set(read_toml(root / USE_CASES_FILE).get("use_cases", {}))
+    table = read_toml(root / FILE_USE_CASE_FILE)
+    unfit = read_toml(root / ASSIGNMENTS_FILE).get("unfit", [])
+    unfit_tests = {e.get("test") for e in unfit}
+    for language, files in table.items():
+        for file, use_case in files.items():
+            if use_case not in use_cases:
+                result.fail("E-UNKNOWN-USE-CASE", f"{language}:{file}", use_case)
+    assigned: dict[str, list[str]] = {}
+    for language, ids in sorted(list_tests(root).items()):
+        for test_id in sorted(ids):
+            test = qualified(language, test_id)
+            if test in unfit_tests:
+                continue
+            use_case = table.get(language, {}).get(test_id.split("::", 1)[0])
+            if use_case is None:
+                result.fail("E-FILE-UNMAPPED", test_id.split("::", 1)[0], f"{language}: no entry in {FILE_USE_CASE_FILE}")
+            elif use_case in use_cases:
+                assigned.setdefault(use_case, []).append(test)
+    if result.exit_code == EXIT_OK:
+        atomic_write(root / ASSIGNMENTS_FILE, render_assignments(assigned, unfit))
+        result.data = {"counts": {u: len(t) for u, t in sorted(assigned.items())}}
+    write_report(root, "assign-by-file", result)
+    return result
 
 
 # ---- inputs the runners' adapters write (neutral JSON), and the machine probe -------------------------------------------
@@ -806,6 +882,10 @@ def main(argv: list[str] | None = None) -> int:
         sub.add_parser(name, help=text)
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("advance", help="move to the next stage if its check passes").add_argument("to")
+    sub.add_parser("assign-by-file", help=f"expand {FILE_USE_CASE_FILE} into assignments.toml")
+    adapt = sub.add_parser("adapt-python", help="store the Python tests that execute the touched set, from coverage contexts")
+    adapt.add_argument("sources", nargs="+", metavar="FOLDER=FILE",
+                       help="the folder (relative to the repository root, with a trailing /) a coverage run was made in, and its JSON")
     args = parser.parse_args(argv)
     root = args.root
     lister = list_tests                                   # looked up at call time so tests can replace it
@@ -834,10 +914,17 @@ def main(argv: list[str] | None = None) -> int:
                 result.error("E-RESULTS-MISSING", str(RESULTS_INPUT), "no results to read")
             else:
                 result = report_deletion(root, results)
+        elif args.command == "assign-by-file":
+            result = assign_by_file(root)
+        elif args.command == "adapt-python":
+            result = adapt_python(root, [(folder, Path(file)) for folder, _, file in (src.partition("=") for src in args.sources)])
         elif args.command == "advance":
             result = move_stage(root, args.to, default_justifiers(lister))
         else:
             result = simple[args.command]()
+    except AdapterError as exc:
+        print(f"{args.command}: UNDECIDED\n  E-ADAPTER  {exc}")
+        return EXIT_ERROR
     except StageFileCorrupt as exc:
         print(f"{STAGE_FILE}: corrupt, left as it is: {exc}")
         return EXIT_ERROR

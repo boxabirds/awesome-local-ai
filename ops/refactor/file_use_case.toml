@@ -1,0 +1,37 @@
+# One use case per test file (docs/designs/operational-data-separation.md, "Refactoring method", step 1). `refactor.py
+# assign-by-file` expands this into assignments.toml; a touched test whose file is missing here stops the step.
+# Python test ids are written with their folder: benchmarks/spec-bench/harness/<file>.
+
+[python]
+# U1 the harness records a story
+"benchmarks/spec-bench/harness/test_drive_main.py" = "U1"
+"benchmarks/spec-bench/harness/test_drive_record.py" = "U1"
+"benchmarks/spec-bench/harness/test_drive_helpers.py" = "U1"
+"benchmarks/spec-bench/harness/test_drive.py" = "U1"
+"benchmarks/spec-bench/harness/test_pipeline.py" = "U1"
+"benchmarks/spec-bench/harness/test_story_faults.py" = "U1"
+"benchmarks/spec-bench/harness/test_record_event.py" = "U1"
+"benchmarks/spec-bench/harness/test_roots.py" = "U1"
+"benchmarks/spec-bench/harness/test_publish_gate.py" = "U1"
+"benchmarks/spec-bench/harness/test_publicise.py" = "U1"
+"benchmarks/spec-bench/harness/test_history.py" = "U1"
+"benchmarks/spec-bench/harness/test_reread_finish.py" = "U1"
+"benchmarks/spec-bench/harness/test_recording.py" = "U1"
+"benchmarks/spec-bench/harness/test_agent_world.py" = "U1"
+"benchmarks/spec-bench/harness/test_provenance.py" = "U1"
+"benchmarks/spec-bench/harness/test_tagsuite.py" = "U1"
+# U7 the monitor reads records
+"ops/monitor/test_monitor.py" = "U7"
+# U8 a judge package goes out and results come back
+"benchmarks/spec-bench/harness/test_judge.py" = "U8"
+# U9 a job references another run
+"benchmarks/spec-bench/harness/test_logscan.py" = "U9"
+"benchmarks/spec-bench/harness/test_progress.py" = "U9"
+# U10 finalize and rescore write the score of record
+"benchmarks/spec-bench/harness/test_finalize.py" = "U10"
+"benchmarks/spec-bench/harness/test_migrate_rescore_to_record.py" = "U10"
+"benchmarks/spec-bench/harness/test_backfill_timing.py" = "U10"
+"benchmarks/spec-bench/harness/test_backfill_draft.py" = "U10"
+"benchmarks/spec-bench/harness/test_mark_not_comparable.py" = "U10"
+# U14 the release gate
+"benchmarks/spec-bench/harness/test_replay_real_logs.py" = "U14"

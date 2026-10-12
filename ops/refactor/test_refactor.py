@@ -898,3 +898,91 @@ def test_function_lines_find_a_function_nested_inside_another_by_the_name_the_sc
 def test_function_lines_find_a_function_nested_in_a_method_under_the_class_prefix():
     src = "class C:\n    def m(self):\n        def helper():\n            return 1\n        return helper\n"
     assert R.python_function_lines(src, "C.helper") == {3, 4}
+
+
+# ---- the register reads the adapters' output --------------------------------------------------------------------------
+
+def test_list_tests_reads_the_touched_tests_file_the_adapters_wrote(tmp_path):
+    root = make_root(tmp_path)
+    write(root, "ops/refactor/reports/touched-tests.json", json.dumps({"python": ["a.py::t1"], "rust": ["m::t2"]}))
+    assert R.list_tests(root) == {"python": {"a.py::t1"}, "rust": {"m::t2"}}
+
+
+def test_list_tests_without_the_file_is_an_adapter_error(tmp_path):
+    with pytest.raises(R.AdapterError):
+        R.list_tests(make_root(tmp_path))
+
+
+TWO_TOUCHED = (
+    '[[entry]]\nlanguage = "python"\nfile = "h/a.py"\nfunction = "record"\nclasses = ["A"]\n'
+    '[[entry]]\nlanguage = "python"\nfile = "m/b.py"\nfunction = "scan"\nclasses = ["B"]\n')
+
+
+def two_sources(tmp_path: Path):
+    root = make_code_root(tmp_path, {"h/a.py": PY_SOURCE, "m/b.py": "def scan():\n    return 1\n"}, touched=TWO_TOUCHED)
+    h = write(tmp_path, "h.json", json.dumps({"files": {"a.py": {"contexts": {"2": ["t.py::one|run"]}}}}))
+    m = write(tmp_path, "m.json", json.dumps({"files": {"b.py": {"contexts": {"2": ["t.py::two|run"]}}}}))
+    return root, h, m
+
+
+def test_adapt_python_merges_several_sources_and_makes_ids_unique_by_their_folder(tmp_path):
+    root, h, m = two_sources(tmp_path)
+    write(root, "ops/refactor/reports/touched-tests.json", json.dumps({"rust": ["m::t2"]}))
+    assert cli(root, "adapt-python", f"h/={h}", f"m/={m}") == R.EXIT_OK
+    stored = json.loads((root / "ops/refactor/reports/touched-tests.json").read_text())
+    assert stored == {"rust": ["m::t2"], "python": ["h/t.py::one", "m/t.py::two"]}
+
+
+def test_adapt_python_with_a_source_missing_is_exit_2_and_writes_nothing(tmp_path):
+    root, h, _ = two_sources(tmp_path)
+    assert cli(root, "adapt-python", f"h/={h}") == R.EXIT_ERROR
+    assert not (root / "ops/refactor/reports/touched-tests.json").exists()
+
+
+def test_check_register_with_no_adapter_output_is_exit_2(tmp_path):
+    assert cli(make_root(tmp_path), "check-register") == R.EXIT_ERROR
+
+
+# ---- assign by file: one reviewed table, expanded into the register ----------------------------------------------------
+
+def assign_root(tmp_path: Path, mapping: str, tests: dict) -> Path:
+    root = make_root(tmp_path)
+    write(root, "ops/refactor/file_use_case.toml", mapping)
+    write(root, "ops/refactor/reports/touched-tests.json", json.dumps(tests))
+    return root
+
+
+def test_assign_by_file_expands_each_test_to_its_files_use_case(tmp_path):
+    root = assign_root(tmp_path, '[python]\n"h/a.py" = "U1"\n"h/b.py" = "U2"\n',
+                       {"python": ["h/a.py::t1", "h/a.py::t2", "h/b.py::t1"]})
+    assert cli(root, "assign-by-file") == R.EXIT_OK
+    written = tomllib_load(root / "ops/refactor/assignments.toml")["assignments"]
+    assert written == {"U1": ["python:h/a.py::t1", "python:h/a.py::t2"], "U2": ["python:h/b.py::t1"]}
+    assert cli(root, "check-register") == R.EXIT_OK
+
+
+def tomllib_load(path: Path) -> dict:
+    import tomllib
+    return tomllib.loads(path.read_text())
+
+
+def test_assign_by_file_with_an_unmapped_file_is_refused_and_writes_nothing(tmp_path):
+    root = assign_root(tmp_path, '[python]\n"h/a.py" = "U1"\n', {"python": ["h/a.py::t1", "h/c.py::t1"]})
+    before = (root / "ops/refactor/assignments.toml").read_text()
+    assert cli(root, "assign-by-file") == R.EXIT_FAIL
+    assert (root / "ops/refactor/assignments.toml").read_text() == before
+
+
+def test_assign_by_file_to_an_unknown_use_case_is_refused(tmp_path):
+    root = assign_root(tmp_path, '[python]\n"h/a.py" = "U99"\n', {"python": ["h/a.py::t1"]})
+    assert cli(root, "assign-by-file") == R.EXIT_FAIL
+
+
+def test_assign_by_file_keeps_the_unfit_decisions_already_recorded(tmp_path):
+    root = assign_root(tmp_path, '[python]\n"h/a.py" = "U1"\n', {"python": ["h/a.py::t1", "h/a.py::odd"]})
+    write(root, "ops/refactor/assignments.toml",
+          '[[unfit]]\ntest = "python:h/a.py::odd"\ndecision = "retire"\nreason = "fits no actor"\n')
+    assert cli(root, "assign-by-file") == R.EXIT_OK
+    written = tomllib_load(root / "ops/refactor/assignments.toml")
+    assert written["assignments"] == {"U1": ["python:h/a.py::t1"]} and written["unfit"][0]["test"] == "python:h/a.py::odd"
+    assert cli(root, "check-register") == R.EXIT_OK
