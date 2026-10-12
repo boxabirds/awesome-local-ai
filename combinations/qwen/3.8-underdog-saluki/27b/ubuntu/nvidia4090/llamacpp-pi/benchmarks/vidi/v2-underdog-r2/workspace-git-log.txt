@@ -1,0 +1,182 @@
+commit 2d07f3a71d258ab828e54b0f7b171774f4cb0a64
+agent  Tue Oct 13 00:56:52 2026 +0100
+
+    story 1: Pan and zoom around an infinite board
+
+
+ PROGRESS.md                             |  18 +-
+ package-lock.json                       | 233 +++++++++++++++++-
+ package.json                            |   5 +-
+ playwright.config.ts                    | 100 +++++++-
+ src/client/canvas/BoardViewport.tsx     |  12 +-
+ src/client/canvas/useCamera.ts          |  21 +-
+ src/client/controls/NavigationHint.tsx  |   2 +-
+ src/client/controls/ZoomControls.tsx    |  38 +--
+ tests/component/BoardViewport.test.tsx  | 415 ++++++++++++++++++++++++++++++++
+ tests/component/NavigationHint.test.tsx |  57 +++++
+ tests/component/ZoomControls.test.tsx   |  92 +++++++
+ tests/e2e/helpers/board.ts              |  34 ++-
+ tests/e2e/navigation-hint.spec.ts       |  39 +++
+ tests/e2e/pan-and-zoom.spec.ts          | 248 +++++++++++++++++++
+ tests/setup.ts                          |  29 ++-
+ 15 files changed, 1291 insertions(+), 52 deletions(-)
+commit 8a1dc377eb8e12b373a8df8d952a68597d5d0715
+agent  Mon Oct 12 23:15:38 2026 +0100
+
+    story 1: navigation hint and wiring in App
+
+
+ src/client/App.tsx                     | 14 ++++++++++++++
+ src/client/controls/NavigationHint.tsx | 23 +++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)
+commit 476680bfeb469b93c21a1ff5650929b53454eff7
+agent  Mon Oct 12 23:15:38 2026 +0100
+
+    story 1: zoom controls
+
+
+ src/client/controls/ZoomControls.tsx | 58 ++++++++++++++++++++++++++
+ src/client/index.css                 | 79 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 137 insertions(+)
+commit 90ead66d4868fc82bf4fbd060efbba9816671205
+agent  Mon Oct 12 23:15:01 2026 +0100
+
+    story 1: viewport inputs, dot grid, origin marker and useCamera hook
+
+
+ src/client/App.tsx                  |  44 ++++++-
+ src/client/canvas/BoardViewport.tsx | 231 +++++++++++++++++++++++++++++++++++-
+ src/client/canvas/OriginMarker.tsx  |   7 ++
+ src/client/canvas/testHooks.ts      |  27 +++++
+ src/client/canvas/useCamera.ts      | 171 ++++++++++++++++++++++++++
+ src/client/index.css                |  48 ++++++++
+ tests/setup.ts                      |  26 +++-
+ tsconfig.json                       |   2 +-
+ 8 files changed, 541 insertions(+), 15 deletions(-)
+commit 53c650d432221998acff22a76a453b46538f0c4f
+agent  Mon Oct 12 23:10:25 2026 +0100
+
+    story 1: implement camera maths
+
+
+ PROGRESS.md                 |  2 +-
+ src/client/canvas/camera.ts | 97 +++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 85 insertions(+), 14 deletions(-)
+commit 1e0c111df795b661cf680be7dcfbf0ba41e191f8
+agent  Mon Oct 12 23:10:02 2026 +0100
+
+    story 1: scaffold and red-phase camera maths unit tests
+
+
+ .gitignore                          |    5 +
+ PROGRESS.md                         |    2 +-
+ index.html                          |   12 +
+ package-lock.json                   | 4710 +++++++++++++++++++++++++++++++++++
+ package.json                        |   34 +
+ playwright.config.ts                |   28 +
+ src/client/App.tsx                  |   11 +
+ src/client/canvas/BoardViewport.tsx |   11 +
+ src/client/canvas/camera.ts         |   66 +
+ src/client/index.css                |   20 +
+ src/client/main.tsx                 |   10 +
+ src/shared/config.ts                |   14 +
+ src/worker/main.ts                  |    9 +
+ tests/e2e/helpers/board.ts          |   30 +
+ tests/setup.ts                      |    7 +
+ tests/unit/camera.test.ts           |  254 ++
+ tsconfig.json                       |   15 +
+ tsconfig.worker.json                |   16 +
+ vite.config.ts                      |   11 +
+ vitest.config.ts                    |   32 +
+ wrangler.jsonc                      |   12 +
+ 21 files changed, 5308 insertions(+), 1 deletion(-)
+commit 30582b098774f3e45f509187eb3c46fd77ce369a
+vidi-agent  Mon Oct 12 22:52:26 2026 +0100
+
+    harness: PROGRESS.md for story 1
+
+
+ PROGRESS.md | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+commit a76a3a091ff9327b251b543bd5cadff745a8fa89
+vidi-agent  Mon Oct 12 22:52:26 2026 +0100
+
+    harness: empty repository with spec
+
+
+ README.md                                          |   3 +
+ spec/README.md                                     |  21 +
+ spec/epics/boards-sharing.md                       |  17 +
+ spec/epics/canvas.md                               |  19 +
+ spec/epics/realtime-collab.md                      |  16 +
+ .../design.md                                      | 365 +++++++++++++
+ .../prd.md                                         | 160 ++++++
+ .../story.md                                       |  41 ++
+ .../tasks.md                                       | 157 ++++++
+ .../design.md                                      | 457 ++++++++++++++++
+ .../prd.md                                         | 168 ++++++
+ .../story.md                                       |  42 ++
+ .../tasks.md                                       | 171 ++++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 413 +++++++++++++++
+ .../prd.md                                         | 158 ++++++
+ .../story.md                                       |  41 ++
+ .../tasks.md                                       | 171 ++++++
+ .../design.md                                      | 428 +++++++++++++++
+ .../prd.md                                         | 132 +++++
+ .../story.md                                       |  38 ++
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 395 ++++++++++++++
+ .../prd.md                                         | 134 +++++
+ .../story.md                                       |  39 ++
+ .../tasks.md                                       | 133 +++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 453 ++++++++++++++++
+ .../prd.md                                         | 162 ++++++
+ .../story.md                                       |  44 ++
+ .../tasks.md                                       | 191 +++++++
+ .../design.md                                      | 517 ++++++++++++++++++
+ .../prd.md                                         | 183 +++++++
+ .../story.md                                       |  48 ++
+ .../tasks.md                                       | 218 ++++++++
+ .../design.md                                      | 338 ++++++++++++
+ .../prd.md                                         | 139 +++++
+ .../story.md                                       |  41 ++
+ .../tasks.md                                       | 133 +++++
+ .../design.md                                      | 417 +++++++++++++++
+ .../prd.md                                         | 157 ++++++
+ .../story.md                                       |  43 ++
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 465 ++++++++++++++++
+ .../prd.md                                         | 173 ++++++
+ .../story.md                                       |  46 ++
+ .../tasks.md                                       | 161 ++++++
+ .../011-sketch-freehand-with-a-pen/design.md       | 337 ++++++++++++
+ spec/stories/011-sketch-freehand-with-a-pen/prd.md | 147 ++++++
+ .../011-sketch-freehand-with-a-pen/story.md        |  41 ++
+ .../011-sketch-freehand-with-a-pen/tasks.md        | 118 +++++
+ .../012-drop-images-onto-the-board/design.md       | 497 +++++++++++++++++
+ spec/stories/012-drop-images-onto-the-board/prd.md | 176 +++++++
+ .../012-drop-images-onto-the-board/story.md        |  45 ++
+ .../012-drop-images-onto-the-board/tasks.md        | 169 ++++++
+ .../design.md                                      | 553 +++++++++++++++++++
+ .../prd.md                                         | 165 ++++++
+ .../story.md                                       |  45 ++
+ .../tasks.md                                       | 240 +++++++++
+ .../design.md                                      | 585 +++++++++++++++++++++
+ .../prd.md                                         | 185 +++++++
+ .../story.md                                       |  47 ++
+ .../tasks.md                                       | 225 ++++++++
+ .../design.md                                      | 494 +++++++++++++++++
+ .../prd.md                                         | 174 ++++++
+ .../story.md                                       |  45 ++
+ .../tasks.md                                       | 177 +++++++
+ .../design.md                                      | 571 ++++++++++++++++++++
+ .../prd.md                                         | 212 ++++++++
+ .../story.md                                       |  51 ++
+ .../tasks.md                                       | 209 ++++++++
+ .../design.md                                      | 485 +++++++++++++++++
+ .../017-export-a-board-as-an-image-or-pdf/prd.md   | 189 +++++++
+ .../017-export-a-board-as-an-image-or-pdf/story.md |  50 ++
+ .../017-export-a-board-as-an-image-or-pdf/tasks.md | 206 ++++++++
+ 75 files changed, 14440 insertions(+)
