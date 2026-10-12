@@ -44,6 +44,7 @@ TOUCHED_FILE = REFACTOR_DIR / "touched_set.toml"
 CLASSES_FILE = REFACTOR_DIR / "classes.toml"
 MATRICES_DIR = REFACTOR_DIR / "matrices"
 TUPLE_SEPARATOR = " x "
+STAR = "*"               # in a matrix row: every value of this dimension
 STAGE_FILE = REFACTOR_DIR / "stage.toml"
 STAGES = ("Inventory", "Matrices", "Proved", "Deleted", "RedContracts", "Reimplemented", "Compared")
 BACK_EDGE = ("Deleted", "Proved")      # an assigned test passed against the stubs: the only move backwards
@@ -361,12 +362,18 @@ def check_matrix(root: Path, use_case: str, lister: Lister) -> Result:
     expected = {tuple(t) for t in itertools.product(*(dimensions[n] for n in names))}
     seen: dict[tuple, list[str]] = {}
     for cell in cells:
-        at = tuple(cell.get("at", []))
+        at = list(cell.get("at", []))
         tests = list(cell.get("tests", [])) + ([cell["test"]] if "test" in cell else [])
-        if at not in expected:
-            result.fail("E-CELL-EXTRA", TUPLE_SEPARATOR.join(at), "not in the cross product of the declared dimensions")
+        if len(at) != len(names):
+            result.fail("E-CELL-EXTRA", TUPLE_SEPARATOR.join(at), "not one value for each declared dimension")
             continue
-        seen.setdefault(at, []).extend(tests)
+        # a "*" stands for every value of its dimension: the row covers all of those tuples
+        tuples = [tuple(t) for t in itertools.product(*(dimensions[n] if v == STAR else [v] for n, v in zip(names, at)))]
+        for t in tuples:
+            if t not in expected:
+                result.fail("E-CELL-EXTRA", TUPLE_SEPARATOR.join(t), "not in the cross product of the declared dimensions")
+            else:
+                seen.setdefault(t, []).extend(tests)
     used = set()
     for at in sorted(expected):
         tests = seen.get(at, [])
@@ -379,7 +386,7 @@ def check_matrix(root: Path, use_case: str, lister: Lister) -> Result:
             used.add(test)
             if test not in listed:
                 result.fail("E-TEST-UNKNOWN", test, f"cell {label}: no runner lists it")
-    result.data = {"cells": len(expected), "tests": len(used), "dimensions": names}
+    result.data = {"cells": len(expected), "rows": len(cells), "tests": len(used), "dimensions": names}
     write_report(root, f"matrix-{use_case}", result)
     return result
 
@@ -1280,7 +1287,13 @@ def merged(*results: Result) -> Result:
 
 def default_justifiers(lister: Lister) -> dict[tuple[str, str], Justifier]:
     def matrices(root: Path) -> Result:
-        return merged(*(check_matrix(root, u, lister) for u in read_toml(root / USE_CASES_FILE).get("use_cases", {})))
+        known = read_toml(root / USE_CASES_FILE)
+        required = known.get("matrix_required", list(known.get("use_cases", {})))     # no key: every use case needs a matrix
+        unknown = Result()
+        for u in required:
+            if u not in known.get("use_cases", {}):
+                unknown.fail("E-UNKNOWN-USE-CASE", u, "matrix_required names a use case that is not one of the fourteen")
+        return merged(unknown, *(check_matrix(root, u, lister) for u in required if u in known.get("use_cases", {})))
 
     def red_contracts(root: Path) -> Result:
         report = root / REPORTS_DIR / "deletion.json"

@@ -2129,3 +2129,90 @@ def test_the_command_line_takes_language_and_rejects_one_the_tool_does_not_know(
     root = make_root(tmp_path)
     with pytest.raises(SystemExit):
         cli(root, "check-coverage", "--language", "cobol")
+
+
+# ---- matrix rows with * (owner-approved 12 Oct 2026: a row stands for every tuple of a dimension the code ignores) --------------
+
+def star(rows: list[tuple[list[str], str]]) -> str:
+    head = '[dimensions]\nkind = ["combination", "reference"]\noutcome = ["done", "partial", "stopped"]\n'
+    return head + "".join(f'\n[[cell]]\nat = {json.dumps(at)}\ntest = "python:t.py::{name}"\n' for at, name in rows)
+
+
+STAR_TESTS = ["a", "b", "c", "d"]
+FULL_ROWS = [(["*", "stopped"], "a"), (["combination", "done"], "b"), (["combination", "partial"], "c"), (["reference", "*"], "d")]
+
+
+def star_result(tmp_path: Path, rows) -> R.Result:
+    return matrix_result(tmp_path, star(rows), tests=[f"t.py::{n}" for n in STAR_TESTS])
+
+
+def test_rows_with_a_star_that_cover_every_tuple_exactly_once_pass_and_count_rows_and_cells_and_tests(tmp_path):
+    result = star_result(tmp_path, [(["*", "stopped"], "a"), (["combination", "done"], "b"), (["combination", "partial"], "c"),
+                                    (["reference", "done"], "d"), (["reference", "partial"], "d")])
+    assert result.exit_code == R.EXIT_OK, result.problems
+    assert result.data["cells"] == 6 and result.data["rows"] == 5 and result.data["tests"] == 4
+
+
+def test_a_tuple_two_rows_both_cover_is_multiple_and_named(tmp_path):
+    result = star_result(tmp_path, FULL_ROWS)          # (reference, stopped) is covered by the first row and the last
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CELL-MULTIPLE", "reference x stopped")]
+
+
+def test_a_tuple_no_row_covers_is_missing_even_when_other_rows_use_a_star(tmp_path):
+    result = star_result(tmp_path, [(["*", "stopped"], "a"), (["combination", "done"], "b"), (["reference", "done"], "d")])
+    assert sorted((p.code, p.subject) for p in result.problems) == [("E-CELL-MISSING", "combination x partial"), ("E-CELL-MISSING", "reference x partial")]
+
+
+def test_a_star_row_naming_a_value_nobody_declared_is_extra(tmp_path):
+    assert "E-CELL-EXTRA" in codes(star_result(tmp_path, [(["*", "failed"], "a")]))
+
+
+def test_a_row_with_the_wrong_number_of_values_is_extra_even_with_a_star(tmp_path):
+    assert "E-CELL-EXTRA" in codes(star_result(tmp_path, [(["*"], "a")]))
+
+
+# ---- which use cases need a matrix (use_cases.toml: matrix_required) ----------------------------------------------------------
+
+def justifier_root(tmp_path: Path, required: str) -> Path:
+    root = make_root(tmp_path)
+    write(root, "ops/refactor/use_cases.toml", required + (root / "ops/refactor/use_cases.toml").read_text())      # a top-level key goes first
+    write(root, "ops/refactor/runners.toml", '[python]\ndir = "."\ncommand = ["sh", "-c", "echo test_a.py::t1"]\n')
+    write(root, "ops/refactor/touched_set.toml", "")
+    write(root, "ops/refactor/stage.toml", 'stage = "Matrices"\n')
+    return root
+
+
+ONE_CELL = '[dimensions]\nonly = ["x"]\n\n[[cell]]\nat = ["x"]\ntest = "python:test_a.py::t1"\n'
+
+
+def test_the_move_to_proved_checks_only_the_matrices_the_use_case_file_requires(tmp_path, monkeypatch):
+    root = justifier_root(tmp_path, 'matrix_required = ["U1"]\n')
+    write_matrix(root, ONE_CELL, "U1")                      # no matrix for U2 to U14
+    monkeypatch.setattr(R, "check_coverage", lambda root, *a, **k: R.Result())
+    monkeypatch.setattr(R, "touching_tests", lambda root, listed: listed)
+    assert cli(root, "stage", "Proved") == R.EXIT_OK and stage_of(root) == "Proved"
+
+
+def test_a_required_matrix_that_is_missing_refuses_the_move(tmp_path, monkeypatch):
+    root = justifier_root(tmp_path, 'matrix_required = ["U1"]\n')
+    monkeypatch.setattr(R, "check_coverage", lambda root, *a, **k: R.Result())
+    monkeypatch.setattr(R, "touching_tests", lambda root, listed: listed)
+    assert cli(root, "stage", "Proved") == R.EXIT_FAIL and stage_of(root) == "Matrices"
+
+
+def test_without_the_key_every_use_case_needs_a_matrix(tmp_path, monkeypatch):
+    root = justifier_root(tmp_path, "")
+    write_matrix(root, ONE_CELL, "U1")
+    monkeypatch.setattr(R, "check_coverage", lambda root, *a, **k: R.Result())
+    monkeypatch.setattr(R, "touching_tests", lambda root, listed: listed)
+    assert cli(root, "stage", "Proved") == R.EXIT_FAIL
+
+
+def test_a_matrix_required_naming_an_unknown_use_case_is_refused(tmp_path):
+    root = justifier_root(tmp_path, 'matrix_required = ["U99"]\n')
+    assert cli(root, "stage", "Proved") != R.EXIT_OK
+
+
+def test_the_real_use_cases_file_has_fourteen_use_cases_and_the_key_is_top_level_not_a_fifteenth_use_case():
+    data = tomllib.loads((Path(__file__).parent / "use_cases.toml").read_text())
+    assert data["matrix_required"] == ["U1"] and len(data["use_cases"]) == 14 and "matrix_required" not in data["use_cases"]

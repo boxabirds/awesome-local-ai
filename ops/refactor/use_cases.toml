@@ -2,6 +2,10 @@
 # "Refactoring method", step 1). Each existing test is assigned to exactly one of them (assignments.toml); a test that
 # fits none is listed as unfit with a decision. Fixed by the PRD of story 1: not a place to add a fifteenth.
 
+# Which use cases need a test matrix (owner decision, 12 Oct 2026): only the record path, whose outcomes depend on combinations
+# of conditions. The other thirteen rely on the coverage of each touched function and on the deletion report.
+matrix_required = ["U1"]
+
 [use_cases]
 U1 = "the harness records a story"
 U2 = "the node serves run files"
