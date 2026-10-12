@@ -1789,7 +1789,7 @@ echo changed > "$WORK/changed.txt"
 
 def run_switch(tmp_path: Path, node: str) -> tuple[subprocess.CompletedProcess, Path]:
     work = tmp_path / "work"
-    work.mkdir()
+    work.mkdir(parents=True)
     (work / "keep.txt").write_text("untouched")
     script = write(tmp_path, "switch.sh", SWITCH_SCRIPT)
     env = {**with_stand_in_dbench(tmp_path), "TOOL": str(TOOL), "ROOT": str(make_root(tmp_path / "root")), "NODE": node, "WORK": str(work)}
@@ -1805,3 +1805,62 @@ def test_tc60_and_w2_a_switch_script_that_calls_the_guard_first_stops_before_tou
 def test_w2_negative_with_an_idle_status_the_same_script_proceeds(tmp_path):
     done, work = run_switch(tmp_path, "tritus")
     assert done.returncode == 0 and (work / "changed.txt").read_text() == "changed\n"
+
+
+def test_a_failing_new_contract_test_is_not_an_outside_failure_but_any_other_failing_outsider_still_is(tmp_path):
+    root = deletion_root(tmp_path)
+    write(root, "ops/refactor/assignments.toml", '[assignments]\nU1 = ["python:t_a"]\n')
+    write(root, "ops/refactor/new_contracts.toml", '[areas]\nonly = "x"\n[[contract]]\narea = "only"\ntest = "python:n.py::new"\n')
+    outcomes = {"python:t_a": R.FAILED_STUB, "python:n.py::new": R.FAILED_OTHER}
+    assert R.report_deletion(root, R.Results(outcomes=outcomes)).exit_code == R.EXIT_OK
+    result = R.report_deletion(root, R.Results(outcomes={**outcomes, "python:other.py::x": R.FAILED_OTHER}))
+    assert [(p.code, p.subject) for p in result.problems] == [("E-OUTSIDE-FAILED", "python:other.py::x")]
+
+
+# ---- end to end: workflows W-1 and W-2 on the mini project, tool run as a process with the real runners (task 1.31) -------------------
+
+def stage_now(root: Path) -> str:
+    return tool(root, "stage").stdout.strip()
+
+
+def test_w1_the_whole_method_in_order_then_a_planted_passing_test_sends_the_stage_back_to_proved(coverage_tools, tmp_path):
+    root = fresh_mini(tmp_path)
+    for n in range(1, 15):
+        (root / "ops/refactor/matrices").mkdir(exist_ok=True)
+        (root / f"ops/refactor/matrices/U{n}.toml").write_text(f'[dimensions]\nonly = ["x"]\n\n[[cell]]\nat = ["x"]\ntest = "{MINI_TEST}"\n')
+    assert stage_now(root) == "Inventory"
+
+    for command in (["check-register"], ["check-touched-set"]):
+        assert tool(root, *command).returncode == R.EXIT_OK, command
+    assert tool(root, "stage", "Matrices").returncode == R.EXIT_OK and stage_now(root) == "Matrices"
+
+    assert all(tool(root, "check-matrix", f"U{n}").returncode == R.EXIT_OK for n in range(1, 15))
+    assert tool(root, "check-coverage").returncode == R.EXIT_OK
+    assert tool(root, "stage", "Proved").returncode == R.EXIT_OK and stage_now(root) == "Proved"
+
+    for rel, text in STUBBED.items():                                       # the stubs are written by hand
+        (root / rel).write_text(text)
+    (root / "ops/refactor/assignments.toml").write_text(SIX_ASSIGNED_MINI)  # the two shell tests stay outside the set
+    assert tool(root, "check-stubs").returncode == R.EXIT_OK
+    assert tool(root, "stage", "Deleted").returncode == R.EXIT_OK and stage_now(root) == "Deleted"
+
+    assert tool(root, "run-suites").returncode == R.EXIT_OK
+    assert tool(root, "report-deletion").returncode == R.EXIT_OK
+    (root / "ops/refactor/fates.toml").write_text("".join(fate_block(t, "kept") + "\n" for t in SIX_OLD))
+    assert tool(root, "fates").returncode == R.EXIT_OK and stage_now(root) == "Deleted"
+
+    test = root / "py/test_core.py"                                         # plant a test that passes against the stubs
+    test.write_text(test.read_text().replace('assert record(["a", "b", "c"], 2) == ["a", "b"]', "assert True"))
+    assert tool(root, "run-suites").returncode == R.EXIT_OK
+    done = tool(root, "report-deletion")
+    report = json.loads((root / "ops/refactor/reports/deletion.json").read_text())
+    assert done.returncode == R.EXIT_FAIL and [p["code"] for p in report["problems"]] == ["E-ASSIGNED-PASSED"]
+    assert MINI_TEST in report["problems"][0]["subject"]
+    assert stage_now(root) == "Proved"
+
+
+def test_w2_a_switch_script_asks_the_guard_first_and_stops_while_a_story_runs_and_proceeds_when_idle(tmp_path):
+    busy, work = run_switch(tmp_path / "busy", "quintus")
+    assert busy.returncode != 0 and "E-MACHINE-BUSY" in busy.stdout and not (work / "changed.txt").exists()
+    idle, work = run_switch(tmp_path / "idle", "tritus")
+    assert idle.returncode == 0 and (work / "changed.txt").exists()

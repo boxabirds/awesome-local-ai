@@ -579,9 +579,10 @@ def report_deletion(root: Path, results: Results) -> Result:
             result.fail("E-ASSIGNED-PASSED", test, "the test passes against the stubs: rewrite it")
         elif outcome == FAILED_OTHER:
             result.fail("E-STUB-FAILS-TO-IMPORT", test, "it failed, but not for the stub's reason: a broken import proves nothing about assertions")
+    contract_tests = {c.get("test") for c in read_toml(root / CONTRACTS_FILE).get("contract", [])}      # expected red: not outsiders
     assigned_rust_names = {t.split(":", 1)[1].split("::", 1)[1] for t in assigned if t.startswith("rust:") and "::" in t}
     for test, outcome in sorted({**results.outcomes, **{f"rust:{n}": o for n, o in results.rust_names.items() if n not in assigned_rust_names}}.items()):
-        if test not in assigned and test not in unfit and outcome in (FAILED_STUB, FAILED_OTHER):
+        if test not in assigned and test not in unfit and test not in contract_tests and outcome in (FAILED_STUB, FAILED_OTHER):
             result.fail("E-OUTSIDE-FAILED", test, "a test outside the touched set failed: the partition is not MECE")
     if passed_assigned and read_stage(root) == "Deleted":
         record_move(root, "Deleted", "Proved", ALLOWED_MOVES[BACK_EDGE])
