@@ -446,7 +446,7 @@ def test_D2_without_a_private_checkout_the_anchor_mark_still_stops_the_commit(tm
 @pytest.mark.parametrize("rel,content", [
     ("workspace/tests/e2e/notes.spec.ts", f"test('{TITLE} {ANCHOR}', () => {{}});"),
     ("stories/01/gate.json", json.dumps({"tail": f"ok {TITLE}"})),
-    ("stories/01/agent-events.compact.jsonl.gz", gzip.compress(json.dumps({"text": TITLE}).encode() + b"\n")),
+    ("stories/01/agent-events.compact.jsonl.gz", gzip.compress(json.dumps({"text": TITLE}).encode() + b"\n", mtime=0)),   # mtime=0: an id must not carry the clock
     ("workspace-git-log.txt", f"    test: {TITLE}"),
 ])
 def test_D3_the_agents_own_work_is_committed_even_when_it_matches(tmp_path, rel, content):
@@ -879,7 +879,7 @@ def test_I2_the_machines_own_hostname_stops_the_commit_short_or_full(tmp_path, m
     ("workspace/src/hosts.ts", f"export const HOST = '{NODE}';"),
     ("workspace/notes.md", f"I ran uname on {HOST}"),
     ("stories/01/gate.json", json.dumps({"tail": f"server on {NODE}"})),
-    ("stories/01/agent-events.compact.jsonl.gz", gzip.compress(json.dumps({"text": NODE}).encode() + b"\n")),
+    ("stories/01/agent-events.compact.jsonl.gz", gzip.compress(json.dumps({"text": NODE}).encode() + b"\n", mtime=0)),   # mtime=0: an id must not carry the clock
     ("workspace-git-log.txt", f"    fix: works on {NODE}"),
 ])
 def test_I3_the_agents_own_work_is_committed_even_when_it_names_the_machine(tmp_path, node_list, rel, content):
