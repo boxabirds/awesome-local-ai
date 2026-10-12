@@ -1,3 +1,61 @@
+commit 7df5123dba4cf90aff49c92199f08ad79cc1b1a7
+agent  Mon Oct 12 02:53:59 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                               | 138 +++++++++
+ PROGRESS.md                            |  24 +-
+ src/client/board/BoardScreen.tsx       |  28 +-
+ src/client/canvas/testHooks.ts         |  13 +-
+ src/client/objects/ConnectorObject.tsx |   9 +
+ src/client/styles.css                  |  25 +-
+ tests/e2e/connectors.spec.ts           | 501 +++++++++++++++++++++++++++++++++
+ tests/e2e/shapes.spec.ts               | 351 +++++++++++++++++++++++
+ tests/fixtures/checkout-flow.ts        | 109 +++++++
+ 9 files changed, 1175 insertions(+), 23 deletions(-)
+commit 4ea7e3d5d5ca2beda22ddb0de25195c8d752117a
+agent  Mon Oct 12 01:38:16 2026 +0000
+
+    story 10: Shape and Connector tools, the tool set that draws them, their tests
+
+
+ PROGRESS.md                               |  10 +-
+ src/client/board/BoardScreen.tsx          | 177 ++++++++++-
+ src/client/board/BoardToolbar.tsx         |  57 +++-
+ src/client/board/SelectionBar.tsx         |  36 ++-
+ src/client/canvas/pointerCapture.ts       |  20 ++
+ src/client/canvas/testHooks.ts            |   7 +
+ src/client/objects/ConnectorObject.tsx    | 253 ++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 184 ++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  76 +++++
+ src/client/objects/objectAtPoint.ts       | 103 +++++++
+ src/client/objects/registry.tsx           |  59 +++-
+ src/client/styles.css                     |  92 ++++++
+ src/client/tools/ConnectorTool.tsx        | 272 +++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 159 ++++++++++
+ src/client/tools/useActiveTool.ts         | 152 ++++++++++
+ src/shared/board-model.ts                 |  30 +-
+ src/shared/config.ts                      |  72 +++++
+ src/shared/geometry/connector-geometry.ts | 167 +++++++++++
+ src/shared/geometry/polyline.ts           |  49 +++
+ src/shared/objects/connector.ts           | 340 +++++++++++++++++++++
+ src/shared/objects/shape.ts               | 272 +++++++++++++++++
+ tests/component/Connector.test.tsx        | 320 ++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 193 ++++++++++++
+ tests/component/elementPointers.ts        |  53 ++++
+ tests/component/useActiveTool.test.tsx    | 158 ++++++++++
+ tests/unit/connector-model.test.ts        | 474 ++++++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 209 +++++++++++++
+ 27 files changed, 3976 insertions(+), 18 deletions(-)
+commit fe7953fbea688f5bd2c95088e7daea7f530e2bf3
+vidi-agent  Mon Oct 12 01:25:22 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 905e2d50cd3a146e747752b9f4c69dd03937a748
 vidi-agent  Mon Oct 12 01:25:08 2026 +0100
 

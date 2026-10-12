@@ -18,8 +18,9 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 7 | 0/8 | 0 | 0 | 11/44 | 0 |
 | 8 | 1/7 | 0 | 0 | 12/51 | 0 |
 | 9 | 5/6 | 0 | 0 | 17/57 | 1 |
+| 10 | 8/8 | 0 | 0 | 25/65 | 1 |
 
-**New work** 17/53, **regressions** 0, **repairs** 0, **cumulative** 17/57.
+**New work** 25/61, **regressions** 0, **repairs** 0, **cumulative** 25/65.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -31,12 +32,14 @@ Setup fallbacks are held-out tests whose setup reached its state by the document
 | 7 | Select, move, resize and delete several objects at once | DONE | 59.3 | None | None | None | — | — | green | 11/44 |  | 0 / 1 | 1 | — | throttled 97%, server peak 92 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 146.6 | None | None | None | — | — | green | 12/51 |  | 0 / 1 | 3 | — | throttled 97%, server peak 92 GB |
 | 9 | Write free text anywhere on the board | PARTIAL (red) | 65.6 | None | None | None | — | — | red | 17/57 |  | 0 / 1 | 2 | — | throttled 84%, server peak 92 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 9 | 149.2 | None | None | None | — | — | red | 25/65 |  | 0 / 0 | 3 | — | throttled 89%, server peak 92 GB |
 
-**Totals:** 8 stories, 743 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/8, final acceptance 17/57, stalled 0, partial 1, 19562 lines in src+tests.
+**Totals:** 9 stories, 892 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/9, final acceptance 25/65, stalled 0, partial 1, 24520 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 9 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] (implementation: [2, 4, 6, 8]), held-out 5/6 (floor 0.333).
+- Story 10, built on partial 9: held-out tests on the partial base 13/14; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -52,6 +55,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 1 by the agent | 3083 / 129 | `useTransformGesture.ts` (331), `board-model.ts` (212), `geometry.ts` (180), `BoardScreen.tsx` (147), `SelectionOverlay.tsx` (133), `useBoardKeys.ts` (131), +9 more |
 | 8 | 4 by the agent | 2536 / 212 | `useUndo.ts` (152), `undo.ts` (150), `NOTES.md` (122), `StickyTextEditor.tsx` (99), `BoardScreen.tsx` (62), `useBoardKeys.ts` (60), +7 more |
 | 9 | harness snapshot (agent left work uncommitted) | 2575 / 191 | `text.ts` (260), `BoardScreen.tsx` (207), `textLayout.ts` (159), `TextEditor.tsx` (125), `TextObject.tsx` (124), `StickyText.ts` (105), +16 more |
+| 10 | 2 by the agent | 5151 / 41 | `connector.ts` (340), `ConnectorTool.tsx` (272), `shape.ts` (272), `ConnectorObject.tsx` (262), `BoardScreen.tsx` (205), `ShapeObject.tsx` (184), +16 more |
 
 ### Earlier stories broken or fixed
 
