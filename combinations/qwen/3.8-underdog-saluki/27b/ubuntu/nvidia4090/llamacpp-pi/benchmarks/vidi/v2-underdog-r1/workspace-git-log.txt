@@ -1,3 +1,64 @@
+commit 8882530937b0a1dda8c90d76413d65851d97e2ed
+vidi-agent  Mon Oct 12 20:29:53 2026 +0100
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ debug-handle.mjs                          |  19 ++
+ debug-handle2.mjs                         |  21 ++
+ debug-handle3.mjs                         |  24 +++
+ debug-handle4.mjs                         |  22 ++
+ debug-handle5.mjs                         |  22 ++
+ debug-handle6.mjs                         |  24 +++
+ debug-handle7.mjs                         |  23 +++
+ debug-handle8.mjs                         |  24 +++
+ debug-handle9.mjs                         |  27 +++
+ debug-keypress.mjs                        |  27 +++
+ debug-label.mjs                           |  30 +++
+ debug-label2.mjs                          |  28 +++
+ debug-label3.mjs                          |  35 ++++
+ debug-label4.mjs                          |  39 ++++
+ debug-label5.mjs                          |  35 ++++
+ debug-shape.mjs                           |  20 ++
+ src/client/board/Board.tsx                | 109 +++++++++-
+ src/client/board/SelectionBar.tsx         |  43 +++-
+ src/client/board/Toolbar.tsx              | 127 +++++++++++-
+ src/client/board/useTool.ts               |  84 ++++++--
+ src/client/canvas/BoardViewport.tsx       |  23 ++-
+ src/client/canvas/testHooks.ts            |  23 +++
+ src/client/objects/ConnectorObject.tsx    | 333 ++++++++++++++++++++++++++++++
+ src/client/objects/ConnectorTool.tsx      | 254 +++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 134 ++++++++++++
+ src/client/objects/ShapeTool.tsx          | 226 ++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  80 +++++++
+ src/client/objects/TextEditor.tsx         |   6 +-
+ src/client/objects/registry.tsx           |  42 +++-
+ src/client/styles.css                     | 242 ++++++++++++++++++++++
+ src/shared/board-model.ts                 |  78 ++++++-
+ src/shared/config.ts                      |  49 +++++
+ src/shared/geometry/connector-geometry.ts | 153 ++++++++++++++
+ src/shared/geometry/polyline.ts           |  38 ++++
+ src/shared/objects/connector.ts           | 224 ++++++++++++++++++++
+ src/shared/objects/shape.ts               | 168 +++++++++++++++
+ tests/component/Connector.test.tsx        | 302 +++++++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 272 ++++++++++++++++++++++++
+ tests/component/Tool.test.tsx             |   2 +-
+ tests/component/useActiveTool.test.tsx    | 125 +++++++++++
+ tests/e2e/connectors.spec.ts              | 237 +++++++++++++++++++++
+ tests/e2e/helpers/board.ts                | 109 ++++++++++
+ tests/e2e/shapes.spec.ts                  | 124 +++++++++++
+ tests/fixtures/checkout-flow.ts           | 119 +++++++++++
+ tests/unit/connector-model.test.ts        | 262 +++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 169 +++++++++++++++
+ 46 files changed, 4532 insertions(+), 45 deletions(-)
+commit 9a6dbadd8dad25ad2afaf9ae61f33cb116400691
+vidi-agent  Mon Oct 12 18:16:34 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit ae6a5b4b39f260db014580899d61c812164c0347
 vidi-agent  Mon Oct 12 18:16:21 2026 +0100
 
