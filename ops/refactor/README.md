@@ -68,6 +68,15 @@ exit**, before it changes a file:
 Exit 1 means a story is running (the output names the job and the story); exit 2 means the node could not be asked or
 the answer was not a status. Neither is "idle". Nothing moves on a machine while a story runs on it.
 
+## Shell coverage
+
+`check-coverage` measures shell with `kcov`, which runs on Linux only. On macOS the tool reports shell as **not measured**
+(never as passed). The shell tests of the touched scripts (`tests/setup-node-test.sh`, `judge-setup-test.sh`,
+`judge-submit-test.sh`, `fetch-work-test.sh`) were written against every branch of their scripts and each was checked by
+breaking the script and watching a test fail. As a stand-in for a coverage figure on a Mac, running a test with the script's
+`bash -x` trace (see `SHELL_TRACE` in `tests/setup-node-test.sh`) shows every statement the tests ran; the figure that counts is
+kcov's, on a Linux node.
+
 ## Tests
 
     uv run --with pytest python -m pytest ops/refactor/refactor_test.py
