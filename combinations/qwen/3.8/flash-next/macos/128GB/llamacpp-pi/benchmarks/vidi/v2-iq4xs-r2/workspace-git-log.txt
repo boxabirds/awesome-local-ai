@@ -1,3 +1,44 @@
+commit 893de1e80811745650c2ef2af327bd81be9e731a
+agent  Mon Oct 12 10:39:53 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  94 ++++++
+ PROGRESS.md                               |  22 +-
+ package-lock.json                         |  51 +++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        | 142 ++++++++-
+ src/client/board/Toolbar.tsx              |  64 +++++
+ src/client/board/useBoardDoc.ts           |  57 ++++
+ src/client/board/useSelection.ts          |  40 +++
+ src/client/canvas/BoardViewport.tsx       | 100 ++++++-
+ src/client/objects/NoteToolbar.tsx        |  92 ++++++
+ src/client/objects/StickyNote.tsx         | 368 ++++++++++++++++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 220 ++++++++++++++
+ src/shared/board-model.ts                 | 231 +++++++++++++++
+ src/shared/config.ts                      |  14 +
+ src/shared/sticky-text.ts                 | 150 ++++++++++
+ tests/component/StickyNote.test.tsx       | 463 ++++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 203 +++++++++++++
+ tests/component/Toolbars.test.tsx         | 242 ++++++++++++++++
+ tests/component/helpers.tsx               | 217 ++++++++++++++
+ tests/component/setup.ts                  |  93 +++++-
+ tests/e2e/helpers/notes.ts                | 123 ++++++++
+ tests/e2e/sticky-notes.spec.ts            | 336 ++++++++++++++++++++++
+ tests/fixtures/text-metrics.ts            |  41 +++
+ tests/fixtures/texts.ts                   |  44 +++
+ tests/unit/board-model.test.ts            | 387 +++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            | 379 ++++++++++++++++++++++++
+ 26 files changed, 4155 insertions(+), 21 deletions(-)
+commit 9249ebf0bc374df67ffc1c0f6e2cf21df0c0e6fb
+vidi-agent  Mon Oct 12 09:46:21 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 23 +++++++++--------------
+ 1 file changed, 9 insertions(+), 14 deletions(-)
 commit dbfdf729f4a91c2172acb8a820a81528a15e20e4
 agent  Mon Oct 12 08:44:32 2026 +0000
 

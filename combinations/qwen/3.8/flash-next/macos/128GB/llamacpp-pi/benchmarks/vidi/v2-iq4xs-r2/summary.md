@@ -9,14 +9,16 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | Story | New work | Regressions | Repairs | Cumulative |
 |---|---|---|---|---|
 | 1 | 5/6 | 0 | 0 | 5/6 |
+| 2 | 5/10 | 0 | 0 | 13/20 |
 
-**New work** 5/6, **regressions** 0, **repairs** 0, **cumulative** 5/6.
+**New work** 10/16, **regressions** 0, **repairs** 0, **cumulative** 13/20.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 21.2 | None | None | None | — | — | red | 5/6 |  | 0 / 1 | 0 | — | throttled 93%, server peak 80 GB |
+| 2 | Capture ideas on sticky notes and rearrange them | DONE | 114.1 | None | None | None | — | — | red | 13/20 |  | 0 / 0 | 2 | — | throttled 98%, server peak 86 GB |
 
-**Totals:** 1 stories, 21 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/1, final acceptance 5/6, stalled 0, partial 0, 1452 lines in src+tests.
+**Totals:** 2 stories, 135 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/2, final acceptance 13/20, stalled 0, partial 0, 5436 lines in src+tests.
 
 ## How it happened
 
@@ -25,6 +27,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | Story | Commits | + / − lines | Most-changed source files (lines; tests and lockfiles left out) |
 |---|---|---|---|
 | 1 | 1 by the agent | 7590 / 1 | `BoardViewport.tsx` (262), `useCamera.ts` (128), `camera.ts` (113), `ZoomControls.tsx` (93), `package.json` (35), `NOTES.md` (33), +17 more |
+| 2 | 1 by the agent | 4155 / 21 | `StickyNote.tsx` (368), `board-model.ts` (231), `StickyTextEditor.tsx` (220), `sticky-text.ts` (150), `App.tsx` (142), `BoardViewport.tsx` (100), +8 more |
 
 ### Earlier stories broken or fixed
 
