@@ -774,6 +774,7 @@ def cli(root: Path, *args: str) -> int:
 def test_tc44_advance_inventory_to_matrices_needs_the_register_and_the_touched_set_to_hold(tmp_path, monkeypatch):
     root = make_root(tmp_path, assignments=SIX_ASSIGNED)
     monkeypatch.setattr(R, "list_tests", lister(python=SIX_LISTED))
+    monkeypatch.setattr(R, "touching_tests", lambda root, listed: listed)
     assert cli(root, "stage", "Matrices") == R.EXIT_OK
     assert R.read_stage(root) == "Matrices"
 
@@ -781,6 +782,7 @@ def test_tc44_advance_inventory_to_matrices_needs_the_register_and_the_touched_s
 def test_tc45_advance_with_the_register_broken_refuses_and_the_stage_stays(tmp_path, monkeypatch):
     root = make_root(tmp_path, assignments=SIX_ASSIGNED)
     monkeypatch.setattr(R, "list_tests", lister(python=SIX_LISTED + ["d.py::extra"]))
+    monkeypatch.setattr(R, "touching_tests", lambda root, listed: listed)
     assert cli(root, "stage", "Matrices") == R.EXIT_FAIL
     assert R.read_stage(root) == "Inventory"
 
@@ -1017,6 +1019,7 @@ def tool(root: Path, *args: str, env: dict | None = None) -> subprocess.Complete
 
 
 def test_tc09_the_four_real_runners_list_eight_tests_in_the_expected_formats_and_the_register_holds(mini):
+    assert tool(mini, "measure-touch").returncode == R.EXIT_OK              # the register's universe is the tests that touch the set
     done = tool(mini, "check-register")
     assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
     report = json.loads((mini / "ops/refactor/reports/register.json").read_text())
@@ -1036,6 +1039,7 @@ def snapshot(root: Path) -> dict[str, bytes]:
 
 
 def test_check_register_writes_nothing_outside_the_reports_folder(mini):
+    assert tool(mini, "measure-touch").returncode == R.EXIT_OK
     before = snapshot(mini)
     assert tool(mini, "check-register").returncode == R.EXIT_OK
     assert snapshot(mini) == before
@@ -1654,6 +1658,7 @@ MINI_TEST = "python:py/test_core.py::test_record_keeps_only_what_fits_under_the_
 def mini_at_matrices(tmp_path: Path) -> Path:
     """The mini project at stage Matrices with a one-cell matrix for each of the fourteen use cases."""
     root = fresh_mini(tmp_path)
+    assert tool(root, "measure-touch").returncode == R.EXIT_OK
     (root / "ops/refactor/stage.toml").write_text('stage = "Matrices"\n')
     for n in range(1, 15):
         (root / f"ops/refactor/matrices/U{n}.toml").parent.mkdir(exist_ok=True)
@@ -1825,6 +1830,7 @@ def stage_now(root: Path) -> str:
 
 def test_w1_the_whole_method_in_order_then_a_planted_passing_test_sends_the_stage_back_to_proved(coverage_tools, tmp_path):
     root = fresh_mini(tmp_path)
+    assert tool(root, "measure-touch").returncode == R.EXIT_OK
     for n in range(1, 15):
         (root / "ops/refactor/matrices").mkdir(exist_ok=True)
         (root / f"ops/refactor/matrices/U{n}.toml").write_text(f'[dimensions]\nonly = ["x"]\n\n[[cell]]\nat = ["x"]\ntest = "{MINI_TEST}"\n')
@@ -1864,3 +1870,162 @@ def test_w2_a_switch_script_asks_the_guard_first_and_stops_while_a_story_runs_an
     assert busy.returncode != 0 and "E-MACHINE-BUSY" in busy.stdout and not (work / "changed.txt").exists()
     idle, work = run_switch(tmp_path / "idle", "tritus")
     assert idle.returncode == 0 and (work / "changed.txt").exists()
+
+
+# ---- a second runner for the same language: [python-monitor] beside [python] (approved with task 1.24) -------------------------
+
+def test_a_runner_key_with_a_suffix_lists_its_own_folders_tests_under_the_same_language(tmp_path):
+    root = make_root(tmp_path)
+    write(root, "ops/refactor/runners.toml", """
+[python]
+dir = "h"
+command = ["sh", "-c", "echo test_a.py::t1"]
+[python-monitor]
+dir = "m"
+command = ["sh", "-c", "echo test_m.py::t2"]
+""")
+    (root / "h").mkdir(); (root / "m").mkdir()
+    assert R.list_tests(root) == {"python": {"h/test_a.py::t1", "m/test_m.py::t2"}}
+
+
+def test_the_language_of_a_runner_key_is_the_part_before_the_dash():
+    assert R.runner_language("python-monitor") == "python" and R.runner_language("rust") == "rust"
+
+
+def test_results_of_two_runners_of_one_language_are_kept_in_separate_files(tmp_path):
+    root = make_root(tmp_path)
+    spec = {"format": "junit"}
+    assert R.results_path(root, "python", spec) != R.results_path(root, "python-monitor", spec)
+
+
+# ---- membership: which listed tests touch the touched set (approved with task 1.24) -----------------------------------------------
+
+PY_SOURCE = "def record():\n    x = 1\n    return x\n\n\ndef other():\n    return 2\n"
+
+
+def test_function_lines_are_the_def_through_its_last_line_for_functions_methods_and_nested_defs():
+    assert R.python_function_lines(PY_SOURCE, "record") == {1, 2, 3}
+    assert R.python_function_lines(PY_SOURCE, "other") == {6, 7}
+    assert R.python_function_lines("class C:\n    def m(self):\n        return 1\n", "C.m") == {2, 3}
+    assert R.python_function_lines("def outer():\n    def inner():\n        return 1\n    return inner\n", "inner") == {2, 3}
+    assert R.python_function_lines("class C:\n    def m(self):\n        def helper():\n            return 1\n        return helper\n", "C.helper") == {3, 4}
+    assert R.python_function_lines(PY_SOURCE, "ghost") is None
+
+
+def test_only_the_run_phase_of_a_test_counts_as_touching_a_function():
+    contexts = {"2": ["", "test_a.py::t1|setup", "test_a.py::t1|teardown", "test_a.py::t1|run", "test_a.py::p[a-1]|run"], "7": ["test_b.py::t2|run"]}
+    assert R.tests_touching(contexts, {1, 2, 3}) == {"python:test_a.py::t1", "python:test_a.py::p[a-1]"}
+    assert R.tests_touching({"2": ["test_a.py::t1|setup"]}, {2}) == set()
+
+
+def touch_root(tmp_path: Path, touched: str) -> Path:
+    return make_code_root(tmp_path, {
+        "h/a.py": PY_SOURCE,
+        "tools/dbench/Cargo.toml": '[package]\nname = "dbench"\n',
+        "tools/dbench/src/collector.rs": "pub fn pass() {}\n",
+        "tools/dbench/src/events.rs": "pub fn parse() {}\n",
+        "tools/dbench/tests/server.rs": "use dbench::collector::pass;\n",
+        "tools/dbench/tests/label.rs": "// nothing\n",
+        "tools/b/server/domain.ts": "export function findRuns() {}\n",
+        "tools/b/server/domain.test.ts": 'import { findRuns } from "./domain"\n',
+        "tools/b/shared/view.test.ts": 'import { x } from "../server/domain"\n',
+        "tools/b/shared/other.test.ts": 'import { x } from "./stats"\n',
+        "s/judge-setup.sh": "echo hi\n",
+        "tests/judge-setup-test.sh": 'bash "$ROOT/s/judge-setup.sh"\n',
+        "tests/other-test.sh": "echo other\n",
+    }, touched=touched)
+
+
+TOUCH_ALL = (
+    '[[entry]]\nlanguage = "python"\nfile = "h/a.py"\nfunction = "record"\nclasses = ["C"]\n'
+    '[[entry]]\nlanguage = "rust"\nfile = "tools/dbench/src/collector.rs"\nfunction = "pass"\nclasses = ["C"]\n'
+    '[[entry]]\nlanguage = "typescript"\nfile = "tools/b/server/domain.ts"\nfunction = "findRuns"\nclasses = ["A"]\n'
+    '[[entry]]\nlanguage = "shell"\nfile = "s/judge-setup.sh"\nfunction = "<script>"\nclasses = ["B"]\n')
+LISTED = {
+    "python": {"h/test_a.py::t1", "h/test_a.py::t_other"},
+    "rust": {"tools/dbench/src/lib.rs::collector::tests::copies", "tools/dbench/src/lib.rs::events::tests::parses",
+             "tools/dbench/tests/server.rs::serves", "tools/dbench/tests/label.rs::renders"},
+    "typescript": {"tools/b/server/domain.test.ts::finds", "tools/b/shared/view.test.ts::shows", "tools/b/shared/other.test.ts::adds"},
+    "shell": {"tests/judge-setup-test.sh", "tests/other-test.sh"},
+}
+
+
+def touch_artifact(root: Path, contexts: dict) -> None:
+    write(root, "ops/refactor/reports/touch-python.json", json.dumps({"files": {"h/a.py": {"contexts": contexts}}}))
+
+
+def test_touching_tests_selects_by_language_rule(tmp_path):
+    root = touch_root(tmp_path, TOUCH_ALL)
+    touch_artifact(root, {"2": ["h/test_a.py::t1|run"], "7": ["h/test_a.py::t_other|run"]})
+    assert R.touching_tests(root, LISTED) == {
+        "python": {"h/test_a.py::t1"},
+        "rust": {"tools/dbench/src/lib.rs::collector::tests::copies", "tools/dbench/tests/server.rs::serves"},
+        "typescript": {"tools/b/server/domain.test.ts::finds", "tools/b/shared/view.test.ts::shows"},
+        "shell": {"tests/judge-setup-test.sh"},
+    }
+
+
+def test_python_touch_data_that_is_missing_is_an_adapter_error_naming_the_command(tmp_path):
+    with pytest.raises(R.AdapterError, match="measure-touch"):
+        R.touching_tests(touch_root(tmp_path, TOUCH_ALL), LISTED)
+
+
+def test_a_touched_python_file_the_measurement_never_saw_is_an_adapter_error(tmp_path):
+    root = touch_root(tmp_path, TOUCH_ALL)
+    write(root, "ops/refactor/reports/touch-python.json", json.dumps({"files": {}}))
+    with pytest.raises(R.AdapterError, match="h/a.py"):
+        R.touching_tests(root, LISTED)
+
+
+def test_a_test_the_measurement_says_touches_the_set_but_no_runner_lists_is_an_adapter_error_not_a_silent_drop(tmp_path):
+    root = touch_root(tmp_path, TOUCH_ALL)
+    touch_artifact(root, {"2": ["h/test_a.py::t1|run", "h/test_a.py::ghost|run"]})
+    with pytest.raises(R.AdapterError, match="ghost"):
+        R.touching_tests(root, LISTED)
+
+
+def test_a_rust_unit_test_whose_module_has_no_file_is_an_adapter_error(tmp_path):
+    root = touch_root(tmp_path, TOUCH_ALL)
+    touch_artifact(root, {"2": ["h/test_a.py::t1|run"]})
+    with pytest.raises(R.AdapterError, match="ghost_module"):
+        R.touching_tests(root, {**LISTED, "rust": {"tools/dbench/src/lib.rs::ghost_module::tests::x"}})
+
+
+def test_the_register_is_decided_over_the_touching_tests_and_reports_both_lists(tmp_path):
+    root = make_root(tmp_path, assignments='[assignments]\nU1 = ["python:h/test_a.py::t1"]\n')
+    class Universe:
+        def __call__(self, root):
+            self.all = {"python": {"h/test_a.py::t1", "h/test_a.py::t_other"}}
+            return {"python": {"h/test_a.py::t1"}}
+    result = R.check_register(root, Universe())
+    assert result.exit_code == R.EXIT_OK
+    assert result.data["touching"] == {"python": ["h/test_a.py::t1"]} and result.data["listed"]["python"] == ["h/test_a.py::t1", "h/test_a.py::t_other"]
+
+
+# ---- integration: measure-touch and the register over the touching tests, on the mini project -----------------------------------
+
+MINI_SIX = {"python:py/test_core.py::test_record_keeps_only_what_fits_under_the_limit", "python:py/test_core.py::test_run_dir_joins_the_root_and_the_run_id",
+            "rust:rs/mini/src/lib.rs::tests::an_empty_listing_has_no_lines", "rust:rs/mini/src/lib.rs::tests::a_listing_counts_its_lines",
+            "typescript:ts/src/core.test.ts::a run with a title shows it", "typescript:ts/src/core.test.ts::a run without a title is untitled"}
+
+
+def test_measure_touch_runs_the_python_suite_under_coverage_and_keeps_the_contexts(coverage_tools, tmp_path):
+    root = fresh_mini(tmp_path)
+    done = tool(root, "measure-touch")
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    files = json.loads((root / "ops/refactor/reports/touch-python.json").read_text())["files"]
+    assert "py/minipy/core.py" in files
+    contexts = {n for names in files["py/minipy/core.py"]["contexts"].values() for n in names}
+    assert "py/test_core.py::test_record_keeps_only_what_fits_under_the_limit|run" in contexts      # folder prefix, test id, run phase
+
+
+def test_check_register_on_the_mini_project_decides_over_the_six_touching_tests_of_eight_listed(coverage_tools, tmp_path):
+    root = fresh_mini(tmp_path)
+    assert tool(root, "check-register").returncode == R.EXIT_ERROR          # the touch data is missing: undecidable, not a pass
+    assert tool(root, "measure-touch").returncode == R.EXIT_OK
+    (root / "ops/refactor/assignments.toml").write_text(SIX_ASSIGNED_MINI)
+    done = tool(root, "check-register")
+    assert done.returncode == R.EXIT_OK, done.stdout
+    data = json.loads((root / "ops/refactor/reports/register.json").read_text())
+    assert sum(len(v) for v in data["listed"].values()) == 8
+    assert {f"{lang}:{t}" for lang, ids in data["touching"].items() for t in ids} == MINI_SIX

@@ -70,3 +70,31 @@ command = ["bun", "x", "vitest", "run", "--reporter=json", "--outputFile={out}"]
 
 [shell.results]
 format = "shell-exit"
+
+# Which tests touch the touched set is learned once, from a Python run with a coverage context per test (measure-touch, slow);
+# the register then keeps those. {out} is where `coverage json` writes. The data file goes to reports/ (COVERAGE_FILE).
+[python.touch]
+command = [
+  "uv", "run", "--quiet",
+  "--with", "pytest", "--with", "pytest-cov", "--with", "hypothesis", "--with", "httpx",
+  "--with", "uvicorn", "--with", "starlette", "--with", "fastapi",
+  "pytest", "-q", "-p", "no:cacheprovider", "--cov=.", "--cov-branch", "--cov-context=test", "--cov-report=",
+]
+json_command = ["uv", "run", "--quiet", "--with", "coverage", "coverage", "json", "--show-contexts", "-o", "{out}"]
+
+# The monitor's own tests (U7 is one of the fourteen use cases and its code is in the touched set).
+[python-monitor]
+dir = "ops/monitor"
+command = ["uv", "run", "--quiet", "--with", "pytest", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
+
+[python-monitor.coverage]
+format = "coverage-py"
+command = ["uv", "run", "--quiet", "--with", "pytest", "--with", "pytest-cov", "pytest", "-q", "-p", "no:cacheprovider", "--cov=.", "--cov-branch", "--cov-report=json:{out}"]
+
+[python-monitor.results]
+format = "junit"
+command = ["uv", "run", "--quiet", "--with", "pytest", "pytest", "-q", "-p", "no:cacheprovider", "-o", "junit_family=xunit1", "--junitxml={out}"]
+
+[python-monitor.touch]
+command = ["uv", "run", "--quiet", "--with", "pytest", "--with", "pytest-cov", "pytest", "-q", "-p", "no:cacheprovider", "--cov=.", "--cov-branch", "--cov-context=test", "--cov-report="]
+json_command = ["uv", "run", "--quiet", "--with", "coverage", "coverage", "json", "--show-contexts", "-o", "{out}"]

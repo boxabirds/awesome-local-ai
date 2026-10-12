@@ -113,6 +113,7 @@ def check_register(root: Path, lister: Lister) -> Result:
     assignments = read_toml(root / ASSIGNMENTS_FILE)
     unfit = assignments.get("unfit", [])
     listed_by_language = lister(root)
+    every_test = getattr(lister, "all", listed_by_language)         # a lister that narrows keeps the full list on .all
     listed = {qualified(lang, t) for lang, ids in listed_by_language.items() for t in ids}
 
     owners: dict[str, list[str]] = {}
@@ -147,7 +148,8 @@ def check_register(root: Path, lister: Lister) -> Result:
 
     result.data = {"counts": {u: len(t) for u, t in sorted(assignments.get("assignments", {}).items()) if u in use_cases},
                    "unfit": [dict(e) for e in unfit],
-                   "listed": {lang: sorted(ids) for lang, ids in sorted(listed_by_language.items())}}
+                   "listed": {lang: sorted(ids) for lang, ids in sorted(every_test.items())},
+                   "touching": {lang: sorted(ids) for lang, ids in sorted(listed_by_language.items())}}
     write_report(root, "register", result)
     return result
 
@@ -662,11 +664,12 @@ def run_suites(root: Path) -> Result:
     """Run each language's suite with its result output switched on. Failing tests are the data here, so this exits 0 unless a
     runner cannot be started at all."""
     result = Result()
-    for language, spec in read_toml(root / RUNNERS_FILE).items():
+    for key, spec in read_toml(root / RUNNERS_FILE).items():
+        language = runner_language(key)
         results = spec.get("results")
         if results is None:
             continue
-        out = results_path(root, language, results)
+        out = results_path(root, key, results)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.unlink(missing_ok=True)
         try:
@@ -682,18 +685,19 @@ def run_suites(root: Path) -> Result:
             if language == "rust":
                 out.write_text(done.stdout)
         except (FileNotFoundError, NotADirectoryError) as exc:
-            result.error("E-TOOL-MISSING", language, f"cannot run {exc.filename or language}")
+            result.error("E-TOOL-MISSING", key, f"cannot run {exc.filename or key}")
     return result
 
 
 def read_results(root: Path) -> Results:
     """Read whatever result files exist; a language that has a results command but no file is missing."""
     found = Results()
-    for language, spec in read_toml(root / RUNNERS_FILE).items():
+    for key, spec in read_toml(root / RUNNERS_FILE).items():
+        language = runner_language(key)
         results = spec.get("results")
         if results is None:
             continue
-        path = results_path(root, language, results)
+        path = results_path(root, key, results)
         if not path.exists():
             found.missing.add(language)
             continue
@@ -900,8 +904,10 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage) -> Result:
     measured_counts: dict[str, list[int]] = {}
     for language, touched in sorted(files.items()):
         try:
-            language_spec = specs.get(language, {})
-            measured = runner(root, language, language_spec.get("coverage", {}) | {"dir": language_spec.get("dir", "."), "glob": language_spec.get("glob", "")})
+            measured = {}
+            for key in [k for k in specs if runner_language(k) == language] or [language]:     # a language may have several runners
+                language_spec = specs.get(key, {})
+                measured |= runner(root, language, language_spec.get("coverage", {}) | {"dir": language_spec.get("dir", "."), "glob": language_spec.get("glob", "")})
         except NotMeasured as exc:
             not_measured[language] = str(exc)
             continue
@@ -967,6 +973,171 @@ def run_guard_idle(node: str) -> Result:
     return guard_idle(node, done.stdout)
 
 
+# ---- membership: which listed tests touch the touched set ------------------------------------------------------------------
+
+TOUCH_PYTHON = REPORTS_DIR / "touch-python.json"      # coverage contexts of the whole Python suite, written by measure-touch
+CONTEXT_PHASE = "|run"                                # coverage's per-test context is "<nodeid>|run", "|setup" or "|teardown"
+RUST_SKIP_STEMS = {"main", "lib", "mod"}
+
+
+def python_function_lines(text: str, name: str) -> set[int] | None:
+    """Lines from the def line through its last line, named as the scan names it (class prefixes only; a nested def
+    keeps its plain name); None if absent."""
+    def walk(node: ast.AST, prefix: str) -> set[int] | None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                full = prefix + child.name
+                if full == name:
+                    return set(range(child.lineno, child.end_lineno + 1))
+                found = walk(child, full + "." if isinstance(child, ast.ClassDef) else prefix)
+            else:
+                found = walk(child, prefix)
+            if found is not None:
+                return found
+        return None
+    return walk(ast.parse(text), "")
+
+
+def tests_touching(contexts: dict[str, list[str]], lines: set[int]) -> set[str]:
+    """Qualified ids of the tests whose run phase executed any of the lines."""
+    found = set()
+    for line, names in contexts.items():
+        if int(line) in lines:
+            found |= {qualified("python", n[: -len(CONTEXT_PHASE)]) for n in names if n.endswith(CONTEXT_PHASE)}
+    return found
+
+
+def python_touching(root: Path, entries: list[dict], listed: set[str]) -> set[str]:
+    path = root / TOUCH_PYTHON
+    if not path.exists():
+        raise AdapterError(f"{TOUCH_PYTHON} does not exist: run `refactor.py measure-touch` first (it runs the whole Python suite under coverage)")
+    files = json.loads(path.read_text()).get("files", {})
+    found: set[str] = set()
+    for e in entries:
+        data = files.get(e["file"])
+        if data is None:
+            raise AdapterError(f"{e['file']}: the touch measurement never saw this file")
+        lines = python_function_lines((root / e["file"]).read_text(), e["function"])
+        if lines is None:
+            raise AdapterError(f"{e['file']}::{e['function']}: no such function")
+        found |= {t.split(":", 1)[1] for t in tests_touching(data.get("contexts", {}), lines)}
+    unlisted = sorted(found - listed)
+    if unlisted:
+        raise AdapterError(f"{len(unlisted)} test(s) touch the set but no runner lists them, for example {unlisted[0]!r}")
+    return found
+
+
+def rust_module_file(root: Path, crate_dir: str, entry_file: str, module: list[str]) -> str | None:
+    """The source file that holds a unit test's module: the longest module prefix that has a file (the rest is inline)."""
+    if not module:
+        return f"{crate_dir}/{entry_file}"
+    for end in range(len(module), 0, -1):
+        base = f"{crate_dir}/src/{'/'.join(module[:end])}"
+        for candidate in (f"{base}.rs", f"{base}/mod.rs"):
+            if (root / candidate).exists():
+                return candidate
+    return None
+
+
+def rust_touching(root: Path, entries: list[dict], listed: set[str]) -> set[str]:
+    """A unit test by the file of its module; an integration test by whether its text names a touched module."""
+    touched_files = {e["file"] for e in entries}
+    stems = {Path(f).stem if Path(f).stem not in RUST_SKIP_STEMS else Path(f).parent.name for f in touched_files}
+    found: set[str] = set()
+    for test in sorted(listed):
+        file, _, name = test.partition("::")
+        if "/tests/" in file:
+            text = (root / file).read_text() if (root / file).exists() else ""
+            if any(re.search(rf"\b{re.escape(stem)}\b", text) for stem in stems):
+                found.add(test)
+            continue
+        crate_dir, _, entry_file = file.partition("/src/")
+        segments = name.split("::")
+        module = segments[: segments.index("tests")] if "tests" in segments else segments[:-1]
+        resolved = rust_module_file(root, crate_dir, f"src/{entry_file}", module)
+        if resolved is None:
+            raise AdapterError(f"{crate_dir}: no source file for the module of test {name!r} ({'::'.join(module)})")
+        if resolved in touched_files:
+            found.add(test)
+    return found
+
+
+def typescript_touching(root: Path, entries: list[dict], listed: set[str]) -> set[str]:
+    """A vitest file named for a touched module, or importing one."""
+    stems = {Path(e["file"]).stem for e in entries}
+    found: set[str] = set()
+    for test in sorted(listed):
+        file = test.partition("::")[0]
+        text = (root / file).read_text() if (root / file).exists() else ""
+        named = Path(file).name.split(".")[0] in stems
+        imported = any(re.search(rf"""["'](?:[^"']*/)?{re.escape(stem)}(?:\.ts)?["']""", text) for stem in stems)
+        if named or imported:
+            found.add(test)
+    return found
+
+
+def shell_touching(root: Path, entries: list[dict], listed: set[str]) -> set[str]:
+    """A shell test script that names a touched script."""
+    names = {Path(e["file"]).name for e in entries}
+    return {t for t in listed if any(n in ((root / t).read_text() if (root / t).exists() else "") for n in names)}
+
+
+def touching_tests(root: Path, listed: dict[str, set[str]]) -> dict[str, set[str]]:
+    """The listed tests that touch the touched set: the register's universe (approved with task 1.24)."""
+    by_language: dict[str, list[dict]] = {}
+    for e in read_toml(root / TOUCHED_FILE).get("entry", []):
+        by_language.setdefault(e["language"], []).append(e)
+    rules = {"python": python_touching, "rust": rust_touching, "typescript": typescript_touching, "shell": shell_touching}
+    return {language: rules[language](root, entries, listed.get(language, set())) for language, entries in sorted(by_language.items())}
+
+
+def measure_touch(root: Path) -> Result:
+    """Run each Python suite under coverage with a context per test and keep which tests ran which lines (one slow run; the
+    register then decides membership from the file). A suite that fails still leaves usable data; no data at all is SuiteRed."""
+    result = Result()
+    merged: dict[str, dict] = {}
+    ran = 0
+    for key, spec in read_toml(root / RUNNERS_FILE).items():
+        touch = spec.get("touch")
+        if runner_language(key) != "python" or touch is None:
+            continue
+        outdir = root / REPORTS_DIR / f"touch-{key}"
+        shutil.rmtree(outdir, ignore_errors=True)
+        outdir.mkdir(parents=True)
+        env = {**os.environ, "COVERAGE_FILE": str(outdir / "data")}
+        out = outdir / "coverage.json"
+        try:
+            subprocess.run(touch["command"], cwd=root / spec["dir"], env=env, capture_output=True, text=True)
+            made = subprocess.run([part.replace(COVERAGE_OUT, str(out)) for part in touch["json_command"]], cwd=root / spec["dir"], env=env,
+                                  capture_output=True, text=True)
+        except (FileNotFoundError, NotADirectoryError) as exc:
+            result.error("E-TOOL-MISSING", key, f"cannot run {exc.filename or key}")
+            return result
+        if made.returncode != EXIT_OK or not out.exists():
+            result.error("E-SUITE-RED", key, f"no coverage data came out of the run: {(made.stderr or made.stdout).strip()[-200:]}")
+            return result
+        folder = spec["dir"]
+        for file, body in json.loads(out.read_text()).get("files", {}).items():
+            contexts = {line: [f"{folder}/{n}" if n else n for n in names] for line, names in body.get("contexts", {}).items()}
+            merged[posixpath.normpath(f"{folder}/{file}")] = {"contexts": contexts}
+        ran += 1
+    if not ran:
+        result.error("E-NO-TOUCH-RUNNER", "runners.toml", "no [python*.touch] section names a command")
+        return result
+    atomic_write(root / TOUCH_PYTHON, json.dumps({"files": merged}))
+    result.data = {"files": len(merged)}
+    write_report(root, "measure-touch", result)
+    return result
+
+
+class Universe:
+    """The register's lister: every test the runners list is kept on .all, and the tests that touch the touched set are returned."""
+
+    def __call__(self, root: Path) -> dict[str, set[str]]:
+        self.all = list_tests(root)
+        return touching_tests(root, self.all)
+
+
 # ---- the real runners: every test the repository has, as the runners list it ------------------------------------------
 
 RUNNERS_FILE = REFACTOR_DIR / "runners.toml"
@@ -979,6 +1150,11 @@ ERROR_TAIL_LINES = 5       # how much of a failing runner's stderr is quoted in 
 
 class AdapterError(Exception):
     """A runner or its output cannot be used: the command turns this into exit 2, never a pass and never a shorter list."""
+
+
+def runner_language(key: str) -> str:
+    """A runner key is a language, or language-suffix for a second runner of the same language (python-monitor)."""
+    return key.split("-")[0]
 
 
 def parse_pytest(folder: str, output: str) -> set[str]:
@@ -1035,18 +1211,19 @@ def list_tests(root: Path) -> dict[str, set[str]]:
     if not (root / RUNNERS_FILE).exists():
         raise AdapterError(f"{RUNNERS_FILE} does not exist: it names each language's runner")
     found: dict[str, set[str]] = {}
-    for language, spec in config.items():
+    for key, spec in config.items():
+        language = runner_language(key)
         if language == "shell":
-            found[language] = {p.relative_to(root).as_posix() for p in sorted(root.glob(spec["glob"])) if p.is_file()}
+            found.setdefault(language, set()).update(p.relative_to(root).as_posix() for p in sorted(root.glob(spec["glob"])) if p.is_file())
             continue
         folder = spec["dir"]
         output = run_listing(spec["command"], root / folder, language)
         if language == "python":
-            found[language] = parse_pytest(folder, output)
+            found.setdefault(language, set()).update(parse_pytest(folder, output))
         elif language == "rust":
-            found[language] = parse_cargo_list(root, folder, output)
+            found.setdefault(language, set()).update(parse_cargo_list(root, folder, output))
         elif language == "typescript":
-            found[language] = parse_vitest(root, output)
+            found.setdefault(language, set()).update(parse_vitest(root, output))
         else:
             raise AdapterError(f"{RUNNERS_FILE}: unknown language {language}")
     return found
@@ -1123,7 +1300,8 @@ def main(argv: list[str] | None = None) -> int:
                        ("fates", "every old test has one fate, every contract area a new test seen red; --render PATH writes the table"),
                        ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every touched file"),
                        ("report-deletion", "every assigned test failed against the stubs, read from the files run-suites wrote"),
-                       ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)")):
+                       ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)"),
+                       ("measure-touch", "run the Python suite under coverage, a context per test, to learn which tests touch the touched set")):
         sub.add_parser(name, help=text)
     build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
     build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
@@ -1133,7 +1311,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("stage", help="print the current stage; with a stage name, move to it if its justifying check passes").add_argument("to", nargs="?")
     args = parser.parse_args(argv)
     root = args.root
-    lister = list_tests                                   # looked up at call time so tests can replace it
+    lister = Universe()
     simple = {
         "check-register": lambda: check_register(root, lister),
         "check-touched-set": lambda: check_touched(root),
@@ -1141,6 +1319,7 @@ def main(argv: list[str] | None = None) -> int:
         "fates": lambda: merged(check_fates(root), check_contracts(root, read_results(root))),
         "check-coverage": lambda: check_coverage(root),
         "run-suites": lambda: run_suites(root),
+        "measure-touch": lambda: measure_touch(root),
     }
     try:
         if args.command == "stage" and args.to is None:
