@@ -387,7 +387,7 @@ pub async fn pass(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: 
                 crate::ingest::inputs::run(&mut db, published.as_ref(), &store, &Default::default(), now as f64)
             })
             .await??;
-            if summary.ingested > 0 || summary.requests > 0 {
+            if summary.ingested > 0 {
                 eprintln!("dbench collect: ingested {} story runs, {} requests placed ({:.1} s)", summary.ingested, summary.requests, summary.seconds);
             }
             // The analytics layer is derived from the warehouse; its failure never stops collection.
