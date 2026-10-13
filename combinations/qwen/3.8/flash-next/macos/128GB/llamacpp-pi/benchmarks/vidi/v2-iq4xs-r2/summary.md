@@ -17,8 +17,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 8 | 7/7 | 0 | 0 | 42/51 |
 | 9 | 4/6 | 0 | 0 | 46/57 |
 | 10 | 7/8 | 0 | 1 | 54/65 |
+| 11 | 5/5 | 1 | 0 | 58/70 |
 
-**New work** 47/61, **regressions** 0, **repairs** 4, **cumulative** 54/65.
+**New work** 52/66, **regressions** 1, **repairs** 4, **cumulative** 58/70.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -31,8 +32,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 5 | 99.0 | None | None | None | — | — | red | 42/51 |  | 0 / 1 | 2 | — | throttled 98%, server peak 88 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 5 | 29.7 | None | None | None | — | — | red | 46/57 |  | 0 / 0 | 1 | — | throttled 95%, server peak 88 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 5 | 125.0 | None | None | None | — | — | red | 54/65 |  | 0 / 1 | 3 | — | throttled 99%, server peak 88 GB |
+| 11 | Sketch freehand with a pen | DONE, on partial 5 | 20.6 | None | None | None | — | — | red | 58/70 |  | 0 / 1 | 1 | — | throttled 90%, server peak 88 GB |
 
-**Totals:** 9 stories, 951 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/9, final acceptance 54/65, stalled 0, partial 1, 26477 lines in src+tests.
+**Totals:** 10 stories, 972 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/10, final acceptance 58/70, stalled 0, partial 1, 28282 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -41,6 +43,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 8, built on partial 5: held-out tests on the partial base 18/20; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 5: held-out tests on the partial base 22/26; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 10, built on partial 5: held-out tests on the partial base 29/34; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 11, built on partial 5: held-out tests on the partial base 34/39; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -57,6 +60,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 8 | 1 by the agent | 1721 / 42 | `App.tsx` (112), `undo.ts` (111), `NOTES.md` (106), `UndoButtons.tsx` (76), `StickyTextEditor.tsx` (64), `useBoardKeys.ts` (43), +9 more |
 | 9 | 1 by the agent | 2410 / 92 | `TextEditor.tsx` (191), `TextObject.tsx` (179), `text.ts` (171), `textLayout.ts` (134), `useTool.ts` (84), `TextToolbar.tsx` (82), +14 more |
 | 10 | 1 by the agent | 4762 / 42 | `ShapeObject.tsx` (263), `connector.ts` (260), `ConnectorObject.tsx` (255), `shape.ts` (247), `ConnectorTool.tsx` (235), `ShapeTool.tsx` (215), +18 more |
+| 11 | 2 by the agent | 1817 / 10 | `PenTool.tsx` (223), `stroke.ts` (173), `simplify.ts` (138), `PenToolbar.tsx` (133), `StrokeObject.tsx` (70), `board-model.ts` (41), +8 more |
 
 ### Earlier stories broken or fixed
 
@@ -65,6 +69,8 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 3: 4/7 → 5/7; fixed 1
 - **Story 10 broke 0, fixed 1** earlier held-out tests (story 10: Draw shapes and connect them with arrows that follow when moved). Source files it changed most: `ShapeObject.tsx` (263), `connector.ts` (260), `ConnectorObject.tsx` (255), `shape.ts` (247), `ConnectorTool.tsx` (235), `ShapeTool.tsx` (215), +18 more.
   - story 3: 5/7 → 6/7; fixed 1
+- **Story 11 broke 1, fixed 0** earlier held-out tests (story 11: Sketch freehand with a pen; story 11: Sketch freehand with a pen). Source files it changed most: `PenTool.tsx` (223), `stroke.ts` (173), `simplify.ts` (138), `PenToolbar.tsx` (133), `StrokeObject.tsx` (70), `board-model.ts` (41), +8 more.
+  - story 3: 6/7 → 5/7; broke 1.
 
 ### Interruptions and dead time
 
