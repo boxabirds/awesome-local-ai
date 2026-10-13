@@ -16,8 +16,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | 6/8 | 0 | 3 | 35/44 |
 | 8 | 7/7 | 0 | 0 | 42/51 |
 | 9 | 4/6 | 0 | 0 | 46/57 |
+| 10 | 7/8 | 0 | 1 | 54/65 |
 
-**New work** 40/53, **regressions** 0, **repairs** 3, **cumulative** 46/57.
+**New work** 47/61, **regressions** 0, **repairs** 4, **cumulative** 54/65.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -29,8 +30,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 5 | 112.6 | None | None | None | — | — | red | 35/44 |  | 0 / 1 | 3 | — | throttled 99%, server peak 88 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 5 | 99.0 | None | None | None | — | — | red | 42/51 |  | 0 / 1 | 2 | — | throttled 98%, server peak 88 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 5 | 29.7 | None | None | None | — | — | red | 46/57 |  | 0 / 0 | 1 | — | throttled 95%, server peak 88 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 5 | 125.0 | None | None | None | — | — | red | 54/65 |  | 0 / 1 | 3 | — | throttled 99%, server peak 88 GB |
 
-**Totals:** 8 stories, 826 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/8, final acceptance 46/57, stalled 0, partial 1, 21889 lines in src+tests.
+**Totals:** 9 stories, 951 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/9, final acceptance 54/65, stalled 0, partial 1, 26477 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -38,6 +40,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 7, built on partial 5: held-out tests on the partial base 11/13; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 8, built on partial 5: held-out tests on the partial base 18/20; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 5: held-out tests on the partial base 22/26; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 10, built on partial 5: held-out tests on the partial base 29/34; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -53,12 +56,15 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 1 by the agent | 3403 / 372 | `useTransformGesture.tsx` (406), `StickyNote.tsx` (282), `board-model.ts` (240), `App.tsx` (177), `geometry.ts` (173), `useSelection.ts` (163), +10 more |
 | 8 | 1 by the agent | 1721 / 42 | `App.tsx` (112), `undo.ts` (111), `NOTES.md` (106), `UndoButtons.tsx` (76), `StickyTextEditor.tsx` (64), `useBoardKeys.ts` (43), +9 more |
 | 9 | 1 by the agent | 2410 / 92 | `TextEditor.tsx` (191), `TextObject.tsx` (179), `text.ts` (171), `textLayout.ts` (134), `useTool.ts` (84), `TextToolbar.tsx` (82), +14 more |
+| 10 | 1 by the agent | 4762 / 42 | `ShapeObject.tsx` (263), `connector.ts` (260), `ConnectorObject.tsx` (255), `shape.ts` (247), `ConnectorTool.tsx` (235), `ShapeTool.tsx` (215), +18 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 7 broke 0, fixed 3** earlier held-out tests (story 7: Select, move, resize and delete several objects at once). Source files it changed most: `useTransformGesture.tsx` (406), `StickyNote.tsx` (282), `board-model.ts` (240), `App.tsx` (177), `geometry.ts` (173), `useSelection.ts` (163), +10 more.
   - story 2: 5/10 → 7/10; fixed 2
   - story 3: 4/7 → 5/7; fixed 1
+- **Story 10 broke 0, fixed 1** earlier held-out tests (story 10: Draw shapes and connect them with arrows that follow when moved). Source files it changed most: `ShapeObject.tsx` (263), `connector.ts` (260), `ConnectorObject.tsx` (255), `shape.ts` (247), `ConnectorTool.tsx` (235), `ShapeTool.tsx` (215), +18 more.
+  - story 3: 5/7 → 6/7; fixed 1
 
 ### Interruptions and dead time
 
