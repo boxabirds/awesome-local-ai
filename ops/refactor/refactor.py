@@ -807,7 +807,6 @@ class FileLines:
     """One file's coverage as a tool reports it: hits per instrumented line, and each branch as (line, id, taken)."""
     lines: dict[int, int]
     branches: list[tuple[int, str, bool]] = field(default_factory=list)
-    totals: tuple[int, int] | None = None      # (lines, lines hit) when the tool gives only a file total (kcov)
 
 
 class ToolMissing(Exception):
@@ -850,22 +849,29 @@ def parse_lcov(root: Path, folder: str, text: str) -> dict[str, FileLines]:
 
 
 def parse_kcov(root: Path, report: dict, scripts: list[str] | None = None) -> dict[str, FileLines]:
-    """kcov's merged json has line totals per file only (no branches). A file outside the repository is matched to a touched script
-    by the end of its path (a test may run a copy made in a temporary folder); where a script appears more than once, the larger
-    figure is kept."""
+    """kcov's per-line report (codecov.json): hits per line of each file it watched; no branches. A file outside the repository is
+    matched to a touched script by the end of its path (a test may run a copy made in a temporary folder)."""
     found: dict[str, FileLines] = {}
-    for f in report["files"]:
-        path = Path(f["file"])
+    for path, lines in report["coverage"].items():
         try:
-            name = relative(root, f["file"])
+            name = relative(root, path)
         except ValueError:
-            name = next((sc for sc in (scripts or []) if path.as_posix().endswith("/" + sc)), None)
+            name = next((sc for sc in (scripts or []) if Path(path).as_posix().endswith("/" + sc)), None)
             if name is None:
                 continue
-        entry = FileLines({}, [], (int(f["total_lines"]), int(f["covered_lines"])))
-        if name not in found or entry.totals[1] > found[name].totals[1]:
-            found[name] = entry
+        found = combine_lines(found, {name: FileLines({int(n): int(hits) for n, hits in lines.items()})})
     return found
+
+
+def combine_lines(a: dict[str, FileLines], b: dict[str, FileLines]) -> dict[str, FileLines]:
+    """Two sets of per-line reports (two tests, say): a line has run if it ran in either, so the larger hit count wins."""
+    out = {name: FileLines(dict(f.lines), list(f.branches)) for name, f in a.items()}
+    for name, f in b.items():
+        mine = out.setdefault(name, FileLines({}))
+        for line, hits in f.lines.items():
+            mine.lines[line] = max(hits, mine.lines.get(line, 0))
+        mine.branches += f.branches
+    return out
 
 
 def function_lines(root: Path, language: str, file: str, function: str) -> set[int] | None:
@@ -904,10 +910,8 @@ def run_kcov(root: Path, outdir: Path, spec: dict) -> dict[str, FileLines]:
         if done.returncode != EXIT_OK:
             raise SuiteRed(f"{script.relative_to(root)} exited {done.returncode} under kcov")
         # each test's own report is read: kcov's --merge re-reads the sources, and a test's temporary copy of a script is gone by then
-        for report in sorted(part.glob("*/coverage.json")):
-            for name, entry in parse_kcov(root, json.loads(report.read_text()), scripts).items():
-                if name not in combined or entry.totals[1] > combined[name].totals[1]:
-                    combined[name] = entry
+        for report in sorted(part.glob("*/codecov.json")):
+            combined = combine_lines(combined, parse_kcov(root, json.loads(report.read_text()), scripts))
     return combined
 
 
@@ -944,6 +948,15 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
             touched.setdefault(e["language"], []).append(e)
     not_measured: dict[str, str] = {}
     measured_counts: dict[str, list[int]] = {}
+    excused: dict[str, dict] = {}
+    spans_seen: dict[str, set[int]] = {}        # the lines of each file that a touched function covers
+    blind: dict[str, list[dict]] = {}          # the reviewed table of lines a tool cannot see, by file
+    for tool_spec in specs.values():
+        for row in tool_spec.get("coverage", {}).get("blind", []):
+            if not str(row.get("reason", "")).strip():
+                result.fail("E-BLIND-NO-REASON", row.get("file", "?"), "a line a tool cannot see is excused only with a reason")
+            else:
+                blind.setdefault(row["file"], []).append(row)
     for language, entries in sorted(touched.items()):
         try:
             measured: dict[str, FileLines] = {}
@@ -971,25 +984,28 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
             if data is None or span is None:
                 result.fail("E-FILE-UNMEASURED", subject, f"{language}: the coverage tool reported nothing for this {'file' if data is None else 'function'}")
                 continue
-            if data.totals is not None:                                    # a tool that gives file totals only: fine for a whole script
-                if e["function"] != SCRIPT_LEVEL:
-                    result.fail("E-FILE-UNMEASURED", subject, f"{language}: the tool reports file totals only, not the lines of a function")
-                    continue
-                total, hit = data.totals
-                lines_missing, branches_missing, lines_n, branches_n = [], [], total, 0
-                lines_hit = hit
-            else:
-                executable = sorted(n for n in span if n in data.lines)
-                if not executable:
-                    result.fail("E-FILE-UNMEASURED", subject, f"{language}: no measurable line in this function")
-                    continue
-                lines_missing = [n for n in executable if data.lines[n] == 0]
-                lines_n, lines_hit = len(executable), len(executable) - len(lines_missing)
-                inside = [b for b in data.branches if b[0] in span]
-                branches_missing = [b for b in inside if not b[2]]
-                branches_n = len(inside)
+            executable = sorted(n for n in span if n in data.lines)
+            if not executable:
+                result.fail("E-FILE-UNMEASURED", subject, f"{language}: no measurable line in this function")
+                continue
+            unrun = [n for n in executable if data.lines[n] == 0]
+            spans_seen.setdefault(e["file"], set()).update(span)
+            named = {n: row["reason"] for row in blind.get(e["file"], []) for n in row.get("lines", []) if n in span}
+            for n in sorted(named):
+                if n not in data.lines:
+                    result.fail("E-BLIND-STALE", f"{e['file']}:{n}", "not a line the coverage tool measures: remove it from the table")
+                elif data.lines[n] > 0:
+                    result.fail("E-BLIND-STALE", f"{e['file']}:{n}", f"the tool now sees this line run ({data.lines[n]} time(s)): remove it from the table")
+            skipped = sorted(n for n in unrun if n in named)
+            if skipped:
+                excused[subject] = {"lines": skipped, "reason": "; ".join(sorted({named[n] for n in skipped}))}
+            lines_missing = [n for n in unrun if n not in named]
+            lines_n, lines_hit = len(executable), len(executable) - len(lines_missing)
+            inside = [b for b in data.branches if b[0] in span]
+            branches_missing = [b for b in inside if not b[2]]
+            branches_n = len(inside)
             branches_hit = branches_n - len(branches_missing)
-            measured_counts[subject] = [lines_n, lines_hit, branches_n, branches_hit]
+            measured_counts[subject] = [lines_n, lines_n - len(unrun), branches_n, branches_hit]       # the honest count: excused lines are not counted as run
             short = []
             if lines_hit < lines_n:
                 where = ", ".join(f"line {n}" for n in lines_missing)
@@ -998,7 +1014,11 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
                 short.append(f"{branches_hit} of {branches_n} branches (" + ", ".join(f"{line}->{bid.split(':', 1)[1].removeprefix('jump to line ')}" for line, bid, _ in branches_missing) + ")")
             if short:
                 result.fail("E-BELOW", subject, "; ".join(short))
-    result.data = {"not_measured": not_measured, "measured": measured_counts}
+    for file, rows in sorted(blind.items()):      # a line named in the table that no touched function covers is a mistake too
+        for n in sorted({n for row in rows for n in row.get("lines", [])} - spans_seen.get(file, set())):
+            if file in spans_seen:
+                result.fail("E-BLIND-STALE", f"{file}:{n}", "not a line of any touched function in this file: remove it from the table")
+    result.data = {"not_measured": not_measured, "measured": measured_counts, "excused": excused}
     write_report(root, "coverage", result)
     return result
 
@@ -1365,6 +1385,8 @@ def print_result(name: str, result: Result) -> None:
         print(f"  {p.code}  {p.subject}  {p.detail}".rstrip())
     for language, why in result.data.get("not_measured", {}).items():
         print(f"  not measured  {language}  {why}")
+    for subject, row in result.data.get("excused", {}).items():
+        print(f"  excused  {subject}  lines {', '.join(str(n) for n in row['lines'])}: {row['reason']}")
 
 
 def main(argv: list[str] | None = None) -> int:

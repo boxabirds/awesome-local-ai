@@ -77,10 +77,11 @@ running under kcov. A test that runs a copy of a script in a temporary folder is
 its path, and each test's own kcov report is read (kcov's `--merge` re-reads sources that no longer exist).
 
 Measured on 13 Oct 2026 on a Mac: `judge-setup.sh` 33 of 33 lines, `judge-submit.sh` 31 of 31, `fetch-work.sh` 12 of 12 (after
-leaving out the six lines of Python inside shell strings, named in `runners.toml`), `setup-node.sh` 86 of 97. The 11 lines kcov
-reports as not run in `setup-node.sh` (60, 61, 63, 114 to 118, 134 to 136) are the interactive install prompt, which the test runs in
-a pseudo-terminal, and the Chromium-libraries hint, which runs inside `$(...)`; a `bash -x` trace shows the tests do run them, but
-kcov does not see them.
+leaving out the six lines of Python inside shell strings, named in `runners.toml`), `setup-node.sh` 86 of 97. The other 11 lines of
+`setup-node.sh` (60, 61, 63, 114 to 118, 134 to 136) are the interactive install prompt, which the test runs in a pseudo-terminal, and
+the Chromium-libraries hint; a `bash -x` trace shows the tests run them and kcov does not report them. They are named, with the
+reason, in a reviewed table in `runners.toml` (`[[shell.coverage.blind]]`). The check fails if a named line is one kcov now sees run
+or is not a measurable line, a line without a reason is refused, and the lines are printed every run. Any other unrun line fails.
 
 ## Tests
 

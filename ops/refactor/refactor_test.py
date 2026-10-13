@@ -1326,19 +1326,25 @@ def test_tc24_the_missing_tool_is_exit_2_naming_it_through_the_real_command(cove
 
 # ---- shell coverage through kcov (Linux): our invocation, tested with a stand-in kcov on the PATH -------------------------------
 
-FAKE_KCOV = """#!/bin/sh
-# records every call; a run writes the report the real kcov would: <out>/<script>.<hash>/coverage.json
-echo "$@" >> "$KCOV_LOG"
-out="$(eval echo \\${$(($# - 1))})"; script="$(eval echo \\${$#})"; name="$(basename "$script")"
-mkdir -p "$out/$name.abc123"
-# one entry for a copy of the script a test made in a temporary folder (outside the repository), one for an unrelated file
-printf '{"files": [{"file": "/tmp/x/pub/s/target.sh", "covered_lines": "7", "total_lines": "9"}, {"file": "/tmp/x/pub/other.sh", "covered_lines": "1", "total_lines": "1"}]}' > "$out/$name.abc123/coverage.json"
+FAKE_KCOV = """#!/usr/bin/env python3
+# records every call; a run writes the per-line report the real kcov writes: <out>/<script>.<hash>/codecov.json, for a copy of the
+# script a test made in a temporary folder (outside the repository). Lines 1 to 7 of its nine lines run; KCOV_LINES overrides that.
+import json, os, sys
+args = sys.argv[1:]
+out, script = args[-2], args[-1]
+open(os.environ["KCOV_LOG"], "a").write(" ".join(args) + "\\n")
+name = os.path.basename(script)
+hit = json.loads(os.environ.get("KCOV_LINES_" + name.replace("-", "_").replace(".", "_"), os.environ.get("KCOV_LINES", "[1,2,3,4,5,6,7]")))
+report = os.path.join(out, name + ".abc123")
+os.makedirs(report, exist_ok=True)
+lines = {str(n): (1 if n in hit else 0) for n in range(1, 10)}
+json.dump({"coverage": {"/tmp/x/pub/s/target.sh": lines, "/tmp/x/pub/other.sh": {"1": 1}}}, open(os.path.join(report, "codecov.json"), "w"))
 """
 
 
 def shell_root(tmp_path: Path) -> Path:
     root = make_root(tmp_path, touched='[[entry]]\nlanguage = "shell"\nfile = "s/target.sh"\nfunction = "<script>"\nclasses = ["B"]\n')
-    write(root, "s/target.sh", "echo hi\n")
+    write(root, "s/target.sh", "echo hi\n" * 9)
     write(root, "tests/target-test.sh", 'bash "$ROOT/s/target.sh"\n')
     write(root, "tests/other-test.sh", "echo other\n")
     write(root, "ops/refactor/runners.toml",
@@ -1346,32 +1352,106 @@ def shell_root(tmp_path: Path) -> Path:
     return root
 
 
-def test_with_kcov_only_the_tests_that_name_a_touched_script_run_under_it_then_their_reports_are_read(tmp_path, monkeypatch):
-    root = shell_root(tmp_path)
+def use_fake_kcov(tmp_path: Path, monkeypatch, **env) -> Path:
     bin_dir = tmp_path / "bin"
     write(bin_dir, "kcov", FAKE_KCOV).chmod(0o755)
     log = tmp_path / "kcov.log"
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setenv("KCOV_LOG", str(log))
-    monkeypatch.setenv("KCOV_ROOT", str(root.resolve()))
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    return log
+
+
+def test_with_kcov_only_the_tests_that_name_a_touched_script_run_under_it_and_their_per_line_reports_are_read(tmp_path, monkeypatch):
+    root = shell_root(tmp_path)
+    log = use_fake_kcov(tmp_path, monkeypatch)
     result = R.check_coverage(root)
     calls = log.read_text().splitlines()
     assert any("tests/target-test.sh" in c for c in calls) and not any("tests/other-test.sh" in c for c in calls)
     assert not any("--merge" in c for c in calls)                              # each test's own report is read; kcov's merge re-reads sources
     assert any("--include-pattern=s/target.sh" in c for c in calls)            # only the touched scripts are watched, wherever a test runs them from
-    assert [(p.code, p.subject) for p in result.problems] == [("E-BELOW", "s/target.sh::<script>")] and "7 of 9 lines" in result.problems[0].detail
+    assert [(p.code, p.subject) for p in result.problems] == [("E-BELOW", "s/target.sh::<script>")]
+    assert result.problems[0].detail == "7 of 9 lines (line 8, line 9)"
     assert result.data["not_measured"] == {}
 
 
 def test_kcov_gets_the_exclude_line_patterns_the_runners_file_names(tmp_path, monkeypatch):
     root = shell_root(tmp_path)
     write(root, "ops/refactor/runners.toml", '[shell]\nglob = "tests/*-test.sh"\n[shell.coverage]\nexclude_lines = ["python in a string", "more python"]\n')
-    bin_dir = tmp_path / "bin"
-    write(bin_dir, "kcov", FAKE_KCOV).chmod(0o755)
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-    monkeypatch.setenv("KCOV_LOG", str(tmp_path / "kcov.log"))
+    log = use_fake_kcov(tmp_path, monkeypatch)
     R.check_coverage(root)
-    assert any("--exclude-line=python in a string,more python" in c for c in (tmp_path / "kcov.log").read_text().splitlines())
+    assert any("--exclude-line=python in a string,more python" in c for c in log.read_text().splitlines())
+
+
+def test_two_tests_that_each_run_part_of_a_script_together_cover_the_lines_either_ran(tmp_path, monkeypatch):
+    root = shell_root(tmp_path)
+    write(root, "tests/target-more-test.sh", 'bash "$ROOT/s/target.sh" again\n')
+    use_fake_kcov(tmp_path, monkeypatch, KCOV_LINES_target_test_sh="[1,2,3,4,5]", KCOV_LINES_target_more_test_sh="[5,6,7,8,9]")
+    result = R.check_coverage(root)
+    assert result.exit_code == R.EXIT_OK and result.data["measured"] == {"s/target.sh::<script>": [9, 9, 0, 0]}
+
+
+BLIND_TABLE = ('[[shell.coverage.blind]]\nfile = "s/target.sh"\nlines = [8, 9]\n'
+               'reason = "these lines run inside a command substitution, which kcov cannot see"\n')
+
+
+def blind_root(tmp_path: Path, table: str) -> Path:
+    root = shell_root(tmp_path)
+    write(root, "ops/refactor/runners.toml", '[shell]\nglob = "tests/*-test.sh"\n[shell.coverage]\nformat = "kcov"\n' + table)
+    return root
+
+
+def test_lines_kcov_cannot_see_are_excused_only_when_named_with_a_reason_and_are_reported(tmp_path, monkeypatch):
+    root = blind_root(tmp_path, BLIND_TABLE)
+    use_fake_kcov(tmp_path, monkeypatch)                                   # lines 8 and 9 are the ones not run
+    result = R.check_coverage(root)
+    assert result.exit_code == R.EXIT_OK and result.problems == []
+    assert result.data["measured"] == {"s/target.sh::<script>": [9, 7, 0, 0]}          # the figure is the honest one
+    assert result.data["excused"] == {"s/target.sh::<script>": {"lines": [8, 9], "reason": "these lines run inside a command substitution, which kcov cannot see"}}
+
+
+def test_an_unrun_line_the_table_does_not_name_still_fails(tmp_path, monkeypatch):
+    root = blind_root(tmp_path, BLIND_TABLE)
+    use_fake_kcov(tmp_path, monkeypatch, KCOV_LINES="[2,3,4,5,6,7]")                 # line 1 is also unrun
+    result = R.check_coverage(root)
+    assert [(p.code, p.detail) for p in result.problems] == [("E-BELOW", "8 of 9 lines (line 1)")]
+
+
+def test_a_named_line_kcov_does_see_run_is_a_stale_entry(tmp_path, monkeypatch):
+    root = blind_root(tmp_path, BLIND_TABLE)
+    use_fake_kcov(tmp_path, monkeypatch, KCOV_LINES="[1,2,3,4,5,6,7,8]")              # line 8 now runs
+    result = R.check_coverage(root)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-BLIND-STALE", "s/target.sh:8")]
+
+
+def test_a_named_line_that_is_not_an_instrumented_line_is_a_stale_entry(tmp_path, monkeypatch):
+    root = blind_root(tmp_path, BLIND_TABLE.replace("[8, 9]", "[8, 9, 40]"))
+    use_fake_kcov(tmp_path, monkeypatch)
+    result = R.check_coverage(root)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-BLIND-STALE", "s/target.sh:40")]
+
+
+def test_an_entry_without_a_reason_is_refused(tmp_path, monkeypatch):
+    root = blind_root(tmp_path, '[[shell.coverage.blind]]\nfile = "s/target.sh"\nlines = [8, 9]\nreason = ""\n')
+    use_fake_kcov(tmp_path, monkeypatch)
+    assert "E-BLIND-NO-REASON" in codes(R.check_coverage(root))
+
+
+def test_the_printed_report_names_the_excused_lines_and_why(capsys):
+    result = R.Result()
+    result.data = {"excused": {"s/target.sh::<script>": {"lines": [8, 9], "reason": "inside a command substitution"}}}
+    R.print_result("check-coverage", result)
+    assert "excused  s/target.sh::<script>  lines 8, 9: inside a command substitution" in capsys.readouterr().out
+
+
+def test_kcov_per_line_data_is_read_by_the_end_of_each_path_and_the_larger_hit_count_wins(tmp_path):
+    root = make_root(tmp_path)
+    report = {"coverage": {"/tmp/a/pub/s/t.sh": {"1": 2, "2": 0}, "/tmp/a/pub/unrelated.sh": {"1": 1}}}
+    first = R.parse_kcov(root, report, ["s/t.sh"])
+    second = R.parse_kcov(root, {"coverage": {"/elsewhere/s/t.sh": {"1": 0, "2": 3}}}, ["s/t.sh"])
+    assert set(first) == {"s/t.sh"} and first["s/t.sh"].lines == {1: 2, 2: 0}
+    assert R.combine_lines(first, second)["s/t.sh"].lines == {1: 2, 2: 3}
 
 
 def test_without_kcov_on_the_path_shell_is_not_measured_and_the_check_still_decides(tmp_path, monkeypatch):
@@ -2227,27 +2307,3 @@ def test_a_matrix_required_naming_an_unknown_use_case_is_refused(tmp_path):
 def test_the_real_use_cases_file_has_fourteen_use_cases_and_the_key_is_top_level_not_a_fifteenth_use_case():
     data = tomllib.loads((Path(__file__).parent / "use_cases.toml").read_text())
     assert data["matrix_required"] == ["U1"] and len(data["use_cases"]) == 14 and "matrix_required" not in data["use_cases"]
-
-
-TWO_TEST_KCOV = """#!/usr/bin/env python3
-import json, os, sys
-args = sys.argv[1:]
-out, script = args[-2], args[-1]
-name = os.path.basename(script)
-open(os.environ["KCOV_LOG"], "a").write(" ".join(args) + "\\n")
-report = os.path.join(out, name + ".h")
-os.makedirs(report, exist_ok=True)
-covered = 9 if name == "target-more-test.sh" else 7
-json.dump({"files": [{"file": "/tmp/x/pub/s/target.sh", "covered_lines": str(covered), "total_lines": "9"}]}, open(os.path.join(report, "coverage.json"), "w"))
-"""
-
-
-def test_a_script_two_tests_both_cover_is_reported_at_the_larger_figure(tmp_path, monkeypatch):
-    root = shell_root(tmp_path)
-    write(root, "tests/target-more-test.sh", 'bash "$ROOT/s/target.sh" again\n')
-    bin_dir = tmp_path / "bin"
-    write(bin_dir, "kcov", TWO_TEST_KCOV).chmod(0o755)
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-    monkeypatch.setenv("KCOV_LOG", str(tmp_path / "kcov.log"))
-    result = R.check_coverage(root)
-    assert result.exit_code == R.EXIT_OK and result.data["measured"] == {"s/target.sh::<script>": [9, 9, 0, 0]}

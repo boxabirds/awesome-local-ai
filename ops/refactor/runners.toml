@@ -51,6 +51,19 @@ exclude_lines = [
   "drive.link_work_dir(run",
 ]
 
+# Lines the tests run but kcov does not report (owner-approved 13 Oct 2026). Each was shown to run by a `bash -x` trace of
+# tests/setup-node-test.sh. The check fails if a listed line is one kcov now sees run, or is not a measurable line, and it prints
+# these lines on every run; any other unrun line fails as usual.
+[[shell.coverage.blind]]
+file = "benchmarks/spec-bench/harness/setup-node.sh"
+lines = [60, 61, 63]
+reason = "the interactive install prompt: the test runs it in a pseudo-terminal (run_tty), and kcov does not report the lines (a bash -x trace shows they run)"
+
+[[shell.coverage.blind]]
+file = "benchmarks/spec-bench/harness/setup-node.sh"
+lines = [114, 115, 116, 117, 118, 134, 135, 136]
+reason = "the Chromium-libraries hint: the test runs it (a fake ldd on a fake Linux), and kcov does not report the lines (a bash -x trace shows they run); the cause is not confirmed, and the code around it uses command substitutions"
+
 # How run-suites runs each suite with its result output on, for report-deletion (and the whole-suite-green move).
 # {out} is the file under ops/refactor/reports. cargo prints its json on stdout, which run-suites saves; its json test output
 # is unstable, so it runs on the nightly toolchain. The python junit family must be xunit1 so a test carries its file.
