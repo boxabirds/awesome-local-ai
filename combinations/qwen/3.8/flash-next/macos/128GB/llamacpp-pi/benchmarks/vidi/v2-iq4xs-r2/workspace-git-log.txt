@@ -1,3 +1,100 @@
+commit f889e57c02471f661e84407f609684254ec29fb6
+agent  Tue Oct 13 06:11:05 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ .tmp/fx/anim.gif                     | Bin 85 -> 0 bytes
+ .tmp/fx/corrupt.png                  | Bin 16 -> 0 bytes
+ .tmp/fx/doc.pdf                      |   4 -
+ .tmp/fx/err.txt                      |   3 -
+ .tmp/fx/old.gif                      | Bin 35 -> 0 bytes
+ .tmp/fx/out_anim.gif.png             | Bin 162 -> 0 bytes
+ .tmp/fx/out_old.gif.png              | Bin 162 -> 0 bytes
+ .tmp/fx/out_shot.png.png             | Bin 426 -> 0 bytes
+ .tmp/fx/out_tall.png.png             | Bin 173 -> 0 bytes
+ .tmp/fx/out_trunc.png.png            | Bin 171 -> 0 bytes
+ .tmp/fx/photo.webp                   | Bin 30 -> 0 bytes
+ .tmp/fx/script.svg                   |   1 -
+ .tmp/fx/shot.png                     | Bin 28948 -> 0 bytes
+ .tmp/fx/small.png                    | Bin 340 -> 0 bytes
+ .tmp/fx/tall.png                     | Bin 388 -> 0 bytes
+ .tmp/fx/ten-mb.jpg                   | Bin 10485760 -> 0 bytes
+ .tmp/fx/trunc.png                    | Bin 104 -> 0 bytes
+ .tmp/write-fixtures.mts              |  20 --
+ NOTES.md                             | 136 +++++++++
+ PROGRESS.md                          |  18 +-
+ src/client/App.tsx                   | 157 +++++++----
+ src/client/board/Toolbar.tsx         |  30 ++
+ src/client/board/useTool.ts          |  37 ++-
+ src/client/canvas/BoardViewport.tsx  |  74 ++++-
+ src/client/identity.ts               |  28 ++
+ src/client/images/DropHighlight.tsx  |  44 +++
+ src/client/images/uploadClock.ts     |  46 ++++
+ src/client/images/uploadImage.ts     | 109 ++++++++
+ src/client/images/useImageInsert.ts  | 508 ++++++++++++++++++++++++++++++++++
+ src/client/objects/ImageObject.tsx   | 391 ++++++++++++++++++++++++++
+ src/client/objects/registry.tsx      |  25 +-
+ src/client/ui/Toast.tsx              | 148 ++++++++++
+ src/worker/assets.ts                 |   6 +-
+ tests/component/ImageInsert.test.tsx | 515 +++++++++++++++++++++++++++++++++++
+ tests/component/ImageObject.test.tsx | 466 +++++++++++++++++++++++++++++++
+ tests/e2e/helpers/drop-files.ts      | 241 ++++++++++++++++
+ tests/e2e/helpers/images.ts          | 121 ++++++++
+ tests/e2e/images.spec.ts             | 363 ++++++++++++++++++++++++
+ tests/integration/assets.test.ts     |   3 +
+ tests/unit/registry.test.ts          |   6 +-
+ 40 files changed, 3390 insertions(+), 110 deletions(-)
+commit 794914a075af1ed041b619a1eca212f87a779179
+agent  Tue Oct 13 04:30:07 2026 +0000
+
+    story 12 (wip): the asset API and the model of an image in flight
+
+
+ .tmp/fx/anim.gif                   | Bin 0 -> 85 bytes
+ .tmp/fx/corrupt.png                | Bin 0 -> 16 bytes
+ .tmp/fx/doc.pdf                    |   4 +
+ .tmp/fx/err.txt                    |   3 +
+ .tmp/fx/old.gif                    | Bin 0 -> 35 bytes
+ .tmp/fx/out_anim.gif.png           | Bin 0 -> 162 bytes
+ .tmp/fx/out_old.gif.png            | Bin 0 -> 162 bytes
+ .tmp/fx/out_shot.png.png           | Bin 0 -> 426 bytes
+ .tmp/fx/out_tall.png.png           | Bin 0 -> 173 bytes
+ .tmp/fx/out_trunc.png.png          | Bin 0 -> 171 bytes
+ .tmp/fx/photo.webp                 | Bin 0 -> 30 bytes
+ .tmp/fx/script.svg                 |   1 +
+ .tmp/fx/shot.png                   | Bin 0 -> 28948 bytes
+ .tmp/fx/small.png                  | Bin 0 -> 340 bytes
+ .tmp/fx/tall.png                   | Bin 0 -> 388 bytes
+ .tmp/fx/ten-mb.jpg                 | Bin 0 -> 10485760 bytes
+ .tmp/fx/trunc.png                  | Bin 0 -> 104 bytes
+ .tmp/pw-install.log                |  37 ++++
+ .tmp/write-fixtures.mts            |  20 ++
+ src/client/images/validateFiles.ts |  74 +++++++
+ src/shared/board-model.ts          |  54 ++++-
+ src/shared/config.ts               |  24 +++
+ src/shared/image-format.ts         |  90 +++++++++
+ src/shared/objects/image.ts        | 281 ++++++++++++++++++++++++++
+ src/shared/paths.ts                |  24 +++
+ src/worker/assets.ts               | 114 +++++++++++
+ src/worker/index.ts                |  38 +++-
+ src/worker/routes.ts               |  32 ++-
+ tests/fixtures/images/browser.ts   |  26 +++
+ tests/fixtures/images/index.ts     | 220 +++++++++++++++++++++
+ tests/integration/assets.test.ts   | 394 +++++++++++++++++++++++++++++++++++++
+ tests/unit/image-format.test.ts    | 118 +++++++++++
+ tests/unit/image-model.test.ts     | 370 ++++++++++++++++++++++++++++++++++
+ tests/unit/validate-files.test.ts  | 111 +++++++++++
+ wrangler.jsonc                     |  11 ++
+ 35 files changed, 2032 insertions(+), 14 deletions(-)
+commit 8861cb52e2d3f06bf4b58b27a01c64c9131edf67
+vidi-agent  Tue Oct 13 04:14:34 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 2998aac288230482e478acfe1ce2fa5d93752862
 agent  Tue Oct 13 02:53:22 2026 +0000
 
