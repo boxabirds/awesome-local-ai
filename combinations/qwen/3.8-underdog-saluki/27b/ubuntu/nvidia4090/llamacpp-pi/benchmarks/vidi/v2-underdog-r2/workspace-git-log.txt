@@ -1,3 +1,87 @@
+commit 083b160cbe60704ec110188fe8f4fee757c1cac4
+vidi-agent  Tue Oct 13 09:38:33 2026 +0100
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ src/worker/board-store-core.ts                    |  36 +-
+ src/worker/board-store.ts                         | 239 ++++++++++++++
+ tests/fixtures/boards.ts                          | 217 +++++++++++++
+ tests/integration/board-store.test.ts             | 379 ++++++++++++++++++++++
+ tests/integration/scratch-compare.test.ts         |  49 +++
+ tests/integration/scratch-compare2.test.ts        |  51 +++
+ tests/integration/scratch-compare3.test.ts        |  25 ++
+ tests/integration/scratch-compare4.test.ts        |  31 ++
+ tests/integration/scratch-compare5.test.ts        |  34 ++
+ tests/integration/scratch-compare6.test.ts        |  22 ++
+ tests/integration/scratch-compare7.test.ts        |  17 +
+ tests/integration/scratch-count.test.ts           |  29 ++
+ tests/integration/scratch-createsingle.test.ts    |  30 ++
+ tests/integration/scratch-do-probe.test.ts        |  30 ++
+ tests/integration/scratch-event-shape.test.ts     |  18 +
+ tests/integration/scratch-exactnote.test.ts       |  26 ++
+ tests/integration/scratch-fixture-inspect.test.ts |  19 ++
+ tests/integration/scratch-incremental.test.ts     |  16 +
+ tests/integration/scratch-meta.test.ts            |  36 ++
+ tests/integration/scratch-min-incr.test.ts        |  18 +
+ tests/integration/scratch-nested-enc.test.ts      |  24 ++
+ tests/integration/scratch-nested.test.ts          |  27 ++
+ tests/integration/scratch-readme.test.ts          |  15 +
+ tests/integration/scratch-uuid.test.ts            |  22 ++
+ tests/integration/scratch-where.test.ts           |  26 ++
+ tests/integration/scratch-yjs-persist.test.ts     |  22 ++
+ tests/unit/board-store-core.test.ts               |   5 +-
+ types/cloudflare-test.d.ts                        |   7 +
+ 28 files changed, 1461 insertions(+), 9 deletions(-)
+commit 52291b4534a45de300913bc40fe076e8b79b482e
+agent  Tue Oct 13 06:53:40 2026 +0100
+
+    story 4: task 1 — unit tests + stubs for BoardStore and room state, config/protocol/model additions, typecheck fixes
+
+
+ src/shared/board-model.ts           |  5 ++
+ src/shared/config.ts                |  9 ++++
+ src/shared/protocol.ts              |  8 +++
+ src/worker/board-store-core.ts      | 18 +++++++
+ src/worker/room-state.ts            | 52 +++++++++++++++++++
+ tests/integration/debug10.test.ts   |  2 +-
+ tests/integration/debug15.test.ts   |  2 +-
+ tests/integration/debug16.test.ts   |  3 +-
+ tests/integration/debug18.test.ts   |  4 +-
+ tests/integration/debug19.test.ts   |  4 +-
+ tests/integration/debug2.test.ts    |  2 +-
+ tests/integration/debug251.test.ts  |  4 +-
+ tests/integration/debug3.test.ts    |  4 +-
+ tests/integration/debug319.test.ts  |  2 +-
+ tests/integration/debug35.test.ts   |  2 +-
+ tests/integration/debug4.test.ts    |  2 +-
+ tests/integration/debug46.test.ts   |  2 +-
+ tests/integration/debug47.test.ts   |  4 +-
+ tests/integration/debug51.test.ts   |  2 +-
+ tests/integration/debug54.test.ts   | 19 +++++--
+ tests/integration/debug57.test.ts   | 11 ++++-
+ tests/integration/debug60.test.ts   |  2 +-
+ tests/integration/debug61.test.ts   |  2 +-
+ tests/integration/debug62.test.ts   |  9 +---
+ tests/integration/debug64.test.ts   |  3 +-
+ tests/integration/debug67.test.ts   |  2 +-
+ tests/integration/debug69.test.ts   |  4 +-
+ tests/integration/debug7.test.ts    |  2 +-
+ tests/integration/debug72.test.ts   |  2 +-
+ tests/integration/debug75.test.ts   |  2 +-
+ tests/integration/debug9.test.ts    |  2 +-
+ tests/integration/ws-client.ts      | 14 +++---
+ tests/unit/board-store-core.test.ts | 99 +++++++++++++++++++++++++++++++++++++
+ tests/unit/room-state.test.ts       | 94 +++++++++++++++++++++++++++++++++++
+ 34 files changed, 350 insertions(+), 48 deletions(-)
+commit b61bfa1e03e2f773037e9715b6e88a34ab77e704
+vidi-agent  Tue Oct 13 06:05:54 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit fa49410ad0a4b28fd687fc8411226dd86eb27dca
 vidi-agent  Tue Oct 13 06:05:40 2026 +0100
 
