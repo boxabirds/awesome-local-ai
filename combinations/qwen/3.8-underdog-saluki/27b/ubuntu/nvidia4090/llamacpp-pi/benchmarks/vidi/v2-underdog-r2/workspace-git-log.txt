@@ -1,3 +1,51 @@
+commit 7ad2f03b7eba6a4ef28d6a78c74011a91a3b6697
+vidi-agent  Tue Oct 13 14:31:40 2026 +0100
+
+    harness: snapshot after story 7 (uncommitted agent work)
+
+
+ src/client/board/BoardCanvas.tsx         | 210 ++++++++++-----
+ src/client/board/Marquee.tsx             | 101 +++++++
+ src/client/board/SelectionBar.tsx        |  96 +++++++
+ src/client/board/SelectionOverlay.tsx    | 134 ++++++++++
+ src/client/board/useBoardDoc.ts          |  77 +++---
+ src/client/board/useBoardKeys.ts         | 113 ++++++++
+ src/client/board/useSelection.ts         | 143 ++++++++--
+ src/client/board/useTransformGesture.ts  | 348 ++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx      |  61 ++++-
+ src/client/objects/StickyNote.tsx        | 249 ++++--------------
+ src/client/objects/StickyTextEditor.tsx  |  11 +-
+ src/client/objects/registry.tsx          | 103 ++++++++
+ src/client/pages/BoardPage.tsx           |   4 +-
+ src/shared/board-model.ts                | 305 ++++++++++++++++-----
+ src/shared/config.ts                     |   7 +
+ src/shared/geometry.ts                   | 165 ++++++++++++
+ tests/component/Keyboard.test.tsx        | 195 ++++++++++++++
+ tests/component/Marquee.test.tsx         | 161 ++++++++++++
+ tests/component/SelectionBar.test.tsx    | 193 ++++++++++++++
+ tests/component/Transform.test.tsx       | 331 +++++++++++++++++++++++
+ tests/e2e/helpers/board.ts               |  12 +
+ tests/e2e/probe-mount.spec.ts            |  27 ++
+ tests/e2e/probe.spec.ts                  |  35 +++
+ tests/e2e/select-several-objects.spec.ts | 439 +++++++++++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts           |  15 +-
+ tests/fixtures/testbox.tsx               |  57 ++++
+ tests/stubs/react-router-dom/index.tsx   |  50 ++++
+ tests/unit/board-model-group.test.ts     | 384 +++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts              | 245 +++++++++++++++++
+ tests/unit/registry.test.ts              |  73 +++++
+ tests/unit/selection-reducer.test.ts     | 127 +++++++++
+ tsconfig.json                            |   8 +-
+ vitest.config.ts                         |  10 +
+ 33 files changed, 4091 insertions(+), 398 deletions(-)
+commit 12251c2daee0f7e921c57390cf6e2b16589e1de7
+vidi-agent  Tue Oct 13 11:41:32 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit f8e540abb5c5fb28ab686bca703c638fb994f0b9
 vidi-agent  Tue Oct 13 11:41:19 2026 +0100
 
