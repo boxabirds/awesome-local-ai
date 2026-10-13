@@ -1,3 +1,57 @@
+commit fdd8c4d6d7fd26f6a7a864c7adf964c9e5951d80
+agent  Tue Oct 13 21:33:39 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                         | 179 ++++++++
+ PROGRESS.md                                      |  14 +-
+ index.html                                       |   7 +
+ playwright.config.ts                             |   4 +-
+ src/client/App.tsx                               |  68 +--
+ src/client/api.ts                                |  54 +++
+ src/client/components/SharePanel.tsx             | 200 +++++++++
+ src/client/pages/BoardPage.tsx                   | 104 +++++
+ src/client/pages/HomePage.tsx                    |  41 ++
+ src/client/pages/NotFoundPage.tsx                |  51 +++
+ src/client/pages/state.ts                        |  72 ++++
+ src/client/pages/useNewBoard.ts                  |  63 +++
+ src/client/router.ts                             |  70 +++
+ src/client/styles.css                            | 178 ++++++++
+ src/shared/config.ts                             |  23 +
+ src/worker/board-room.ts                         |  75 +++-
+ src/worker/board-store.ts                        | 139 +++++-
+ src/worker/create-board.ts                       |  52 +++
+ src/worker/index.ts                              | 168 +++++++-
+ src/worker/test-hooks.ts                         |  74 ++++
+ tests/component/ConnectionStatus.test.tsx        |   2 +-
+ tests/component/NavigationHint.test.tsx          |   2 +-
+ tests/component/helpers.tsx                      |   4 +-
+ tests/component/pages.test.tsx                   | 448 ++++++++++++++++++++
+ tests/component/share-panel.test.tsx             | 239 +++++++++++
+ tests/e2e/helpers/board.ts                       | 112 ++++-
+ tests/e2e/persistence.spec.ts                    |  18 +-
+ tests/e2e/share-workflows.spec.ts                | 373 ++++++++++++++++
+ tests/integration/board-api.test.ts              | 516 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  72 +++-
+ tests/integration/board-room.test.ts             |  77 ++--
+ tests/integration/globalSetup.ts                 |  56 +++
+ tests/integration/persist-dual-storage.test.ts   |   6 +-
+ tests/integration/worker-routing.test.ts         |  43 +-
+ tests/integration/ws-client.ts                   |  55 ++-
+ tests/unit/board-store-chunks.test.ts            |  37 +-
+ tests/unit/create-board.test.ts                  | 144 +++++++
+ tests/unit/no-tailing.test.ts                    |  79 ++++
+ vitest.config.ts                                 |   3 +
+ 39 files changed, 3762 insertions(+), 160 deletions(-)
+commit 9274a33771fa636cb1beb4a0fff2efc5afec2494
+vidi-agent  Tue Oct 13 19:22:49 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 2d8713ea23141aec8ed40b89e93fae9b8dd88ffc
 vidi-agent  Tue Oct 13 19:22:31 2026 +0100
 
