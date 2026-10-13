@@ -1,3 +1,110 @@
+commit 2d8713ea23141aec8ed40b89e93fae9b8dd88ffc
+vidi-agent  Tue Oct 13 19:22:31 2026 +0100
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ tests/integration/board-room-persistence.test.ts | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+commit d1fe2549e451721bc60b0a01ffc63b7e1f44ffce
+agent  Tue Oct 13 18:10:16 2026 +0000
+
+    task 8: component tests for load-failure badge, edit lock and close-code mapping
+
+
+ src/client/objects/StickyTextEditor.tsx   |   9 +-
+ tests/component/ConnectionStatus.test.tsx | 234 +++++++++++++++++++++++++++++-
+ 2 files changed, 234 insertions(+), 9 deletions(-)
+commit 02c837a2f9f1dad9121f7fbbed79d0682a9882a6
+agent  Tue Oct 13 17:52:44 2026 +0000
+
+    story 4 task 7: client load_failed state — 4500 maps to red badge, editing gated (canEdit), 1011/1003 stay reconnecting
+
+
+ PROGRESS.md                             |  2 +-
+ src/client/App.tsx                      | 29 ++++++++++++++++++++++-
+ src/client/board/Toolbar.tsx            |  5 +++-
+ src/client/objects/NoteToolbar.tsx      |  6 ++++-
+ src/client/objects/StickyNote.tsx       | 19 +++++++++++++--
+ src/client/objects/StickyTextEditor.tsx |  6 ++++-
+ src/client/styles.css                   |  7 ++++++
+ src/client/sync/ConnectionStatus.tsx    | 11 ++++++---
+ src/client/sync/connectBoard.ts         | 42 +++++++++++++++++++++++++++++----
+ 9 files changed, 113 insertions(+), 14 deletions(-)
+commit 4be4c58d4b76ed076c3af37825a3e2714161b6af
+agent  Tue Oct 13 17:42:30 2026 +0000
+
+    story 4 task 6: e2e persistence across real process restarts (TC-19, TC-20) and 2000-note open time (TC-21)
+
+
+ PROGRESS.md                           |   6 +-
+ tests/e2e/helpers/seed.ts             |  97 +++++++++++++
+ tests/e2e/helpers/wrangler-process.ts | 141 +++++++++++++++++++
+ tests/e2e/persistence.spec.ts         | 252 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 493 insertions(+), 3 deletions(-)
+commit 5ec5115928ce196b9a216f938c5375bff63474b3
+agent  Tue Oct 13 17:12:25 2026 +0000
+
+    story 4 task 5: persistent-room integration tests TC-12..TC-18 + TC-26 (durability, save/load failure handling, hibernation)
+
+
+ src/worker/board-room.ts                         |  12 +
+ tests/integration/board-room-persistence.test.ts | 417 +++++++++++++++++++++++
+ 2 files changed, 429 insertions(+)
+commit 68f59e9d97d8186f4f8d3ca889365bab68d954f2
+agent  Tue Oct 13 16:56:43 2026 +0000
+
+    story 4 task 4: persistent BoardRoom — load on wake, store before broadcast, hibernation, load/storage failure states
+
+
+ src/worker/board-room.ts             | 453 ++++++++++++++++++++++-------------
+ src/worker/board-store.ts            |  28 ++-
+ tests/integration/board-room.test.ts |   8 +-
+ 3 files changed, 323 insertions(+), 166 deletions(-)
+commit ff475716eaf92edea47a6ff82a92019b567ca701
+agent  Tue Oct 13 16:18:08 2026 +0000
+
+    story 4 tasks 2-3: BoardStore on DO SQLite (log, chunked snapshot, quarantine) and integration tests TC-03..TC-11 + TC-25
+
+
+ NOTES.md                                       |  52 +++
+ PROGRESS.md                                    |   6 +-
+ package.json                                   |   5 +-
+ scripts/matrix-config.mjs                      |  55 +++
+ scripts/test-matrix.sh                         |  25 ++
+ src/worker/board-store.ts                      | 285 ++++++++++++--
+ src/worker/room-state.ts                       |  67 +++-
+ src/worker/storage-chunks.ts                   |  37 ++
+ tests/fixtures/boards.ts                       | 204 ++++++++++
+ tests/integration/board-room.test.ts           |   8 +-
+ tests/integration/board-store.test.ts          | 497 +++++++++++++++++++++++++
+ tests/integration/persist-dual-storage.test.ts |  93 +++++
+ tests/integration/ws-client.ts                 |  23 +-
+ tests/unit/board-store-chunks.test.ts          |   2 +-
+ vitest.config.ts                               |  18 +-
+ 15 files changed, 1326 insertions(+), 51 deletions(-)
+commit 883bad3a18dcfc116786d5d1f02b84b3c66063c9
+agent  Tue Oct 13 14:47:30 2026 +0000
+
+    story 4 task 1: storage chunking/threshold and room-state unit tests first (TC-01, TC-02, TC-27)
+
+
+ PROGRESS.md                           |   2 +-
+ src/shared/config.ts                  |  42 ++++++++++++
+ src/shared/protocol.ts                |  16 +++++
+ src/worker/board-store.ts             |  55 ++++++++++++++++
+ src/worker/room-state.ts              |  58 +++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  72 +++++++++++++++++++++
+ tests/unit/room-state.test.ts         | 117 ++++++++++++++++++++++++++++++++++
+ 7 files changed, 361 insertions(+), 1 deletion(-)
+commit a08f350e0933edeb0b4643879e17ba5c38d27435
+vidi-agent  Tue Oct 13 15:19:50 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit d906e24f2599ce55c9c72d6a921dd4f910c2bdea
 vidi-agent  Tue Oct 13 15:19:32 2026 +0100
 
