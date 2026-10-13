@@ -1,3 +1,59 @@
+commit d906e24f2599ce55c9c72d6a921dd4f910c2bdea
+vidi-agent  Tue Oct 13 15:19:32 2026 +0100
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ src/client/App.tsx                        |  67 +++-
+ src/client/board/useBoardDoc.ts           |  27 +-
+ src/client/canvas/testHooks.ts            |  17 +
+ src/client/styles.css                     |  37 ++
+ src/client/sync/ConnectionStatus.tsx      |  38 ++
+ src/client/sync/connectBoard.ts           | 163 +++++++++
+ src/shared/board-id.ts                    |  80 ++++-
+ src/shared/protocol.ts                    |  48 ++-
+ src/worker/board-room.ts                  | 262 ++++++++++++++
+ src/worker/index.ts                       | 128 +++++++
+ tests/component/ConnectionStatus.test.tsx | 251 +++++++++++++
+ tests/component/helpers.tsx               |   7 +-
+ tests/e2e/helpers/participants.ts         | 202 +++++++++++
+ tests/integration/board-room.test.ts      | 580 ++++++++++++++++++++++++++++++
+ tests/integration/random-ops.ts           | 320 +++++++++++++++++
+ tests/integration/worker-routing.test.ts  | 230 ++++++++++++
+ tests/integration/ws-client.ts            | 509 ++++++++++++++++++++++++++
+ tests/support/canvas-mock.ts              |  49 +++
+ tests/support/random.ts                   |  72 ++++
+ tests/unit/board-id.test.ts               |   2 +-
+ tests/unit/protocol.test.ts               | 130 ++++---
+ tsconfig.json                             |   6 +
+ tsconfig.worker.json                      |  12 +
+ types/worker-env.d.ts                     |  15 +
+ vitest.config.ts                          |  32 +-
+ wrangler.jsonc                            |  41 ++-
+ 26 files changed, 3239 insertions(+), 86 deletions(-)
+commit 87069eedd98dd6def16015c32b04e7880e17f4c6
+agent  Tue Oct 13 10:33:51 2026 +0000
+
+    story 3: board id and message decoding unit tests (red) plus live settings
+
+
+ PROGRESS.md                 |   4 +-
+ package-lock.json           | 101 +++++++++++++++++++++++++++++++++---
+ package.json                |   5 ++
+ src/shared/board-id.ts      |  32 ++++++++++++
+ src/shared/config.ts        |  39 ++++++++++++++
+ src/shared/protocol.ts      |  43 ++++++++++++++++
+ tests/unit/board-id.test.ts |  78 ++++++++++++++++++++++++++++
+ tests/unit/protocol.test.ts | 123 ++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 416 insertions(+), 9 deletions(-)
+commit f041cc18a773df9dc372044fbe52c0e2029a1ed8
+vidi-agent  Tue Oct 13 11:17:50 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit e63623ab17d079e790d7cc9e92d99a794cec6acd
 agent  Tue Oct 13 10:16:16 2026 +0000
 
