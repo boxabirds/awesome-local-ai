@@ -1,3 +1,48 @@
+commit b12f9946238f6dd397c43be22e79bd692307fe31
+agent  Mon Oct 12 23:45:28 2026 +0000
+
+    story 9: Write free text anywhere on the board
+
+
+ PROGRESS.md                               |  14 +-
+ src/client/App.tsx                        |  33 ++++
+ src/client/board/SelectionBar.tsx         |  33 +++-
+ src/client/board/SelectionOverlay.tsx     |  10 +-
+ src/client/board/Toolbar.tsx              |  69 ++++++--
+ src/client/board/useBoardKeys.ts          |  10 +-
+ src/client/board/useTool.ts               |  84 ++++++++++
+ src/client/board/useTransformGesture.tsx  |  25 ++-
+ src/client/canvas/BoardViewport.tsx       |  33 +++-
+ src/client/objects/TextEditor.tsx         | 191 +++++++++++++++++++++++
+ src/client/objects/TextObject.tsx         | 179 +++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx        |  82 ++++++++++
+ src/client/objects/registry.tsx           |  15 +-
+ src/client/objects/textLayout.ts          | 134 ++++++++++++++++
+ src/client/objects/useTextBoxSync.ts      |  56 +++++++
+ src/shared/board-model.ts                 |  52 ++++++-
+ src/shared/config.ts                      |  17 ++
+ src/shared/objects/text.ts                | 171 ++++++++++++++++++++
+ src/shared/sticky-text.ts                 |  57 +------
+ src/shared/text-edit.ts                   |  67 ++++++++
+ tests/component/BoardLoadFailure.test.tsx |   2 +-
+ tests/component/ConnectionStatus.test.tsx |   2 +-
+ tests/component/TextBoxSync.test.tsx      | 107 +++++++++++++
+ tests/component/TextObject.test.tsx       | 251 ++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx             | 168 ++++++++++++++++++++
+ tests/component/Toolbars.test.tsx         |   6 +-
+ tests/e2e/helpers/text.ts                 |  78 ++++++++++
+ tests/e2e/text.spec.ts                    | 250 +++++++++++++++++++++++++++++
+ tests/unit/text-layout.test.ts            | 112 +++++++++++++
+ tests/unit/text-model.test.ts             | 194 +++++++++++++++++++++++
+ 30 files changed, 2410 insertions(+), 92 deletions(-)
+commit 881ee9fb56099d7b262ea911d37569e85a415da1
+vidi-agent  Tue Oct 13 00:15:51 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit a8540506ef5d7ad272ebf906d8cb0d92489e01d3
 agent  Mon Oct 12 22:56:17 2026 +0000
 
