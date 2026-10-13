@@ -70,12 +70,17 @@ the answer was not a status. Neither is "idle". Nothing moves on a machine while
 
 ## Shell coverage
 
-`check-coverage` measures shell with `kcov`, which runs on Linux only. On macOS the tool reports shell as **not measured**
-(never as passed). The shell tests of the touched scripts (`tests/setup-node-test.sh`, `judge-setup-test.sh`,
-`judge-submit-test.sh`, `fetch-work-test.sh`) were written against every branch of their scripts and each was checked by
-breaking the script and watching a test fail. As a stand-in for a coverage figure on a Mac, running a test with the script's
-`bash -x` trace (see `SHELL_TRACE` in `tests/setup-node-test.sh`) shows every statement the tests ran; the figure that counts is
-kcov's, on a Linux node.
+`check-coverage` measures shell with `kcov` (`brew install kcov` on a Mac, `apt install kcov` on Linux). Only the test scripts that
+name a touched script run under it. kcov finds a script's lines in the stderr of its bash, so a test that sends the script's stderr
+to a file hides it: the shell tests use `run_capturing` (in `tests/lib.sh`), which keeps the file and also passes stderr on when
+running under kcov. A test that runs a copy of a script in a temporary folder is matched to the repository's script by the end of
+its path, and each test's own kcov report is read (kcov's `--merge` re-reads sources that no longer exist).
+
+Measured on 13 Oct 2026 on a Mac: `judge-setup.sh` 33 of 33 lines, `judge-submit.sh` 31 of 31, `fetch-work.sh` 12 of 12 (after
+leaving out the six lines of Python inside shell strings, named in `runners.toml`), `setup-node.sh` 86 of 97. The 11 lines kcov
+reports as not run in `setup-node.sh` (60, 61, 63, 114 to 118, 134 to 136) are the interactive install prompt, which the test runs in
+a pseudo-terminal, and the Chromium-libraries hint, which runs inside `$(...)`; a `bash -x` trace shows the tests do run them, but
+kcov does not see them.
 
 ## Tests
 

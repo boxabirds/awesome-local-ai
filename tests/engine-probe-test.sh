@@ -34,7 +34,7 @@ echo
 echo "the 27B smoke script parses, names all five checks, and in a dry run starts nothing"
 SMOKE="$REPO_ROOT/tools/engine-probe/smoke-27b.sh"
 assert_ok "it parses"                      bash -n "$SMOKE"
-PLAN="$(bash "$SMOKE" ./install-x.sh x-server alias --dry-run 2>&1)"
+PLAN="$(bash "$SMOKE" ./install-x.sh x-server alias --dry-run 2>&1 | grep -v "^kcov@")"      # under kcov the trace lines are on stderr too
 for word in install serve capability mtp long; do
   assert_eq "the plan names the $word check"  "1" "$(grep -c -E "^   [1-5] $word " <<<"$PLAN")"
 done

@@ -1327,27 +1327,26 @@ def test_tc24_the_missing_tool_is_exit_2_naming_it_through_the_real_command(cove
 # ---- shell coverage through kcov (Linux): our invocation, tested with a stand-in kcov on the PATH -------------------------------
 
 FAKE_KCOV = """#!/bin/sh
-# records every call; a --merge call writes the merged json the real kcov would
+# records every call; a run writes the report the real kcov would: <out>/<script>.<hash>/coverage.json
 echo "$@" >> "$KCOV_LOG"
-if [ "$1" = "--merge" ]; then
-  mkdir -p "$2"
-  printf '{"files": [{"file": "%s/tests/one-test.sh", "covered_lines": "7", "total_lines": "9"}]}' "$KCOV_ROOT" > "$2/coverage.json"
-else
-  mkdir -p "$2"
-fi
+out="$(eval echo \\${$(($# - 1))})"; script="$(eval echo \\${$#})"; name="$(basename "$script")"
+mkdir -p "$out/$name.abc123"
+# one entry for a copy of the script a test made in a temporary folder (outside the repository), one for an unrelated file
+printf '{"files": [{"file": "/tmp/x/pub/s/target.sh", "covered_lines": "7", "total_lines": "9"}, {"file": "/tmp/x/pub/other.sh", "covered_lines": "1", "total_lines": "1"}]}' > "$out/$name.abc123/coverage.json"
 """
 
 
 def shell_root(tmp_path: Path) -> Path:
-    root = make_root(tmp_path, touched='[[entry]]\nlanguage = "shell"\nfile = "tests/one-test.sh"\nfunction = "<script>"\nclasses = ["B"]\n')
-    write(root, "tests/one-test.sh", "echo hi\n")
-    write(root, "tests/two-test.sh", "echo ho\n")
+    root = make_root(tmp_path, touched='[[entry]]\nlanguage = "shell"\nfile = "s/target.sh"\nfunction = "<script>"\nclasses = ["B"]\n')
+    write(root, "s/target.sh", "echo hi\n")
+    write(root, "tests/target-test.sh", 'bash "$ROOT/s/target.sh"\n')
+    write(root, "tests/other-test.sh", "echo other\n")
     write(root, "ops/refactor/runners.toml",
-          '[shell]\nglob = "tests/*-test.sh"\n[shell.coverage]\nformat = "kcov"\nfile = "kcov-merged/coverage.json"\n')
+          '[shell]\nglob = "tests/*-test.sh"\n[shell.coverage]\nformat = "kcov"\n')
     return root
 
 
-def test_with_kcov_every_shell_test_runs_under_it_then_the_results_are_merged_and_read(tmp_path, monkeypatch):
+def test_with_kcov_only_the_tests_that_name_a_touched_script_run_under_it_then_their_reports_are_read(tmp_path, monkeypatch):
     root = shell_root(tmp_path)
     bin_dir = tmp_path / "bin"
     write(bin_dir, "kcov", FAKE_KCOV).chmod(0o755)
@@ -1357,10 +1356,22 @@ def test_with_kcov_every_shell_test_runs_under_it_then_the_results_are_merged_an
     monkeypatch.setenv("KCOV_ROOT", str(root.resolve()))
     result = R.check_coverage(root)
     calls = log.read_text().splitlines()
-    assert any("tests/one-test.sh" in c for c in calls) and any("tests/two-test.sh" in c for c in calls)
-    assert any(c.startswith("--merge") for c in calls)
-    assert [(p.code, p.subject) for p in result.problems] == [("E-BELOW", "tests/one-test.sh::<script>")] and "7 of 9 lines" in result.problems[0].detail
+    assert any("tests/target-test.sh" in c for c in calls) and not any("tests/other-test.sh" in c for c in calls)
+    assert not any("--merge" in c for c in calls)                              # each test's own report is read; kcov's merge re-reads sources
+    assert any("--include-pattern=s/target.sh" in c for c in calls)            # only the touched scripts are watched, wherever a test runs them from
+    assert [(p.code, p.subject) for p in result.problems] == [("E-BELOW", "s/target.sh::<script>")] and "7 of 9 lines" in result.problems[0].detail
     assert result.data["not_measured"] == {}
+
+
+def test_kcov_gets_the_exclude_line_patterns_the_runners_file_names(tmp_path, monkeypatch):
+    root = shell_root(tmp_path)
+    write(root, "ops/refactor/runners.toml", '[shell]\nglob = "tests/*-test.sh"\n[shell.coverage]\nexclude_lines = ["python in a string", "more python"]\n')
+    bin_dir = tmp_path / "bin"
+    write(bin_dir, "kcov", FAKE_KCOV).chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setenv("KCOV_LOG", str(tmp_path / "kcov.log"))
+    R.check_coverage(root)
+    assert any("--exclude-line=python in a string,more python" in c for c in (tmp_path / "kcov.log").read_text().splitlines())
 
 
 def test_without_kcov_on_the_path_shell_is_not_measured_and_the_check_still_decides(tmp_path, monkeypatch):
@@ -2216,3 +2227,27 @@ def test_a_matrix_required_naming_an_unknown_use_case_is_refused(tmp_path):
 def test_the_real_use_cases_file_has_fourteen_use_cases_and_the_key_is_top_level_not_a_fifteenth_use_case():
     data = tomllib.loads((Path(__file__).parent / "use_cases.toml").read_text())
     assert data["matrix_required"] == ["U1"] and len(data["use_cases"]) == 14 and "matrix_required" not in data["use_cases"]
+
+
+TWO_TEST_KCOV = """#!/usr/bin/env python3
+import json, os, sys
+args = sys.argv[1:]
+out, script = args[-2], args[-1]
+name = os.path.basename(script)
+open(os.environ["KCOV_LOG"], "a").write(" ".join(args) + "\\n")
+report = os.path.join(out, name + ".h")
+os.makedirs(report, exist_ok=True)
+covered = 9 if name == "target-more-test.sh" else 7
+json.dump({"files": [{"file": "/tmp/x/pub/s/target.sh", "covered_lines": str(covered), "total_lines": "9"}]}, open(os.path.join(report, "coverage.json"), "w"))
+"""
+
+
+def test_a_script_two_tests_both_cover_is_reported_at_the_larger_figure(tmp_path, monkeypatch):
+    root = shell_root(tmp_path)
+    write(root, "tests/target-more-test.sh", 'bash "$ROOT/s/target.sh" again\n')
+    bin_dir = tmp_path / "bin"
+    write(bin_dir, "kcov", TWO_TEST_KCOV).chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setenv("KCOV_LOG", str(tmp_path / "kcov.log"))
+    result = R.check_coverage(root)
+    assert result.exit_code == R.EXIT_OK and result.data["measured"] == {"s/target.sh::<script>": [9, 9, 0, 0]}

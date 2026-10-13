@@ -25,7 +25,7 @@ make_private() {  # make_private <dir>
 
 run() {  # run <private dir> args... : sets RC, OUT, ERR
   local d="$1"; shift
-  SPEC_BENCH_PACK_DIR="$d/private/packs/vidi" bash "$SCRIPT" "$@" >"$TMP/out" 2>"$TMP/err"; RC=$?
+  SPEC_BENCH_PACK_DIR="$d/private/packs/vidi" run_capturing "$TMP/out" "$TMP/err" bash "$SCRIPT" "$@"; RC=$?
   OUT="$(cat "$TMP/out")"; ERR="$(cat "$TMP/err")"
 }
 contains() { [[ "$1" == *"$2"* ]]; }
@@ -44,7 +44,7 @@ assert_eq "an unknown option exits 2" "2" "$RC"
 assert_ok "and says which" contains "$ERR" "unknown option --bogus"
 
 echo "no private repo"
-SPEC_BENCH_PACK_DIR="$TMP/none/not-a-packs-folder/vidi" bash "$SCRIPT" pkg judge >"$TMP/out" 2>"$TMP/err"; rc=$?
+SPEC_BENCH_PACK_DIR="$TMP/none/not-a-packs-folder/vidi" run_capturing "$TMP/out" "$TMP/err" bash "$SCRIPT" pkg judge; rc=$?
 assert_eq "a pack that is not under a private packs/ folder exits 1" "1" "$rc"
 assert_ok "and says there is no private pack repo" contains "$(cat "$TMP/err")" "no private pack repo next to this one"
 

@@ -15,7 +15,7 @@ REAL_PY="$(python3 -c 'import sys; print(sys.executable)')"
 # --- the world: stand-in tools -------------------------------------------------------------------------------------------------
 BIN="$TMP/bin"; mkdir -p "$BIN"
 for t in bash sh git sed tr ls head awk sort uname_real dirname cat mkdir stat basename grep xargs tar mktemp rm cp ln printf date env wc tail chmod \
-         cut find touch ldd; do
+         cut find touch ldd tee; do
   p="$(command -v "$t" 2>/dev/null)" && [[ -n "$p" ]] && ln -sf "$p" "$BIN/$t"
 done
 ln -sf "$REAL_PY" "$BIN/python3"
@@ -41,6 +41,7 @@ PLAIN_PATH="$BIN"
 
 # --- a fake public repo (with an origin and an identity) beside a private one --------------------------------------------------
 GITCONFIG="$TMP/gitconfig"
+DEFAULT_BENCH_JSON='{"name": "vidi", "pack_ref": "vidi-v1", "tools": ["bun"]}'
 
 build() {  # build <dir> : the public repo at <dir>/pub, a copy of the harness scripts, and what the scenario knobs ask for
   local d="$1" h="$1/pub/benchmarks/spec-bench/harness"
@@ -50,7 +51,7 @@ build() {  # build <dir> : the public repo at <dir>/pub, a copy of the harness s
   printf 'import sys\nsys.exit(0)\n' > "$h/preflight.py"
   printf '#!/usr/bin/env bash\necho "stack $1 registered"\n' > "$d/pub/benchmarks/reference/install-stack.sh"
   chmod +x "$h"/*.sh "$d/pub/benchmarks/reference/install-stack.sh"
-  echo "${BENCH_JSON:-{\"name\": \"vidi\", \"pack_ref\": \"vidi-v1\", \"tools\": [\"bun\"]\}}" > "$d/pub/benchmarks/vidi/bench.json"
+  echo "${BENCH_JSON:-$DEFAULT_BENCH_JSON}" > "$d/pub/benchmarks/vidi/bench.json"      # (a { } default inside ${..:-..} breaks on bash 3.2)
   [[ -n "${WITH_SUITE:-}" ]] && mkdir -p "$d/pub/benchmarks/vidi/acceptance/tests"
   git init -q -b main "$d/pub"; git -C "$d/pub" add -A; git -C "$d/pub" commit -q -m seed
   [[ -z "${NO_ORIGIN:-}" ]] && { git init -q --bare -b main "$d/origin.git"; git -C "$d/pub" remote add origin "$d/origin.git"; git -C "$d/pub" push -q origin main; }
@@ -70,8 +71,8 @@ build() {  # build <dir> : the public repo at <dir>/pub, a copy of the harness s
 run() {  # run <dir> args... : sets RC, OUT; the scenario knobs are in the environment
   local d="$1"; shift
   ( cd "$d" && HOME="$d/home" PATH="$PLAIN_PATH" GIT_CONFIG_GLOBAL="$GITCONFIG" GIT_CONFIG_NOSYSTEM=1 FAKE_LOG="$d/log" FAKE_NODE_UPGRADED="$d/node-upgraded" \
-      OS_RELEASE="${OS_RELEASE_FILE:-/nonexistent}" bash "$d/pub/benchmarks/spec-bench/harness/setup-node.sh" "$@" ) >"$d/out" 2>&1 < /dev/null
-  RC=$?; OUT="$(cat "$d/out")"
+      OS_RELEASE="${OS_RELEASE_FILE:-/nonexistent}" run_capturing "$d/stdout" "$d/stderr" bash "$d/pub/benchmarks/spec-bench/harness/setup-node.sh" "$@" < /dev/null )
+  RC=$?; cat "$d/stdout" "$d/stderr" > "$d/out"; OUT="$(cat "$d/out")"
 }
 contains() { [[ "$1" == *"$2"* ]]; }
 fresh() { rm -rf "$TMP/w"; mkdir -p "$TMP/w"; build "$TMP/w"; W="$TMP/w"; }
@@ -96,6 +97,8 @@ while True:
     if not chunk:
         break
     out += chunk
+    if os.environ.get("PS4", "").startswith("kcov@"):       # under kcov: pass the trace on, kcov reads it from our stderr
+        sys.stderr.buffer.write(chunk); sys.stderr.buffer.flush()
     if b"[y/N]" in chunk and answers:
         os.write(fd, (answers.pop(0) + "\n").encode())
 _, status = os.waitpid(pid, 0)

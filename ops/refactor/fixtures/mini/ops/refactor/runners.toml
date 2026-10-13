@@ -27,7 +27,6 @@ file = "lcov.info"
 
 [shell.coverage]
 format = "kcov"
-file = "kcov-merged/coverage.json"
 
 [python.results]
 format = "junit"

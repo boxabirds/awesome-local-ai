@@ -42,7 +42,14 @@ file = "lcov.info"
 
 [shell.coverage]
 format = "kcov"
-file = "kcov-merged/coverage.json"
+# Lines kcov counts as shell but that are Python written inside a shell string (fetch-work.sh asks drive.py for a folder's name):
+# bash never traces them as shell, and their functions are covered by the Python proof. Patterns are substrings, without commas.
+exclude_lines = [
+  "import sys; from pathlib import Path; import drive",
+  "run = drive.REPO_ROOT / sys.argv",
+  "print(drive.work_dir_name(run)",
+  "drive.link_work_dir(run",
+]
 
 # How run-suites runs each suite with its result output on, for report-deletion (and the whole-suite-green move).
 # {out} is the file under ops/refactor/reports. cargo prints its json on stdout, which run-suites saves; its json test output

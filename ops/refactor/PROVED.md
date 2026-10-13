@@ -22,9 +22,12 @@ test fail (done by the agents that wrote them; I re-ran a sample of those breaks
 
 ## What this does not prove
 
-- **Shell is not measured.** `kcov` runs on Linux only. The four touched shell scripts have tests (`setup-node`, `judge-setup`,
-  `judge-submit`, `fetch-work`: 148 checks) and a statement trace shows every statement runs, but there is no kcov figure.
-  Task 1.32 records it on an idle Linux node.
+- **Shell, measured afterwards with kcov (13 Oct 2026, on a Mac; the stage was moved before shell was measured):**
+  `judge-setup.sh` 33 of 33 lines, `judge-submit.sh` 31 of 31, `fetch-work.sh` 12 of 12 (six lines of Python inside shell strings
+  left out, named in `runners.toml`), `setup-node.sh` 86 of 97. The 11 lines kcov reports as not run are the interactive install
+  prompt (run in a pseudo-terminal) and the Chromium-libraries hint (run inside `$(...)`); a `bash -x` trace shows the tests run
+  them, and kcov does not see them. `check-coverage` therefore reports `setup-node.sh` as below 100 percent. Not branch coverage:
+  kcov measures lines only.
 - **The 609 Playwright end-to-end specs of the benchmarker are not in the register.** The register lists pytest, cargo, vitest
   and the `tests/*-test.sh` scripts only.
 - **Only U1 has a matrix** (owner decision): the other thirteen use cases rest on function coverage and the deletion report.

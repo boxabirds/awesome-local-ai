@@ -28,7 +28,7 @@ chmod +x "$TMP/bin/rsync"
 run() {  # run <args...> : sets RC, OUT, ERR; HOME and the work root are private to the test
   rm -rf "$TMP/home"; mkdir -p "$TMP/home"; : > "$TMP/rsync.log"
   HOME="$TMP/home" VIDI_WORK_ROOT="$TMP/home/.w" PATH="$TMP/bin:$PATH" FAKE_RSYNC_LOG="$TMP/rsync.log" FAKE_RSYNC_FAIL="${FAIL:-}" \
-    bash "$SCRIPT" "$@" >"$TMP/out" 2>"$TMP/err"; RC=$?
+    run_capturing "$TMP/out" "$TMP/err" bash "$SCRIPT" "$@"; RC=$?
   OUT="$(cat "$TMP/out")"; ERR="$(cat "$TMP/err")"
 }
 contains() { [[ "$1" == *"$2"* ]]; }
@@ -57,7 +57,7 @@ assert_ok "it says how to continue" contains "$OUT" "run.sh … --run-id run-2 w
 echo "a local copy"
 run node-a "$RUN"
 # fetch again into the same home: it refuses to overwrite
-HOME="$TMP/home" VIDI_WORK_ROOT="$TMP/home/.w" PATH="$TMP/bin:$PATH" FAKE_RSYNC_LOG="$TMP/rsync.log" bash "$SCRIPT" node-a "$RUN" >"$TMP/out" 2>"$TMP/err"; rc=$?
+HOME="$TMP/home" VIDI_WORK_ROOT="$TMP/home/.w" PATH="$TMP/bin:$PATH" FAKE_RSYNC_LOG="$TMP/rsync.log" run_capturing "$TMP/out" "$TMP/err" bash "$SCRIPT" node-a "$RUN"; rc=$?
 assert_eq "an existing local copy is not overwritten (exit 1)" "1" "$rc"
 assert_ok "and says so" contains "$(cat "$TMP/err")" "already exists here; not overwriting"
 

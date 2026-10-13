@@ -37,3 +37,11 @@ finish() {
   fi
   echo "all ${TESTS_RUN} checks passed"
 }
+
+# run_capturing <stdout file> <stderr file> command...: the same as `command >out 2>err`. When the tests run under kcov (which finds a
+# script's lines in the stderr of its bash), the stderr also goes on to ours, so a child script's trace still reaches kcov.
+run_capturing() {
+  local out="$1" err="$2"; shift 2
+  if [[ "${PS4:-}" == kcov@* ]]; then "$@" 2>&1 >"$out" | tee "$err" >&2; return "${PIPESTATUS[0]}"; fi
+  "$@" >"$out" 2>"$err"
+}

@@ -849,9 +849,23 @@ def parse_lcov(root: Path, folder: str, text: str) -> dict[str, FileLines]:
     return files
 
 
-def parse_kcov(root: Path, report: dict) -> dict[str, FileLines]:
-    """kcov's merged json has line totals per file only (no branches)."""
-    return {relative(root, f["file"]): FileLines({}, [], (int(f["total_lines"]), int(f["covered_lines"]))) for f in report["files"]}
+def parse_kcov(root: Path, report: dict, scripts: list[str] | None = None) -> dict[str, FileLines]:
+    """kcov's merged json has line totals per file only (no branches). A file outside the repository is matched to a touched script
+    by the end of its path (a test may run a copy made in a temporary folder); where a script appears more than once, the larger
+    figure is kept."""
+    found: dict[str, FileLines] = {}
+    for f in report["files"]:
+        path = Path(f["file"])
+        try:
+            name = relative(root, f["file"])
+        except ValueError:
+            name = next((sc for sc in (scripts or []) if path.as_posix().endswith("/" + sc)), None)
+            if name is None:
+                continue
+        entry = FileLines({}, [], (int(f["total_lines"]), int(f["covered_lines"])))
+        if name not in found or entry.totals[1] > found[name].totals[1]:
+            found[name] = entry
+    return found
 
 
 def function_lines(root: Path, language: str, file: str, function: str) -> set[int] | None:
@@ -876,16 +890,25 @@ def run_kcov(root: Path, outdir: Path, spec: dict) -> dict[str, FileLines]:
     if kcov is None:
         raise NotMeasured("kcov is not installed (it measures shell coverage on Linux only)")
     parts = []
-    for script in sorted(p for p in root.glob(spec["glob"]) if p.is_file()):
+    scripts = spec.get("scripts", [])
+    # watch the touched scripts by their path inside the repository, wherever a test runs them from (a test may run a copy in a
+    # temporary folder); the lines named in exclude_lines (code of another language written inside a shell string) are not shell
+    watch = [f"--include-pattern={','.join(scripts)}"] if scripts else [f"--include-path={root}"]
+    if spec.get("exclude_lines"):
+        watch.append(f"--exclude-line={','.join(spec['exclude_lines'])}")
+    tests = spec.get("tests")
+    combined: dict[str, FileLines] = {}
+    for script in [root / t for t in tests] if tests is not None else sorted(p for p in root.glob(spec["glob"]) if p.is_file()):
         part = outdir / script.stem
-        done = subprocess.run([kcov, f"--include-path={root}", str(part), str(script)], cwd=root, capture_output=True, text=True)
+        done = subprocess.run([kcov, *watch, str(part), str(script)], cwd=root, capture_output=True, text=True)
         if done.returncode != EXIT_OK:
             raise SuiteRed(f"{script.relative_to(root)} exited {done.returncode} under kcov")
-        parts.append(str(part))
-    merged = subprocess.run([kcov, "--merge", str(outdir / "kcov-merged"), *parts], cwd=root, capture_output=True, text=True)
-    if merged.returncode != EXIT_OK:
-        raise SuiteRed(f"kcov --merge exited {merged.returncode}")
-    return parse_kcov(root, json.loads((outdir / spec.get("file", "kcov-merged/coverage.json")).read_text()))
+        # each test's own report is read: kcov's --merge re-reads the sources, and a test's temporary copy of a script is gone by then
+        for report in sorted(part.glob("*/coverage.json")):
+            for name, entry in parse_kcov(root, json.loads(report.read_text()), scripts).items():
+                if name not in combined or entry.totals[1] > combined[name].totals[1]:
+                    combined[name] = entry
+    return combined
 
 
 def run_coverage(root: Path, language: str, spec: dict) -> dict[str, FileLines]:
@@ -926,7 +949,12 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
             measured: dict[str, FileLines] = {}
             for key in [k for k in specs if runner_language(k) == language] or [language]:     # a language may have several runners
                 language_spec = specs.get(key, {})
-                measured |= runner(root, language, language_spec.get("coverage", {}) | {"dir": language_spec.get("dir", "."), "glob": language_spec.get("glob", "")})
+                spec = language_spec.get("coverage", {}) | {"dir": language_spec.get("dir", "."), "glob": language_spec.get("glob", "")}
+                if language == "shell":      # kcov runs only the test scripts that name a touched script, not every shell test
+                    every = {p.relative_to(root).as_posix() for p in root.glob(spec["glob"]) if p.is_file()} if spec["glob"] else set()
+                    spec["tests"] = sorted(shell_touching(root, entries, every))
+                    spec["scripts"] = sorted({e["file"] for e in entries})
+                measured |= runner(root, language, spec)
         except NotMeasured as exc:
             not_measured[language] = str(exc)
             continue
