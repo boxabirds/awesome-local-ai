@@ -1,3 +1,97 @@
+commit f9f39fbacab91a7de2b68b706080920d800c77a7
+vidi-agent  Tue Oct 13 20:00:13 2026 +0100
+
+    harness: snapshot after story 9 (uncommitted agent work)
+
+
+ src/client/board/BoardCanvas.tsx        | 112 +++++++++-
+ src/client/board/SelectionBar.tsx       |  25 ++-
+ src/client/board/SelectionOverlay.tsx   |  20 +-
+ src/client/board/Toolbar.tsx            |  51 ++++-
+ src/client/board/useBoardKeys.ts        |  52 ++++-
+ src/client/board/useTool.ts             |  41 ++++
+ src/client/board/useTransformGesture.ts |  32 ++-
+ src/client/canvas/BoardViewport.tsx     |  19 +-
+ src/client/canvas/testHooks.ts          |  22 +-
+ src/client/index.css                    |  25 +++
+ src/client/objects/StickyNote.tsx       |  37 +++-
+ src/client/objects/TextEditor.tsx       | 179 ++++++++++++++++
+ src/client/objects/TextObject.tsx       | 193 +++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  68 ++++++
+ src/client/objects/registry.tsx         |  36 ++++
+ src/client/objects/useTextBoxSync.ts    |  62 +++---
+ src/shared/protocol.ts                  |   6 +-
+ src/worker/board-room.ts                |  37 ++--
+ tests/component/TextObject.test.tsx     | 352 +++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 258 +++++++++++++++++++++++
+ tests/component/Toolbars.test.tsx       |   7 +-
+ tests/component/text-box-sync.test.tsx  |   4 +-
+ tests/e2e/debug-cross.spec.ts           |  97 +++++++++
+ tests/e2e/text.spec.ts                  | 363 ++++++++++++++++++++++++++++++++
+ ws-probe.js                             |  25 +++
+ 25 files changed, 2042 insertions(+), 81 deletions(-)
+commit b55b4d77dce35f6b0b5817d2f01ad559f954f9fe
+agent  Tue Oct 13 17:00:21 2026 +0100
+
+    story 9: task 5 — box-sync component tests (TC-12, TC-13)
+
+
+ tests/component/text-box-sync.test.tsx | 106 +++++++++++++++++++++++++++++++++
+ 1 file changed, 106 insertions(+)
+commit 21fa30b64c11bcb60a2baa81f1064d05bf352f44
+agent  Tue Oct 13 16:59:17 2026 +0100
+
+    story 9: task 4 — text layout implementation and local-only box sync hook
+
+
+ src/client/objects/textLayout.ts     | 86 ++++++++++++++++++++++++++++++++++--
+ src/client/objects/useTextBoxSync.ts | 50 +++++++++++++++++++++
+ tests/unit/text-layout.test.ts       |  4 +-
+ 3 files changed, 134 insertions(+), 6 deletions(-)
+commit c53842308cc63c7830e537b78e3404da4cf459bf
+agent  Tue Oct 13 16:56:22 2026 +0100
+
+    story 9: task 3 — text layout unit tests first with a fake measurer (TC-07 to TC-11, TC-32)
+
+
+ src/client/objects/textLayout.ts | 28 ++++++++++++++
+ tests/unit/text-layout.test.ts   | 82 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 110 insertions(+)
+commit a35a1bb9b3734a4c424f908e457657b2ddc0de33
+agent  Tue Oct 13 16:53:55 2026 +0100
+
+    story 9: task 2 — text object model and shared text-edit helpers
+
+
+ src/client/objects/StickyText.ts |  53 +++--------------
+ src/shared/board-model.ts        |  65 +++++++++++++++------
+ src/shared/objects/text.ts       | 122 ++++++++++++++++++++++++++++++++++++---
+ src/shared/text-edit.ts          |  41 ++++++++++++-
+ tests/unit/text-model.test.ts    |   4 +-
+ 5 files changed, 208 insertions(+), 77 deletions(-)
+commit ed5c1ebb0f13bbdbca166617788588529a658268
+agent  Tue Oct 13 16:51:06 2026 +0100
+
+    story 9: task 1 — text model unit tests first (TC-01 to TC-06) with stubs
+
+
+ src/shared/config.ts                           |  20 +++
+ src/shared/objects/text.ts                     |  43 ++++++
+ src/shared/text-edit.ts                        |  20 +++
+ tests/component/Transform.test.tsx             |   6 +-
+ tests/integration/scratch-board-create.test.ts |   2 +-
+ tests/integration/ws-client.ts                 |   2 +-
+ tests/unit/board-model-group.test.ts           |   3 +-
+ tests/unit/text-model.test.ts                  | 177 +++++++++++++++++++++++++
+ 8 files changed, 267 insertions(+), 6 deletions(-)
+commit 0b8fa0988eafbbb10ba3d3dc6885be55e94030a4
+vidi-agent  Tue Oct 13 16:26:54 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit 279d05a2f245ea0bb235ae74f4d5d6d686fb8220
 agent  Tue Oct 13 16:06:17 2026 +0100
 
