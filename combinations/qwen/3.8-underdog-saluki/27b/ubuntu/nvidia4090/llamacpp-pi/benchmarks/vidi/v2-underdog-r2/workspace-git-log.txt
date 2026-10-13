@@ -1,3 +1,43 @@
+commit caaee556685eff12e5a88be6121c6e1319c7aedc
+vidi-agent  Tue Oct 13 22:03:36 2026 +0100
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ src/client/board/BoardCanvas.tsx          | 107 ++++++++++-
+ src/client/board/SelectionBar.tsx         |  35 +++-
+ src/client/board/Toolbar.tsx              |  89 ++++++++--
+ src/client/board/useBoardKeys.ts          |   6 +
+ src/client/board/useTool.ts               |   6 +-
+ src/client/index.css                      | 116 ++++++++++++
+ src/client/objects/ConnectorObject.tsx    | 241 +++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 150 ++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  82 +++++++++
+ src/client/objects/registry.tsx           |  66 ++++++-
+ src/client/tools/ConnectorTool.tsx        | 286 ++++++++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 207 +++++++++++++++++++++
+ src/client/tools/useActiveTool.ts         | 117 ++++++++++++
+ src/shared/board-model.ts                 |  94 +++++++++-
+ src/shared/config.ts                      |  37 ++++
+ src/shared/geometry/connector-geometry.ts |  89 ++++++++++
+ src/shared/geometry/polyline.ts           |  36 ++++
+ src/shared/objects/connector.ts           | 227 ++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 170 ++++++++++++++++++
+ tests/component/Connector.test.tsx        | 286 ++++++++++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 242 +++++++++++++++++++++++++
+ tests/component/useActiveTool.test.tsx    | 165 +++++++++++++++++
+ tests/unit/connector-model.test.ts        | 285 +++++++++++++++++++++++++++++
+ tests/unit/registry.test.ts               |   6 +-
+ tests/unit/shape-model.test.ts            | 250 ++++++++++++++++++++++++++
+ 25 files changed, 3362 insertions(+), 33 deletions(-)
+commit 79be30dbf69360c777772bda1fc2df76a33b26b8
+vidi-agent  Tue Oct 13 20:00:28 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit f9f39fbacab91a7de2b68b706080920d800c77a7
 vidi-agent  Tue Oct 13 20:00:13 2026 +0100
 
