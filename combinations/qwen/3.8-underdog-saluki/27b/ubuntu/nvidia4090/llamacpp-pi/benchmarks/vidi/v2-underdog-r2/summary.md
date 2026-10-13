@@ -14,8 +14,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 4 | 0/4 | 0 | 0 | 0/31 |
 | 5 | 2/5 | 0 | 0 | 2/36 |
 | 7 | 0/8 | 0 | 0 | 2/44 |
+| 8 | 0/7 | 0 | 0 | 2/51 |
 
-**New work** 15/40, **regressions** 16, **repairs** 0, **cumulative** 2/44.
+**New work** 15/47, **regressions** 16, **repairs** 0, **cumulative** 2/51.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -25,8 +26,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 4 | Return to a board and find everything as it was left | DONE | 201.6 | None | None | None | — | — | red | 0/31 | yes | 0 / 0 | 12 | — | throttled 0%, server peak 25 GB |
 | 5 | Share a board with others using a link | DONE | 106.3 | None | None | None | — | — | red | 2/36 | yes | 0 / 0 | 6 | — | throttled 0%, server peak 25 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 150.8 | None | None | None | — | — | red | 2/44 | yes | 1 / 1 | 8 | — | throttled 0%, server peak 25 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE | 93.4 | None | None | None | — | — | red | 2/51 |  | 1 / 0 | 5 | — | throttled 0%, server peak 25 GB |
 
-**Totals:** 6 stories, 880 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/6, final acceptance 2/44, stalled 4, partial 0, 20598 lines in src+tests.
+**Totals:** 7 stories, 974 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/7, final acceptance 2/51, stalled 4, partial 0, 22269 lines in src+tests.
 
 ## How it happened
 
@@ -40,6 +42,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 4 | 1 by the agent, + harness snapshot | 1811 / 57 | `board-store.ts` (239), `board-store-core.ts` (54), `room-state.ts` (52), `config.ts` (9), `protocol.ts` (8), `cloudflare-test.d.ts` (7), +1 more |
 | 5 | harness snapshot (agent left work uncommitted) | 1951 / 1380 | `board-room.ts` (292), `index.css` (169), `SharePanel.tsx` (157), `board-store.ts` (133), `index.ts` (78), `BoardPage.tsx` (75), +14 more |
 | 7 | harness snapshot (agent left work uncommitted) | 4091 / 398 | `useTransformGesture.ts` (348), `board-model.ts` (305), `StickyNote.tsx` (249), `BoardCanvas.tsx` (210), `geometry.ts` (165), `useSelection.ts` (143), +12 more |
+| 8 | 1 by the agent | 1716 / 21 | `undo.ts` (112), `useUndo.ts` (57), `index.css` (54), `UndoButtons.tsx` (42), `useBoardKeys.ts` (37), `BoardCanvas.tsx` (34), +6 more |
 
 ### Earlier stories broken or fixed
 

@@ -1,3 +1,37 @@
+commit 279d05a2f245ea0bb235ae74f4d5d6d686fb8220
+agent  Tue Oct 13 16:06:17 2026 +0100
+
+    feat: story 8 undo/redo — per-user undo history with remote-peer isolation (TC-01..TC-24)
+
+
+ NOTES.md                                |  23 +++
+ PROGRESS.md                             |  16 +-
+ src/client/board/BoardCanvas.tsx        |  34 +++-
+ src/client/board/Toolbar.tsx            |  24 ++-
+ src/client/board/UndoButtons.tsx        |  42 ++++
+ src/client/board/undo.ts                | 112 ++++++++++
+ src/client/board/useBoardKeys.ts        |  37 +++-
+ src/client/board/useUndo.ts             |  57 ++++++
+ src/client/index.css                    |  54 +++++
+ src/client/objects/StickyTextEditor.tsx |  28 +++
+ src/shared/config.ts                    |   4 +
+ tests/component/UndoBoundaries.test.tsx | 259 ++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 160 +++++++++++++++
+ tests/e2e/undo.spec.ts                  | 327 ++++++++++++++++++++++++++++++
+ tests/unit/peer.ts                      |  76 +++++++
+ tests/unit/setup.ts                     |  12 ++
+ tests/unit/undo-boundaries.test.ts      | 123 +++++++++++
+ tests/unit/undo-history.test.ts         | 348 ++++++++++++++++++++++++++++++++
+ vitest.config.ts                        |   1 +
+ 19 files changed, 1716 insertions(+), 21 deletions(-)
+commit c42f2647ee5c94855fa117e69f011e00d1fee627
+vidi-agent  Tue Oct 13 14:31:51 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit 7ad2f03b7eba6a4ef28d6a78c74011a91a3b6697
 vidi-agent  Tue Oct 13 14:31:40 2026 +0100
 
