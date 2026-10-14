@@ -1,3 +1,37 @@
+commit e223ac3ec6dd4e45754c5987b2381c16dfbe513f
+vidi-agent  Wed Oct 14 21:13:58 2026 +0100
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ src/client/board/SelectionOverlay.tsx   |  1 +
+ src/client/board/useTransformGesture.ts |  9 ++--
+ src/client/canvas/BoardViewport.tsx     | 16 ++++---
+ src/client/objects/TextEditor.tsx       |  5 ++
+ src/client/objects/TextObject.tsx       |  1 +
+ src/client/objects/textLayout.ts        |  4 +-
+ src/client/objects/useTextBoxSync.ts    | 12 +++--
+ src/shared/objects/text.ts              | 33 +++++++++-----
+ tests/component/Selection.test.tsx      |  2 +-
+ tests/component/SharePanel.test.tsx     |  6 +--
+ tests/component/TextBoxSync.test.tsx    |  9 ++--
+ tests/component/TextObject.test.tsx     | 81 +++++++++++++++++++--------------
+ tests/component/Tool.test.tsx           |  9 ++--
+ tests/component/UndoBoundaries.test.tsx | 28 ++++++------
+ tests/component/pages.test.tsx          | 12 ++---
+ tests/e2e/share.spec.ts                 | 29 +++++-------
+ tests/e2e/undo.spec.ts                  |  3 +-
+ tests/integration/board-api.test.ts     | 16 +++----
+ tests/unit/text-model.test.ts           | 12 ++---
+ 19 files changed, 164 insertions(+), 124 deletions(-)
+commit c38846bffe3bf1c96c34ac167cc94f044a9ab7a6
+vidi-agent  Wed Oct 14 16:55:03 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit acf48a083209d76af6484988cab67aae9fd7dcb1
 vidi-agent  Wed Oct 14 16:54:48 2026 +0100
 
