@@ -1,3 +1,44 @@
+commit acf48a083209d76af6484988cab67aae9fd7dcb1
+vidi-agent  Wed Oct 14 16:54:48 2026 +0100
+
+    harness: snapshot after story 9 (uncommitted agent work)
+
+
+ src/client/board/BoardApp.tsx           |  24 +-
+ src/client/board/SelectionBar.tsx       |  37 +++-
+ src/client/board/SelectionOverlay.tsx   |  18 +-
+ src/client/board/Toolbar.tsx            |  80 +++++--
+ src/client/board/useBoardKeys.ts        |  43 +++-
+ src/client/board/useTool.ts             |  37 ++++
+ src/client/board/useTransformGesture.ts |  98 ++++++++-
+ src/client/canvas/BoardViewport.tsx     |  45 +++-
+ src/client/canvas/testHooks.ts          |  20 +-
+ src/client/objects/StickyText.ts        |  77 ++-----
+ src/client/objects/StickyTextEditor.tsx | 212 ++----------------
+ src/client/objects/TextEditor.tsx       | 210 ++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 162 ++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  98 +++++++++
+ src/client/objects/registry.tsx         |  27 +++
+ src/client/objects/textLayout.ts        | 150 +++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  74 +++++++
+ src/shared/config.ts                    |  33 +++
+ src/shared/objects/text.ts              | 174 +++++++++++++++
+ src/shared/text-edit.ts                 |  85 ++++++++
+ tests/component/TextBoxSync.test.tsx    | 184 ++++++++++++++++
+ tests/component/TextObject.test.tsx     | 376 ++++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 317 +++++++++++++++++++++++++++
+ tests/e2e/undo.spec.ts                  |  18 +-
+ tests/unit/text-layout.test.ts          | 129 +++++++++++
+ tests/unit/text-model.test.ts           | 233 ++++++++++++++++++++
+ 26 files changed, 2663 insertions(+), 298 deletions(-)
+commit 414a6ca6890d37459a85eaad60c09cebdc468eec
+vidi-agent  Wed Oct 14 14:26:22 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)
 commit dd1f1f98f69edf41367feaf26b58536bdf44342f
 vidi-agent  Wed Oct 14 14:26:12 2026 +0100
 

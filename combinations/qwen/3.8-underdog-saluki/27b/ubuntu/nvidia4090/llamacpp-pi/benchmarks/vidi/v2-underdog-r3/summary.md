@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 3/5 | 0 | 0 | 3/36 |
 | 7 | 0/8 | 0 | 0 | 3/44 |
 | 8 | 0/7 | 0 | 0 | 3/51 |
+| 9 | 0/6 | 0 | 0 | 3/57 |
 
-**New work** 9/47, **regressions** 6, **repairs** 0, **cumulative** 3/51.
+**New work** 9/53, **regressions** 6, **repairs** 0, **cumulative** 3/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | PARTIAL (red), on partial 2, 3, 4 | 84.7 | None | None | None | — | — | red | 3/36 |  | 0 / 1 | 5 | — | throttled 0%, server peak 25 GB |
 | 7 | Select, move, resize and delete several objects at once | PARTIAL (red), on partial 2, 3, 4, 5 | 100.1 | None | None | None | — | — | red | 3/44 |  | 0 / 1 | 6 | — | throttled 0%, server peak 25 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | PARTIAL (red), on partial 2, 3, 4, 5, 7 | 117.2 | None | None | None | — | — | red | 3/51 |  | 0 / 1 | 7 | — | throttled 0%, server peak 25 GB |
+| 9 | Write free text anywhere on the board | PARTIAL (red), on partial 2, 3, 4, 5, 7, 8 | 129.6 | None | None | None | — | — | red | 3/57 |  | 2 / 1 | 7 | — | throttled 0%, server peak 25 GB |
 
-**Totals:** 7 stories, 545 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/7, final acceptance 3/51, stalled 0, partial 6, 11031 lines in src+tests.
+**Totals:** 8 stories, 675 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/8, final acceptance 3/57, stalled 0, partial 7, 13396 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -43,6 +45,8 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 7, built on partial 2, 3, 4, 5: held-out tests on the partial base 3/38; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - **Story 8 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [2, 5, 6, 7, 8, 9, 10, 11] (implementation: [2, 8, 10]), held-out 0/7 (floor 0.0).
 - Story 8, built on partial 2, 3, 4, 5, 7: held-out tests on the partial base 3/45; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- **Story 9 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] (implementation: [2, 4, 6, 8]), held-out 0/6 (floor 0.333).
+- Story 9, built on partial 2, 3, 4, 5, 7, 8: held-out tests on the partial base 3/51; partial story's tests fixed 0, regressed 0; 6 stub-like lines added to src/.
 
 ## How it happened
 
@@ -57,6 +61,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | harness snapshot (agent left work uncommitted) | 1688 / 141 | `SharePanel.tsx` (137), `App.tsx` (114), `index.ts` (82), `BoardPage.tsx` (80), `BoardApp.tsx` (73), `HomePage.tsx` (58), +9 more |
 | 7 | harness snapshot (agent left work uncommitted) | 2663 / 354 | `useTransformGesture.ts` (409), `BoardViewport.tsx` (228), `board-model.ts` (226), `geometry.ts` (205), `StickyNote.tsx` (173), `SelectionOverlay.tsx` (123), +14 more |
 | 8 | harness snapshot (agent left work uncommitted) | 1818 / 106 | `undo.ts` (107), `SelectionBar.tsx` (103), `UndoButtons.tsx` (66), `useUndo.ts` (44), `StickyTextEditor.tsx` (40), `useBoardKeys.ts` (39), +10 more |
+| 9 | harness snapshot (agent left work uncommitted) | 2663 / 298 | `StickyTextEditor.tsx` (212), `TextEditor.tsx` (210), `text.ts` (174), `TextObject.tsx` (162), `textLayout.ts` (150), `useTransformGesture.ts` (98), +14 more |
 
 ### Earlier stories broken or fixed
 
