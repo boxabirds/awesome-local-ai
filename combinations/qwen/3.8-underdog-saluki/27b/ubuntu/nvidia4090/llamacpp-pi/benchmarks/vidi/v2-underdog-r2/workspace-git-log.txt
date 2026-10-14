@@ -1,3 +1,140 @@
+commit fac17da198655ed77e45ce4244011c06b2699667
+vidi-agent  Wed Oct 14 01:16:02 2026 +0100
+
+    harness: snapshot after story 11 (uncommitted agent work)
+
+
+ dbg21.cjs                             |  59 +++++++
+ dbg22.cjs                             |  36 ++++
+ src/client/board/BoardCanvas.tsx      |  37 ++++
+ src/client/board/Toolbar.tsx          |  12 ++
+ src/client/board/useBoardKeys.ts      |  13 +-
+ src/client/canvas/BoardViewport.tsx   |  27 ++-
+ src/client/index.css                  |  61 +++++++
+ src/client/objects/StrokeObject.tsx   | 106 ++++++++++++
+ src/client/objects/registry.tsx       |  38 +++-
+ src/client/tools/PenTool.tsx          | 275 +++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx       |  86 +++++++++
+ src/client/tools/useActiveTool.ts     |  23 +--
+ src/client/tools/usePenOptions.ts     |  25 +++
+ src/shared/board-model.ts             |  57 +++++-
+ src/shared/config.ts                  |  30 ++++
+ src/shared/geometry/simplify.ts       | 139 +++++++++++++++
+ src/shared/objects/stroke.ts          | 142 +++++++++++++++
+ src/worker/board-room.ts              |  56 +++---
+ tc29-debug.mjs                        |  72 ++++++++
+ tc29-debug10.mjs                      |  48 ++++++
+ tc29-debug11.mjs                      |  45 +++++
+ tc29-debug12.mjs                      |  38 ++++
+ tc29-debug13.mjs                      |  39 +++++
+ tc29-debug14.mjs                      |  41 +++++
+ tc29-debug15.mjs                      |  55 ++++++
+ tc29-debug16.mjs                      |  42 +++++
+ tc29-debug17.mjs                      |  40 +++++
+ tc29-debug18.mjs                      |  38 ++++
+ tc29-debug19.mjs                      |  41 +++++
+ tc29-debug2.mjs                       |  35 ++++
+ tc29-debug20.mjs                      |  42 +++++
+ tc29-debug21.mjs                      |  40 +++++
+ tc29-debug22.mjs                      |  39 +++++
+ tc29-debug23.mjs                      |  48 ++++++
+ tc29-debug24.mjs                      |  45 +++++
+ tc29-debug25.mjs                      |  44 +++++
+ tc29-debug26.mjs                      |  44 +++++
+ tc29-debug27.mjs                      |  43 +++++
+ tc29-debug28.mjs                      |  38 ++++
+ tc29-debug29.mjs                      |  43 +++++
+ tc29-debug3.mjs                       |  55 ++++++
+ tc29-debug30.mjs                      |  42 +++++
+ tc29-debug31.mjs                      |  41 +++++
+ tc29-debug32.mjs                      |  49 ++++++
+ tc29-debug33.mjs                      |  42 +++++
+ tc29-debug34.mjs                      |  44 +++++
+ tc29-debug35.mjs                      |  44 +++++
+ tc29-debug36.mjs                      |  42 +++++
+ tc29-debug37.mjs                      |  46 +++++
+ tc29-debug38.mjs                      |  43 +++++
+ tc29-debug39.mjs                      |  49 ++++++
+ tc29-debug4.mjs                       |  38 ++++
+ tc29-debug40.mjs                      |  40 +++++
+ tc29-debug41.mjs                      |  51 ++++++
+ tc29-debug42.mjs                      |  52 ++++++
+ tc29-debug43.mjs                      |  52 ++++++
+ tc29-debug44.mjs                      |  57 ++++++
+ tc29-debug45.mjs                      |  61 +++++++
+ tc29-debug46.mjs                      |  61 +++++++
+ tc29-debug47.mjs                      |  61 +++++++
+ tc29-debug48.mjs                      |  61 +++++++
+ tc29-debug49.mjs                      |  61 +++++++
+ tc29-debug5.mjs                       |  46 +++++
+ tc29-debug50.mjs                      |  61 +++++++
+ tc29-debug51.mjs                      |  61 +++++++
+ tc29-debug52.mjs                      |  61 +++++++
+ tc29-debug53.mjs                      |  61 +++++++
+ tc29-debug54.mjs                      |  61 +++++++
+ tc29-debug55.mjs                      |  61 +++++++
+ tc29-debug56.mjs                      |  61 +++++++
+ tc29-debug57.mjs                      |  61 +++++++
+ tc29-debug58.mjs                      |  61 +++++++
+ tc29-debug59.mjs                      |  61 +++++++
+ tc29-debug6.mjs                       |  55 ++++++
+ tc29-debug60.mjs                      |  61 +++++++
+ tc29-debug61.mjs                      |  61 +++++++
+ tc29-debug62.mjs                      |  61 +++++++
+ tc29-debug63.mjs                      |  61 +++++++
+ tc29-debug64.mjs                      |  61 +++++++
+ tc29-debug65.mjs                      |  61 +++++++
+ tc29-debug66.mjs                      |  61 +++++++
+ tc29-debug67.mjs                      |  61 +++++++
+ tc29-debug68.mjs                      |  61 +++++++
+ tc29-debug69.mjs                      |  61 +++++++
+ tc29-debug7.mjs                       |  51 ++++++
+ tc29-debug70.mjs                      |  61 +++++++
+ tc29-debug71.mjs                      |  61 +++++++
+ tc29-debug72.mjs                      |  61 +++++++
+ tc29-debug73.mjs                      |  61 +++++++
+ tc29-debug74.mjs                      |  61 +++++++
+ tc29-debug75.mjs                      |  61 +++++++
+ tc29-debug76.mjs                      |  61 +++++++
+ tc29-debug77.mjs                      |  61 +++++++
+ tc29-debug78.mjs                      |  61 +++++++
+ tc29-debug79.mjs                      |  61 +++++++
+ tc29-debug8.mjs                       |  35 ++++
+ tc29-debug80.mjs                      |  61 +++++++
+ tc29-debug81.mjs                      |  61 +++++++
+ tc29-debug82.mjs                      |  61 +++++++
+ tc29-debug83.mjs                      |  61 +++++++
+ tc29-debug84.mjs                      |  61 +++++++
+ tc29-debug85.mjs                      |  61 +++++++
+ tc29-debug86.mjs                      |  61 +++++++
+ tc29-debug87.mjs                      |  61 +++++++
+ tc29-debug88.mjs                      |  61 +++++++
+ tc29-debug89.mjs                      |  61 +++++++
+ tc29-debug9.mjs                       |  36 ++++
+ tc29-debug90.mjs                      |  61 +++++++
+ tc29-debug91.mjs                      |  61 +++++++
+ tc29-debug92.mjs                      |  61 +++++++
+ tc29-debug93.mjs                      |  61 +++++++
+ tc29-debug94.mjs                      |  61 +++++++
+ tc29-debug95.mjs                      |  61 +++++++
+ tc29-debug96.mjs                      |  61 +++++++
+ tc29-debug97.mjs                      |  61 +++++++
+ tc29-debug98.mjs                      |  61 +++++++
+ tc29-debug99.mjs                      |  61 +++++++
+ tests/component/PenTool.test.tsx      | 264 ++++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx | 238 +++++++++++++++++++++++++
+ tests/e2e/pen.spec.ts                 | 316 ++++++++++++++++++++++++++++++++++
+ tests/fixtures/pen-paths.ts           |  63 +++++++
+ tests/unit/stroke.test.ts             | 224 ++++++++++++++++++++++++
+ 122 files changed, 7593 insertions(+), 59 deletions(-)
+commit 2450eedf90ec78c67bba26b92f697d0dad0f2aa7
+vidi-agent  Tue Oct 13 22:03:47 2026 +0100
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 commit caaee556685eff12e5a88be6121c6e1319c7aedc
 vidi-agent  Tue Oct 13 22:03:36 2026 +0100
 
