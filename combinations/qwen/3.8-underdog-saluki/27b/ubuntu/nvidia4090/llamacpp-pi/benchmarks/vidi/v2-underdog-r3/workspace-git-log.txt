@@ -1,3 +1,67 @@
+commit 9bf159299ec9b92043d4ac66e28a211bd8c5261d
+vidi-agent  Wed Oct 14 06:19:46 2026 +0100
+
+    harness: snapshot after story 2 (uncommitted agent work)
+
+
+ src/client/App.tsx                  |  70 ++++++++-
+ src/client/board/Toolbar.tsx        |  52 +++++++
+ src/client/board/useSelection.ts    |  47 +++++++
+ src/client/canvas/BoardViewport.tsx |  86 ++++++++++-
+ src/client/objects/NoteToolbar.tsx  |  70 +++++++++
+ src/client/objects/StickyNote.tsx   | 274 ++++++++++++++++++++++++++++++++++++
+ 6 files changed, 589 insertions(+), 10 deletions(-)
+commit 3f4ce60ad03cd205946e708fd6d3f16cbab0ec96
+agent  Wed Oct 14 06:06:03 2026 +0100
+
+    story 2 task 4: implement sticky text editing (applyTextDiff, clamp, counter, fit, editor)
+
+
+ src/client/objects/StickyText.ts        |  86 +++++++++++---
+ src/client/objects/StickyTextEditor.tsx | 191 ++++++++++++++++++++++++++++++++
+ tests/unit/board-model.test.ts          |   9 +-
+ tests/unit/sticky-text.test.ts          |  78 ++++++++-----
+ 4 files changed, 319 insertions(+), 45 deletions(-)
+commit eaebfc0a7e70777ea5644d37b877b0640a7e17d5
+agent  Wed Oct 14 05:55:50 2026 +0100
+
+    story 2 task 3: sticky text logic unit tests (red)
+
+
+ PROGRESS.md                      |   4 +-
+ src/client/objects/StickyText.ts |  39 ++++++++++
+ tests/unit/sticky-text.test.ts   | 160 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 201 insertions(+), 2 deletions(-)
+commit 5481e1b5df9cac9209c24a5d122b58a52762e1a0
+agent  Wed Oct 14 05:53:50 2026 +0100
+
+    story 2 task 1+2: board model implementation and useBoardDoc hook
+
+
+ src/client/board/useBoardDoc.ts |  52 +++++++++++++
+ src/shared/board-model.ts       | 161 +++++++++++++++++++++++++++++++++++++---
+ tests/unit/board-model.test.ts  |  37 +++++----
+ 3 files changed, 225 insertions(+), 25 deletions(-)
+commit 05cb8cf5064b85ee04cbb5c898d00500937356be
+agent  Wed Oct 14 05:46:33 2026 +0100
+
+    story 2 task 1: board model unit tests (red)
+
+
+ package-lock.json              |  51 +++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  62 ++++++++++
+ src/shared/config.ts           |  35 ++++++
+ tests/unit/board-model.test.ts | 259 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 408 insertions(+), 2 deletions(-)
+commit 4d3eb888e04bbc1043864a26282090e165577621
+vidi-agent  Wed Oct 14 05:35:28 2026 +0100
+
+    harness: PROGRESS.md for story 2
+
+
+ PROGRESS.md | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 commit 71cfaadb395ad40b3a41bd1b250e8e24b948e233
 agent  Wed Oct 14 05:34:44 2026 +0100
 
