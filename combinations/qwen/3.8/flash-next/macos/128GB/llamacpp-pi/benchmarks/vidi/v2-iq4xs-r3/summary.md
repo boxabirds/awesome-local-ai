@@ -18,8 +18,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | 5/6 | 0 | 0 | 53/57 |
 | 10 | 8/8 | 0 | 0 | 61/65 |
 | 11 | 5/5 | 0 | 1 | 67/70 |
+| 12 | 0/5 | 1 | 0 | 66/75 |
 
-**New work** 62/66, **regressions** 0, **repairs** 1, **cumulative** 67/70.
+**New work** 62/71, **regressions** 1, **repairs** 1, **cumulative** 66/75.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -33,8 +34,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | Write free text anywhere on the board | DONE, on partial 3, 4 | 223.9 | None | None | None | — | — | green | 53/57 |  | 0 / 0 | 6 | — | throttled 92%, server peak 88 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 3, 4 | 211.8 | None | None | None | — | — | green | 61/65 |  | 0 / 1 | 6 | — | throttled 97%, server peak 88 GB |
 | 11 | Sketch freehand with a pen | DONE, on partial 3, 4 | 176.4 | None | None | None | — | — | green | 67/70 |  | 0 / 0 | 5 | — | throttled 97%, server peak 88 GB |
+| 12 | Drop images onto the board | PARTIAL (red), on partial 3, 4 | 240.0 | None | None | None | — | — | red | 66/75 |  | 0 / 0 | 7 | — | throttled 98%, server peak 88 GB |
 
-**Totals:** 10 stories, 1835 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/10, final acceptance 67/70, stalled 0, partial 2, 38632 lines in src+tests.
+**Totals:** 11 stories, 2075 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/11, final acceptance 66/75, stalled 0, partial 3, 199082 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -47,6 +49,8 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 9, built on partial 3, 4: held-out tests on the partial base 33/37; partial story's tests fixed 0, regressed 0; 1 stub-like lines added to src/.
 - Story 10, built on partial 3, 4: held-out tests on the partial base 41/45; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 11, built on partial 3, 4: held-out tests on the partial base 47/50; partial story's tests fixed 1, regressed 0; 0 stub-like lines added to src/.
+- **Story 12 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [3, 5, 6, 7]), held-out 0/5 (floor 0.4).
+- Story 12, built on partial 3, 4: held-out tests on the partial base 46/55; partial story's tests fixed 0, regressed 0; 35 stub-like lines added to src/.
 
 ## How it happened
 
@@ -64,11 +68,14 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 1 by the agent | 4841 / 113 | `text.ts` (274), `TextEditor.tsx` (259), `textLayout.ts` (249), `TextObject.tsx` (213), `text-edit.ts` (162), `styles.css` (141), +15 more |
 | 10 | 5 by the agent | 6890 / 184 | `connector.ts` (430), `ConnectorObject.tsx` (316), `shape.ts` (273), `styles.css` (270), `ShapeObject.tsx` (239), `ConnectorTool.tsx` (236), +20 more |
 | 11 | 1 by the agent | 4002 / 14 | `PenTool.tsx` (384), `stroke.ts` (279), `NOTES.md` (176), `StrokeObject.tsx` (168), `styles.css` (164), `simplify.ts` (161), +10 more |
+| 12 | harness snapshot (agent left work uncommitted) | 7598 / 157 | `ImageObject.tsx` (398), `image.ts` (398), `useImageInsert.ts` (391), `assets.ts` (390), `make-image-fixtures.mjs` (352), `styles.css` (239), +18 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 11 broke 0, fixed 1** earlier held-out tests (story 11: Sketch freehand with a pen). Source files it changed most: `PenTool.tsx` (384), `stroke.ts` (279), `NOTES.md` (176), `StrokeObject.tsx` (168), `styles.css` (164), `simplify.ts` (161), +10 more.
   - story 3: 5/7 → 6/7; fixed 1
+- **Story 12 broke 1, fixed 0** earlier held-out tests (harness: snapshot after story 12 (uncommitted agent work)). Source files it changed most: `ImageObject.tsx` (398), `image.ts` (398), `useImageInsert.ts` (391), `assets.ts` (390), `make-image-fixtures.mjs` (352), `styles.css` (239), +18 more.
+  - story 3: 6/7 → 5/7; broke 1.
 
 ### Interruptions and dead time
 
