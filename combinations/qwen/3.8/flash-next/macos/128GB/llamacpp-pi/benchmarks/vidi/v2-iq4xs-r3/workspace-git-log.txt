@@ -1,3 +1,99 @@
+commit 3c587110f3643f75ecd83f6a474c4d3eab3c8baa
+agent  Wed Oct 14 00:20:11 2026 +0000
+
+    story 7: notes and progress
+
+
+ NOTES.md    | 192 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md |  16 +++--
+ 2 files changed, 203 insertions(+), 5 deletions(-)
+commit efff1f87f51d0e10892453a9d943d970a6b4abec
+agent  Wed Oct 14 00:20:11 2026 +0000
+
+    story 7: e2e selection tests (TC-32 to TC-36), and a handle that was not on its corner
+
+
+ src/client/board/SelectionOverlay.tsx |   9 +-
+ tests/component/SelectionBar.test.tsx |  49 ++++
+ tests/e2e/selection.spec.ts           | 472 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 528 insertions(+), 2 deletions(-)
+commit 896e088ae6cae65f227c2e9956b63cbf07063a19
+agent  Tue Oct 13 23:38:11 2026 +0000
+
+    story 7: selection, marquee, transform and keyboard tests, and what they found
+
+
+ src/client/App.tsx                         |   4 +-
+ src/client/board/SelectionOverlay.tsx      |   5 +-
+ src/client/board/useBoardDoc.ts            |  26 +-
+ src/client/board/useTransformGesture.ts    |  41 ++-
+ src/client/canvas/BoardViewport.tsx        |  20 +-
+ src/shared/board-model.ts                  |  58 +++-
+ tests/component/Marquee.test.tsx           | 201 ++++++++++++
+ tests/component/SelectionBar.test.tsx      | 191 +++++++++++
+ tests/component/SelectionKeyboard.test.tsx | 243 ++++++++++++++
+ tests/component/Transform.test.tsx         | 500 +++++++++++++++++++++++++++++
+ tests/component/helpers.tsx                | 214 +++++++++++-
+ 11 files changed, 1462 insertions(+), 41 deletions(-)
+commit 74866774945be4418895fb63b42822ceebe21c5d
+agent  Tue Oct 13 23:00:28 2026 +0000
+
+    story 7: registry and selection-reducer unit tests (TC-11 to TC-15); registry spec fields (resizable/aspectLocked/minSize/editableText/hitTest), gesture hooks, aria-live count
+
+
+ src/client/App.tsx                      |  12 +-
+ src/client/board/SelectionBar.tsx       |   9 +-
+ src/client/board/SelectionOverlay.tsx   |  12 +-
+ src/client/board/useBoardKeys.ts        |  15 ++-
+ src/client/board/useSelection.ts        |   5 +-
+ src/client/board/useTransformGesture.ts |  83 ++++++++++---
+ src/client/canvas/BoardViewport.tsx     |   4 +
+ src/client/objects/registry.tsx         |  55 +++++++--
+ src/shared/geometry.ts                  |  14 +++
+ tests/unit/registry.test.ts             | 124 +++++++++++++++++++
+ tests/unit/selection-reducer.test.ts    | 207 ++++++++++++++++++++++++++++++++
+ 11 files changed, 500 insertions(+), 40 deletions(-)
+commit 77bf7a42b66fc62e7fb4f43b39df678835588e0c
+agent  Tue Oct 13 22:49:12 2026 +0000
+
+    story 7: registry-driven object rendering, multi-selection, marquee, group transform gesture, selection keyboard
+
+
+ PROGRESS.md                             |  16 +-
+ src/client/App.tsx                      | 186 ++++++++------
+ src/client/board/Marquee.tsx            |  36 +++
+ src/client/board/SelectionBar.tsx       | 121 +++++++++
+ src/client/board/SelectionOverlay.tsx   | 147 +++++++++++
+ src/client/board/useBoardKeys.ts        | 124 +++++++++
+ src/client/board/useSelection.ts        | 223 +++++++++++++---
+ src/client/board/useTransformGesture.ts | 323 +++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     | 117 ++++++++-
+ src/client/objects/NoteToolbar.tsx      |   2 +-
+ src/client/objects/StickyNote.tsx       | 437 ++++++++------------------------
+ src/client/objects/registry.tsx         | 135 ++++++++++
+ src/client/styles.css                   |  98 +++++++
+ 13 files changed, 1517 insertions(+), 448 deletions(-)
+commit cb6d15ce7f888082fb313bdd46d2ee2fca49f0b6
+agent  Tue Oct 13 22:15:52 2026 +0000
+
+    story 7: shared geometry, group operations and their unit tests
+
+
+ src/client/canvas/camera.ts          |  12 +-
+ src/shared/board-model.ts            | 324 ++++++++++++++++++++++++++++-----
+ src/shared/config.ts                 |  31 ++++
+ src/shared/geometry.ts               | 226 +++++++++++++++++++++++
+ tests/unit/board-model-group.test.ts | 337 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 229 ++++++++++++++++++++++++
+ 6 files changed, 1113 insertions(+), 46 deletions(-)
+commit 8ffc23896c1be58372fbe43380f9be92d55c0220
+vidi-agent  Tue Oct 13 22:37:25 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit fdd8c4d6d7fd26f6a7a864c7adf964c9e5951d80
 agent  Tue Oct 13 21:33:39 2026 +0000
 

@@ -13,8 +13,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | 5/7 | 0 | 0 | 25/27 |
 | 4 | 4/4 | 0 | 0 | 29/31 |
 | 5 | 4/5 | 0 | 0 | 33/36 |
+| 7 | 8/8 | 0 | 0 | 41/44 |
 
-**New work** 29/32, **regressions** 0, **repairs** 0, **cumulative** 33/36.
+**New work** 37/40, **regressions** 0, **repairs** 0, **cumulative** 41/44.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -23,8 +24,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | See other people's edits appear live on the same board | PARTIAL (amber) | 240.0 | None | None | None | — | — | green | 25/27 |  | 0 / 0 | 6 | — | throttled 96%, server peak 88 GB |
 | 4 | Return to a board and find everything as it was left | PARTIAL (red), on partial 3 | 240.0 | None | None | None | — | — | red | 29/31 |  | 0 / 0 | 5 | — | throttled 93%, server peak 88 GB |
 | 5 | Share a board with others using a link | DONE, on partial 3, 4 | 191.5 | None | None | None | — | — | green | 33/36 |  | 0 / 1 | 5 | — | throttled 95%, server peak 88 GB |
+| 7 | Select, move, resize and delete several objects at once | DONE, on partial 3, 4 | 163.4 | None | None | None | — | — | green | 41/44 |  | 0 / 0 | 4 | — | throttled 98%, server peak 88 GB |
 
-**Totals:** 5 stories, 889 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/5, final acceptance 33/36, stalled 0, partial 2, 17099 lines in src+tests.
+**Totals:** 6 stories, 1052 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/6, final acceptance 41/44, stalled 0, partial 2, 21642 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -32,6 +34,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - **Story 4 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **red**: gate red, tasks not verified [2, 3, 4, 5, 7, 9] (implementation: [2, 4, 7]), held-out 4/4 (floor 0.25).
 - Story 4, built on partial 3: held-out tests on the partial base 9/11; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 5, built on partial 3, 4: held-out tests on the partial base 13/16; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 7, built on partial 3, 4: held-out tests on the partial base 21/24; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -44,6 +47,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | 1 by the agent, + harness snapshot | 3655 / 95 | `board-room.ts` (262), `connectBoard.ts` (163), `index.ts` (128), `board-id.ts` (112), `protocol.ts` (91), `App.tsx` (67), +12 more |
 | 4 | 7 by the agent, + harness snapshot | 3289 / 244 | `board-room.ts` (465), `board-store.ts` (368), `room-state.ts` (125), `matrix-config.mjs` (55), `NOTES.md` (52), `connectBoard.ts` (42), +14 more |
 | 5 | 1 by the agent | 3762 / 160 | `SharePanel.tsx` (200), `NOTES.md` (179), `styles.css` (178), `index.ts` (168), `board-store.ts` (139), `BoardPage.tsx` (104), +15 more |
+| 7 | 6 by the agent | 5323 / 582 | `useTransformGesture.ts` (447), `StickyNote.tsx` (437), `board-model.ts` (382), `geometry.ts` (240), `useSelection.ts` (228), `App.tsx` (202), +13 more |
 
 ### Earlier stories broken or fixed
 
