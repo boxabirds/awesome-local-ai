@@ -1,3 +1,65 @@
+commit 80dffaefd92bb03dccd6aead507dd2b16c20a151
+vidi-agent  Wed Oct 14 07:45:32 2026 +0100
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ package-lock.json                               | 1370 +++++++++++++++++++++++
+ package.json                                    |    5 +
+ scratch-exp/package.json                        |    1 +
+ scratch-exp/test/room.test.ts                   |   48 +
+ scratch-exp/vitest.config.mjs                   |   11 +
+ scratch-exp/worker/index.ts                     |   75 ++
+ scratch-exp/wrangler.jsonc                      |   10 +
+ scratch/exp-test.ts                             |   53 +
+ scratch/exp-worker.ts                           |   26 +
+ scratch/vitest.exp.mjs                          |   20 +
+ src/client/App.tsx                              |   40 +-
+ src/client/board/useBoardDoc.ts                 |   26 +-
+ src/client/board/useClickOutsideEndEdit.ts      |   30 +
+ src/client/board/useNoteKeyboard.ts             |   67 ++
+ src/client/board/useSelection.ts                |   21 +-
+ src/client/canvas/BoardViewport.tsx             |   10 +-
+ src/client/objects/StickyNote.tsx               |    4 +-
+ src/client/sync/ConnectionStatus.tsx            |   25 +
+ src/client/sync/connectBoard.ts                 |  111 ++
+ src/client/sync/wsOrigin.ts                     |   11 +
+ src/shared/board-id.ts                          |   43 +
+ src/shared/config.ts                            |    8 +
+ src/shared/protocol.ts                          |   53 +
+ src/worker/board-room.ts                        |  149 +++
+ src/worker/index.ts                             |   51 +
+ tests/component/ConnectionStatus.test.tsx       |   39 +
+ tests/integration/package.json                  |    6 +
+ tests/integration/test/check-both-2.test.ts     |   15 +
+ tests/integration/test/check-both-3.test.ts     |   11 +
+ tests/integration/test/check-both-4.test.ts     |   16 +
+ tests/integration/test/check-both-5.test.ts     |   20 +
+ tests/integration/test/check-both-6.test.ts     |   14 +
+ tests/integration/test/check-both.test.ts       |   12 +
+ tests/integration/test/check-import.test.ts     |    9 +
+ tests/integration/test/check-newboardid.test.ts |    9 +
+ tests/integration/test/check-self-7.test.ts     |   11 +
+ tests/integration/test/check-self-8.test.ts     |   14 +
+ tests/integration/test/check-self-9.test.ts     |   15 +
+ tests/integration/test/check-self-again.test.ts |   13 +
+ tests/integration/test/check-self-type.test.ts  |   12 +
+ tests/integration/test/self-check.test.ts       |    9 +
+ tests/integration/test/worker-routing.test.ts   |   38 +
+ tests/integration/vitest.config.mjs             |   21 +
+ tests/unit/board-id.test.ts                     |   77 ++
+ tests/unit/protocol.test.ts                     |   95 ++
+ tsconfig.json                                   |    2 +-
+ wrangler.jsonc                                  |   15 +-
+ 47 files changed, 2722 insertions(+), 19 deletions(-)
+commit 146ca31a8c57044b2ed2765975d7170232562710
+vidi-agent  Wed Oct 14 06:19:55 2026 +0100
+
+    harness: PROGRESS.md for story 3
+
+
+ PROGRESS.md | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 commit 9bf159299ec9b92043d4ac66e28a211bd8c5261d
 vidi-agent  Wed Oct 14 06:19:46 2026 +0100
 
