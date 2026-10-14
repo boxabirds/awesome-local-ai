@@ -1,3 +1,41 @@
+commit cf3cd118b1f3bca58da5525c646178bca2cdf758
+vidi-agent  Wed Oct 14 10:19:53 2026 +0100
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ index.html                                    |   1 +
+ src/client/App.tsx                            | 114 ++--------
+ src/client/api.ts                             |  37 ++++
+ src/client/board/BoardApp.tsx                 |  73 +++++++
+ src/client/pages/BoardPage.tsx                |  80 +++++++
+ src/client/pages/HomePage.tsx                 |  58 +++++
+ src/client/pages/NotFoundPage.tsx             |  52 +++++
+ src/client/pages/state.ts                     |  40 ++++
+ src/client/router.ts                          |  48 ++++
+ src/client/share/SharePanel.tsx               | 137 ++++++++++++
+ src/shared/config.ts                          |  13 ++
+ src/worker/board-room.ts                      |  44 +++-
+ src/worker/board-store.ts                     |  58 ++++-
+ src/worker/create-board.ts                    |  34 +++
+ src/worker/index.ts                           |  82 +++++--
+ tests/component/SharePanel.test.tsx           | 181 +++++++++++++++
+ tests/component/pages.test.tsx                | 153 +++++++++++++
+ tests/e2e/share.spec.ts                       | 247 +++++++++++++++++++++
+ tests/fixtures/boards.ts                      |  11 +-
+ tests/integration/board-api.test.ts           | 303 ++++++++++++++++++++++++++
+ tests/integration/board-store.test.ts         |  12 +-
+ tests/integration/test/worker-routing.test.ts |  21 +-
+ tests/unit/create-board.test.ts               |  30 +++
+ 23 files changed, 1688 insertions(+), 141 deletions(-)
+commit dd3a69d1c0ec85a04d2a8f1ac955fd3a6a6bc26f
+vidi-agent  Wed Oct 14 08:43:58 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit 9dbb36e56cab9112c8e53f2e17883cbd8f3c7c95
 vidi-agent  Wed Oct 14 08:43:44 2026 +0100
 
