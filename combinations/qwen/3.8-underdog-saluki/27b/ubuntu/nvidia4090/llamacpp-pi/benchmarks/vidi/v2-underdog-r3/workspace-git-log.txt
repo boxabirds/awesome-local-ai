@@ -1,3 +1,43 @@
+commit dd1f1f98f69edf41367feaf26b58536bdf44342f
+vidi-agent  Wed Oct 14 14:26:12 2026 +0100
+
+    harness: snapshot after story 8 (uncommitted agent work)
+
+
+ PROGRESS.md                             |   1 +
+ src/client/board/BoardApp.tsx           |  17 +-
+ src/client/board/SelectionBar.tsx       | 103 ++++----
+ src/client/board/Toolbar.tsx            |  17 +-
+ src/client/board/UndoButtons.tsx        |  66 ++++++
+ src/client/board/undo.ts                | 107 +++++++++
+ src/client/board/useBoardKeys.ts        |  39 ++-
+ src/client/board/useTransformGesture.ts |  11 +-
+ src/client/board/useUndo.ts             |  44 ++++
+ src/client/canvas/BoardViewport.tsx     |   9 +
+ src/client/objects/NoteToolbar.tsx      |  18 +-
+ src/client/objects/StickyNote.tsx       |   6 +-
+ src/client/objects/StickyText.ts        |  27 ++-
+ src/client/objects/StickyTextEditor.tsx |  40 +++-
+ src/client/objects/registry.tsx         |   4 +
+ src/shared/config.ts                    |   8 +
+ tests/component/Selection.test.tsx      |  10 +-
+ tests/component/UndoBoundaries.test.tsx | 206 ++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 267 +++++++++++++++++++++
+ tests/component/debug.test.tsx          |  18 --
+ tests/component/harness.tsx             |  18 +-
+ tests/e2e/undo.spec.ts                  | 309 ++++++++++++++++++++++++
+ tests/unit/peer.ts                      |  29 +++
+ tests/unit/undo-boundaries.test.ts      | 146 ++++++++++++
+ tests/unit/undo-history.test.ts         | 404 ++++++++++++++++++++++++++++++++
+ 25 files changed, 1818 insertions(+), 106 deletions(-)
+commit b9b1590a9e39d2d820276e6185495529ed499fc3
+vidi-agent  Wed Oct 14 12:13:48 2026 +0100
+
+    harness: PROGRESS.md for story 8
+
+
+ PROGRESS.md | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 commit 31bd3eb286199f5ea1df6f06349b5c3497893d48
 vidi-agent  Wed Oct 14 12:13:33 2026 +0100
 
