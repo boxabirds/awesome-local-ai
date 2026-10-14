@@ -13,8 +13,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | 0/7 | 6 | 0 | 0/27 |
 | 4 | 0/4 | 0 | 0 | 0/31 |
 | 5 | 3/5 | 0 | 0 | 3/36 |
+| 7 | 0/8 | 0 | 0 | 3/44 |
 
-**New work** 9/32, **regressions** 6, **repairs** 0, **cumulative** 3/36.
+**New work** 9/40, **regressions** 6, **repairs** 0, **cumulative** 3/44.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -23,8 +24,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | See other people's edits appear live on the same board | PARTIAL (red), on partial 2 | 78.1 | None | None | None | — | — | red | 0/27 |  | 0 / 1 | 5 | — | throttled 0%, server peak 25 GB |
 | 4 | Return to a board and find everything as it was left | PARTIAL (red), on partial 2, 3 | 49.5 | None | None | None | — | — | red | 0/31 |  | 0 / 1 | 2 | — | throttled 0%, server peak 25 GB |
 | 5 | Share a board with others using a link | PARTIAL (red), on partial 2, 3, 4 | 84.7 | None | None | None | — | — | red | 3/36 |  | 0 / 1 | 5 | — | throttled 0%, server peak 25 GB |
+| 7 | Select, move, resize and delete several objects at once | PARTIAL (red), on partial 2, 3, 4, 5 | 100.1 | None | None | None | — | — | red | 3/44 |  | 0 / 1 | 6 | — | throttled 0%, server peak 25 GB |
 
-**Totals:** 5 stories, 328 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/5, final acceptance 3/36, stalled 0, partial 4, 7011 lines in src+tests.
+**Totals:** 6 stories, 428 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/6, final acceptance 3/44, stalled 0, partial 5, 9320 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -35,6 +37,8 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 4, built on partial 2, 3: held-out tests on the partial base 0/25; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - **Story 5 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7] (implementation: [2, 4, 5]), held-out 3/5 (floor 0.0).
 - Story 5, built on partial 2, 3, 4: held-out tests on the partial base 3/30; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- **Story 7 PARTIAL**, ended by the operator (harness (stop message already sent)): story cap: the stop message was sent and the story was still not finished (one message per story). Verdict **red**: gate red, tasks not verified [2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] (implementation: [2, 8, 10, 11, 12, 13]), held-out 0/8 (floor 0.0).
+- Story 7, built on partial 2, 3, 4, 5: held-out tests on the partial base 3/38; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -47,6 +51,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | harness snapshot (agent left work uncommitted) | 2722 / 19 | `board-room.ts` (149), `connectBoard.ts` (111), `index.ts` (75), `useNoteKeyboard.ts` (67), `exp-test.ts` (53), `protocol.ts` (53), +19 more |
 | 4 | 1 by the agent, + harness snapshot | 1258 / 73 | `board-room.ts` (291), `board-store.ts` (273), `room-state.ts` (85), `config.ts` (9), `protocol.ts` (8), `index.ts` (6), +1 more |
 | 5 | harness snapshot (agent left work uncommitted) | 1688 / 141 | `SharePanel.tsx` (137), `App.tsx` (114), `index.ts` (82), `BoardPage.tsx` (80), `BoardApp.tsx` (73), `HomePage.tsx` (58), +9 more |
+| 7 | harness snapshot (agent left work uncommitted) | 2663 / 354 | `useTransformGesture.ts` (409), `BoardViewport.tsx` (228), `board-model.ts` (226), `geometry.ts` (205), `StickyNote.tsx` (173), `SelectionOverlay.tsx` (123), +14 more |
 
 ### Earlier stories broken or fixed
 

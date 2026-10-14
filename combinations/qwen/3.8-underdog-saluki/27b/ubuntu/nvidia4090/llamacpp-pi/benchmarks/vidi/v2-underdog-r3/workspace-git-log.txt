@@ -1,3 +1,46 @@
+commit 31bd3eb286199f5ea1df6f06349b5c3497893d48
+vidi-agent  Wed Oct 14 12:13:33 2026 +0100
+
+    harness: snapshot after story 7 (uncommitted agent work)
+
+
+ src/client/board/BoardApp.tsx           |  68 ++++--
+ src/client/board/MarqueeRect.tsx        |  26 ++
+ src/client/board/SelectionBar.tsx       |  90 +++++++
+ src/client/board/SelectionOverlay.tsx   | 123 ++++++++++
+ src/client/board/canEdit.ts             |  13 +
+ src/client/board/selection-reducer.ts   |  71 ++++++
+ src/client/board/useBoardDoc.ts         |  21 +-
+ src/client/board/useBoardKeys.ts        | 123 ++++++++++
+ src/client/board/useMarquee.ts          |  78 ++++++
+ src/client/board/useNoteKeyboard.ts     |  67 ------
+ src/client/board/useSelection.ts        | 103 ++++----
+ src/client/board/useTransformGesture.ts | 409 ++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     | 228 +++++++++++++-----
+ src/client/objects/StickyNote.tsx       | 173 ++------------
+ src/client/objects/registry.tsx         |  76 ++++++
+ src/client/sync/ConnectionStatus.tsx    |  13 +-
+ src/client/sync/connectBoard.ts         |  18 +-
+ src/shared/board-model.ts               | 226 +++++++++++++++++-
+ src/shared/config.ts                    |  14 ++
+ src/shared/geometry.ts                  | 205 ++++++++++++++++
+ tests/component/Selection.test.tsx      |  90 +++++++
+ tests/component/debug.test.tsx          |  18 ++
+ tests/component/harness.tsx             | 131 ++++++++++
+ tests/fixtures/testbox.tsx              |  55 +++++
+ tests/unit/board-model-group.test.ts    | 252 ++++++++++++++++++++
+ tests/unit/geometry.test.ts             | 127 ++++++++++
+ tests/unit/registry.test.ts             |  75 ++++++
+ tests/unit/selection-reducer.test.ts    | 124 ++++++++++
+ 28 files changed, 2663 insertions(+), 354 deletions(-)
+commit 2cf6fd8bee877dd8d5a5c78d6a58850c8d0b80e9
+vidi-agent  Wed Oct 14 10:20:04 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit cf3cd118b1f3bca58da5525c646178bca2cdf758
 vidi-agent  Wed Oct 14 10:19:53 2026 +0100
 
