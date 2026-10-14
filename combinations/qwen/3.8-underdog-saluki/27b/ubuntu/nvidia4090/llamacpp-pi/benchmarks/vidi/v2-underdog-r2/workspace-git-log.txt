@@ -1,3 +1,77 @@
+commit dd02ca29978e857f8c27061f4ce8809eaf6d17b6
+agent  Wed Oct 14 04:05:11 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                |  14 ++
+ PROGRESS.md                             |   8 +-
+ src/client/board/BoardCanvas.tsx        |  85 ++++++-
+ src/client/board/Toolbar.tsx            |  25 +-
+ src/client/board/useTransformGesture.ts |  48 +++-
+ src/client/canvas/BoardViewport.tsx     |  26 ++
+ src/client/images/DropHighlight.tsx     |  11 +
+ src/client/images/uploadImage.ts        |  51 ++++
+ src/client/images/useImageInsert.ts     | 334 ++++++++++++++++++++++++++
+ src/client/index.css                    | 108 +++++++++
+ src/client/objects/ImageObject.tsx      | 187 +++++++++++++++
+ src/client/objects/registry.tsx         |  24 ++
+ src/client/tools/useActiveTool.ts       |  17 ++
+ src/client/ui/Toast.tsx                 |  24 ++
+ tests/component/ImageObject.test.tsx    | 182 ++++++++++++++
+ tests/component/useImageInsert.test.tsx | 414 ++++++++++++++++++++++++++++++++
+ tests/e2e/drop-files.ts                 |  47 ++++
+ tests/e2e/helpers/board.ts              |  10 +
+ tests/e2e/images.spec.ts                | 371 ++++++++++++++++++++++++++++
+ 19 files changed, 1975 insertions(+), 11 deletions(-)
+commit 9a6b85e28737f6449c4cf5beacdaeaa3294929ba
+agent  Wed Oct 14 02:07:00 2026 +0100
+
+    story 12: asset API and integration tests (tasks 3, 4)
+
+
+ NOTES.md                                     |  22 +++
+ PROGRESS.md                                  |   4 +-
+ src/worker/assets.ts                         | 107 ++++++++++++
+ src/worker/index.ts                          |  30 ++++
+ tests/fixtures/images/animated.gif           | Bin 0 -> 66 bytes
+ tests/fixtures/images/corrupt-truncated.png  | Bin 0 -> 100 bytes
+ tests/fixtures/images/exactly-10mb.jpg       | Bin 0 -> 10485760 bytes
+ tests/fixtures/images/gradient.webp          | Bin 0 -> 138 bytes
+ tests/fixtures/images/over-10mb.jpg          | Bin 0 -> 10485763 bytes
+ tests/fixtures/images/pdf-renamed-to-png.png | Bin 0 -> 1646 bytes
+ tests/fixtures/images/photo.jpg              | Bin 0 -> 3411005 bytes
+ tests/fixtures/images/screenshot.png         | Bin 0 -> 446 bytes
+ tests/fixtures/images/svg-with-script.svg    |   1 +
+ tests/integration/assets.test.ts             | 236 +++++++++++++++++++++++++++
+ types/cloudflare-test.d.ts                   |   2 +
+ wrangler.jsonc                               |   7 +
+ 16 files changed, 407 insertions(+), 2 deletions(-)
+commit 4a381c70d78d0f70349f09781b95b0347e8cefa9
+agent  Wed Oct 14 01:34:24 2026 +0100
+
+    story 12: image model and format tests (tasks 1, 2, 5)
+
+
+ PROGRESS.md                        |   6 +-
+ src/client/images/validateFiles.ts |  45 +++++++++
+ src/shared/board-model.ts          |  59 +++++++++--
+ src/shared/config.ts               |  11 ++
+ src/shared/geometry.ts             |   7 ++
+ src/shared/image-format.ts         |  52 ++++++++++
+ src/shared/objects/image.ts        | 182 +++++++++++++++++++++++++++++++++
+ tests/unit/image-format.test.ts    | 101 +++++++++++++++++++
+ tests/unit/image-model.test.ts     | 200 +++++++++++++++++++++++++++++++++++++
+ tests/unit/validate-files.test.ts  |  74 ++++++++++++++
+ 10 files changed, 727 insertions(+), 10 deletions(-)
+commit f360ababcf2371ee3a6002effa325d88850442a0
+vidi-agent  Wed Oct 14 01:16:20 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 commit fac17da198655ed77e45ce4244011c06b2699667
 vidi-agent  Wed Oct 14 01:16:02 2026 +0100
 
