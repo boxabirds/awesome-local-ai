@@ -1,3 +1,85 @@
+commit 1cdb019ff29b4b340ecd87e1f8f0dc65ca0a854b
+agent  Wed Oct 14 10:34:09 2026 +0000
+
+    story 10: notes and progress
+
+
+ NOTES.md    | 210 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md |  73 ++++++++++++++++++---
+ 2 files changed, 274 insertions(+), 9 deletions(-)
+commit 4372be68622e8ad5ad764c03bba753bc3ca77cfc
+agent  Wed Oct 14 10:33:42 2026 +0000
+
+    story 10: e2e shapes and arrows, and the click strip that was horizontal
+
+
+ tests/e2e/connectors.spec.ts    | 386 ++++++++++++++++++++++++++++++
+ tests/e2e/helpers/seed.ts       |  18 +-
+ tests/e2e/helpers/shapes.ts     | 515 ++++++++++++++++++++++++++++++++++++++++
+ tests/e2e/shapes.spec.ts        | 239 +++++++++++++++++++
+ tests/fixtures/checkout-flow.ts | 110 +++++++++
+ 5 files changed, 1267 insertions(+), 1 deletion(-)
+commit f21e3a36efe469f3d9cff84904d43f97ad5b735c
+agent  Wed Oct 14 10:33:21 2026 +0000
+
+    story 10: component tests for shapes, arrows and the active tool (TC-15 to TC-22, TC-28)
+
+
+ tests/component/Connector.test.tsx   | 424 +++++++++++++++++++++++++++++++++++
+ tests/component/ShapeObject.test.tsx | 234 +++++++++++++++++++
+ tests/component/ShapeTool.test.tsx   | 306 +++++++++++++++++++++++++
+ tests/component/helpers.tsx          | 302 ++++++++++++++++++++++++-
+ 4 files changed, 1254 insertions(+), 12 deletions(-)
+commit db99827ddbe23b06ec3136b88f097f9ec458f4a5
+agent  Wed Oct 14 10:32:41 2026 +0000
+
+    story 10: Shape and Connector tools, shape and arrow objects, active tool
+
+
+ src/client/App.tsx                     |  54 +++++-
+ src/client/board/SelectionBar.tsx      |  30 ++++
+ src/client/board/Toolbar.tsx           | 144 +++++++++++++--
+ src/client/board/useBoardKeys.ts       |  29 +--
+ src/client/board/useSelection.ts       |  31 +++-
+ src/client/board/useTool.ts            |  46 -----
+ src/client/canvas/BoardViewport.tsx    |  16 +-
+ src/client/canvas/camera.ts            |  15 ++
+ src/client/objects/ConnectorObject.tsx | 316 +++++++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx     | 239 +++++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx    | 104 +++++++++++
+ src/client/objects/registry.tsx        | 155 +++++++++++++++-
+ src/client/styles.css                  | 270 ++++++++++++++++++++++++++++
+ src/client/tools/ConnectorTool.tsx     | 236 ++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx         | 160 +++++++++++++++++
+ src/client/tools/useActiveTool.ts      | 154 ++++++++++++++++
+ 16 files changed, 1908 insertions(+), 91 deletions(-)
+commit c561ced4627c0acc9c9e43b7f45837798534ec30
+agent  Wed Oct 14 10:32:25 2026 +0000
+
+    story 10: shape and connector model, arrow geometry, and their unit tests
+
+
+ src/shared/board-model.ts                 | 159 ++++++-----
+ src/shared/config.ts                      | 112 ++++++++
+ src/shared/geometry.ts                    |   5 +
+ src/shared/geometry/connector-geometry.ts |  72 +++++
+ src/shared/geometry/polyline.ts           |  41 +++
+ src/shared/object-store.ts                | 149 +++++++++++
+ src/shared/objects/connector.ts           | 430 ++++++++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 273 +++++++++++++++++++
+ tests/unit/connector-geometry.test.ts     | 239 +++++++++++++++++
+ tests/unit/connector-model.test.ts        | 412 ++++++++++++++++++++++++++++
+ tests/unit/registry.test.ts               |  42 ++-
+ tests/unit/shape-model.test.ts            | 324 ++++++++++++++++++++++
+ 12 files changed, 2187 insertions(+), 71 deletions(-)
+commit e6b3143e96f11217c46292b60775e1160f6e8485
+vidi-agent  Wed Oct 14 08:05:19 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 644e4165b021af9fa7471d5b7c810b7ec9a2b7c4
 agent  Wed Oct 14 07:01:00 2026 +0000
 
