@@ -1,3 +1,38 @@
+commit 9dbb36e56cab9112c8e53f2e17883cbd8f3c7c95
+vidi-agent  Wed Oct 14 08:43:44 2026 +0100
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ src/worker/board-room.ts              | 291 ++++++++++++++++++++++++++-------
+ src/worker/board-store.ts             |  18 +-
+ tests/fixtures/boards.ts              |   6 +-
+ tests/integration/board-store.test.ts | 300 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 543 insertions(+), 72 deletions(-)
+commit 87aadf5d4a80fc8bdbbeee4477a9caf613fa6f57
+agent  Wed Oct 14 08:11:29 2026 +0100
+
+    wip: story 4 - unit tests, BoardStore, and board fixtures
+
+
+ src/shared/config.ts                  |   9 ++
+ src/shared/protocol.ts                |   8 ++
+ src/worker/board-store.ts             | 255 ++++++++++++++++++++++++++++++++++
+ src/worker/index.ts                   |   6 +
+ src/worker/room-state.ts              |  85 ++++++++++++
+ tests/fixtures/boards.ts              | 171 +++++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  75 ++++++++++
+ tests/unit/room-state.test.ts         | 101 ++++++++++++++
+ tsconfig.json                         |   6 +-
+ 9 files changed, 715 insertions(+), 1 deletion(-)
+commit 71561b99c8e8283dbc03c0f1ee6c8c4323a77a19
+vidi-agent  Wed Oct 14 07:45:42 2026 +0100
+
+    harness: PROGRESS.md for story 4
+
+
+ PROGRESS.md | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 commit 80dffaefd92bb03dccd6aead507dd2b16c20a151
 vidi-agent  Wed Oct 14 07:45:32 2026 +0100
 

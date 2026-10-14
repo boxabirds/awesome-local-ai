@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.6,
+      "tail": "\nadded 170 packages, and audited 171 packages in 3s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n5 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated @cloudflare/vitest-pool-workers@0.23.0: @cloudflare/vitest-pool-workers has been renamed to @cloudflare/vitest-plugin. This package will not receive future updates.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 78 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                  0.31 kB \u2502 gzip:   0.22 kB\ndist/client/assets/index-DX4rDb5y.js  326.28 kB \u2502 gzip: 101.76 kB\n\n\u001b[32m\u2713 built in 111ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 2,
+      "seconds": 0.9,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\ntests/integration/board-store.test.ts(217,21): error TS2339: Property 'quarantined' does not exist on type 'LoadResult'.\n  Property 'quarantined' does not exist on type '{ ok: false; reason: \"snapshot-unreadable\" | \"sql-error\"; error: string; }'.\ntests/integration/board-store.test.ts(293,194): error TS7006: Parameter 'r' implicitly has an 'any' type.\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.4,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest --project unit --run\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/8f408c2350/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 17\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 52\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 79\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m75 passed\u001b[39m\u001b[22m\u001b[90m (75)\u001b[39m\n\u001b[2m   Start at \u001b[22m 08:35:18\n\u001b[2m   Duration \u001b[22m 206ms\u001b[2m (transform 139ms, setup 0ms, import 292ms, tests 176ms, environment 0ms)\u001b[22m\n\n",
+      "passed": 75,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest --project component --run\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/8f408c2350/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 67\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 76\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 129\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 109\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 08:35:19\n\u001b[2m   Duration \u001b[22m 585ms\u001b[2m (transform 144ms, setup 207ms, import 223ms, tests 380ms, environment 1.13s)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/NavigationHint.test.tsx\u001b[2m > \u001b[22m\u001b[2mnav.hint_display (NavigationHint)\u001b[2m > \u001b[22m\u001b[2mrenders the exact first-use text when visible and null when not\n\u001b[22m\u001b[39mWarning: toBeEmpty has been deprecated and will be removed in future updates. Please use instead toBeEmptyDOMElement for finding empty nodes in the DOM.\n\n",
+      "passed": 18,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 3.9,
+      "tail": "\n> vidi6@0.1.0 test:e2e\n> npm run build:e2e && playwright test --project=chromium --project=chromium\n\n\n> vidi6@0.1.0 build:e2e\n> vite build --mode test\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 78 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                  0.31 kB \u2502 gzip:   0.22 kB\ndist/client/assets/index-B-S3rqgD.js  326.31 kB \u2502 gzip: 101.78 kB\n\n\u001b[32m\u2713 built in 104ms\u001b[39m\n\nRunning 7 tests using 1 worker\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n  7 passed (3.3s)\n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. Error\n[WebServer] \n[WebServer]       at fetch (file://~/.w/8f408c2350/workspace/src/worker/board-room.ts:77:28)\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. Error\n[WebServer] \n[WebServer]       at fetch (file://~/.w/8f408c2350/workspace/src/worker/board-room.ts:77:28)\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. Error\n[WebServer] \n[WebServer]       at fetch (file://~/.w/8f408c2350/workspace/src/worker/board-room.ts:77:28)\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. Error\n[WebServer] \n[WebServer]       at fetch (file://~/.w/8f408c2350/workspace/src/worker/board-room.ts:77:28)\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. Error\n[WebServer] \n[WebServer]       at fetch (file://~/.w/8f408c2350/workspace/src/worker/board-room.ts:77:28)\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. Error\n[WebServer] \n[WebServer]       at fetch (file://~/.w/8f408c2350/workspace/src/worker/board-room.ts:77:28)\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. Error\n[WebServer] \n[WebServer]       at fetch (file://~/.w/8f408c2350/workspace/src/worker/board-room.ts:77:28)\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught TypeError: Failed to execute 'acceptWebSocket' on 'DurableObjectState': parameter 1 is not of type 'WebSocket'. \n[WebServer] \n[WebServer] \n",
+      "passed": 7,
+      "failed": 0
+    }
+  },
+  "all_green": false
+}
