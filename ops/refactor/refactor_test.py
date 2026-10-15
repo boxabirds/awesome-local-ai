@@ -2514,8 +2514,8 @@ def hit_row(n: int, place: str, function: str, source: str, new: str = "yes", re
     return [f"H{n}", place, function, source, "reader", "command", use_case, outcome, reason, new]
 
 
-def pass_md(queries=AUDIT_QUERIES, hits=AUDIT_HITS, verdict="verdict: another pass required, first pass", new_flags=None, hit_columns=HIT_COLUMNS, extra_hits=()) -> str:
-    rows = [hit_row(i + 1, p, f, s, (new_flags or {}).get(i, "yes")) for i, (p, f, s) in enumerate(hits)] + list(extra_hits)
+def pass_md(queries=AUDIT_QUERIES, hits=AUDIT_HITS, verdict="verdict: another pass required, first pass", new_flags=None, hit_columns=HIT_COLUMNS, extra_hits=(), default_new="yes") -> str:
+    rows = [hit_row(i + 1, p, f, s, (new_flags or {}).get(i, default_new)) for i, (p, f, s) in enumerate(hits)] + list(extra_hits)
     rows = [[c for c, name in zip(r, HIT_COLUMNS) if name in hit_columns] for r in rows]
     return ("# Audit pass\n\n## Queries\n\n" + md_table(QUERY_COLUMNS, [[q, c, f"`{p}`", paths] for q, c, p, paths in queries])
             + "\n## Hits\n\n" + md_table(hit_columns, rows) + "\n## Open findings\n\n" + md_table(FINDING_COLUMNS, []) + f"\n{verdict}\n")
@@ -2679,3 +2679,83 @@ def test_tc07_a_matching_line_added_after_the_pass_was_written_is_not_recorded(t
     write(repo, "tools/b.sh", "tree() {\n  git ls-tree -r HEAD\n}\nextra() {\n  git ls-tree HEAD\n}\n")
     result = R.check_audit(repo)
     assert codes(result) == ["E-PASS-NOT-REPRODUCIBLE"] and "tools/b.sh::extra" in result.problems[0].subject + result.problems[0].detail
+
+
+# ---- story 19: the audit ends only on a pass with new searches and no new hit (TC-20 to TC-27; task 19.11) -------------------
+
+EXTRA_QUERY = ("Q5", "vcs-command", r"git fetch", ALL_SCOPES)
+THIRD_QUERY = ("Q6", "vcs-command", r"git diff", ALL_SCOPES)
+FINAL = "verdict: final"
+ANOTHER = "verdict: another pass required, the owner wants one more"
+
+
+def later_pass(queries=None, verdict=ANOTHER, extra_hits=(), hits=AUDIT_HITS) -> str:
+    """A pass after the first: the first pass's hits again (none new), the given queries."""
+    return pass_md(queries=queries if queries is not None else AUDIT_QUERIES + [EXTRA_QUERY], hits=hits, default_new="no", verdict=verdict, extra_hits=extra_hits)
+
+
+def audit_json(root: Path) -> dict:
+    return json.loads((root / "ops/refactor/reports/audit.json").read_text())
+
+
+def three_new_hits() -> list[list[str]]:
+    return [hit_row(10 + i, "tools/pull.py", f"added_{i}", "manual", reason="found by reading") for i in range(3)]
+
+
+def test_tc20_a_later_pass_with_no_new_hit_and_a_new_query_is_final(tmp_path):
+    root = audit_root(tmp_path, passes={1: pass_md(), 2: later_pass(verdict=FINAL)})
+    result = check(root)
+    assert result.exit_code == R.EXIT_OK, [(p.code, p.detail) for p in result.problems]
+    assert audit_json(root)["final_pass"] == 2
+
+
+def test_tc21_a_pass_with_the_same_queries_as_the_one_before_is_a_repeat_and_never_final(tmp_path):
+    root = audit_root(tmp_path, passes={1: pass_md(), 2: later_pass(queries=AUDIT_QUERIES)})
+    result = check(root)
+    assert "E-PASS-REPEAT" in codes(result)
+    assert audit_json(root)["final_pass"] is None and audit_json(root)["final_reason"] == "repeat"
+
+
+def test_tc22_new_hits_keep_the_audit_open_and_a_verdict_of_another_pass_is_accepted(tmp_path):
+    root = audit_root(tmp_path, passes={1: pass_md(), 2: later_pass(extra_hits=[[*r[:9], "yes"] for r in three_new_hits()])})
+    result = check(root)
+    assert result.exit_code == R.EXIT_OK, [(p.code, p.detail) for p in result.problems]
+    assert audit_json(root)["final_pass"] is None and audit_json(root)["final_reason"] == "new-hits"
+
+
+def test_tc23_a_verdict_of_final_on_a_pass_with_new_hits_is_a_mismatch(tmp_path):
+    root = audit_root(tmp_path, passes={1: pass_md(), 2: later_pass(verdict=FINAL, extra_hits=three_new_hits())})
+    assert "E-VERDICT-MISMATCH" in codes(check(root))
+
+
+def test_tc24_the_owner_may_ask_for_another_pass_after_a_computed_final_one(tmp_path):
+    root = audit_root(tmp_path, passes={1: pass_md(), 2: later_pass(verdict=ANOTHER)})
+    result = check(root)
+    assert result.exit_code == R.EXIT_OK and audit_json(root)["final_pass"] == 2
+
+
+def test_tc25_a_single_pass_is_never_final_and_require_final_refuses_it(tmp_path):
+    root = audit_root(tmp_path, passes={1: pass_md(hits=[])}, files={"tools/x.py": "x = 1\n"})
+    assert check(root).exit_code == R.EXIT_OK
+    assert audit_json(root)["final_pass"] is None and audit_json(root)["final_reason"] == "single-pass"
+    assert codes(check(root, require_final=True)) == ["E-NOT-FINAL"]
+
+
+def test_tc26_a_final_audit_is_reopened_by_a_later_pass_that_finds_a_new_hit(tmp_path):
+    files = {**AUDIT_FILES, "tools/c.py": 'def commit(repo):\n    run("git commit")\n'}
+    third = later_pass(queries=AUDIT_QUERIES + [EXTRA_QUERY, THIRD_QUERY], verdict=FINAL)
+    fourth_query = ("Q7", "vcs-command", r"git commit", ALL_SCOPES)
+    fourth = later_pass(queries=AUDIT_QUERIES + [EXTRA_QUERY, THIRD_QUERY, fourth_query], extra_hits=[hit_row(7, "tools/c.py", "commit", "Q7", new="yes")])
+    root = audit_root(tmp_path, passes={1: pass_md(), 2: later_pass(), 3: third}, files=files)
+    assert check(root, require_final=True).exit_code == R.EXIT_OK and audit_json(root)["final_pass"] == 3
+    write(root, f"{AUDIT_DIR}/pass-04.md", fourth)
+    result = check(root, require_final=True)
+    assert codes(result) == ["E-NOT-FINAL"] and audit_json(root)["final_pass"] is None and audit_json(root)["final_reason"] == "new-hits"
+
+
+def test_tc27_one_changed_character_in_a_pattern_is_a_new_query_and_a_reordering_is_a_repeat(tmp_path):
+    changed = [(q, c, p.replace(r"github\.com", r"github\.co"), paths) for q, c, p, paths in AUDIT_QUERIES]
+    root = audit_root(tmp_path / "one", passes={1: pass_md(), 2: later_pass(queries=changed, verdict=FINAL)})
+    assert check(root).exit_code == R.EXIT_OK and audit_json(root)["final_pass"] == 2
+    root = audit_root(tmp_path / "two", passes={1: pass_md(), 2: later_pass(queries=list(reversed(AUDIT_QUERIES)))})
+    assert "E-PASS-REPEAT" in codes(check(root))
