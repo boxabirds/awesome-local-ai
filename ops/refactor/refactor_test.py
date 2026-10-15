@@ -3436,3 +3436,32 @@ def test_w2_a_late_find_reopens_the_audit_and_the_list_check_refuses_until_a_new
     assert equal.returncode == R.EXIT_OK and equal.stdout.splitlines()[-1] == "counts: protected hits 5, entries 5, excluded hits 0, intrinsic hits 0", equal.stdout
     moved = tool(repo, "stage")
     assert moved.returncode == R.EXIT_FAIL and "py/minipy/fetchy.py::pull_more" in moved.stdout and stage_file(repo)["stage"] == "Matrices"
+
+
+# ---- story 19: a hit in a Rust test module is attributed to the test module (task 19.36) ------------------------------------------
+
+RUST_WITH_TESTS = """const ROOT: &str = "git";
+
+pub fn pull() -> &'static str {
+    "git pull"
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_pulls() {
+        assert_eq!(super::pull(), "git pull");
+    }
+}
+"""
+
+
+@pytest.mark.parametrize("line,expected", [
+    pytest.param(1, "<module>", id="a-constant-at-the-top-level"),
+    pytest.param(4, "pull", id="a-line-in-a-function"),
+    pytest.param(11, "<tests>", id="a-line-in-the-test-module"),
+    pytest.param(7, "<tests>", id="the-marker-line-itself"),
+])
+def test_a_hit_in_a_rust_test_module_is_attributed_to_the_test_module_not_the_top_level(tmp_path, line, expected):
+    write(tmp_path, "src/lib.rs", RUST_WITH_TESTS)
+    assert R.function_at(tmp_path, "src/lib.rs", line) == expected
