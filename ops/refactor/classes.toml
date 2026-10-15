@@ -17,15 +17,19 @@ python = [
 rust = [
   "tools/dbench/src/**/*.rs",
   "tools/vidi-gallery/src/**/*.rs",
+  "tools/anthropic-token-counter/src/**/*.rs",     # the audit (story 19) found it reads tracked run logs
 ]
 typescript = [
   "tools/benchmarker/server/*.ts",
   "tools/benchmarker/shared/*.ts",
+  "tools/benchmarker/src/components/LinksCell.tsx",      # the audit (story 19) found these two build links to tracked records
+  "tools/benchmarker/src/components/run/RunHeader.tsx",
 ]
 shell = [
   "benchmarks/spec-bench/harness/*.sh",
   "lib/*.sh",
   "setup-node.sh",
+  "tools/tensorfold-check/run-checks.sh",          # the audit (story 19) found its default log is a tracked run log
 ]
 exclude = ["test_*.py", "conftest.py", "*.test.ts"]
 

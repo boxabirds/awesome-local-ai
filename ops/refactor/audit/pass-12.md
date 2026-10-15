@@ -2198,8 +2198,8 @@
 | H2149 | tools/dbench/src/job.rs | <module> | Q18,Q34,Q4 | reader | path |  | excluded | match is text only; file-name constants (workspace.bundle, metrics.json); no git, no location chosen | no |
 | H2150 | tools/dbench/src/job.rs | <tests> | Q10,Q14,Q25,Q33,Q34,Q5 | reader | path |  | excluded | Rust test module: tests are assigned to a use case and given a fate by the register; not a member of the touched set | no |
 | H2151 | tools/dbench/src/job.rs | as_str | Q33,Q5 | reader | path |  | excluded | enum to string; hit is a doc comment | no |
-| H2152 | tools/dbench/src/job.rs | harness_args | Q10 | reader | path |  | excluded | delegates; location chosen by caller; joins the results_root it is given with from_run; location chosen by caller | no |
-| H2153 | tools/dbench/src/job.rs | reference_run_problem | Q10 | reader | path |  | excluded | delegates; location chosen by caller; checks files under the results_root it is given; location chosen by caller | no |
+| H2152 | tools/dbench/src/job.rs | harness_args | Q10 | reader | path | U9 | protected | builds the harness --from-run path as results_root/from_run: it chooses the checkout location of a reference run, which exists only because git tracks it (kept as a member on the advisor's recommendation, 15 Oct 2026) | no |
+| H2153 | tools/dbench/src/job.rs | reference_run_problem | Q10 | reader | path | U9 | protected | checks a reference run directory under the results root for workspace.bundle and metrics.json: it chooses the tracked reference-run layout (kept as a member on the advisor's recommendation, 15 Oct 2026) | no |
 | H2154 | tools/dbench/src/job.rs | resolve_entry | manual | reader | path |  | excluded | resolves the harness entry script (run.sh) in the code repo; the hit line belongs to reference_run_problem, a neighbouring function | no |
 | H2155 | tools/dbench/src/job.rs | validate | Q18 | reader | path |  | excluded | validates job fields; no read or write | no |
 | H2156 | tools/dbench/src/label.rs | cmd_label | Q25 | reader | path |  | excluded | Serves labelling UI over items/decisions files; not run data | no |

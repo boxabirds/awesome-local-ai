@@ -40,32 +40,8 @@ classes = ["A"]
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
-function = "known_good_base"
-classes = ["B"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/drive.py"
-function = "link_work_dir"
-classes = ["A"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/drive.py"
-function = "loc"
-classes = ["B"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/drive.py"
 function = "main"
 classes = ["A", "C"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/drive.py"
-function = "mirror"
-classes = ["B"]
 
 [[entry]]
 language = "python"
@@ -95,12 +71,6 @@ classes = ["C", "E"]
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
-function = "refuse"
-classes = ["C"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/drive.py"
 function = "replay_onto_remote"
 classes = ["C"]
 
@@ -119,19 +89,7 @@ classes = ["B"]
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
-function = "work_dir_for"
-classes = ["A"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/drive.py"
 function = "work_dir_name"
-classes = ["A"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/drive.py"
-function = "work_id"
 classes = ["A"]
 
 [[excluded]]
@@ -168,19 +126,6 @@ move = "deleted: held-out detail stays in the run dir and is collected into the 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/heldout.py"
-function = "find"
-classes = ["D"]
-move = "reads the run dir, else the lake (design D)"
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/heldout.py"
-function = "fingerprints"
-classes = ["E"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/heldout.py"
 function = "private_copy"
 classes = ["D", "E"]
 move = "deleted: the private copy goes with copy_private (design D)"
@@ -207,13 +152,6 @@ move = "deleted: the private repository is no longer a record target (design D)"
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/heldout.py"
-function = "result_dirs"
-classes = ["D"]
-move = "reads the run dir, else the lake (design D)"
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/heldout.py"
 function = "staged_problems"
 classes = ["B"]
 
@@ -222,24 +160,6 @@ language = "python"
 file = "benchmarks/spec-bench/harness/history.py"
 function = "<module>"
 reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/history.py"
-function = "parse_git_log"
-classes = ["B"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/judge.py"
-function = "commits_oldest_first"
-classes = ["B"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/judge.py"
-function = "record_workspace"
-classes = ["C"]
 
 [[entry]]
 language = "python"
@@ -262,20 +182,8 @@ classes = ["B"]
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/logscan.py"
-function = "_Known.is_id"
-classes = ["A"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/logscan.py"
 function = "known_runs"
 classes = ["B"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/logscan.py"
-function = "work_id"
-classes = ["A"]
 
 [[excluded]]
 language = "python"
@@ -289,35 +197,11 @@ file = "benchmarks/spec-bench/harness/progress.py"
 function = "baselines"
 classes = ["B"]
 
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/prove_sandbox.py"
-function = "observe"
-classes = ["A"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/prove_sandbox.py"
-function = "observe_browser"
-classes = ["A"]
-
 [[excluded]]
 language = "python"
 file = "benchmarks/spec-bench/harness/publicise.py"
 function = "<module>"
 reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/publicise.py"
-function = "fingerprints"
-classes = ["E"]
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/publicise.py"
-function = "is_own_work"
-classes = ["B"]
 
 [[entry]]
 language = "python"
@@ -343,23 +227,11 @@ file = "benchmarks/spec-bench/harness/roots.py"
 function = "<module>"
 reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
 
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/roots.py"
-function = "off_limits"
-classes = ["B"]
-
 [[excluded]]
 language = "python"
 file = "benchmarks/spec-bench/harness/tagsuite.py"
 function = "<module>"
 reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
-
-[[entry]]
-language = "python"
-file = "benchmarks/spec-bench/harness/tagsuite.py"
-function = "checkout_of"
-classes = ["C"]
 
 [[excluded]]
 language = "python"
@@ -382,12 +254,6 @@ classes = ["B"]
 [[entry]]
 language = "python"
 file = "ops/monitor/monitor.py"
-function = "commit_detections"
-classes = ["B"]
-
-[[entry]]
-language = "python"
-file = "ops/monitor/monitor.py"
 function = "git_json"
 classes = ["B"]
 
@@ -396,12 +262,6 @@ language = "python"
 file = "ops/monitor/triage.py"
 function = "<module>"
 reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
-
-[[entry]]
-language = "python"
-file = "ops/monitor/triage.py"
-function = "commit_and_push"
-classes = ["C"]
 
 [[excluded]]
 language = "rust"
@@ -414,18 +274,6 @@ language = "rust"
 file = "tools/dbench/src/cli.rs"
 function = "<module>"
 reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
-
-[[entry]]
-language = "rust"
-file = "tools/dbench/src/cli.rs"
-function = "from"
-classes = ["B"]
-
-[[entry]]
-language = "rust"
-file = "tools/dbench/src/client.rs"
-function = "print_job_detail"
-classes = ["B"]
 
 [[entry]]
 language = "rust"
@@ -457,29 +305,11 @@ file = "tools/dbench/src/collector.rs"
 function = "pass"
 classes = ["B"]
 
-[[entry]]
-language = "rust"
-file = "tools/dbench/src/collector.rs"
-function = "resolve"
-classes = ["B"]
-
 [[excluded]]
 language = "rust"
 file = "tools/dbench/src/harness.rs"
 function = "<module>"
 reason = "module-level text only (a docstring, comment or constant): there is no behaviour to stub; a constant here is changed together with the function that uses it"
-
-[[entry]]
-language = "rust"
-file = "tools/dbench/src/harness.rs"
-function = "remote_main"
-classes = ["B"]
-
-[[entry]]
-language = "rust"
-file = "tools/dbench/src/harness.rs"
-function = "tag_commit"
-classes = ["B"]
 
 [[excluded]]
 language = "rust"
@@ -492,12 +322,6 @@ language = "rust"
 file = "tools/dbench/src/ingest/inputs.rs"
 function = "candidates"
 classes = ["A"]
-
-[[entry]]
-language = "rust"
-file = "tools/dbench/src/ingest/inputs.rs"
-function = "describe"
-classes = ["B"]
 
 [[entry]]
 language = "rust"
@@ -529,12 +353,6 @@ file = "tools/dbench/src/progress.rs"
 function = "run_dir"
 classes = ["B"]
 
-[[entry]]
-language = "rust"
-file = "tools/dbench/src/release.rs"
-function = "changes"
-classes = ["B"]
-
 [[excluded]]
 language = "rust"
 file = "tools/dbench/src/runner.rs"
@@ -561,24 +379,6 @@ classes = ["B"]
 
 [[entry]]
 language = "rust"
-file = "tools/dbench/src/server.rs"
-function = "list_runs"
-classes = ["B"]
-
-[[entry]]
-language = "rust"
-file = "tools/vidi-gallery/src/main.rs"
-function = "api_review_tasks"
-classes = ["B"]
-
-[[entry]]
-language = "rust"
-file = "tools/vidi-gallery/src/main.rs"
-function = "api_runs"
-classes = ["E"]
-
-[[entry]]
-language = "rust"
 file = "tools/vidi-gallery/src/main.rs"
 function = "main"
 classes = ["E"]
@@ -591,38 +391,8 @@ classes = ["E"]
 
 [[entry]]
 language = "rust"
-file = "tools/vidi-gallery/src/main.rs"
-function = "private_version"
-classes = ["E"]
-
-[[entry]]
-language = "rust"
-file = "tools/vidi-gallery/src/main.rs"
-function = "record_build"
-classes = ["C"]
-
-[[entry]]
-language = "rust"
-file = "tools/vidi-gallery/src/main.rs"
-function = "record_story"
-classes = ["C"]
-
-[[entry]]
-language = "rust"
 file = "tools/vidi-gallery/src/runs.rs"
 function = "discover"
-classes = ["C"]
-
-[[entry]]
-language = "rust"
-file = "tools/vidi-gallery/src/runs.rs"
-function = "judges"
-classes = ["C", "E"]
-
-[[entry]]
-language = "rust"
-file = "tools/vidi-gallery/src/runs.rs"
-function = "load"
 classes = ["C"]
 
 [[entry]]
@@ -636,12 +406,6 @@ language = "rust"
 file = "tools/vidi-gallery/src/runs.rs"
 function = "run_or_private"
 classes = ["C"]
-
-[[entry]]
-language = "rust"
-file = "tools/vidi-gallery/src/runs.rs"
-function = "scope_size"
-classes = ["C", "E"]
 
 [[entry]]
 language = "rust"
@@ -685,12 +449,6 @@ file = "tools/benchmarker/server/domain.ts"
 function = "findRuns"
 classes = ["A"]
 
-[[entry]]
-language = "typescript"
-file = "tools/benchmarker/server/main.ts"
-function = "loadFixture"
-classes = ["E"]
-
 [[excluded]]
 language = "typescript"
 file = "tools/benchmarker/server/sources.ts"
@@ -705,24 +463,606 @@ classes = ["B"]
 
 [[entry]]
 language = "typescript"
-file = "tools/benchmarker/server/domain.ts"
-function = "parseInterventions"
-classes = ["A"]
-
-[[entry]]
-language = "typescript"
-file = "tools/benchmarker/server/sources.ts"
-function = "flowCountsAt"
-classes = ["B"]
-
-[[entry]]
-language = "typescript"
-file = "tools/benchmarker/server/sources.ts"
-function = "loadFlowCounts"
-classes = ["B"]
-
-[[entry]]
-language = "typescript"
 file = "tools/benchmarker/server/sources.ts"
 function = "loadRuns"
 classes = ["B"]
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/annotate.py"
+function = "build_attempt"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/annotate.py"
+function = "load_attempts"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/annotate.py"
+function = "main"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/annotate.py"
+function = "run_dirs"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/annotate.py"
+function = "stack_of"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "run"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/finalize.py"
+function = "ensure_bundle"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/finalize_pending.py"
+function = "default_root"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/finalize_pending.py"
+function = "pack_of"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/finalize_pending.py"
+function = "run_dirs"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/grading_package.py"
+function = "main"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "private_files"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/history.py"
+function = "policy_link"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/import_run.py"
+function = "main"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/judge.py"
+function = "main"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/logscan.py"
+function = "own_workspace_for"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/machine_names.py"
+function = "tracked"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/packdir.py"
+function = "part"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/packdir.py"
+function = "private_checkout"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/packdir.py"
+function = "resolve"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/publicise.py"
+function = "lake_only_lines"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/report.py"
+function = "summary"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/roots.py"
+function = "<module>"
+classes = []
+
+[[entry]]
+language = "python"
+file = "benchmarks/spec-bench/harness/roots.py"
+function = "results_root"
+classes = []
+
+[[entry]]
+language = "shell"
+file = "benchmarks/spec-bench/harness/run.sh"
+function = "<script>"
+classes = []
+
+[[entry]]
+language = "shell"
+file = "benchmarks/spec-bench/harness/run.sh"
+function = "record_event"
+classes = []
+
+[[entry]]
+language = "python"
+file = "ops/monitor/monitor.py"
+function = "run_dir_of"
+classes = []
+
+[[entry]]
+language = "python"
+file = "ops/monitor/triage.py"
+function = "<module>"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/anthropic-token-counter/src/corpus.rs"
+function = "build"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/anthropic-token-counter/src/corpus.rs"
+function = "tracked"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/anthropic-token-counter/src/main.rs"
+function = "<module>"
+classes = []
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/main.ts"
+function = "<module>"
+classes = []
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/sources.ts"
+function = "<module>"
+classes = []
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/server/sources.ts"
+function = "readBlobs"
+classes = []
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/src/components/LinksCell.tsx"
+function = "LinksCell"
+classes = []
+
+[[entry]]
+language = "typescript"
+file = "tools/benchmarker/src/components/run/RunHeader.tsx"
+function = "LeadScore"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/analytics/mod.rs"
+function = "purge_references"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collect.rs"
+function = "runs_under"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collect.rs"
+function = "walk_combinations"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collector.rs"
+function = "<module>"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collector.rs"
+function = "classes_for"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/collector.rs"
+function = "is_run_path"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/db.rs"
+function = "<module>"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "<module>"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "archived"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "fetch"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "git"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "ids"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "read"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "under_published_root"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/ingest/mod.rs"
+function = "run_parts"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/progress.rs"
+function = "<module>"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/server.rs"
+function = "manifest_of"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/dbench/src/server.rs"
+function = "named_run"
+classes = []
+
+[[entry]]
+language = "shell"
+file = "tools/tensorfold-check/run-checks.sh"
+function = "<script>"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "rescan"
+classes = []
+
+[[entry]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "story_checkout"
+classes = []
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "known_good_base"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; delegates; reads workspace.bundle and metrics.json of the ref_run path given by caller"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "link_work_dir"
+reason = "audit pass 15 (git-only scope): delegates to a helper; builds no tracked location and runs no git itself; delegates to work_dir_name; creates a symlink under WORK_LINKS, not a tracked location, and runs no git"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "loc"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git ls-files in the agent workspace, not operational data"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "mirror"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; rsync to a dest given by caller; git log runs on the agent workspace, not operational data"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "refuse"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; writes a file in the run dir passed in; location chosen by caller"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "work_dir_for"
+reason = "audit pass 15 (git-only scope): delegates to a helper; builds no tracked location and runs no git itself; delegates to work_dir_name; WORK_ROOT is not git-tracked"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "work_id"
+reason = "audit pass 15 (git-only scope): match is text only; hashes a name string; no checkout, run or git access"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "find"
+reason = "audit pass 15 (git-only scope): delegates to a helper; builds no tracked location and runs no git itself; delegates to private_copy; location chosen by caller"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "fingerprints"
+reason = "audit pass 15 (git-only scope): delegates to a helper; builds no tracked location and runs no git itself; delegates to private_repo and _fingerprints"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/heldout.py"
+function = "result_dirs"
+reason = "audit pass 15 (git-only scope): delegates to a helper; builds no tracked location and runs no git itself; delegates to private_copy; lists stories under a run dir given by the caller"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/history.py"
+function = "parse_git_log"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; pure parser of log text passed in; no git or file access"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/judge.py"
+function = "commits_oldest_first"
+reason = "audit pass 15 (git-only scope): match is text only; pure string transform of log text passed in"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/judge.py"
+function = "record_workspace"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; reads a record dir given by the caller; git init/commit is on a scratch copy, not operational data"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/logscan.py"
+function = "_Known.is_id"
+reason = "audit pass 15 (git-only scope): match is text only; pure set membership test on a work-dir id passed in"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/logscan.py"
+function = "work_id"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; pure hash of a name; touches no location"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/prove_sandbox.py"
+function = "observe"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; builds a scratch sandbox probe under a temp dir; no run data"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/prove_sandbox.py"
+function = "observe_browser"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; builds a scratch sandbox browser probe under a temp dir; no run data"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/publicise.py"
+function = "fingerprints"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git on the private held-out suite repo (test titles), not operational data"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/publicise.py"
+function = "is_own_work"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; pure predicate on a path string"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/roots.py"
+function = "off_limits"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; parses a given environ mapping into paths; reads no run data"
+
+[[excluded]]
+language = "python"
+file = "benchmarks/spec-bench/harness/tagsuite.py"
+function = "checkout_of"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git on the private held-out suite source at a tag, not operational data"
+
+[[excluded]]
+language = "python"
+file = "ops/monitor/monitor.py"
+function = "commit_detections"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; parses git log text handed in by collect_repo; runs no git, builds no path"
+
+[[excluded]]
+language = "python"
+file = "ops/monitor/triage.py"
+function = "commit_and_push"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git on ops/anomaly-tracking.md, the monitor's own notes, not operational data"
+
+[[excluded]]
+language = "typescript"
+file = "tools/benchmarker/server/domain.ts"
+function = "parseInterventions"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; pure parser of text passed in; delegates, location chosen by caller"
+
+[[excluded]]
+language = "typescript"
+file = "tools/benchmarker/server/main.ts"
+function = "loadFixture"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; reads the e2e fixture file for fixture mode; no git, no tracked location"
+
+[[excluded]]
+language = "typescript"
+file = "tools/benchmarker/server/sources.ts"
+function = "flowCountsAt"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git ls-tree/show of the private suite's test files at a tag, not operational data"
+
+[[excluded]]
+language = "typescript"
+file = "tools/benchmarker/server/sources.ts"
+function = "loadFlowCounts"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git fetch --tags on the private suite repo then flowCountsAt; suite source, not operational data"
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/cli.rs"
+function = "from"
+reason = "audit pass 15 (git-only scope): match is text only; enum conversion ClientArg to AgentClient; no git or run path"
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/client.rs"
+function = "print_job_detail"
+reason = "audit pass 15 (git-only scope): match is text only; prints a job view; 'git pull' is only a label"
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/collector.rs"
+function = "resolve"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; builds Config from args; repo/store come from the caller; origin/main only in an error message"
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/harness.rs"
+function = "remote_main"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git ref name of the code repository's origin/main (release logic), not operational data"
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/harness.rs"
+function = "tag_commit"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git on the code repository (rev-parse of a release tag), not operational data"
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "describe"
+reason = "audit pass 15 (git-only scope): match is text only; returns a label string for the source; runs nothing"
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/release.rs"
+function = "changes"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git status on the code paths of a release, not operational data"
+
+[[excluded]]
+language = "rust"
+file = "tools/dbench/src/server.rs"
+function = "list_runs"
+reason = "audit pass 15 (git-only scope): delegates to a helper; builds no tracked location and runs no git itself; delegates listing to collect::list_runs (protected walk_combinations); runs no git"
+
+[[excluded]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "api_review_tasks"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git log runs in the cached clone of the agent's workspace (not operational data); run paths come from the loaded run"
+
+[[excluded]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "api_runs"
+reason = "audit pass 15 (git-only scope): delegates to a helper; builds no tracked location and runs no git itself; delegates to runs::load, private_repo and runs::judges; builds no location itself"
+
+[[excluded]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "private_version"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; git describe --tags on the private pack repository for a version, not operational data"
+
+[[excluded]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "record_build"
+reason = "audit pass 15 (git-only scope): delegates to a helper; builds no tracked location and runs no git itself; delegates to record_story and the builds cache"
+
+[[excluded]]
+language = "rust"
+file = "tools/vidi-gallery/src/main.rs"
+function = "record_story"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; runs the recorder on a workspace path passed in and writes to app.recordings chosen at startup"
+
+[[excluded]]
+language = "rust"
+file = "tools/vidi-gallery/src/runs.rs"
+function = "judges"
+reason = "audit pass 15 (git-only scope): delegates; location chosen by caller; reads gradings under the private repo path passed in; not run records"
+
+[[excluded]]
+language = "rust"
+file = "tools/vidi-gallery/src/runs.rs"
+function = "load"
+reason = "audit pass 15 (git-only scope): delegates to a helper; builds no tracked location and runs no git itself; delegates to load_with with private_of"
+
+[[excluded]]
+language = "rust"
+file = "tools/vidi-gallery/src/runs.rs"
+function = "scope_size"
+reason = "audit pass 15 (git-only scope): git on something that is not operational data; reads scope definition files from the pack, not operational run data"
