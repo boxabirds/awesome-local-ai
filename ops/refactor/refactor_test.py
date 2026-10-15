@@ -3093,3 +3093,117 @@ def test_a_planted_open_finding_naming_a_run_with_a_bundle_or_no_workspace_is_re
     assert finding_untrue(repo) == ["F-01: runs/vidi/m3/run-1 has a bundle", "F-01: runs/vidi/m4/run-1 has no tracked workspace"]
     write(repo, "ops/refactor/audit/findings.toml", toml.replace('status = "open"', 'status = "closed"'))
     assert finding_untrue(repo) == [], "a closed finding asserts nothing about the tree"
+
+
+# ---- story 19: the touched set equals the final audit (TC-50 to TC-55; task 19.20) -------------------------------------------------
+
+EQUAL_CLASSES = """[sources]
+python = ["tools/*.py", "lib/*.py", "tests/*.py", "benchmarks/spec-bench/*.py"]
+shell = ["ops/*.sh"]
+
+[classes.B]
+patterns = ['git (pull|push|show)']
+
+[classes.W]
+functions = ["agent_git"]
+"""
+FETCHIT_FILE = {"tools/fetchit.py": 'def fetchit():\n    run("git fetch")\n'}                          # found only by the query for git fetch
+FETCHIT_ROW = hit_row(7, "tools/fetchit.py", "fetchit", "Q5", new="yes")
+PROTECTED_IDS = [("python", "tools/pull.py", "pull"), ("python", "tools/pull.py", "push"), ("shell", "ops/show.sh", "show"),
+                 ("python", "lib/runs.py", "bundle_of"), ("python", "benchmarks/spec-bench/h.py", "url"), ("python", "tests/test_hist.py", "test_history")]
+
+
+def touched_toml(ids) -> str:
+    return "".join(entry(lang, file, fn, '"B"') for lang, file, fn in ids)
+
+
+def equal_root(tmp_path: Path, ids=PROTECTED_IDS, passes=None, files=None) -> Path:
+    """A root whose final audit is pass 02, with the touched set written for `ids`."""
+    root = audit_root(tmp_path, passes=passes if passes is not None else {1: pass_md(), 2: later_pass(verdict=FINAL)}, files=files or AUDIT_FILES)
+    write(root, "ops/refactor/classes.toml", EQUAL_CLASSES)
+    write(root, "ops/refactor/touched_set.toml", touched_toml(ids))
+    return root
+
+
+def touched(root: Path) -> R.Result:
+    return R.check_touched(root, grep=file_grep)
+
+
+def test_tc50_a_set_equal_to_the_protected_hits_of_the_final_audit_passes_with_the_counts(tmp_path):
+    root = equal_root(tmp_path)
+    before = (root / "ops/refactor/touched_set.toml").read_bytes()
+    result = touched(root)
+    assert result.exit_code == R.EXIT_OK, [(p.code, p.subject, p.detail) for p in result.problems]
+    assert result.data["counts"] == {"protected": 6, "entries": 6, "excluded": 0, "intrinsic": 0}
+    assert (root / "ops/refactor/touched_set.toml").read_bytes() == before, "the tool never writes the touched set"
+
+
+def three_pass_root(tmp_path: Path, ids=PROTECTED_IDS) -> Path:
+    """Pass 02 finds tools/fetchit.py::fetchit with a new query; pass 03 adds a query and finds nothing new, so it is final."""
+    second = pass_md(queries=AUDIT_QUERIES + [EXTRA_QUERY], default_new="no", extra_hits=[FETCHIT_ROW], verdict=ANOTHER)
+    third = pass_md(queries=AUDIT_QUERIES + [EXTRA_QUERY, THIRD_QUERY], default_new="no", extra_hits=[[*FETCHIT_ROW[:9], "no"]], verdict=FINAL)
+    return equal_root(tmp_path, ids=ids, passes={1: pass_md(), 2: second, 3: third}, files={**AUDIT_FILES, **FETCHIT_FILE})
+
+
+def test_tc51_a_protected_hit_that_is_not_an_entry_is_named_with_the_pass_that_first_found_it(tmp_path):
+    result = touched(three_pass_root(tmp_path))
+    assert codes(result) == ["E-AUDIT-MISSING-FROM-SET"]
+    assert "tools/fetchit.py::fetchit" in result.problems[0].subject and "pass 02" in result.problems[0].detail
+
+
+def test_tc52_an_entry_no_protected_hit_supports_is_refused(tmp_path):
+    files = {**AUDIT_FILES, "tools/pull.py": AUDIT_FILES["tools/pull.py"] + "\n\ndef unused():\n    return 1\n"}
+    root = equal_root(tmp_path, ids=PROTECTED_IDS + [("python", "tools/pull.py", "unused")], files=files)
+    result = touched(root)
+    assert codes(result) == ["E-SET-NOT-IN-AUDIT"] and "tools/pull.py::unused" in result.problems[0].subject
+
+
+def test_tc53_a_hit_the_audit_excluded_that_is_also_an_entry_is_refused(tmp_path):
+    excluded = pass_md(overrides={2: {"Outcome": "excluded", "UseCase": "", "Reason": "reads the agent-visible clone only"}})
+    second = pass_md(queries=AUDIT_QUERIES + [EXTRA_QUERY], default_new="no", overrides={2: {"Outcome": "excluded", "UseCase": "", "Reason": "reads the agent-visible clone only"}}, verdict=FINAL)
+    root = equal_root(tmp_path, passes={1: excluded, 2: second})              # ops/show.sh::show is excluded but still listed
+    result = touched(root)
+    assert codes(result) == ["E-HIT-EXCLUDED-IN-SET"] and "ops/show.sh::show" in result.problems[0].subject
+
+
+def test_tc54_passes_that_are_not_final_mean_no_comparison_is_made(tmp_path):
+    second = pass_md(queries=AUDIT_QUERIES + [EXTRA_QUERY], default_new="no", extra_hits=[FETCHIT_ROW], verdict=ANOTHER)
+    root = equal_root(tmp_path, passes={1: pass_md(), 2: second}, files={**AUDIT_FILES, **FETCHIT_FILE})
+    assert codes(touched(root)) == ["E-NO-FINAL-AUDIT"]
+
+
+def test_tc55_a_module_level_entry_that_exists_only_for_constants_is_exempt(tmp_path):
+    root = equal_root(tmp_path, ids=PROTECTED_IDS + [("python", "tools/pull.py", "<module>")])
+    assert touched(root).exit_code == R.EXIT_OK
+
+
+# ---- story 19: the class derivation still runs beside the audit (TC-56; task 19.21) ------------------------------------------------
+
+DERIVATION_CLASSES = """[sources]
+python = ["tools/*.py"]
+shell = ["tools/*.sh"]
+rust = ["lib/*.rs"]
+
+[classes.B]
+patterns = ['git (ls-tree|cat-file)']
+"""
+LANGUAGE_OF_SUFFIX = {".py": "python", ".sh": "shell", ".rs": "rust"}
+
+
+def test_tc56_an_unlisted_function_the_derivation_matches_is_still_refused_when_the_audit_and_the_list_are_equal(tmp_path):
+    repo = load_fixture_module("build_mini_repo").build(tmp_path / "audited")
+    for rel, text in LS_TREE_FILES.items():
+        write(repo, rel, text)
+    known = write_pass_from_audit_run(repo, 1, REAL_QUERIES, set(), "verdict: another pass required, first pass")
+    write_pass_from_audit_run(repo, 2, REAL_QUERIES + [NEW_QUERY_Q5], known, "verdict: final")
+    write(repo, "ops/refactor/classes.toml", DERIVATION_CLASSES)
+    write(repo, "ops/refactor/touched_set.toml", "".join(entry(LANGUAGE_OF_SUFFIX[Path(i.split('::')[0]).suffix], i.split("::")[0], i.split("::")[1], '"B"') for i in sorted(known)))
+    run_git(repo, "add", "-A")
+    equal = tool(repo, "check-touched-set")
+    assert equal.returncode == R.EXIT_OK, equal.stdout
+    lines = equal.stdout.splitlines()
+    assert lines[0].startswith("scope: whole touched set") and lines[-1] == f"counts: protected hits {len(known)}, entries {len(known)}, excluded hits 0, intrinsic hits 0"
+    write(repo, "tools/e.py", 'def peek():\n    run("git cat-file -p HEAD")\n')                  # a git read the audit's queries do not match
+    run_git(repo, "add", "tools/e.py")
+    unlisted = tool(repo, "check-touched-set")
+    assert unlisted.returncode == R.EXIT_FAIL and "E-UNLISTED-MATCH  tools/e.py::peek" in unlisted.stdout
