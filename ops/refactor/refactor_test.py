@@ -2474,3 +2474,206 @@ def test_check_coverage_with_no_coverage_command_for_a_language_is_undecided_not
     root = make_code_root(tmp_path, {"src/a.py": "def record():\n    return 1\n"}, touched=entry())
     result = R.check_coverage(root)
     assert result.exit_code == R.EXIT_ERROR and codes(result) == ["E-NO-COVERAGE-RUNNER"]
+
+
+# ---- story 19: the pass file, its queries and its checks (TC-01 to TC-05, TC-08 to TC-13; task 19.8) ------------------------
+# A pass is `ops/refactor/audit/pass-NN.md`: Queries, Hits and Open findings tables and a verdict line. The search is injected
+# here (a stand-in that reads the files of the root); the real `git grep` is used in the integration tests that follow.
+
+AUDIT_DIR = "ops/refactor/audit"
+ALL_SCOPES = "benchmarks/spec-bench tools ops tests lib :(glob)*.sh"
+CATEGORIES = ["vcs-command", "tree-read", "host-url", "history-test"]
+HIT_COLUMNS = ["Hit", "Place", "Function", "Source", "Access", "Via", "UseCase", "Outcome", "Reason", "New"]
+QUERY_COLUMNS = ["Query", "Category", "Pattern", "Paths"]
+FINDING_COLUMNS = ["Finding", "Title", "Status"]
+AUDIT_FILES = {
+    "tools/pull.py": 'def pull(repo):\n    run(["git", "pull"])\n\n\ndef push(repo):\n    run(["git", "push"])\n',
+    "ops/show.sh": "show() {\n  git show HEAD:x\n}\n",
+    "lib/runs.py": 'def bundle_of(run):\n    return open(run + "/workspace.bundle")\n',
+    "tests/test_hist.py": "def test_history():\n    run('git log')\n",
+    "benchmarks/spec-bench/h.py": 'def url(remote):\n    return "https://github.com/" + remote\n',
+}
+AUDIT_QUERIES = [          # id, category, pattern (as written in the table: | is escaped), paths
+    ("Q1", "vcs-command", r"git (pull\|push\|show)", ALL_SCOPES),
+    ("Q2", "tree-read", r"workspace\.bundle", ALL_SCOPES),
+    ("Q3", "host-url", r"github\.com", ALL_SCOPES),
+    ("Q4", "history-test", r"git log", ALL_SCOPES),
+]
+AUDIT_HITS = [             # place, function, source
+    ("tools/pull.py", "pull", "Q1"), ("tools/pull.py", "push", "Q1"), ("ops/show.sh", "show", "Q1"),
+    ("lib/runs.py", "bundle_of", "Q2"), ("benchmarks/spec-bench/h.py", "url", "Q3"), ("tests/test_hist.py", "test_history", "Q4"),
+]
+
+
+def md_table(columns: list[str], rows: list[list[str]]) -> str:
+    lines = ["| " + " | ".join(columns) + " |", "|" + "---|" * len(columns)]
+    return "\n".join(lines + ["| " + " | ".join(r) + " |" for r in rows]) + "\n"
+
+
+def hit_row(n: int, place: str, function: str, source: str, new: str = "yes", reason: str = "", outcome: str = "protected", use_case: str = "U1") -> list[str]:
+    return [f"H{n}", place, function, source, "reader", "command", use_case, outcome, reason, new]
+
+
+def pass_md(queries=AUDIT_QUERIES, hits=AUDIT_HITS, verdict="verdict: another pass required, first pass", new_flags=None, hit_columns=HIT_COLUMNS, extra_hits=()) -> str:
+    rows = [hit_row(i + 1, p, f, s, (new_flags or {}).get(i, "yes")) for i, (p, f, s) in enumerate(hits)] + list(extra_hits)
+    rows = [[c for c, name in zip(r, HIT_COLUMNS) if name in hit_columns] for r in rows]
+    return ("# Audit pass\n\n## Queries\n\n" + md_table(QUERY_COLUMNS, [[q, c, f"`{p}`", paths] for q, c, p, paths in queries])
+            + "\n## Hits\n\n" + md_table(hit_columns, rows) + "\n## Open findings\n\n" + md_table(FINDING_COLUMNS, []) + f"\n{verdict}\n")
+
+
+def audit_root(tmp_path: Path, passes: dict[int, str] | None = None, files: dict[str, str] | None = None) -> Path:
+    root = tmp_path / "audit-root"
+    for rel, text in (files or AUDIT_FILES).items():
+        write(root, rel, text)
+    for n, text in (passes if passes is not None else {1: pass_md()}).items():
+        write(root, f"{AUDIT_DIR}/pass-{n:02d}.md", text)
+    return root
+
+
+def file_grep(root: Path, pattern: str, paths: list[str]) -> list[tuple[str, int]]:
+    """A stand-in for `git grep -n -E`: every matching line of every file under root outside the audit folder."""
+    found = []
+    for f in sorted(p for p in root.rglob("*") if p.is_file()):
+        rel = f.relative_to(root).as_posix()
+        if rel.startswith(AUDIT_DIR) or rel.startswith("ops/refactor/reports"):
+            continue
+        for n, line in enumerate(f.read_text().splitlines(), start=1):
+            if re.search(pattern, line):
+                found.append((rel, n))
+    return found
+
+
+def check(root: Path, **kw) -> R.Result:
+    return R.check_audit(root, grep=file_grep, **kw)
+
+
+def test_tc01_a_valid_pass_is_accepted_and_the_report_counts_its_queries_and_hits(tmp_path):
+    root = audit_root(tmp_path)
+    result = check(root)
+    assert result.exit_code == R.EXIT_OK and result.problems == [], [(p.code, p.subject, p.detail) for p in result.problems]
+    first = json.loads((root / "ops/refactor/reports/audit.json").read_text())["passes"][0]
+    assert (first["queries"], first["hits"], first["new"]) == (4, 6, 6)
+
+
+def test_tc02_no_pass_file_means_the_audit_has_not_been_run(tmp_path):
+    assert codes(check(audit_root(tmp_path, passes={}))) == ["E-AUDIT-NONE"]
+
+
+def test_tc03_a_gap_in_the_pass_numbers_is_named(tmp_path):
+    result = check(audit_root(tmp_path, passes={1: pass_md(), 3: pass_md()}))
+    assert codes(result) == ["E-PASS-GAP"] and "02" in result.problems[0].detail
+
+
+def test_tc04_a_hits_table_without_the_outcome_column_is_a_format_error_naming_file_and_column(tmp_path):
+    result = check(audit_root(tmp_path, passes={1: pass_md(hit_columns=[c for c in HIT_COLUMNS if c != "Outcome"])}))
+    assert codes(result) == ["E-PASS-FORMAT"] and "pass-01.md" in result.problems[0].subject and "Outcome" in result.problems[0].detail
+
+
+def test_tc05_a_query_with_an_unknown_category_is_refused(tmp_path):
+    queries = AUDIT_QUERIES[:3] + [("Q4", "other", r"git log", ALL_SCOPES)]
+    assert "E-QUERY-CATEGORY" in codes(check(audit_root(tmp_path, passes={1: pass_md(queries=queries, hits=AUDIT_HITS[:5])})))
+
+
+def test_tc08_a_hit_marked_new_that_an_earlier_pass_already_has_is_a_mismatch(tmp_path):
+    result = check(audit_root(tmp_path, passes={1: pass_md(), 2: pass_md(new_flags={0: "yes"})}))        # pass 2 repeats pass 01's hits: none is new
+    assert "E-NEW-MISMATCH" in codes(result) and "tools/pull.py::pull" in " ".join(p.subject + p.detail for p in result.problems)
+
+
+def test_tc09_a_pass_with_no_host_url_query_names_the_category(tmp_path):
+    queries = [q for q in AUDIT_QUERIES if q[1] != "host-url"]
+    result = check(audit_root(tmp_path, passes={1: pass_md(queries=queries, hits=[h for h in AUDIT_HITS if h[2] != "Q3"])}))
+    assert codes(result) == ["E-CATEGORY-UNSEARCHED"] and "host-url" in result.problems[0].detail
+
+
+def test_tc10_a_pass_with_no_query_over_the_tests_folder_names_it(tmp_path):
+    no_tests = "benchmarks/spec-bench tools ops lib :(glob)*.sh"
+    queries = [(q, c, p, no_tests) for q, c, p, _ in AUDIT_QUERIES]
+    result = check(audit_root(tmp_path, passes={1: pass_md(queries=queries, hits=[h for h in AUDIT_HITS if h[0] != "tests/test_hist.py"])}))
+    assert codes(result) == ["E-SCOPE-UNSEARCHED"] and "tests" in result.problems[0].detail
+
+
+def tracked_bytes(root: Path) -> dict[str, bytes]:
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()
+            and not p.relative_to(root).as_posix().startswith(("ops/refactor/reports", AUDIT_DIR))}
+
+
+def test_tc11_a_search_that_writes_a_file_outside_the_audit_folder_is_caught_and_a_normal_run_leaves_every_file_alone(tmp_path):
+    root = audit_root(tmp_path)
+    before = tracked_bytes(root)
+    assert check(root).exit_code == R.EXIT_OK and tracked_bytes(root) == before            # the negative: a normal run changes nothing
+
+    def writing_grep(r, pattern, paths):
+        (r / "tools" / "leak.txt").write_text("written by a search")
+        return file_grep(r, pattern, paths)
+    result = R.check_audit(root, grep=writing_grep)
+    assert "E-AUDIT-WROTE" in codes(result) and "tools/leak.txt" in " ".join(p.subject + p.detail for p in result.problems)
+
+
+def test_tc12_a_manual_hit_with_a_reason_is_accepted_without_a_search_and_counted(tmp_path):
+    manual = [hit_row(7, "tools/pull.py", "<module>", "manual", reason="calls the helper that runs git pull")]
+    root = audit_root(tmp_path, passes={1: pass_md(extra_hits=manual)})
+    result = check(root)
+    assert result.exit_code == R.EXIT_OK, [(p.code, p.detail) for p in result.problems]
+    assert json.loads((root / "ops/refactor/reports/audit.json").read_text())["passes"][0]["hits"] == 7
+
+
+def test_tc13_a_manual_hit_without_a_reason_is_refused(tmp_path):
+    manual = [hit_row(7, "tools/pull.py", "<module>", "manual", reason="")]
+    assert codes(check(audit_root(tmp_path, passes={1: pass_md(extra_hits=manual)}))) == ["E-MANUAL-NO-REASON"]
+
+
+# ---- story 19: recorded queries give the same hits for anyone, with the real `git grep` (TC-06, TC-07, TC-14; task 19.9) -------
+
+import subprocess as sp
+
+LS_TREE_FILES = {                  # three files that run `git ls-tree`, one of them also at module level
+    "tools/a.py": 'LISTING = "git ls-tree"\n\n\ndef lister(rev):\n    return run(["git", "ls-tree", rev])\n',
+    "tools/b.sh": "tree() {\n  git ls-tree -r HEAD\n}\n",
+    "lib/c.rs": 'pub fn list_tree() -> &\'static str {\n    "git ls-tree"\n}\n',
+}
+REAL_QUERIES = [
+    ("Q1", "vcs-command", r"git ls-tree", "."),
+    ("Q2", "tree-read", r'"runs"', "."),
+    ("Q3", "host-url", r"github\.com", "."),
+    ("Q4", "history-test", r"git log", "."),
+]
+REAL_HITS = [("tools/a.py", "<module>", "Q1"), ("tools/a.py", "lister", "Q1"), ("tools/b.sh", "tree", "Q1"), ("lib/c.rs", "list_tree", "Q1"),
+             ("tools/publish.py", "<module>", "Q2"), ("tools/read_run.py", "score_of", "Q2")]
+
+
+def run_git(repo: Path, *args: str) -> None:
+    sp.run(["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "-C", str(repo), *args],
+           check=True, capture_output=True, text=True)
+
+
+def real_audit_repo(tmp_path: Path) -> Path:
+    """The mini project with its real history, three files that run `git ls-tree`, and a first pass written for them."""
+    repo = load_fixture_module("build_mini_repo").build(tmp_path / "audited")
+    for rel, text in LS_TREE_FILES.items():
+        write(repo, rel, text)
+    write(repo, f"{AUDIT_DIR}/pass-01.md", pass_md(queries=REAL_QUERIES, hits=REAL_HITS))
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-q", "-m", "add ls-tree users and pass 01")
+    return repo
+
+
+def test_tc14_a_stored_query_returns_its_hits_with_their_enclosing_functions_from_the_real_git_grep(tmp_path):
+    repo = real_audit_repo(tmp_path)
+    found = R.run_queries(repo, R.parse_pass(repo / AUDIT_DIR / "pass-01.md"))
+    assert {(h.file, h.function) for h in found["Q1"]} == {("tools/a.py", "<module>"), ("tools/a.py", "lister"), ("tools/b.sh", "tree"), ("lib/c.rs", "list_tree")}
+    assert all(h.line > 0 for hits in found.values() for h in hits)
+    assert R.check_audit(repo).exit_code == R.EXIT_OK
+
+
+def test_tc06_a_recorded_hit_whose_line_was_removed_from_the_repository_is_not_reproducible(tmp_path):
+    repo = real_audit_repo(tmp_path)
+    write(repo, "tools/a.py", 'LISTING = "git ls-tree"\n\n\ndef lister(rev):\n    return rev\n')
+    result = R.check_audit(repo)
+    assert codes(result) == ["E-PASS-NOT-REPRODUCIBLE"] and "tools/a.py::lister" in result.problems[0].subject + result.problems[0].detail
+
+
+def test_tc07_a_matching_line_added_after_the_pass_was_written_is_not_recorded(tmp_path):
+    repo = real_audit_repo(tmp_path)
+    write(repo, "tools/b.sh", "tree() {\n  git ls-tree -r HEAD\n}\nextra() {\n  git ls-tree HEAD\n}\n")
+    result = R.check_audit(repo)
+    assert codes(result) == ["E-PASS-NOT-REPRODUCIBLE"] and "tools/b.sh::extra" in result.problems[0].subject + result.problems[0].detail
