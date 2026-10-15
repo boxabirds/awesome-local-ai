@@ -6,6 +6,7 @@ Run with: uv run --with pytest python -m pytest -q ops/refactor
 from __future__ import annotations
 
 import json
+import re
 import tomllib
 from pathlib import Path
 
@@ -2406,3 +2407,61 @@ def test_tc97_check_stubs_as_a_process_recognises_all_eleven_stubs_of_story_5(tm
     done = tool(root, "check-stubs")
     not_stubs = [line for line in (done.stdout + done.stderr).splitlines() if "E-NOT-STUB" in line]
     assert len(not_stubs) == 0 and done.returncode == R.EXIT_OK, f"{len(not_stubs)} of 11 reported as not a stub:\n" + "\n".join(not_stubs)
+
+
+# ---- story 19: the tool says it acts on the whole epic's list (TC-100 to TC-103; tasks 19.5 and 19.6) -------------------------
+# 15 Oct 2026: the README said stories 4 to 12 were "held by the stage" and each story's deletion report was written as if it
+# stood alone; the tool's output never said which list it was checking. It now prints its scope first.
+
+SCOPED_COMMANDS = ["check-stubs", "report-deletion", "check-coverage", "stage", "check-touched-set"]
+BANNED_PHRASES = ["one story at a time", "per story", "this story alone"]
+SCOPE_WORDS = "whole touched set"
+SCOPE_LINE = re.compile(r"^scope: whole touched set, (\d+) entries in (\d+) files$")
+
+
+def touched_counts(touched_toml: Path) -> tuple[int, int]:
+    entries = tomllib.loads(touched_toml.read_text()).get("entry", [])
+    return len(entries), len({e["file"] for e in entries})
+
+
+def root_with_only_the_touched_set(tmp_path: Path, source: Path) -> Path:
+    """A repository holding nothing but the touched-set file, so a command that needs real runners stops quickly."""
+    root = tmp_path / "scope-root"
+    write(root, "ops/refactor/touched_set.toml", source.read_text())
+    return root
+
+
+@pytest.mark.parametrize("command", SCOPED_COMMANDS)
+def test_tc100_each_scoped_command_prints_the_scope_line_before_its_result(tmp_path, capsys, command):
+    root = root_with_only_the_touched_set(tmp_path, FIXTURES / "mini" / "ops" / "refactor" / "touched_set.toml")
+    cli(root, command)
+    first = capsys.readouterr().out.splitlines()[0]
+    n, m = touched_counts(root / "ops/refactor/touched_set.toml")
+    assert first == f"scope: whole touched set, {n} entries in {m} files"
+
+
+@pytest.mark.parametrize("command", SCOPED_COMMANDS)
+def test_tc101_the_help_of_each_scoped_command_names_the_whole_touched_set_and_none_of_the_banned_phrases(capsys, command):
+    with pytest.raises(SystemExit):
+        R.main([command, "--help"])
+    out = " ".join(capsys.readouterr().out.lower().split())
+    assert SCOPE_WORDS in out, out
+    assert not [b for b in BANNED_PHRASES if b in out]
+
+
+def test_tc103_the_readme_says_the_stage_and_the_checks_act_on_the_whole_epic_and_uses_none_of_the_banned_phrases():
+    text = " ".join((Path(__file__).parent / "README.md").read_text().lower().split())
+    assert "whole epic" in text
+    assert not [b for b in BANNED_PHRASES if b in text]
+    assert "stories 4 to 12 are held" not in text, "the sentence that holds a range of stories by the stage"
+
+
+@pytest.mark.parametrize("command", SCOPED_COMMANDS)
+def test_tc102_the_scope_line_of_the_real_touched_set_counts_what_the_file_holds(tmp_path, command):
+    real = Path(__file__).parent / "touched_set.toml"
+    root = root_with_only_the_touched_set(tmp_path, real)
+    done = tool(root, command)
+    lines = done.stdout.splitlines()
+    assert lines and SCOPE_LINE.match(lines[0]), f"first line of {command}: {lines[:1]}"
+    n, m = touched_counts(real)
+    assert tuple(int(x) for x in SCOPE_LINE.match(lines[0]).groups()) == (n, m)
