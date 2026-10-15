@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import ast
 import fnmatch
+import functools
 import hashlib
 import itertools
 import json
@@ -1692,32 +1693,43 @@ def leading_start(lines: list[str], definition: int, language: str) -> int:
     return first + 1
 
 
+@functools.lru_cache(maxsize=None)
+def attribution_table(path: str, mtime_ns: int, size: int, language: str) -> tuple[tuple[tuple[str, int, int], ...], int | None]:
+    """(spans, tests_after) of one file: each function with the first and last line it owns (its leading comment block included), and for a
+    Rust file the line after which its test module begins. Cached by the file's path, size and modification time, so a pass over
+    thousands of hits parses each file once and an edited file is read again."""
+    text = Path(path).read_text(errors="replace")
+    lines = text.splitlines()
+    if language == "python":
+        try:
+            return tuple((name, leading_start(lines, first, language), last) for name, first, last in python_spans(text)), None
+        except SyntaxError:
+            return (), None
+    marker = RUST_TEST_MODULE.search(text) if language == "rust" else None
+    tests_after = text[:marker.start()].count("\n") if marker else None
+    top = SCRIPT_LEVEL if language == "shell" else MODULE_LEVEL
+    funcs = [f for f in functions_of(language, text) if f.name != top]
+    starts = [leading_start(lines, f.start, language) for f in funcs]
+    spans = tuple((f.name, starts[i], (starts[i + 1] - 1) if i + 1 < len(funcs) else f.start + len(f.text.splitlines()) - 1) for i, f in enumerate(funcs))
+    return spans, tests_after
+
+
 def function_at(root: Path, rel: str, line: int) -> str:
     """The function a line of a tracked file belongs to, by the same scan the touched set uses; the file's top level otherwise. A comment
     block directly above a function belongs to it."""
     language = SOURCE_LANGUAGES.get(Path(rel).suffix)
     if language is None:
         return MODULE_LEVEL
-    text = (root / rel).read_text(errors="replace")
-    lines = text.splitlines()
+    path = root / rel
+    info = path.stat()
+    spans, tests_after = attribution_table(str(path), info.st_mtime_ns, info.st_size, language)
     top = SCRIPT_LEVEL if language == "shell" else MODULE_LEVEL
-    if language == "python":
-        try:
-            spans = [(name, leading_start(lines, first, language), last) for name, first, last in python_spans(text)]
-        except SyntaxError:
-            return top
-        spans = [s for s in spans if s[1] <= line <= s[2]]
-        return min(spans, key=lambda s: s[2] - s[1])[0] if spans else top
-    marker = RUST_TEST_MODULE.search(text) if language == "rust" else None
-    if marker and line > text[:marker.start()].count("\n"):
+    if tests_after is not None and line > tests_after:
         return TESTS_LEVEL
-    funcs = [f for f in functions_of(language, text) if f.name != top]
-    starts = [leading_start(lines, f.start, language) for f in funcs]
-    for i, func in enumerate(funcs):
-        last = (starts[i + 1] - 1) if i + 1 < len(funcs) else func.start + len(func.text.splitlines()) - 1
-        if starts[i] <= line <= last:
-            return func.name
-    return top
+    inside = [s for s in spans if s[1] <= line <= s[2]]
+    if not inside:
+        return top
+    return min(inside, key=lambda s: s[2] - s[1])[0] if language == "python" else inside[0][0]
 
 
 def git_grep(root: Path, pattern: str, paths: list[str]) -> list[tuple[str, int]]:
