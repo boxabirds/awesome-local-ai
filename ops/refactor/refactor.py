@@ -298,12 +298,30 @@ def propose_touched(root: Path) -> list[Entry]:
     return sorted(entries, key=lambda e: (e.language, e.file, e.function))
 
 
-def check_touched(root: Path) -> Result:
-    """The committed touched_set.toml equals the derivation after the owner's recorded decisions (excluded entries)."""
+def audit_step(root: Path, entries: list[dict], result: Result, grep, snapshot) -> None:
+    """The touched set equals the protected hits of the final audit. Without a final audit nothing is compared."""
+    audit = check_audit(root, require_final=True, grep=grep, snapshot=snapshot)
+    for p in audit.problems:
+        if p.code in (NO_AUDIT_CODES):
+            result.fail("E-NO-FINAL-AUDIT", p.subject, f"{p.code}: {p.detail}")
+        else:
+            result.fail(p.code, p.subject, p.detail)
+    if audit.exit_code == EXIT_OK:
+        problems, counts = compare_audit_to_set([parse_pass(f) for f in pass_files(root)], entries)
+        result.data["audit_counts"] = counts
+        for p in problems:
+            result.fail(p.code, p.subject, p.detail)
+
+
+def check_touched(root: Path, grep=None, snapshot=None) -> Result:
+    """The committed touched_set.toml equals the final audit and, as a cross-check, the derivation after the owner's recorded decisions
+    (excluded entries). A repository with no audit folder is checked by the derivation alone."""
     result = Result()
     cfg = load_classes(root)
     known = set(cfg.patterns) | set(cfg.named) | {WORKSPACE_CLASS}
     touched = read_toml(root / TOUCHED_FILE)
+    if (root / AUDIT_DIR).is_dir():
+        audit_step(root, touched.get("entry", []), result, grep or git_grep, snapshot or tree_snapshot)
     scanned = scan(root, cfg)
     listed = set()
     for e in touched.get("entry", []):
@@ -1476,6 +1494,9 @@ def print_result(name: str, result: Result) -> None:
         print(f"  not measured  {language}  {why}")
     for subject, row in result.data.get("excused", {}).items():
         print(f"  excused  {subject}  lines {', '.join(str(n) for n in row['lines'])}: {row['reason']}")
+    if "audit_counts" in result.data:
+        c = result.data["audit_counts"]
+        print(f"counts: protected hits {c['protected']}, entries {c['entries']}, excluded hits {c['excluded']}, intrinsic hits {c['intrinsic']}")
 
 
 # ---- the audit: numbered pass files of recorded searches (story 19) -----------------------------------------------------
@@ -1491,6 +1512,7 @@ HIT_COLUMNS = ("Hit", "Place", "Function", "Source", "Access", "Via", "UseCase",
 FINDING_COLUMNS = ("Finding", "Title", "Status")
 PASS_PARTS = (("Queries", QUERY_COLUMNS), ("Hits", HIT_COLUMNS), ("Open findings", FINDING_COLUMNS))
 VERDICT_FINAL, VERDICT_MORE = "final", "another pass required"
+NO_AUDIT_CODES = ("E-AUDIT-NONE", "E-NOT-FINAL")       # an audit with no final pass is E-NO-FINAL-AUDIT to the touched-set check
 MANUAL_SOURCE = "manual"
 IS_NEW = "yes"
 AUDIT_EXCLUDE = f":(exclude){AUDIT_DIR.as_posix()}"       # the pass files hold the patterns, so no query searches them
@@ -1824,6 +1846,39 @@ def check_stop_rule(passes: list[Pass], result: Result, require_final: bool) -> 
     if require_final and final.final_pass is None:
         result.fail("E-NOT-FINAL", AUDIT_DIR.as_posix(), f"the audit is not final: {final.reason}")
     return final
+
+
+def pass_files(root: Path) -> list[Path]:
+    folder = root / AUDIT_DIR
+    return sorted(f for f in (folder.iterdir() if folder.is_dir() else []) if PASS_FILE.match(f.name))
+
+
+def audit_outcomes(passes: list[Pass]) -> dict[str, dict]:
+    """Each hit identity with its latest outcome and the number of the first pass that found it."""
+    found: dict[str, dict] = {}
+    for p in passes:
+        for row in p.hits:
+            found[row.identity] = {"outcome": row.outcome, "first": found.get(row.identity, {}).get("first", p.number)}
+    return found
+
+
+def compare_audit_to_set(passes: list[Pass], entries: list[dict]) -> tuple[list[Problem], dict]:
+    """The protected hits of the audit and the touched set's entries must be the same places; the counts line's figures come back too."""
+    audited = audit_outcomes(passes)
+    listed = {f"{e['file']}::{e['function']}" for e in entries}
+    protected = {i for i, a in audited.items() if a["outcome"] == "protected"}
+    excluded = {i for i, a in audited.items() if a["outcome"] == "excluded"}
+    problems = []
+    for identity in sorted(protected - listed):
+        problems.append(Problem("E-AUDIT-MISSING-FROM-SET", identity, f"a protected hit first found by pass {audited[identity]['first']:02d} is not an entry"))
+    for identity in sorted(listed & excluded):
+        problems.append(Problem("E-HIT-EXCLUDED-IN-SET", identity, "the audit excluded this hit and it is listed"))
+    for identity in sorted(listed - protected - excluded):
+        if not identity.endswith(f"::{MODULE_LEVEL}"):             # a module-level entry may exist only for constants
+            problems.append(Problem("E-SET-NOT-IN-AUDIT", identity, "no protected hit of the audit supports this entry"))
+    counts = {"protected": len(protected), "entries": len(listed), "excluded": len(excluded),
+              "intrinsic": sum(1 for a in audited.values() if a["outcome"] == "intrinsic")}
+    return problems, counts
 
 
 def check_audit(root: Path, require_final: bool = False, grep=git_grep, snapshot=tree_snapshot) -> Result:

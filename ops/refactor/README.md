@@ -34,7 +34,7 @@ passes against the stubs (the tool does it itself). `stage` alone prints the sta
 |---|---|
 | `check-register` | every test the four runners list is under exactly one of U1 to U14, or listed unfit with a decision |
 | `build-touched-set --propose` | prints the touched set the scan derives from `classes.toml`; never writes `touched_set.toml` |
-| `check-touched-set` | the committed `touched_set.toml` equals the scan, after the recorded exclusions |
+| `check-touched-set` | the committed `touched_set.toml` equals the protected hits of the final audit (`E-NO-FINAL-AUDIT`, `E-AUDIT-MISSING-FROM-SET` with the first pass that found the place, `E-SET-NOT-IN-AUDIT` (a `<module>` entry is exempt), `E-HIT-EXCLUDED-IN-SET`) and equals the scan, after the recorded exclusions; ends with a counts line (protected hits, entries, excluded hits, intrinsic hits). A repository with no `audit/` folder is checked by the scan alone. The tool never writes the set |
 | `check-matrix U<n>` | the cross product of the dimensions in `matrices/U<n>.toml` has one test in every cell |
 | `check-coverage` | runs each suite under its coverage tool: 100% of the lines and branches inside every touched *function* (lcov) |
 | `check-stubs` | every touched function (or whole script) is replaced by the stub of its language |

@@ -3135,7 +3135,7 @@ def test_tc50_a_set_equal_to_the_protected_hits_of_the_final_audit_passes_with_t
     before = (root / "ops/refactor/touched_set.toml").read_bytes()
     result = touched(root)
     assert result.exit_code == R.EXIT_OK, [(p.code, p.subject, p.detail) for p in result.problems]
-    assert result.data["counts"] == {"protected": 6, "entries": 6, "excluded": 0, "intrinsic": 0}
+    assert result.data["audit_counts"] == {"protected": 6, "entries": 6, "excluded": 0, "intrinsic": 0}
     assert (root / "ops/refactor/touched_set.toml").read_bytes() == before, "the tool never writes the touched set"
 
 
