@@ -870,7 +870,7 @@ def test_advancing_two_stages_at_once_is_refused_with_exit_1(tmp_path):
 def test_stage_prints_the_current_stage(tmp_path, capsys):
     root = make_root(tmp_path)
     assert cli(root, "stage") == R.EXIT_OK
-    assert capsys.readouterr().out.strip() == "Inventory"
+    assert capsys.readouterr().out.splitlines()[-1] == "Inventory"      # the scope line comes first
 
 
 def test_a_corrupt_stage_file_is_exit_2_names_its_code_and_is_left_as_it_is(tmp_path, capsys):
@@ -1848,7 +1848,7 @@ def test_tc48_positive_with_the_matrices_and_coverage_green_the_same_move_succee
     root = mini_at_matrices(tmp_path)
     done = tool(root, "stage", "Proved")
     assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
-    assert tool(root, "stage").stdout.strip() == "Proved"
+    assert tool(root, "stage").stdout.splitlines()[-1] == "Proved"
 
 
 KILL_POINTS = {
@@ -1992,7 +1992,7 @@ def test_a_failing_new_contract_test_is_not_an_outside_failure_but_any_other_fai
 # ---- end to end: workflows W-1 and W-2 on the mini project, tool run as a process with the real runners (task 1.31) -------------------
 
 def stage_now(root: Path) -> str:
-    return tool(root, "stage").stdout.strip()
+    return tool(root, "stage").stdout.splitlines()[-1]      # the scope line comes first
 
 
 def test_w1_the_whole_method_in_order_then_a_planted_passing_test_sends_the_stage_back_to_proved(coverage_tools, tmp_path):
@@ -2433,8 +2433,9 @@ def root_with_only_the_touched_set(tmp_path: Path, source: Path) -> Path:
 
 @pytest.mark.parametrize("command", SCOPED_COMMANDS)
 def test_tc100_each_scoped_command_prints_the_scope_line_before_its_result(tmp_path, capsys, command):
-    root = root_with_only_the_touched_set(tmp_path, FIXTURES / "mini" / "ops" / "refactor" / "touched_set.toml")
-    cli(root, command)
+    root = tmp_path / "mini"
+    shutil.copytree(FIXTURES / "mini", root, ignore=shutil.ignore_patterns("node_modules", "target", "__pycache__"))
+    cli(root, command, *(["--language", "shell"] if command == "check-coverage" else []))      # the line comes first, whatever the result
     first = capsys.readouterr().out.splitlines()[0]
     n, m = touched_counts(root / "ops/refactor/touched_set.toml")
     assert first == f"scope: whole touched set, {n} entries in {m} files"
@@ -2465,3 +2466,4 @@ def test_tc102_the_scope_line_of_the_real_touched_set_counts_what_the_file_holds
     assert lines and SCOPE_LINE.match(lines[0]), f"first line of {command}: {lines[:1]}"
     n, m = touched_counts(real)
     assert tuple(int(x) for x in SCOPE_LINE.match(lines[0]).groups()) == (n, m)
+

@@ -1467,26 +1467,36 @@ def print_result(name: str, result: Result) -> None:
         print(f"  excused  {subject}  lines {', '.join(str(n) for n in row['lines'])}: {row['reason']}")
 
 
+SCOPED_COMMANDS = ("check-stubs", "report-deletion", "check-coverage", "stage", "check-touched-set")    # the ones that act on the whole list
+
+
+def scope_line(root: Path) -> str:
+    """Which list a command acts on, printed first: the whole epic's touched set, never one story's slice of it."""
+    entries = read_toml(root / TOUCHED_FILE).get("entry", [])
+    return f"scope: whole touched set, {len(entries)} entries in {len({e['file'] for e in entries})} files"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="the repository root (default: the current directory)")
     sub = parser.add_subparsers(dest="command", required=True)
     for name, text in (("check-register", "every test in exactly one use case"),
-                       ("check-touched-set", "the committed touched set equals the scan"),
-                       ("check-stubs", "every touched function is a stub"),
+                       ("check-touched-set", "the committed whole touched set equals the scan"),
+                       ("check-stubs", "every function in the whole touched set is a stub"),
                        ("fates", "every old test has one fate, every contract area a new test seen red; --render PATH writes the table"),
-                       ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every touched file"),
-                       ("report-deletion", "every assigned test failed against the stubs, read from the files run-suites wrote"),
+                       ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every file in the whole touched set"),
+                       ("report-deletion", "every assigned test failed against the stubs of the whole touched set, read from the files run-suites wrote"),
                        ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)"),
                        ("measure-touch", "run the Python suite under coverage, a context per test, to learn which tests touch the touched set")):
-        sub.add_parser(name, help=text)
+        sub.add_parser(name, help=text, description=text)
     build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
     build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
     sub.choices["fates"].add_argument("--render", help="write the fates table (Markdown) to this path")
     sub.add_parser("guard-idle", help="exit 0 when no job is running on the node (from `dbench status --json NODE`), 1 naming the job and story, 2 when unknown").add_argument("node")
     sub.choices["check-coverage"].add_argument("--language", choices=LANGUAGES, action="append", help="measure only this language (repeatable)")
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
-    sub.add_parser("stage", help="print the current stage; with a stage name, move to it if its justifying check passes").add_argument("to", nargs="?")
+    sub.add_parser("stage", help="print the epic's stage; with a stage name, move the whole touched set to it if its justifying check passes",
+                   description="print the epic's stage; with a stage name, move the whole touched set to it if its justifying check passes").add_argument("to", nargs="?")
     args = parser.parse_args(argv)
     root = args.root
     lister = Universe()
@@ -1500,6 +1510,8 @@ def main(argv: list[str] | None = None) -> int:
         "measure-touch": lambda: measure_touch(root),
     }
     try:
+        if args.command in SCOPED_COMMANDS:
+            print(scope_line(root))
         if args.command == "stage" and args.to is None:
             print(read_stage(root))
             return EXIT_OK

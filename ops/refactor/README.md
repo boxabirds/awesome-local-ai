@@ -3,7 +3,8 @@
 The method of `docs/designs/operational-data-separation.md` ("Refactoring method"), as a tool: every use case is
 covered by tests, the touched code is deleted first, every assigned test must fail, and only then is the new
 behaviour built. The tool never edits production code. It reads test lists, coverage output and test results from the
-real runners and refuses when a rule is broken. Story 1 of the epic builds it; stories 4 to 12 are held by its stage.
+real runners and refuses when a rule is broken. Story 1 of the epic builds it. The stage and the checks act on the whole epic's list at once: every story whose code is in
+the touched set waits on the one stage, and each command prints the size of that list first (`scope: whole touched set, N entries in M files`).
 
     uv run ops/refactor/refactor.py --help
 
