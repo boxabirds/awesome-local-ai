@@ -3222,6 +3222,9 @@ def test_tc56_an_unlisted_function_the_derivation_matches_is_still_refused_when_
 
 # ---- story 19: the stage moves back when the touched set has grown since the proof (TC-60 to TC-65; task 19.23) ------------------------
 
+TOUCHED_SET_SIZE = 98      # the real touched set on 15 October 2026: 98 entries, so the boundaries are 97 (one removed) and 99 (one added)
+
+
 def member_ids(n: int) -> list[str]:
     return [f"src/m{i}.py::f{i}" for i in range(n)]
 
@@ -3242,29 +3245,29 @@ def stage_file(root: Path) -> dict:
 
 
 def test_tc60_the_same_members_leave_a_proved_stage_alone(tmp_path):
-    root = staged_root(tmp_path, "Proved", member_ids(5), member_ids(5))
+    root = staged_root(tmp_path, "Proved", member_ids(TOUCHED_SET_SIZE), member_ids(TOUCHED_SET_SIZE))
     before = (root / "ops/refactor/stage.toml").read_bytes()
     result = R.reconcile_stage(root)
     assert result.exit_code == R.EXIT_OK and (root / "ops/refactor/stage.toml").read_bytes() == before
 
 
 def test_tc61_a_member_added_since_the_proof_moves_a_proved_stage_back_to_matrices_naming_it(tmp_path):
-    root = staged_root(tmp_path, "Proved", member_ids(5), member_ids(6))
+    root = staged_root(tmp_path, "Proved", member_ids(TOUCHED_SET_SIZE), member_ids(TOUCHED_SET_SIZE + 1))
     result = R.reconcile_stage(root)
-    assert codes(result) == ["E-MEMBER-UNPROVED"] and "src/m5.py::f5" in result.problems[0].detail
+    assert codes(result) == ["E-MEMBER-UNPROVED"] and f"src/m{TOUCHED_SET_SIZE}.py::f{TOUCHED_SET_SIZE}" in result.problems[0].detail
     state = stage_file(root)
     assert state["stage"] == "Matrices" and state["move"][-1]["from"] == "Proved" and "E-MEMBER-UNPROVED" in state["move"][-1]["justified_by"]
     assert R.reconcile_stage(root).exit_code == R.EXIT_OK, "a second reconcile at Matrices changes nothing"
 
 
 def test_tc62_a_member_removed_leaves_the_proof_standing(tmp_path):
-    root = staged_root(tmp_path, "Proved", member_ids(5), member_ids(4))
+    root = staged_root(tmp_path, "Proved", member_ids(TOUCHED_SET_SIZE), member_ids(TOUCHED_SET_SIZE - 1))
     assert R.reconcile_stage(root).exit_code == R.EXIT_OK and stage_file(root)["stage"] == "Proved"
 
 
 @pytest.mark.parametrize("stage", ["Deleted", "RedContracts", "Reimplemented"])
 def test_tc63_a_later_stage_also_moves_back_when_a_member_was_added(tmp_path, stage):
-    root = staged_root(tmp_path, stage, member_ids(5), member_ids(6))
+    root = staged_root(tmp_path, stage, member_ids(TOUCHED_SET_SIZE), member_ids(TOUCHED_SET_SIZE + 1))
     assert codes(R.reconcile_stage(root)) == ["E-MEMBER-UNPROVED"] and stage_file(root)["stage"] == "Matrices"
 
 
@@ -3276,7 +3279,7 @@ def test_tc64_before_proved_a_new_member_changes_nothing(tmp_path, stage):
 
 
 def test_tc65_a_proved_stage_with_no_recorded_proof_moves_back_once(tmp_path):
-    root = staged_root(tmp_path, "Proved", None, member_ids(5))
+    root = staged_root(tmp_path, "Proved", None, member_ids(TOUCHED_SET_SIZE))
     assert codes(R.reconcile_stage(root)) == ["E-STAGE-DIGEST-MISSING"] and stage_file(root)["stage"] == "Matrices"
 
 
