@@ -2878,3 +2878,117 @@ def test_tc40_the_fourteen_real_use_cases_and_a_real_class_w_function_are_accept
     assert done.returncode == R.EXIT_OK, done.stdout
     outcomes = json.loads((repo / "ops/refactor/reports/audit.json").read_text())["passes"][0]["outcomes"]
     assert outcomes == {"protected": len(use_cases), "intrinsic": 1} and len(use_cases) == 14
+
+
+# ---- story 19: pass 01 accounts for the gaps known on 15 October 2026 (TC-70 to TC-72; task 19.16) ---------------------------------
+
+SEED_TOML = """
+[[place]]
+file = "tools/pull.py"
+function = "pull"
+reason = "runs git pull"
+
+[[place]]
+file = "lib/runs.py"
+function = "*"
+reason = "reads the bundle of a run"
+
+[[place]]
+file = "benchmarks/spec-bench/h.py"
+function = "url"
+reason = "builds a code-host address"
+"""
+CLAIMS = "benchmarks/spec-bench/harness/claims.py"
+
+
+def seeded(tmp_path: Path, seed: str = SEED_TOML, extra: list | None = None, overrides=None):
+    root = audit_root(tmp_path, passes={1: pass_md(extra_hits=extra or [], overrides=overrides)})
+    write(root, f"{AUDIT_DIR}/seed.toml", seed)
+    return check(root), root
+
+
+def test_tc70_a_first_pass_with_a_row_for_every_seeded_place_passes(tmp_path):
+    result, _ = seeded(tmp_path)
+    assert result.exit_code == R.EXIT_OK, [(p.code, p.detail) for p in result.problems]
+
+
+def test_tc71_a_first_pass_without_the_row_for_a_seeded_file_names_it(tmp_path):
+    seed = SEED_TOML + f'\n[[place]]\nfile = "{CLAIMS}"\nfunction = "*"\nreason = "reads run records"\n'
+    result, _ = seeded(tmp_path, seed)
+    assert codes(result) == ["E-SEED-MISSING"] and CLAIMS in result.problems[0].detail
+
+
+def test_a_whole_file_seed_is_satisfied_by_any_row_in_that_file_and_not_by_a_row_in_another(tmp_path):
+    seed = f'[[place]]\nfile = "{CLAIMS}"\nfunction = "*"\nreason = "reads run records"\n'
+    elsewhere = [hit_row(7, "benchmarks/spec-bench/harness/other.py", "<module>", "manual", reason="found by reading")]
+    inside = [hit_row(7, CLAIMS, "<module>", "manual", reason="found by reading")]
+    assert codes(seeded(tmp_path / "a", seed, extra=elsewhere)[0]) == ["E-SEED-MISSING"]
+    assert seeded(tmp_path / "b", seed, extra=inside)[0].exit_code == R.EXIT_OK
+
+
+def test_a_named_function_seed_needs_that_function_not_just_the_file(tmp_path):
+    seed = '[[place]]\nfile = "tools/pull.py"\nfunction = "fetch"\nreason = "runs git fetch"\n'
+    assert codes(seeded(tmp_path, seed)[0]) == ["E-SEED-MISSING"]
+
+
+def test_a_seeded_row_must_have_an_outcome(tmp_path):
+    result, _ = seeded(tmp_path, SEED_TOML, overrides={0: {"Outcome": ""}})
+    assert "E-HIT-NO-OUTCOME" in codes(result)                # the row exists but says nothing: the classification check refuses it
+
+
+EXPECTED_SEED = [               # exactly the places the capability lists, 15 October 2026
+    ("benchmarks/spec-bench/harness/annotate.py", "*"), ("benchmarks/spec-bench/harness/claims.py", "*"),
+    ("tools/anthropic-token-counter/src/corpus.rs", "*"),
+    ("tools/dbench/src/ingest/inputs.rs", "inputs_for"), ("tools/dbench/src/ingest/inputs.rs", "ids"), ("tools/dbench/src/ingest/inputs.rs", "read"),
+    ("benchmarks/spec-bench/harness/history.py", "_event_times"),
+    ("tools/dbench/src/collect.rs", "manifest"), ("tools/dbench/src/collect.rs", "resolve"), ("tools/dbench/src/collect.rs", "parse_name"),
+    ("tools/dbench/src/collector.rs", "plan"), ("tools/dbench/src/collector.rs", "pull_blob"), ("tools/dbench/src/collector.rs", "store_dir"),
+    ("tools/dbench/src/collector.rs", "classes_for"), ("tools/dbench/src/collector.rs", "wanted"),
+    ("tools/dbench/src/server.rs", "file_of"),
+    ("tools/benchmarker/server/domain.ts", "findRuns"), ("tools/benchmarker/server/sources.ts", "loadRuns"),
+    ("tools/vidi-gallery/src/runs.rs", "*"), ("tools/vidi-gallery/src/builds.rs", "*"), ("tools/vidi-gallery/src/main.rs", "*"),
+    ("ops/monitor/monitor.py", "git_json"),
+    ("benchmarks/spec-bench/harness/drive.py", "known_good_base"), ("benchmarks/spec-bench/harness/progress.py", "baselines"),
+    ("benchmarks/spec-bench/harness/logscan.py", "known_runs"), ("benchmarks/spec-bench/harness/judge.py", "*"),
+]
+
+
+def test_tc72_the_real_seed_holds_exactly_the_places_the_capability_lists_each_with_a_reason():
+    places = tomllib.loads((Path(__file__).parent / "audit" / "seed.toml").read_text())["place"]
+    assert sorted((p["file"], p["function"]) for p in places) == sorted(EXPECTED_SEED)
+    assert all(p["reason"].strip() for p in places)
+
+
+# ---- story 19: every seeded place exists in the real tree (TC-72 on the real repository; task 19.34) --------------------------------
+
+REAL_REPOSITORY = Path(__file__).resolve().parents[2]
+
+
+def seed_rot(repo: Path) -> list[str]:
+    """Seeded places that no longer exist in the tracked tree: a file that is not tracked, or a function the tool's own scan cannot find."""
+    seed = tomllib.loads((repo / "ops/refactor/audit/seed.toml").read_text())["place"]
+    tracked = set(sp.run(["git", "-C", str(repo), "ls-files"], capture_output=True, text=True, check=True).stdout.split("\n"))
+    rot = []
+    for place in seed:
+        file, function = place["file"], place["function"]
+        if file not in tracked:
+            rot.append(f"{file}::{function}: the file is not tracked")
+        elif function != "*":
+            language = R.SOURCE_LANGUAGES.get(Path(file).suffix)
+            names = {f.name.split(".")[-1] for f in R.functions_of(language, (repo / file).read_text())}
+            if function not in names:
+                rot.append(f"{file}::{function}: no such function in the file")
+    return rot
+
+
+def test_every_place_in_the_real_seed_exists_in_the_real_tree():
+    assert seed_rot(REAL_REPOSITORY) == []
+
+
+def test_a_planted_seed_naming_a_missing_file_and_a_missing_function_is_reported_with_the_entries_named(tmp_path):
+    repo = load_fixture_module("build_mini_repo").build(tmp_path / "audited")
+    seed = ('[[place]]\nfile = "tools/publish.py"\nfunction = "tracked_runs"\nreason = "lists tracked runs"\n'
+            '[[place]]\nfile = "tools/publish.py"\nfunction = "gone_function"\nreason = "was renamed"\n'
+            '[[place]]\nfile = "tools/gone.py"\nfunction = "*"\nreason = "was deleted"\n')
+    write(repo, "ops/refactor/audit/seed.toml", seed)
+    assert seed_rot(repo) == ["tools/publish.py::gone_function: no such function in the file", "tools/gone.py::*: the file is not tracked"]
