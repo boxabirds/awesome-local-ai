@@ -2487,7 +2487,7 @@ HIT_COLUMNS = ["Hit", "Place", "Function", "Source", "Access", "Via", "UseCase",
 QUERY_COLUMNS = ["Query", "Category", "Pattern", "Paths"]
 FINDING_COLUMNS = ["Finding", "Title", "Status"]
 AUDIT_FILES = {
-    "tools/pull.py": 'def pull(repo):\n    run(["git", "pull"])\n\n\ndef push(repo):\n    run(["git", "push"])\n',
+    "tools/pull.py": 'def pull(repo):\n    run("git pull")\n\n\ndef push(repo):\n    run("git push")\n',
     "ops/show.sh": "show() {\n  git show HEAD:x\n}\n",
     "lib/runs.py": 'def bundle_of(run):\n    return open(run + "/workspace.bundle")\n',
     "tests/test_hist.py": "def test_history():\n    run('git log')\n",
@@ -2537,6 +2537,8 @@ def file_grep(root: Path, pattern: str, paths: list[str]) -> list[tuple[str, int
         rel = f.relative_to(root).as_posix()
         if rel.startswith(AUDIT_DIR) or rel.startswith("ops/refactor/reports"):
             continue
+        if not any(q in (".", "") or rel == q or rel.startswith(q.rstrip("/") + "/") or (q == ":(glob)*.sh" and "/" not in rel and rel.endswith(".sh")) for q in paths):
+            continue                                                      # the query does not search this file
         for n, line in enumerate(f.read_text().splitlines(), start=1):
             if re.search(pattern, line):
                 found.append((rel, n))
@@ -2627,7 +2629,7 @@ def test_tc13_a_manual_hit_without_a_reason_is_refused(tmp_path):
 import subprocess as sp
 
 LS_TREE_FILES = {                  # three files that run `git ls-tree`, one of them also at module level
-    "tools/a.py": 'LISTING = "git ls-tree"\n\n\ndef lister(rev):\n    return run(["git", "ls-tree", rev])\n',
+    "tools/a.py": 'LISTING = "git ls-tree"\n\n\ndef lister(rev):\n    return run("git ls-tree " + rev)\n',
     "tools/b.sh": "tree() {\n  git ls-tree -r HEAD\n}\n",
     "lib/c.rs": 'pub fn list_tree() -> &\'static str {\n    "git ls-tree"\n}\n',
 }

@@ -38,6 +38,8 @@ passes against the stubs (the tool does it itself). `stage` alone prints the sta
 | `check-matrix U<n>` | the cross product of the dimensions in `matrices/U<n>.toml` has one test in every cell |
 | `check-coverage` | runs each suite under its coverage tool: 100% of the lines and branches inside every touched *function* (lcov) |
 | `check-stubs` | every touched function (or whole script) is replaced by the stub of its language |
+| `audit-run NN` | runs the queries of `audit/pass-NN.md` with `git grep` and writes each query's hits (file, line, function) to `reports/audit-hits-NN.json` |
+| `audit-check` | every pass file is well formed, searches the four categories over every scope folder, gives the hits its queries give when run again, and marks as new exactly the hits no earlier pass has; no file outside `audit/` changes |
 | `run-suites` | runs each suite with result output on; failing tests are data, so it exits 0 |
 | `report-deletion` | every assigned test failed for the stub's reason; none passed; no test outside the set failed |
 | `fates [--render PATH]` | every old test has one fate; every contract area has a new test seen failing; renders the table |

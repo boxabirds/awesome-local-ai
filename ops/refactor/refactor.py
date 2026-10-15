@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import ast
 import fnmatch
+import hashlib
 import itertools
 import json
 import os
@@ -31,6 +32,7 @@ import sys
 import tomllib
 from xml.etree import ElementTree
 from datetime import datetime, timezone
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1476,6 +1478,275 @@ def print_result(name: str, result: Result) -> None:
         print(f"  excused  {subject}  lines {', '.join(str(n) for n in row['lines'])}: {row['reason']}")
 
 
+# ---- the audit: numbered pass files of recorded searches (story 19) -----------------------------------------------------
+
+AUDIT_DIR = REFACTOR_DIR / "audit"
+PASS_FILE = re.compile(r"^pass-(\d{2,})\.md$")
+CATEGORIES = ("vcs-command", "tree-read", "host-url", "history-test")
+SCOPE_FOLDERS = ("benchmarks/spec-bench", "tools", "ops", "tests", "lib")          # every pass searches each of these ...
+ROOT_SHELL_SCOPE = ":(glob)*.sh"                                                  # ... and the shell scripts at the root
+WHOLE_REPOSITORY = (".", "")
+QUERY_COLUMNS = ("Query", "Category", "Pattern", "Paths")
+HIT_COLUMNS = ("Hit", "Place", "Function", "Source", "Access", "Via", "UseCase", "Outcome", "Reason", "New")
+FINDING_COLUMNS = ("Finding", "Title", "Status")
+PASS_PARTS = (("Queries", QUERY_COLUMNS), ("Hits", HIT_COLUMNS), ("Open findings", FINDING_COLUMNS))
+MANUAL_SOURCE = "manual"
+IS_NEW = "yes"
+AUDIT_EXCLUDE = f":(exclude){AUDIT_DIR.as_posix()}"       # the pass files hold the patterns, so no query searches them
+SOURCE_LANGUAGES = {".py": "python", ".rs": "rust", ".ts": "typescript", ".tsx": "typescript", ".sh": "shell", ".bash": "shell"}
+CHANGED_FILES_LISTING = ("ls-files", "-z", "--modified", "--others", "--deleted", "--exclude-standard")     # git: what differs from the last commit
+
+
+class PassFormatError(Exception):
+    """A pass file is missing a part, a column or the verdict line; the message says which."""
+
+
+@dataclass
+class Query:
+    id: str
+    category: str
+    pattern: str
+    paths: list[str]
+
+
+@dataclass
+class HitRow:
+    id: str
+    place: str
+    function: str
+    source: str
+    access: str
+    via: str
+    use_case: str
+    outcome: str
+    reason: str
+    new: str
+
+    @property
+    def identity(self) -> str:
+        return f"{self.place}::{self.function}"
+
+    @property
+    def manual(self) -> bool:
+        return self.source.strip().lower() == MANUAL_SOURCE
+
+    @property
+    def sources(self) -> list[str]:
+        return [s.strip() for s in self.source.split(",") if s.strip()]
+
+
+@dataclass
+class Pass:
+    number: int
+    path: Path
+    queries: list[Query]
+    hits: list[HitRow]
+    findings: list[dict]
+    verdict: str
+
+
+@dataclass
+class Hit:
+    file: str
+    line: int
+    function: str
+
+
+def split_cells(line: str) -> list[str]:
+    cells = re.split(r"(?<!\\)\|", line.strip())[1:-1]                      # a pipe inside a cell is written \|
+    return [c.strip().replace("\\|", "|").strip("`") if c.strip().startswith("`") else c.strip().replace("\\|", "|") for c in cells]
+
+
+def read_table(text: str, part: str, columns: tuple[str, ...], where: str) -> list[dict[str, str]]:
+    block = re.search(rf"^## {re.escape(part)}\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+    if not block:
+        raise PassFormatError(f"{where}: the part '{part}' is missing")
+    rows = [split_cells(line) for line in block.group(1).splitlines() if line.strip().startswith("|")]
+    if not rows:
+        raise PassFormatError(f"{where}: the part '{part}' has no table")
+    header, body = rows[0], [r for r in rows[1:] if not all(re.fullmatch(r":?-+:?", c) for c in r)]
+    for column in columns:
+        if column not in header:
+            raise PassFormatError(f"{where}: the {part} table has no column '{column}'")
+    return [dict(zip(header, r + [""] * (len(header) - len(r)))) for r in body]
+
+
+def parse_pass(path: Path) -> Pass:
+    """The queries, hits, open findings and verdict of one pass file. Raises PassFormatError naming what is missing."""
+    text, where = path.read_text(), path.name
+    parts = {name: read_table(text, name, columns, where) for name, columns in PASS_PARTS}
+    verdict = re.search(r"^verdict:\s*(.*)$", text, re.M | re.I)
+    if not verdict:
+        raise PassFormatError(f"{where}: the verdict line is missing")
+    return Pass(
+        number=int(PASS_FILE.match(path.name).group(1)), path=path,
+        queries=[Query(r["Query"], r["Category"], r["Pattern"], r["Paths"].split()) for r in parts["Queries"]],
+        hits=[HitRow(r["Hit"], r["Place"], r["Function"], r["Source"], r["Access"], r["Via"], r["UseCase"], r["Outcome"], r["Reason"], r["New"])
+              for r in parts["Hits"]],
+        findings=parts["Open findings"], verdict=verdict.group(1).strip())
+
+
+def python_spans(text: str) -> list[tuple[str, int, int]]:
+    spans: list[tuple[str, int, int]] = []
+
+    def walk(node: ast.AST, prefix: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                spans.append((prefix + child.name, child.lineno, child.end_lineno))
+                walk(child, prefix)
+            elif isinstance(child, ast.ClassDef):
+                walk(child, prefix + child.name + ".")
+            else:
+                walk(child, prefix)
+
+    walk(ast.parse(text), "")
+    return spans
+
+
+def function_at(root: Path, rel: str, line: int) -> str:
+    """The function a line of a tracked file belongs to, by the same scan the touched set uses; the file's top level otherwise."""
+    language = SOURCE_LANGUAGES.get(Path(rel).suffix)
+    if language is None:
+        return MODULE_LEVEL
+    text = (root / rel).read_text(errors="replace")
+    top = SCRIPT_LEVEL if language == "shell" else MODULE_LEVEL
+    if language == "python":
+        try:
+            spans = [s for s in python_spans(text) if s[1] <= line <= s[2]]
+        except SyntaxError:
+            return top
+        return min(spans, key=lambda s: s[2] - s[1])[0] if spans else top
+    for func in functions_of(language, text):
+        if func.name != top and func.start <= line < func.start + len(func.text.splitlines()):
+            return func.name
+    return top
+
+
+def git_grep(root: Path, pattern: str, paths: list[str]) -> list[tuple[str, int]]:
+    """`git grep -n -E` over the tracked files, the audit folder left out: (file, line) of every matching line."""
+    done = subprocess.run(["git", "-C", str(root), "grep", "-n", "-I", "-E", "-e", pattern, "--", *paths, AUDIT_EXCLUDE], capture_output=True, text=True)
+    if done.returncode == 1:
+        return []
+    if done.returncode != 0:
+        raise AdapterError(f"git grep failed: {done.stderr.strip()}")
+    return [(m.group(1), int(m.group(2))) for m in (re.match(r"(.+?):(\d+):", line) for line in done.stdout.splitlines()) if m]
+
+
+def run_queries(root: Path, pass_: Pass, grep=git_grep) -> dict[str, list[Hit]]:
+    """Each query of the pass run again: its hits, each attributed to its enclosing function."""
+    return {q.id: [Hit(f, n, function_at(root, f, n)) for f, n in sorted(set(grep(root, q.pattern, q.paths)))] for q in pass_.queries}
+
+
+def tree_snapshot(root: Path) -> dict[str, str | None]:
+    """Content hash of every file that differs from the repository's last commit, or is untracked and not ignored (None: deleted),
+    outside the audit folder, the reports and the tool's own list files. A command that must not change anything is held to this."""
+    skip = (AUDIT_DIR.as_posix() + "/", REPORTS_DIR.as_posix() + "/", TOUCHED_FILE.as_posix(), STAGE_FILE.as_posix())
+    listing = subprocess.run(["git", "-C", str(root), *CHANGED_FILES_LISTING], capture_output=True, text=True)
+    if listing.returncode == 0:
+        names = [n for n in listing.stdout.split("\0") if n]
+    else:                                                              # not a repository: every file counts
+        names = [p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()]
+    return {n: (hashlib.sha256((root / n).read_bytes()).hexdigest() if (root / n).is_file() else None)
+            for n in names if not n.startswith(skip) and n not in skip}
+
+
+def covers(path: str, scope: str) -> bool:
+    if scope == ROOT_SHELL_SCOPE:
+        return path in WHOLE_REPOSITORY or path in (ROOT_SHELL_SCOPE, "*.sh")
+    return path in WHOLE_REPOSITORY or path.rstrip("/") == scope or path.startswith(scope + "/")
+
+
+def check_pass_shape(root: Path, p: Pass, earlier: set[str], result: Result, grep) -> None:
+    """The checks of one pass that do not depend on its classification: queries, searched scope, new flags, reproducibility."""
+    where = p.path.name
+    for q in p.queries:
+        if q.category not in CATEGORIES:
+            result.fail("E-QUERY-CATEGORY", where, f"{q.id} has category '{q.category}'")
+    searched = {q.category for q in p.queries}
+    for category in CATEGORIES:
+        if category not in searched:
+            result.fail("E-CATEGORY-UNSEARCHED", where, f"no query in the category {category}")
+    for scope in (*SCOPE_FOLDERS, ROOT_SHELL_SCOPE):
+        if not any(covers(path, scope) for q in p.queries for path in q.paths):
+            result.fail("E-SCOPE-UNSEARCHED", where, f"no query over {scope}")
+    for row in p.hits:
+        if row.manual and not row.reason.strip():
+            result.fail("E-MANUAL-NO-REASON", where, f"{row.identity} is a manual hit with no reason")
+        if (row.identity not in earlier) != (row.new.strip().lower() == IS_NEW):
+            result.fail("E-NEW-MISMATCH", where, f"{row.identity} is marked New={row.new!r}")
+    returned: dict[str, set[str]] = {}
+    for qid, hits in run_queries(root, p, grep).items():
+        for h in hits:
+            returned.setdefault(f"{h.file}::{h.function}", set()).add(qid)
+    recorded = {row.identity for row in p.hits}
+    for row in p.hits:
+        if not row.manual and not set(row.sources) <= returned.get(row.identity, set()):
+            result.fail("E-PASS-NOT-REPRODUCIBLE", where, f"{row.identity} is recorded from {row.source} and the search does not return it")
+    for identity, queries in sorted(returned.items()):
+        if identity not in recorded:
+            result.fail("E-PASS-NOT-REPRODUCIBLE", where, f"{identity} is returned by {', '.join(sorted(queries))} and is not recorded")
+
+
+def check_audit(root: Path, grep=git_grep, snapshot=tree_snapshot) -> Result:
+    """Every pass file is well formed, searches all four categories over every scope folder, gives the hits anyone gets by running its
+    queries again, and marks as new exactly the hits no earlier pass has. The command changes no file outside the audit folder."""
+    result = Result()
+    before = snapshot(root)
+    folder = root / AUDIT_DIR
+    numbers = sorted(int(m.group(1)) for f in (folder.iterdir() if folder.is_dir() else []) if (m := PASS_FILE.match(f.name)))
+    if not numbers:
+        result.fail("E-AUDIT-NONE", AUDIT_DIR.as_posix(), "no pass file: the audit has not been run")
+    for n in range(1, (numbers[-1] if numbers else 0) + 1):
+        if n not in numbers:
+            result.fail("E-PASS-GAP", AUDIT_DIR.as_posix(), f"pass {n:02d} is missing")
+    summaries: list[dict] = []
+    if result.exit_code == EXIT_OK:
+        passes: list[Pass] = []
+        for n in numbers:
+            try:
+                passes.append(parse_pass(folder / f"pass-{n:02d}.md"))
+            except PassFormatError as exc:
+                result.fail("E-PASS-FORMAT", f"pass-{n:02d}.md", str(exc))
+        if result.exit_code == EXIT_OK:
+            earlier: set[str] = set()
+            for p in passes:
+                check_pass_shape(root, p, earlier, result, grep)
+                summaries.append({"pass": p.number, "queries": len(p.queries), "hits": len(p.hits),
+                                  "new": sum(1 for r in p.hits if r.identity not in earlier),
+                                  "outcomes": dict(Counter(r.outcome for r in p.hits))})
+                earlier |= {r.identity for r in p.hits}
+    after = snapshot(root)
+    for name in sorted(set(before) | set(after)):
+        if before.get(name, "absent") != after.get(name, "absent"):
+            result.fail("E-AUDIT-WROTE", name, "the audit changed a file outside the audit folder")
+    result.data["passes"] = summaries
+    write_report(root, "audit", result)
+    return result
+
+
+def audit_run(root: Path, number: int, grep=git_grep, snapshot=tree_snapshot) -> Result:
+    """Run the queries of pass NN and write each query's hits (file, line, function) to reports/audit-hits-NN.json."""
+    result = Result()
+    before = snapshot(root)
+    path = root / AUDIT_DIR / f"pass-{number:02d}.md"
+    if not path.exists():
+        result.fail("E-AUDIT-NONE", path.name, "no such pass file")
+        return result
+    try:
+        found = run_queries(root, parse_pass(path), grep)
+    except PassFormatError as exc:
+        result.fail("E-PASS-FORMAT", path.name, str(exc))
+        return result
+    after = snapshot(root)
+    for name in sorted(set(before) | set(after)):
+        if before.get(name, "absent") != after.get(name, "absent"):
+            result.fail("E-AUDIT-WROTE", name, "the audit changed a file outside the audit folder")
+    result.data["pass"] = number
+    result.data["queries"] = {q: [vars(h) for h in hits] for q, hits in found.items()}
+    write_report(root, f"audit-hits-{number:02d}", result)
+    return result
+
+
 SCOPED_COMMANDS = ("check-stubs", "report-deletion", "check-coverage", "stage", "check-touched-set")    # the ones that act on the whole list
 
 
@@ -1496,11 +1767,13 @@ def main(argv: list[str] | None = None) -> int:
                        ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every file in the whole touched set"),
                        ("report-deletion", "every assigned test failed against the stubs of the whole touched set, read from the files run-suites wrote"),
                        ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)"),
+                       ("audit-check", "every audit pass is well formed, gives the hits its recorded queries give, and marks its new hits correctly"),
                        ("measure-touch", "run the Python suite under coverage, a context per test, to learn which tests touch the touched set")):
         sub.add_parser(name, help=text, description=text)
     build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
     build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
     sub.choices["fates"].add_argument("--render", help="write the fates table (Markdown) to this path")
+    sub.add_parser("audit-run", help="run the queries of audit pass NN and write their hits to reports/audit-hits-NN.json").add_argument("number", type=int)
     sub.add_parser("guard-idle", help="exit 0 when no job is running on the node (from `dbench status --json NODE`), 1 naming the job and story, 2 when unknown").add_argument("node")
     sub.choices["check-coverage"].add_argument("--language", choices=LANGUAGES, action="append", help="measure only this language (repeatable)")
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
@@ -1515,6 +1788,7 @@ def main(argv: list[str] | None = None) -> int:
         "check-stubs": lambda: check_stubs(root),
         "fates": lambda: merged(check_fates(root), check_contracts(root, read_results(root))),
         "check-coverage": lambda: check_coverage(root, languages=set(args.language) if args.language else None),
+        "audit-check": lambda: check_audit(root),
         "run-suites": lambda: run_suites(root),
         "measure-touch": lambda: measure_touch(root),
     }
@@ -1538,6 +1812,8 @@ def main(argv: list[str] | None = None) -> int:
             result = check_matrix(root, args.use_case, lister)
         elif args.command == "report-deletion":
             result = report_deletion(root, read_results(root))
+        elif args.command == "audit-run":
+            result = audit_run(root, args.number)
         elif args.command == "guard-idle":
             result = run_guard_idle(args.node)
         elif args.command == "stage":
