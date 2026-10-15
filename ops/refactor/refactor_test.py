@@ -2792,8 +2792,9 @@ def test_tc25_tc20_tc26_require_final_as_a_process_single_pass_final_pass_and_re
     repo = load_fixture_module("build_mini_repo").build(tmp_path / "audited")
     for rel, text in LS_TREE_FILES.items():
         write(repo, rel, text)
+    run_git(repo, "add", "-A")                                                                       # git grep searches tracked files only
     known = write_pass_from_audit_run(repo, 1, REAL_QUERIES, set(), "verdict: another pass required, first pass")
-    assert known, "the real search found hits to record"
+    assert {"tools/a.py::lister", "tools/b.sh::tree", "lib/c.rs::list_tree"} <= known, "the real search found the three ls-tree users"
     one = tool(repo, "audit-check", "--require-final")                                             # TC-25: one pass only
     assert one.returncode == R.EXIT_FAIL and "E-NOT-FINAL" in one.stdout
     assert json.loads((repo / "ops/refactor/reports/audit.json").read_text())["final_pass"] is None
@@ -3194,6 +3195,7 @@ def test_tc56_an_unlisted_function_the_derivation_matches_is_still_refused_when_
     repo = load_fixture_module("build_mini_repo").build(tmp_path / "audited")
     for rel, text in LS_TREE_FILES.items():
         write(repo, rel, text)
+    run_git(repo, "add", "-A")                                                                       # git grep searches tracked files only
     known = write_pass_from_audit_run(repo, 1, REAL_QUERIES, set(), "verdict: another pass required, first pass")
     write_pass_from_audit_run(repo, 2, REAL_QUERIES + [NEW_QUERY_Q5], known, "verdict: final")
     write(repo, "ops/refactor/classes.toml", DERIVATION_CLASSES)
