@@ -2307,3 +2307,39 @@ def test_a_matrix_required_naming_an_unknown_use_case_is_refused(tmp_path):
 def test_the_real_use_cases_file_has_fourteen_use_cases_and_the_key_is_top_level_not_a_fifteenth_use_case():
     data = tomllib.loads((Path(__file__).parent / "use_cases.toml").read_text())
     assert data["matrix_required"] == ["U1"] and len(data["use_cases"]) == 14 and "matrix_required" not in data["use_cases"]
+
+
+# ---- story 19 fixtures: the stubbed excerpts of story 5 and the mini repository with a history (task 19.1) ----------
+
+FIXTURES = Path(__file__).parent / "fixtures"
+STORY5_STUBBED = {"collect.rs": 5, "collector.rs": 5, "server.rs": 1}      # file -> how many bodies story 5 stubbed
+
+
+def load_fixture_module(name: str):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(name, FIXTURES / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_story_5_excerpts_are_the_pinned_commit_with_eleven_bodies_stubbed_and_a_rebuild_matches():
+    dest = FIXTURES / "real" / "story5"
+    for file, count in STORY5_STUBBED.items():
+        assert (dest / file).read_text().count("todo!()") == count, file
+    assert "e89785fbb" in (dest / "NOTE.md").read_text(), "the pinned commit is recorded"
+    assert load_fixture_module("make_story5_stubs").main(["--check"]) == 0, "the committed excerpts differ from a rebuild at the pinned commit"
+
+
+def test_the_mini_repository_builds_with_a_three_commit_history_and_a_git_user_in_each_category(tmp_path):
+    import subprocess
+    repo = load_fixture_module("build_mini_repo").build(tmp_path / "mini")
+    log = subprocess.run(["git", "-C", str(repo), "log", "--format=%s"], capture_output=True, text=True, check=True).stdout.splitlines()
+    assert log == ["vidi/m1/run-1: rescored", "vidi/m1/run-1: run finished", "mini: the code"]
+    assert "git" in (repo / "tools/publish.py").read_text() and "ls-files" in (repo / "tools/publish.py").read_text()   # Python subprocess
+    assert "git push" in (repo / "tools/publish.sh").read_text()                                                          # shell
+    assert '"runs"' in (repo / "tools/read_run.py").read_text()                                                           # tracked path
+    first = subprocess.run(["git", "-C", str(repo), "show", "HEAD~1:runs/vidi/m1/run-1/metrics.json"], capture_output=True, text=True, check=True).stdout
+    assert first.strip() == '{"passed": 7}' and (repo / "runs/vidi/m1/run-1/metrics.json").read_text().strip() == '{"passed": 9}'
+    status = subprocess.run(["git", "-C", str(repo), "status", "--short"], capture_output=True, text=True, check=True).stdout
+    assert status == "", "the repository is clean after the build"
