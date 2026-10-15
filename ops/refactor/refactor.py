@@ -1677,24 +1677,45 @@ def python_spans(text: str) -> list[tuple[str, int, int]]:
     return spans
 
 
+LEADING_LINE = {                       # a line that belongs to the function it sits directly above (no blank line between)
+    "python": re.compile(r"\s*(#|@)"), "shell": re.compile(r"\s*#"),
+    "rust": re.compile(r"\s*(//|/\*|\*|#\[)"), "typescript": re.compile(r"\s*(//|/\*|\*|@)"),
+}
+
+
+def leading_start(lines: list[str], definition: int, language: str) -> int:
+    """The 1-based line where a function really starts: its definition line, moved up over the comment, doc, attribute or decorator
+    lines directly above it."""
+    first = definition - 1
+    while first > 0 and LEADING_LINE[language].match(lines[first - 1]):
+        first -= 1
+    return first + 1
+
+
 def function_at(root: Path, rel: str, line: int) -> str:
-    """The function a line of a tracked file belongs to, by the same scan the touched set uses; the file's top level otherwise."""
+    """The function a line of a tracked file belongs to, by the same scan the touched set uses; the file's top level otherwise. A comment
+    block directly above a function belongs to it."""
     language = SOURCE_LANGUAGES.get(Path(rel).suffix)
     if language is None:
         return MODULE_LEVEL
     text = (root / rel).read_text(errors="replace")
+    lines = text.splitlines()
     top = SCRIPT_LEVEL if language == "shell" else MODULE_LEVEL
     if language == "python":
         try:
-            spans = [s for s in python_spans(text) if s[1] <= line <= s[2]]
+            spans = [(name, leading_start(lines, first, language), last) for name, first, last in python_spans(text)]
         except SyntaxError:
             return top
+        spans = [s for s in spans if s[1] <= line <= s[2]]
         return min(spans, key=lambda s: s[2] - s[1])[0] if spans else top
     marker = RUST_TEST_MODULE.search(text) if language == "rust" else None
     if marker and line > text[:marker.start()].count("\n"):
         return TESTS_LEVEL
-    for func in functions_of(language, text):
-        if func.name != top and func.start <= line < func.start + len(func.text.splitlines()):
+    funcs = [f for f in functions_of(language, text) if f.name != top]
+    starts = [leading_start(lines, f.start, language) for f in funcs]
+    for i, func in enumerate(funcs):
+        last = (starts[i + 1] - 1) if i + 1 < len(funcs) else func.start + len(func.text.splitlines()) - 1
+        if starts[i] <= line <= last:
             return func.name
     return top
 
