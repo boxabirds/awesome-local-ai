@@ -3359,3 +3359,80 @@ def test_tc67_a_process_killed_while_it_writes_the_back_move_leaves_the_old_or_t
 def datetime_for_tests():
     import datetime
     return datetime.datetime(2026, 10, 15, tzinfo=datetime.timezone.utc)
+
+
+# ---- story 19: the whole workflow on the miniature project (W-1 and W-2; tasks 19.26 and 19.27) ------------------------------------
+
+W_QUERIES = [                    # queries tuned to the four functions of the mini project; two categories find nothing there
+    ("Q1", "vcs-command", r"kept\.append", "."), ("Q2", "tree-read", r"\{data_root\}", "."),
+    ("Q3", "host-url", r"zz-nothing-host-zz", "."), ("Q4", "history-test", r"zz-nothing-history-zz", "."),
+]
+W_Q5, W_Q6 = ("Q5", "vcs-command", r"listing\.lines", "."), ("Q6", "vcs-command", r"run\.title \?\?", ".")
+W_Q7 = ("Q7", "vcs-command", r"kept = \[\]", ".")                  # a new search that finds only what Q1 already found
+W_Q8 = ("Q8", "vcs-command", r"git pull", ".")                     # finds the git read added in W-2
+W_Q9 = ("Q9", "vcs-command", r"run\(.git pull.\)", ".")            # a new search that finds only what Q8 found
+GIT_IGNORE = "node_modules\ntarget/\n__pycache__/\n.pytest_cache/\n.coverage\nops/refactor/reports/\n"
+
+
+def mini_audit_repo(tmp_path: Path) -> Path:
+    """The mini project at stage Matrices with a matrix for each use case, as a git repository."""
+    root = mini_at_matrices(tmp_path)
+    write(root, ".gitignore", GIT_IGNORE)
+    sp.run(["git", "-C", str(root), "init", "-q", "-b", "main"], check=True, capture_output=True)
+    run_git(root, "add", "-A")
+    run_git(root, "commit", "-q", "-m", "the mini project")
+    return root
+
+
+def run_w1(tmp_path: Path) -> tuple[Path, set[str], str]:
+    """W-1: three passes reach a final audit, the list is extended to equal it, the stage goes back and is proved again."""
+    repo = mini_audit_repo(tmp_path)
+    touched_file = repo / "ops/refactor/touched_set.toml"
+    full = touched_file.read_text()
+    touched_file.write_text(without_entry(full, "titleOf"))                       # the list as it stands: three of the four members
+    known = write_pass_from_audit_run(repo, 1, W_QUERIES, set(), ANOTHER)
+    known = write_pass_from_audit_run(repo, 2, W_QUERIES + [W_Q5, W_Q6], known, ANOTHER)         # new hits: count_lines, titleOf
+    known = write_pass_from_audit_run(repo, 3, W_QUERIES + [W_Q5, W_Q6, W_Q7], known, FINAL)     # one new query, no new hit
+    final = tool(repo, "audit-check", "--require-final")                          # TC-20
+    assert final.returncode == R.EXIT_OK, final.stdout
+    assert json.loads((repo / "ops/refactor/reports/audit.json").read_text())["final_pass"] == 3
+    refused = tool(repo, "check-touched-set")                                     # the list lacks titleOf, which pass 02 found
+    assert refused.returncode == R.EXIT_FAIL and "E-AUDIT-MISSING-FROM-SET  ts/src/core.ts::titleOf" in refused.stdout and "pass 02" in refused.stdout
+    assert tool(repo, "stage", "Proved").returncode == R.EXIT_OK                  # the first proof is over three members
+    assert stage_file(repo)["proved_members"]["count"] == 3
+    touched_file.write_text(full)                                                 # the list is extended to equal the audit
+    equal = tool(repo, "check-touched-set")                                       # TC-50
+    assert equal.returncode == R.EXIT_OK, equal.stdout
+    assert equal.stdout.splitlines()[-1] == "counts: protected hits 4, entries 4, excluded hits 0, intrinsic hits 0"
+    moved = tool(repo, "stage")                                                   # the stage goes back (E-MEMBER-UNPROVED)
+    assert moved.returncode == R.EXIT_FAIL and "E-MEMBER-UNPROVED" in moved.stdout and stage_file(repo)["stage"] == "Matrices"
+    reproved = tool(repo, "stage", "Proved")                                      # TC-66: the matrices and coverage are complete
+    assert reproved.returncode == R.EXIT_OK, reproved.stdout + reproved.stderr
+    state = stage_file(repo)
+    assert state["stage"] == "Proved" and state["proved_members"]["count"] == 4
+    return repo, known, state["proved_members"]["digest"]
+
+
+def test_w1_three_passes_reach_a_final_audit_the_list_is_extended_and_the_stage_is_proved_again(coverage_tools, tmp_path):
+    run_w1(tmp_path)
+
+
+def test_w2_a_late_find_reopens_the_audit_and_the_list_check_refuses_until_a_new_pass_closes_it(coverage_tools, tmp_path):
+    repo, known, digest = run_w1(tmp_path)
+    write(repo, "py/minipy/fetchy.py", 'def pull_more():\n    return run("git pull")\n')
+    run_git(repo, "add", "py/minipy/fetchy.py")
+    known = write_pass_from_audit_run(repo, 4, W_QUERIES + [W_Q5, W_Q6, W_Q7, W_Q8], known, ANOTHER)       # pass 04 finds the new git read
+    reopened = tool(repo, "audit-check", "--require-final")
+    report = json.loads((repo / "ops/refactor/reports/audit.json").read_text())
+    assert reopened.returncode == R.EXIT_FAIL and "E-NOT-FINAL" in reopened.stdout and report["final_pass"] is None and report["final_reason"] == "new-hits"
+    refused = tool(repo, "check-touched-set")
+    assert refused.returncode == R.EXIT_FAIL and "E-NO-FINAL-AUDIT" in refused.stdout
+    assert stage_file(repo)["proved_members"]["digest"] == digest, "no member has been added to the list yet, so the proof stands"
+    known = write_pass_from_audit_run(repo, 5, W_QUERIES + [W_Q5, W_Q6, W_Q7, W_Q8, W_Q9], known, FINAL)    # a new search, no new hit: final again
+    assert tool(repo, "audit-check", "--require-final").returncode == R.EXIT_OK
+    touched_file = repo / "ops/refactor/touched_set.toml"
+    touched_file.write_text(touched_file.read_text() + entry("python", "py/minipy/fetchy.py", "pull_more", '"B"'))
+    equal = tool(repo, "check-touched-set")
+    assert equal.returncode == R.EXIT_OK and equal.stdout.splitlines()[-1] == "counts: protected hits 5, entries 5, excluded hits 0, intrinsic hits 0", equal.stdout
+    moved = tool(repo, "stage")
+    assert moved.returncode == R.EXIT_FAIL and "py/minipy/fetchy.py::pull_more" in moved.stdout and stage_file(repo)["stage"] == "Matrices"
