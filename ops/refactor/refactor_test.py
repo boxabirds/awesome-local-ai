@@ -3503,3 +3503,21 @@ LEADING_TS = "export function first() {\n  return 1\n}\n/** docs of second: git 
 def test_a_comment_block_directly_above_a_function_belongs_to_that_function(tmp_path, rel, text, line, expected):
     write(tmp_path, rel, text)
     assert R.function_at(tmp_path, rel, line) == expected
+
+
+# ---- story 19: a file is parsed once however many hits fall in it (task 19.38) --------------------------------------------------------
+
+def test_function_at_parses_a_file_once_for_many_hits_and_again_when_the_file_changes(tmp_path, monkeypatch):
+    write(tmp_path, "src/x.rs", RUST_WITH_TESTS)
+    write(tmp_path, "src/x.py", "def a():\n    return 1\n\n\ndef b():\n    return 2\n")
+    calls = []
+    real_functions_of, real_python_spans = R.functions_of, R.python_spans
+    monkeypatch.setattr(R, "functions_of", lambda *a, **k: calls.append("functions_of") or real_functions_of(*a, **k))
+    monkeypatch.setattr(R, "python_spans", lambda *a, **k: calls.append("python_spans") or real_python_spans(*a, **k))
+    R.function_at.__globals__.get("parsed_file", lambda *a: None)             # the cache, if any, starts empty for this file
+    for line in (1, 2, 3, 4, 5):
+        R.function_at(tmp_path, "src/x.rs", line)
+        R.function_at(tmp_path, "src/x.py", line)
+    assert calls.count("functions_of") <= 1 and calls.count("python_spans") <= 1, calls
+    write(tmp_path, "src/x.py", "def a():\n    return 1\n\n\ndef b():\n    return 2\n\n\ndef c():\n    return 3\n")
+    assert R.function_at(tmp_path, "src/x.py", 9) == "c", "a changed file is read again, not answered from a stale cache"
