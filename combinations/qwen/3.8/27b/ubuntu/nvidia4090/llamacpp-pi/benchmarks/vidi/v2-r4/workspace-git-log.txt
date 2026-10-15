@@ -1,3 +1,50 @@
+commit e54fdfda3f2b7d4468cb059345f036a3af403a19
+agent  Thu Oct 15 07:01:59 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                |  86 +++++++
+ PROGRESS.md                             |  24 +-
+ src/client/board/Marquee.tsx            | 118 ++++++++++
+ src/client/board/SelectionBar.tsx       | 115 ++++++++++
+ src/client/board/SelectionOverlay.tsx   | 113 +++++++++
+ src/client/board/useBoardDoc.ts         |  17 +-
+ src/client/board/useBoardKeys.ts        | 141 ++++++++++++
+ src/client/board/useSelection.ts        | 233 +++++++++++--------
+ src/client/board/useTransformGesture.ts | 394 +++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  55 +++++
+ src/client/canvas/testHooks.ts          |   7 +-
+ src/client/objects/StickyNote.tsx       | 332 +++++++-------------------
+ src/client/objects/StickyTextEditor.tsx |  14 +-
+ src/client/objects/registry.tsx         | 106 +++++++++
+ src/client/pages/BoardPage.tsx          | 170 ++++++++++----
+ src/client/styles.css                   | 110 ++++++++-
+ src/shared/board-model.ts               | 308 ++++++++++++++++++++++---
+ src/shared/config.ts                    |  13 ++
+ src/shared/geometry.ts                  | 242 +++++++++++++++++++
+ tests/component/Marquee.test.tsx        | 147 ++++++++++++
+ tests/component/Selection.test.tsx      | 297 ++++++++++++++++++++++++
+ tests/component/Transform.test.tsx      | 210 +++++++++++++++++
+ tests/component/boardHarness.tsx        | 189 +++++++++++++++
+ tests/component/pages.test.tsx          |   1 +
+ tests/component/stickyHarness.tsx       | 109 ++++++---
+ tests/e2e/selection.spec.ts             | 396 ++++++++++++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts          |   3 +
+ tests/fixtures/testbox.tsx              | 111 +++++++++
+ tests/unit/board-model-group.test.ts    | 189 +++++++++++++++
+ tests/unit/geometry.test.ts             | 158 +++++++++++++
+ tests/unit/registry.test.ts             |  55 +++++
+ tests/unit/selection.test.ts            | 111 +++++++++
+ 32 files changed, 4112 insertions(+), 462 deletions(-)
+commit bf0b898a3637f73654cd6d5084b7c9359b97bbd7
+vidi-agent  Thu Oct 15 05:03:41 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 3159eff8a08b13395c3c33eaccf71c5325644b08
 agent  Thu Oct 15 05:00:02 2026 +0100
 
