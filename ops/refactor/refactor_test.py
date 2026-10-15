@@ -2467,3 +2467,10 @@ def test_tc102_the_scope_line_of_the_real_touched_set_counts_what_the_file_holds
     n, m = touched_counts(real)
     assert tuple(int(x) for x in SCOPE_LINE.match(lines[0]).groups()) == (n, m)
 
+
+
+def test_check_coverage_with_no_coverage_command_for_a_language_is_undecided_not_a_traceback(tmp_path):
+    # found 15 Oct 2026 while testing the scope line on a root with no runners.toml: spec["command"] raised KeyError
+    root = make_code_root(tmp_path, {"src/a.py": "def record():\n    return 1\n"}, touched=entry())
+    result = R.check_coverage(root)
+    assert result.exit_code == R.EXIT_ERROR and codes(result) == ["E-NO-COVERAGE-RUNNER"]

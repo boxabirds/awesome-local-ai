@@ -895,6 +895,10 @@ class SuiteRed(Exception):
     """The suite failed under coverage: a red suite is never accepted as a proof (exit 2)."""
 
 
+class NoRunner(Exception):
+    """runners.toml has no coverage command for a language that has touched functions: exit 2, not a traceback."""
+
+
 class NotMeasured(Exception):
     """This language cannot be measured here (kcov on macOS): reported as not measured, never as passed."""
 
@@ -1000,6 +1004,8 @@ def run_coverage(root: Path, language: str, spec: dict) -> dict[str, FileLines]:
     outdir.mkdir(parents=True)
     if language == "shell":
         return run_kcov(root, outdir, spec)
+    if not spec.get("command"):
+        raise NoRunner(language)
     out = outdir / spec.get("file", "coverage.json")       # a tool that writes a folder names the file it writes there
     command = [part.replace(COVERAGE_OUT, str(out)).replace(COVERAGE_OUTDIR, str(outdir)) for part in spec["command"]]
     try:
@@ -1046,6 +1052,9 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
                     spec["tests"] = sorted(shell_touching(root, entries, every))
                     spec["scripts"] = sorted({e["file"] for e in entries})
                 measured |= runner(root, language, spec)
+        except NoRunner as exc:
+            result.error("E-NO-COVERAGE-RUNNER", language, f"runners.toml has no coverage command for {exc}")
+            continue
         except NotMeasured as exc:
             not_measured[language] = str(exc)
             continue
