@@ -215,6 +215,11 @@ pub fn dest_dir(store: &Path, reference: &Path, node: &str, run: &str) -> Option
 
 /// Which classes of file a run's destination takes: a reference model's run takes its records only, so the lake never
 /// holds its uncompacted transcript.
+///
+/// A reading of decision 11 (the owner, 10 Oct 2026: reference-model runs live under reference/), raised with the owner and
+/// not settled by it: a reference model's compact conversation log is a record file (the design's inventory says
+/// 'records, compact logs, bundles') and is collected; its uncompacted transcript, the Raw class, is not. The test this
+/// replaces ('the lake holds no Claude transcript') asserted the opposite for both.
 pub fn classes_for(run: &str) -> &'static [Class] {
     if run.starts_with(REFERENCE_RUN_PREFIX) {
         &[Class::Record]
