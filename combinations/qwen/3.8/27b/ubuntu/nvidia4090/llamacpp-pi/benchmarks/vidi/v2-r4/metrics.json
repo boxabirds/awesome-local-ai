@@ -3974,6 +3974,19 @@
           "11": "done",
           "5": "done"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4/server.log"
+        ],
+        "private": {
+          "copied": 27,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "749905d6e"
       }
     }
   },
