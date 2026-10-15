@@ -2514,14 +2514,14 @@ def hit_row(n: int, place: str, function: str, source: str, new: str = "yes", re
     return [f"H{n}", place, function, source, "reader", "command", use_case, outcome, reason, new]
 
 
-def pass_md(queries=AUDIT_QUERIES, hits=AUDIT_HITS, verdict="verdict: another pass required, first pass", new_flags=None, hit_columns=HIT_COLUMNS, extra_hits=(), default_new="yes", overrides=None) -> str:
+def pass_md(queries=AUDIT_QUERIES, hits=AUDIT_HITS, verdict="verdict: another pass required, first pass", new_flags=None, hit_columns=HIT_COLUMNS, extra_hits=(), default_new="yes", overrides=None, findings=()) -> str:
     rows = [hit_row(i + 1, p, f, s, (new_flags or {}).get(i, default_new)) for i, (p, f, s) in enumerate(hits)] + list(extra_hits)
     for index, columns in (overrides or {}).items():                    # {row index: {column name: value}}
         for column, value in columns.items():
             rows[index][HIT_COLUMNS.index(column)] = value
     rows = [[c for c, name in zip(r, HIT_COLUMNS) if name in hit_columns] for r in rows]
     return ("# Audit pass\n\n## Queries\n\n" + md_table(QUERY_COLUMNS, [[q, c, f"`{p}`", paths] for q, c, p, paths in queries])
-            + "\n## Hits\n\n" + md_table(hit_columns, rows) + "\n## Open findings\n\n" + md_table(FINDING_COLUMNS, []) + f"\n{verdict}\n")
+            + "\n## Hits\n\n" + md_table(hit_columns, rows) + "\n## Open findings\n\n" + md_table(FINDING_COLUMNS, [list(f) for f in findings]) + f"\n{verdict}\n")
 
 
 def audit_root(tmp_path: Path, passes: dict[int, str] | None = None, files: dict[str, str] | None = None) -> Path:
@@ -2992,3 +2992,104 @@ def test_a_planted_seed_naming_a_missing_file_and_a_missing_function_is_reported
             '[[place]]\nfile = "tools/gone.py"\nfunction = "*"\nreason = "was deleted"\n')
     write(repo, "ops/refactor/audit/seed.toml", seed)
     assert seed_rot(repo) == ["tools/publish.py::gone_function: no such function in the file", "tools/gone.py::*: the file is not tracked"]
+
+
+# ---- story 19: findings that are not code stay listed until the owner closes them (TC-80 to TC-85; task 19.18) ------------------
+
+F01 = ("F-01", "ten finished runs hold the only copy of the final source tree", "open")
+OPEN_FINDING = '[[finding]]\nid = "F-01"\ntitle = "ten finished runs hold the only copy of the final source tree"\ndetail = "archive them first"\nstatus = "open"\n'
+CLOSED_WITH_RECORD = OPEN_FINDING.replace('status = "open"', 'status = "closed"\nclosed_on = "2026-10-20"\nclosed_by = "owner decision, archived in the owner\'s store"')
+CLOSED_WITHOUT_RECORD = OPEN_FINDING.replace('status = "open"', 'status = "closed"\nclosed_on = "2026-10-20"\nclosed_by = ""')
+
+
+def with_findings(tmp_path: Path, findings_toml: str, first=(F01,), second=(F01,)):
+    root = audit_root(tmp_path, passes={1: pass_md(findings=first), 2: later_pass_with(second)})
+    write(root, f"{AUDIT_DIR}/findings.toml", findings_toml)
+    return check(root), root
+
+
+def later_pass_with(findings) -> str:
+    return pass_md(queries=AUDIT_QUERIES + [EXTRA_QUERY], default_new="no", findings=findings, verdict=ANOTHER)
+
+
+def test_tc80_an_open_finding_listed_in_every_pass_is_accepted(tmp_path):
+    result, _ = with_findings(tmp_path, OPEN_FINDING)
+    assert result.exit_code == R.EXIT_OK, [(p.code, p.detail) for p in result.problems]
+
+
+def test_tc81_a_pass_that_omits_an_open_finding_is_refused_naming_it(tmp_path):
+    result, _ = with_findings(tmp_path, OPEN_FINDING, second=())
+    assert codes(result) == ["E-FINDING-DROPPED"] and "F-01" in result.problems[0].detail and result.problems[0].subject == "pass-02.md"
+
+
+def test_tc82_a_pass_that_lists_an_id_not_in_the_findings_file_is_refused(tmp_path):
+    result, _ = with_findings(tmp_path, OPEN_FINDING, second=(F01, ("F-09", "not recorded", "open")))
+    assert codes(result) == ["E-FINDING-UNKNOWN"] and "F-09" in result.problems[0].detail
+
+
+def test_tc83_a_closed_finding_without_a_date_and_a_reference_is_refused(tmp_path):
+    result, _ = with_findings(tmp_path, CLOSED_WITHOUT_RECORD)
+    assert codes(result) == ["E-FINDING-CLOSE-NO-RECORD"] and "F-01" in result.problems[0].detail
+
+
+def test_tc84_a_closed_finding_with_its_record_is_accepted_and_the_passes_before_it_still_list_it_as_open(tmp_path):
+    result, _ = with_findings(tmp_path, CLOSED_WITH_RECORD, first=(F01,), second=())
+    assert result.exit_code == R.EXIT_OK, [(p.code, p.detail) for p in result.problems]
+
+
+def test_the_tool_never_changes_a_findings_status(tmp_path):
+    result, root = with_findings(tmp_path, OPEN_FINDING, second=())
+    assert codes(result) == ["E-FINDING-DROPPED"]
+    assert (root / AUDIT_DIR / "findings.toml").read_text() == OPEN_FINDING
+
+
+F01_RUNS = [
+    "benchmarks/reference/todoodle/opus-5.5/run-1", "benchmarks/reference/todoodle/opus-5.5/run-2",
+    "benchmarks/reference/vidi/opus-5.5/run-1", "benchmarks/reference/vidi/sonnet-5.5/v2-r2", "benchmarks/reference/vidi/sonnet-5.5/v2-r3",
+    "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4",
+    "combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4",
+    "combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/benchmarks/vidi/strata-s2on-r1",
+    "combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/benchmarks/vidi/v2-strata0141-r2",
+    "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/strata-pi/benchmarks/vidi/v2-stratastrix-r1",
+]
+
+
+def test_tc85_the_real_findings_file_has_f_01_open_and_naming_the_ten_run_folders():
+    findings = {f["id"]: f for f in tomllib.loads((Path(__file__).parent / "audit" / "findings.toml").read_text())["finding"]}
+    assert findings["F-01"]["status"] == "open" and findings["F-01"]["runs"] == F01_RUNS and len(F01_RUNS) == 10
+
+
+# ---- story 19: while F-01 is open the ten runs really have a tracked workspace and no bundle (TC-85 on the real repository; task 19.35) ----
+
+def finding_untrue(repo: Path) -> list[str]:
+    """For each open finding that names runs: the runs that no longer have tracked workspace files and no bundle (the finding is stale)."""
+    stale = []
+    tracked = sp.run(["git", "-C", str(repo), "ls-files"], capture_output=True, text=True, check=True).stdout.split("\n")
+    for finding in tomllib.loads((repo / "ops/refactor/audit/findings.toml").read_text())["finding"]:
+        if finding["status"] != "open":
+            continue                                          # closed by the owner: nothing is asserted about the tree
+        for run in finding.get("runs", []):
+            if f"{run}/workspace.bundle" in tracked:
+                stale.append(f"{finding['id']}: {run} has a bundle")
+            elif not any(f.startswith(f"{run}/workspace/") for f in tracked):
+                stale.append(f"{finding['id']}: {run} has no tracked workspace")
+    return stale
+
+
+def test_while_f_01_is_open_its_ten_runs_have_a_tracked_workspace_and_no_bundle_in_the_real_repository():
+    assert finding_untrue(REAL_REPOSITORY) == []
+
+
+def test_a_planted_open_finding_naming_a_run_with_a_bundle_or_no_workspace_is_reported_naming_the_run(tmp_path):
+    repo = load_fixture_module("build_mini_repo").build(tmp_path / "audited")
+    write(repo, "runs/vidi/m2/run-1/workspace/app.js", "x\n")
+    write(repo, "runs/vidi/m2/run-1/metrics.json", "{}\n")
+    write(repo, "runs/vidi/m3/run-1/workspace/app.js", "x\n")
+    write(repo, "runs/vidi/m3/run-1/workspace.bundle", "bundle\n")
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-q", "-m", "runs")
+    toml = ('[[finding]]\nid = "F-01"\ntitle = "t"\ndetail = "d"\nstatus = "open"\nruns = ["runs/vidi/m2/run-1", "runs/vidi/m3/run-1", "runs/vidi/m4/run-1"]\n')
+    write(repo, "ops/refactor/audit/findings.toml", toml)
+    assert finding_untrue(repo) == ["F-01: runs/vidi/m3/run-1 has a bundle", "F-01: runs/vidi/m4/run-1 has no tracked workspace"]
+    write(repo, "ops/refactor/audit/findings.toml", toml.replace('status = "open"', 'status = "closed"'))
+    assert finding_untrue(repo) == [], "a closed finding asserts nothing about the tree"
