@@ -2343,3 +2343,66 @@ def test_the_mini_repository_builds_with_a_three_commit_history_and_a_git_user_i
     assert first.strip() == '{"passed": 7}' and (repo / "runs/vidi/m1/run-1/metrics.json").read_text().strip() == '{"passed": 9}'
     status = subprocess.run(["git", "-C", str(repo), "status", "--short"], capture_output=True, text=True, check=True).stdout
     assert status == "", "the repository is clean after the build"
+
+
+# ---- story 19: comments never change what a stub is (TC-90 to TC-96, TC-98; task 19.2) ---------------------------------------
+# 15 Oct 2026: story 5's delete-first run left eleven `todo!()` bodies and the tool called nine of them "not a stub", because a
+# function's text runs to the next definition line and so ended in the next item's doc comment, not in a closing brace.
+
+def one_stub(tmp_path: Path, language: str, file: str, function: str, text: str) -> R.Result:
+    return R.check_stubs(make_code_root(tmp_path, {file: text}, touched=entry(language, file, function, '"B"')))
+
+
+STUB_WITH_COMMENT = [
+    pytest.param("rust", "src/c.rs", "pull",
+                 "fn pull(repo: &Path) {\n    todo!()\n}\n\n/// The next function's doc comment.\nfn other() -> u8 {\n    1\n}\n", id="TC-90-rust-doc-comment-of-the-next-fn"),
+    pytest.param("rust", "src/c.rs", "pull",
+                 "fn pull(repo: &Path) {\n    // removed by story 5\n    todo!()\n}\n", id="TC-91-rust-line-comment-inside-the-body"),
+    pytest.param("rust", "src/c.rs", "pull",
+                 "fn pull(repo: &Path) {\n    todo!()\n}\n/* a block comment after the closing brace */\n", id="TC-92-rust-block-comment-after-the-brace"),
+    pytest.param("typescript", "src/s.ts", "lsTree",
+                 'export function lsTree(rev: string) {\n  throw new Error("gone");\n}\n\n/** The next item. */\nexport function other() { return 1; }\n', id="TC-93-typescript-doc-comment-of-the-next-item"),
+    pytest.param("python", "src/a.py", "pull",
+                 'def pull(repo):\n    """Fetch the repo."""\n    # removed by story 4\n    raise NotImplementedError("gone")\n', id="TC-94-python-docstring-and-comment-line"),
+    pytest.param("shell", "src/x.sh", "sync",
+                 "sync() {\n  return 99\n}\n# the next function pushes\npush() {\n  git push\n}\n", id="TC-95-shell-comment-line-after-the-brace"),
+]
+
+
+@pytest.mark.parametrize("language,file,function,text", STUB_WITH_COMMENT)
+def test_comments_never_change_what_a_stub_is(tmp_path, language, file, function, text):
+    result = one_stub(tmp_path, language, file, function, text)
+    assert result.exit_code == R.EXIT_OK and result.problems == [], [(p.code, p.subject) for p in result.problems]
+
+
+NOT_A_STUB_DESPITE_COMMENTS = [
+    pytest.param("rust", "src/c.rs", "pull",
+                 "fn pull(repo: &Path) {\n    repo.fetch();\n    todo!()\n    // a comment\n}\n\n/// next\nfn other() {}\n", id="TC-96-a-real-statement-and-a-comment-stay-not-a-stub"),
+    pytest.param("rust", "src/c.rs", "pull",
+                 "fn pull(repo: &Path) {\n    repo.fetch(); // todo!()\n}\n\n/// next\nfn other() {}\n", id="TC-98-a-real-body-whose-comment-says-todo-stays-not-a-stub"),
+]
+
+
+@pytest.mark.parametrize("language,file,function,text", NOT_A_STUB_DESPITE_COMMENTS)
+def test_comments_never_make_a_real_body_a_stub(tmp_path, language, file, function, text):
+    assert [p.code for p in one_stub(tmp_path, language, file, function, text).problems] == ["E-NOT-STUB"]
+
+
+# ---- story 19: the real excerpts of story 5 (TC-97; task 19.3) ---------------------------------------------------------------
+
+STORY5_FUNCTIONS = {                    # the eleven bodies story 5 stubbed (its deletion report), by file
+    "collect.rs": ["parse_name", "resolve", "manifest", "kind", "name"],
+    "collector.rs": ["plan", "pull_file", "collect_run", "wanted", "store_dir"],
+    "server.rs": ["file_of"],
+}
+STORY5_SOURCE_DIR = "tools/dbench/src"
+
+
+def test_tc97_check_stubs_as_a_process_recognises_all_eleven_stubs_of_story_5(tmp_path):
+    touched = "".join(entry("rust", f"{STORY5_SOURCE_DIR}/{file}", fn, '"B"') for file, fns in STORY5_FUNCTIONS.items() for fn in fns)
+    root = make_root(tmp_path, touched=touched)
+    for file in STORY5_FUNCTIONS:
+        write(root, f"{STORY5_SOURCE_DIR}/{file}", (FIXTURES / "real" / "story5" / file).read_text())
+    done = tool(root, "check-stubs")
+    not_stubs = [line for line in (done.stdout + done.stderr).splitlines() if "E-NOT-STUB" in line]
+    assert len(not_stubs) == 0 and done.returncode == R.EXIT_OK, f"{len(not_stubs)} of 11 reported as not a stub:\n" + "\n".join(not_stubs)
