@@ -2759,3 +2759,47 @@ def test_tc27_one_changed_character_in_a_pattern_is_a_new_query_and_a_reordering
     assert check(root).exit_code == R.EXIT_OK and audit_json(root)["final_pass"] == 2
     root = audit_root(tmp_path / "two", passes={1: pass_md(), 2: later_pass(queries=list(reversed(AUDIT_QUERIES)))})
     assert "E-PASS-REPEAT" in codes(check(root))
+
+
+# ---- story 19: --require-final as a process, over passes whose hits come from the real audit-run (TC-20, TC-25, TC-26; task 19.33) ----
+
+NEW_QUERY_Q5 = ("Q5", "vcs-command", r"git ls-tree -r", ".")           # a new query that finds only what Q1 already found
+NEW_QUERY_Q6 = ("Q6", "vcs-command", r"git diff", ".")                  # a query that finds nothing in the repository until a file is added
+
+
+def write_pass_from_audit_run(repo: Path, number: int, queries: list, earlier: set[str], verdict: str) -> set[str]:
+    """Write pass NN: the queries first, then the Hits table from what `audit-run NN` really returns, with the New column computed."""
+    path = repo / AUDIT_DIR / f"pass-{number:02d}.md"
+    write(repo, f"{AUDIT_DIR}/pass-{number:02d}.md", pass_md(queries=queries, hits=[], verdict=verdict))
+    assert tool(repo, "audit-run", str(number)).returncode == R.EXIT_OK
+    found = json.loads((repo / "ops/refactor/reports" / f"audit-hits-{number:02d}.json").read_text())["queries"]
+    sources: dict[str, list[str]] = {}
+    for qid, hits in found.items():
+        for h in hits:
+            sources.setdefault(f"{h['file']}::{h['function']}", []).append(qid)
+    rows = [hit_row(i + 1, ident.split("::")[0], ident.split("::")[1], ",".join(sorted(set(qs))), "no" if ident in earlier else "yes")
+            for i, (ident, qs) in enumerate(sorted(sources.items()))]
+    path.write_text(pass_md(queries=queries, hits=[], verdict=verdict, extra_hits=rows))
+    return earlier | set(sources)
+
+
+def test_tc25_tc20_tc26_require_final_as_a_process_single_pass_final_pass_and_reopening(tmp_path):
+    repo = load_fixture_module("build_mini_repo").build(tmp_path / "audited")
+    for rel, text in LS_TREE_FILES.items():
+        write(repo, rel, text)
+    known = write_pass_from_audit_run(repo, 1, REAL_QUERIES, set(), "verdict: another pass required, first pass")
+    assert known, "the real search found hits to record"
+    one = tool(repo, "audit-check", "--require-final")                                             # TC-25: one pass only
+    assert one.returncode == R.EXIT_FAIL and "E-NOT-FINAL" in one.stdout
+    assert json.loads((repo / "ops/refactor/reports/audit.json").read_text())["final_pass"] is None
+    known = write_pass_from_audit_run(repo, 2, REAL_QUERIES + [NEW_QUERY_Q5], known, "verdict: final")
+    two = tool(repo, "audit-check", "--require-final")                                             # TC-20: a new query, no new hit
+    assert two.returncode == R.EXIT_OK, two.stdout
+    assert json.loads((repo / "ops/refactor/reports/audit.json").read_text())["final_pass"] == 2
+    write(repo, "tools/d.sh", "reread() {\n  git diff HEAD\n}\n")                                   # TC-26: a new git read appears
+    run_git(repo, "add", "tools/d.sh")                                                              # git grep searches tracked files only
+    write_pass_from_audit_run(repo, 3, REAL_QUERIES + [NEW_QUERY_Q5, NEW_QUERY_Q6], known, "verdict: another pass required, a new hit")
+    three = tool(repo, "audit-check", "--require-final")
+    report = json.loads((repo / "ops/refactor/reports/audit.json").read_text())
+    assert three.returncode == R.EXIT_FAIL and "E-NOT-FINAL" in three.stdout
+    assert report["final_pass"] is None and report["final_reason"] == "new-hits" and report["passes"][2]["new"] == 1

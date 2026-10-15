@@ -1490,6 +1490,7 @@ QUERY_COLUMNS = ("Query", "Category", "Pattern", "Paths")
 HIT_COLUMNS = ("Hit", "Place", "Function", "Source", "Access", "Via", "UseCase", "Outcome", "Reason", "New")
 FINDING_COLUMNS = ("Finding", "Title", "Status")
 PASS_PARTS = (("Queries", QUERY_COLUMNS), ("Hits", HIT_COLUMNS), ("Open findings", FINDING_COLUMNS))
+VERDICT_FINAL, VERDICT_MORE = "final", "another pass required"
 MANUAL_SOURCE = "manual"
 IS_NEW = "yes"
 AUDIT_EXCLUDE = f":(exclude){AUDIT_DIR.as_posix()}"       # the pass files hold the patterns, so no query searches them
@@ -1687,7 +1688,59 @@ def check_pass_shape(root: Path, p: Pass, earlier: set[str], result: Result, gre
             result.fail("E-PASS-NOT-REPRODUCIBLE", where, f"{identity} is returned by {', '.join(sorted(queries))} and is not recorded")
 
 
-def check_audit(root: Path, grep=git_grep, snapshot=tree_snapshot) -> Result:
+def query_set(pass_: Pass) -> frozenset[tuple[str, str, str]]:
+    """What a pass searched for: each query's category, pattern and paths (their order ignored), as a set."""
+    return frozenset((q.category, q.pattern, " ".join(sorted(q.paths))) for q in pass_.queries)
+
+
+def new_hits(passes: list[Pass]) -> list[set[str]]:
+    """Per pass, the hit identities (file::function) that no earlier pass has."""
+    earlier: set[str] = set()
+    out = []
+    for p in passes:
+        identities = {r.identity for r in p.hits}
+        out.append(identities - earlier)
+        earlier |= identities
+    return out
+
+
+@dataclass
+class Final:
+    final_pass: int | None                   # the latest pass's number when it is final
+    reason: str | None                       # why not: single-pass, new-hits or repeat
+    per_pass: list[dict]                     # for each pass: its new hits, whether it repeats the one before, whether it is final
+
+
+def decide_final(passes: list[Pass]) -> Final:
+    """A pass is final when it is not the first, repeats no one, and has no new hit; the audit is final when its latest pass is."""
+    fresh = new_hits(passes)
+    per_pass = []
+    for i, p in enumerate(passes):
+        repeat = i > 0 and query_set(p) <= query_set(passes[i - 1])        # none of its queries is absent from the pass before
+        per_pass.append({"new": len(fresh[i]), "repeat": repeat, "final": i > 0 and not repeat and not fresh[i]})
+    if not passes:
+        return Final(None, None, per_pass)
+    latest = per_pass[-1]
+    reason = None if latest["final"] else "single-pass" if len(passes) == 1 else "new-hits" if latest["new"] else "repeat"
+    return Final(passes[-1].number if latest["final"] else None, reason, per_pass)
+
+
+def check_stop_rule(passes: list[Pass], result: Result, require_final: bool) -> Final:
+    final = decide_final(passes)
+    for p, state in zip(passes, final.per_pass):
+        if state["repeat"]:
+            result.fail("E-PASS-REPEAT", p.path.name, "none of its queries is new compared with the pass before it, so it does not count")
+        says = p.verdict.lower()
+        if says.startswith(VERDICT_FINAL) and not state["final"]:
+            result.fail("E-VERDICT-MISMATCH", p.path.name, "the verdict says final and the pass is not (it is the first, a repeat, or has new hits)")
+        elif not says.startswith((VERDICT_FINAL, VERDICT_MORE)):
+            result.fail("E-PASS-FORMAT", p.path.name, f"the verdict line must say '{VERDICT_FINAL}' or '{VERDICT_MORE}, <why>'")
+    if require_final and final.final_pass is None:
+        result.fail("E-NOT-FINAL", AUDIT_DIR.as_posix(), f"the audit is not final: {final.reason}")
+    return final
+
+
+def check_audit(root: Path, require_final: bool = False, grep=git_grep, snapshot=tree_snapshot) -> Result:
     """Every pass file is well formed, searches all four categories over every scope folder, gives the hits anyone gets by running its
     queries again, and marks as new exactly the hits no earlier pass has. The command changes no file outside the audit folder."""
     result = Result()
@@ -1715,6 +1768,8 @@ def check_audit(root: Path, grep=git_grep, snapshot=tree_snapshot) -> Result:
                                   "new": sum(1 for r in p.hits if r.identity not in earlier),
                                   "outcomes": dict(Counter(r.outcome for r in p.hits))})
                 earlier |= {r.identity for r in p.hits}
+            final = check_stop_rule(passes, result, require_final)
+            result.data["final_pass"], result.data["final_reason"] = final.final_pass, final.reason
     after = snapshot(root)
     for name in sorted(set(before) | set(after)):
         if before.get(name, "absent") != after.get(name, "absent"):
@@ -1773,6 +1828,7 @@ def main(argv: list[str] | None = None) -> int:
     build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
     build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
     sub.choices["fates"].add_argument("--render", help="write the fates table (Markdown) to this path")
+    sub.choices["audit-check"].add_argument("--require-final", action="store_true", help="exit 1 unless the latest pass is final")
     sub.add_parser("audit-run", help="run the queries of audit pass NN and write their hits to reports/audit-hits-NN.json").add_argument("number", type=int)
     sub.add_parser("guard-idle", help="exit 0 when no job is running on the node (from `dbench status --json NODE`), 1 naming the job and story, 2 when unknown").add_argument("node")
     sub.choices["check-coverage"].add_argument("--language", choices=LANGUAGES, action="append", help="measure only this language (repeatable)")
@@ -1788,7 +1844,7 @@ def main(argv: list[str] | None = None) -> int:
         "check-stubs": lambda: check_stubs(root),
         "fates": lambda: merged(check_fates(root), check_contracts(root, read_results(root))),
         "check-coverage": lambda: check_coverage(root, languages=set(args.language) if args.language else None),
-        "audit-check": lambda: check_audit(root),
+        "audit-check": lambda: check_audit(root, require_final=args.require_final),
         "run-suites": lambda: run_suites(root),
         "measure-touch": lambda: measure_touch(root),
     }
