@@ -501,18 +501,91 @@ SHELL_STUB = re.compile(rf"^return\s+{SHELL_STUB_CODE}\s*;?$")
 SCRIPT_STUB = re.compile(rf"^exit\s+{SHELL_STUB_CODE}\s*;?$")
 
 
-def brace_body(text: str) -> str | None:
-    """The text inside the brace block that closes the function (not the first brace: a parameter or return type may hold
-    braces of its own); None when the function does not end in a block."""
-    end = text.rstrip().rfind("}")
-    if end < 0 or text.rstrip()[end:] != "}":
-        return None
-    depth = 0
-    for i in range(end, -1, -1):
-        depth += {"}": 1, "{": -1}.get(text[i], 0)
-        if depth == 0:
-            return text[i + 1:end].strip()
+def skip_literal(language: str, text: str, i: int) -> int | None:
+    """The index just past a string, character literal or comment that starts at text[i]; None when none starts there."""
+    if language == "shell":
+        if text[i] == "#" and (i == 0 or text[i - 1] in " \t\n;"):
+            return text.find("\n", i) if "\n" in text[i:] else len(text)
+        if text[i] == "'":
+            return text.find("'", i + 1) + 1 or len(text)
+    else:
+        if text.startswith("//", i):
+            return text.find("\n", i) if "\n" in text[i:] else len(text)
+        if text.startswith("/*", i):
+            return text.find("*/", i + 2) + 2 if "*/" in text[i:] else len(text)
+        if text[i] == "'" and language == "rust":
+            m = RUST_CHAR.match(text, i)
+            return m.end() if m else None                     # a lifetime such as 'a is not a literal
+        if text[i] == "'":
+            return skip_quoted(text, i)
+    if text[i] in "\"" + ("`" if language == "typescript" else ""):
+        return skip_quoted(text, i)
     return None
+
+
+RUST_CHAR = re.compile(r"'(?:\\.[^']*|[^\\'])'")
+
+
+def skip_quoted(text: str, i: int) -> int:
+    quote, i = text[i], i + 1
+    while i < len(text) and text[i] != quote:
+        i += 2 if text[i] == "\\" else 1
+    return i + 1
+
+
+TYPE_BRACE_AFTER = ":|&"         # a brace after one of these opens a type literal (`): { ok: boolean } {`), not the body
+
+
+def brace_body(text: str, language: str = "rust") -> str | None:
+    """The text inside the function's own brace block: the first brace of the signature's end, outside parentheses and
+    angle brackets (a parameter or return type may hold braces of its own), up to its matching close. The function's
+    text runs to the next definition line, so what follows that close (the next item's doc comment, attributes, blank
+    lines) is not the function's. None when the function has no block."""
+    i, depth, paren, angle, start = 0, 0, 0, 0, None
+    while i < len(text):
+        skipped = skip_literal(language, text, i)
+        if skipped is not None:
+            i = skipped
+            continue
+        c, before = text[i], text[:i].rstrip()[-1:]
+        if depth:
+            depth += {"{": 1, "}": -1}.get(c, 0)
+            if depth == 0:
+                return text[start:i].strip()
+        elif c in "([":
+            paren += 1
+        elif c in ")]":
+            paren -= 1
+        elif c == "<" and not paren:
+            angle += 1
+        elif c == ">" and angle and before not in "-=":
+            angle -= 1
+        elif c == "{" and not paren and not angle:
+            if before in TYPE_BRACE_AFTER and before:
+                angle += 1                                  # a type literal: skip to its close
+            else:
+                depth, start = 1, i + 1
+        elif c == "}" and angle and not paren:
+            angle -= 1
+        i += 1
+    return None
+
+
+def strip_comments(language: str, body: str) -> str:
+    """The body without line, block and doc comments (`#` comments for shell), strings left as they are."""
+    out, i = [], 0
+    while i < len(body):
+        skipped = skip_literal(language, body, i)
+        if skipped is None:
+            out.append(body[i])
+            i += 1
+        elif body[i] in "#/":
+            out.append(" ")                               # a comment: dropped, a space keeps the neighbours apart
+            i = skipped
+        else:
+            out.append(body[i:skipped])
+            i = skipped
+    return "".join(out).strip()
 
 
 def python_is_stub(text: str, name: str) -> bool | None:
@@ -526,9 +599,14 @@ def python_is_stub(text: str, name: str) -> bool | None:
         if node is None:
             return None
         scope = [node]
-    if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) or len(node.body) != 1 or not isinstance(node.body[0], ast.Raise):
-        return False if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else None
-    exc = node.body[0].exc
+    if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return None
+    statements = node.body
+    if len(statements) > 1 and isinstance(statements[0], ast.Expr) and isinstance(statements[0].value, ast.Constant) and isinstance(statements[0].value.value, str):
+        statements = statements[1:]                       # a docstring is not code
+    if len(statements) != 1 or not isinstance(statements[0], ast.Raise):
+        return False
+    exc = statements[0].exc
     exc = exc.func if isinstance(exc, ast.Call) else exc
     return isinstance(exc, ast.Name) and exc.id == "NotImplementedError"
 
@@ -542,9 +620,9 @@ def is_stub(language: str, text: str, name: str) -> bool | None:
     func = next((f for f in functions_of(language, text) if f.name == name), None)
     if func is None:
         return None
-    body = brace_body(func.text)
+    body = brace_body(func.text, language)
     pattern = {"rust": RUST_STUB, "typescript": TS_STUB, "shell": SHELL_STUB}[language]
-    return body is not None and bool(pattern.match(body))
+    return body is not None and bool(pattern.match(strip_comments(language, body)))
 
 
 def check_stubs(root: Path) -> Result:
