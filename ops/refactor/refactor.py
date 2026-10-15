@@ -58,6 +58,7 @@ WORKSPACE_CLASS = "W"                  # git inside the agent's own workspace: o
 CHECKED_CLASSES = ("A", "B", "C", "E")  # a match in these must be listed or excluded; D is listed only where its source moves
 MODULE_LEVEL = "<module>"              # where top-level code is attributed
 SCRIPT_LEVEL = "<script>"
+TESTS_LEVEL = "<tests>"                # the trailing #[cfg(test)] module of a Rust file: not production code, and not the file's top level
 
 
 @dataclass
@@ -1689,6 +1690,9 @@ def function_at(root: Path, rel: str, line: int) -> str:
         except SyntaxError:
             return top
         return min(spans, key=lambda s: s[2] - s[1])[0] if spans else top
+    marker = RUST_TEST_MODULE.search(text) if language == "rust" else None
+    if marker and line > text[:marker.start()].count("\n"):
+        return TESTS_LEVEL
     for func in functions_of(language, text):
         if func.name != top and func.start <= line < func.start + len(func.text.splitlines()):
             return func.name
