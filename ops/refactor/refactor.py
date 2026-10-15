@@ -1700,11 +1700,12 @@ def known_use_cases(root: Path) -> set[str]:
     return set(data.get("use_cases", {})) | agreed
 
 
-def check_hits(root: Path, passes: list[Pass], result: Result) -> None:
+def check_hits(root: Path, passes: list[Pass]) -> Result:
     """Every hit says how it reads (reader or writer), by what way (a version-control command or a path in the working tree) and
     has one outcome: protected (with a use case), excluded (with a reason), or intrinsic (git in the agent's own repository, so a
     class W function, with a reason). An intrinsic row with no reason is refused with the excluded code: both are decisions to leave
     a place alone."""
+    result = Result()
     use_cases = known_use_cases(root)
     own_repository = load_classes(root).workspace_functions
     for p in passes:
@@ -1730,6 +1731,7 @@ def check_hits(root: Path, passes: list[Pass], result: Result) -> None:
         for identity, seen in sorted(outcomes.items()):
             if len(seen) > 1:
                 result.fail("E-HIT-OUTCOME-CONFLICT", where, f"{identity} is listed as {' and '.join(sorted(seen))}")
+    return result
 
 
 def query_set(pass_: Pass) -> frozenset[tuple[str, str, str]]:
@@ -1812,7 +1814,9 @@ def check_audit(root: Path, require_final: bool = False, grep=git_grep, snapshot
                                   "new": sum(1 for r in p.hits if r.identity not in earlier),
                                   "outcomes": dict(Counter(r.outcome for r in p.hits))})
                 earlier |= {r.identity for r in p.hits}
-            check_hits(root, passes, result)
+            classification = check_hits(root, passes)
+            result.problems += classification.problems
+            result.exit_code = max(result.exit_code, classification.exit_code)
             final = check_stop_rule(passes, result, require_final)
             result.data["final_pass"], result.data["final_reason"] = final.final_pass, final.reason
     after = snapshot(root)
