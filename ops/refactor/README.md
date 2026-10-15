@@ -8,6 +8,15 @@ the touched set waits on the one stage, and each command prints the size of that
 
     uv run ops/refactor/refactor.py --help
 
+**What the touched set is (owner, 15 October 2026):** the epic moves benchmark data out of git, so git holds no operational
+benchmark data. A function is in the set only if it (G) runs git on operational benchmark data, or (T) itself chooses a
+location that exists only because git tracks it (`combinations/**/benchmarks/<pack>/<run>/`, `benchmarks/reference/`,
+run paths derived from a checkout, a private checkout root). A function that only receives a path is out: the caller
+that chose the location is the member. Also out: data git does not track (a node's run folder while it runs, the lake, the
+warehouse), git on the code repository, the agent's own workspace, the private held-out suite source and the monitor's
+notes, and matches that are only text. The audit (`audit/`, 15 passes, final at 15) finds the members; `touched_set.toml`
+equals its protected hits (112 on 15 October).
+
 Exit codes: **0** the rule holds, **1** it is broken (the problems are listed, each with a code), **2** the tool could
 not decide (a runner or a coverage tool is missing, a result file is absent, a node cannot be reached). An unknown is
 never treated as a pass. Reports go to `ops/refactor/reports/` (git-ignored). The tool writes nothing outside it
