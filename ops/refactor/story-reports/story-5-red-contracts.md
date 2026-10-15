@@ -147,6 +147,12 @@ functions of the deletion report, plus `classify`, `list_rules`, `is_inside_run`
 | `a_pass_below_the_margin_reports_the_shortage_once_however_many_nodes_and_runs_it_would_have_pulled` | red |
 | `a_shortage_on_a_real_small_disk_pulls_nothing_and_a_partial_resumes_when_space_returns` | red |
 
+## Where the tests live now
+
+The red run is of the tests where they were first written. The unit tests that use only the public API were then moved, unchanged, out of `src/` into
+`tools/dbench/tests/allow_list.rs` (the collect.rs group: 24 tests) and `tools/dbench/tests/collector_lake.rs` (the collector.rs and server.rs groups: 43 tests, and one
+more added later, TC-82's `E-NOT-A-RUN-PATH`). The checks that need private items stay in `src/collect.rs` (`mod name_check`). The names are those in the tables above.
+
 ## Totals
 
 112 new tests: 105 red, 7 pass against the skeleton, each for the reason in its row (data the tables hold,

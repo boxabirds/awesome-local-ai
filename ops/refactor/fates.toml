@@ -63,3 +63,40 @@ state = "kept"
 [[fate]]
 test = "rust:tools/dbench/src/lib.rs::collector::tests::collect_settings_come_from_the_command_line_then_nodes_toml_and_the_records_repo_is_required_to_ingest"
 state = "kept"
+
+# Kept unchanged: they pass against the new code as they did against the old.
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collect::tests::manifest_lists_existing_files_with_size_and_mtime_and_the_egress_log_from_work_dir_txt"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collect::tests::run_listing_finds_combination_runs_and_run_base_runs_and_skips_workspaces"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collect::tests::run_listing_skips_installs_that_file_no_runs_and_works_without_a_share_dir"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collect::tests::run_status_is_lenient"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collect::tests::fnv1a64_known_vectors"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collect::tests::check_window_bounds"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collector::tests::settled_needs_a_final_run_status_and_a_terminal_or_absent_job"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collector::tests::store_dir_rejects_a_run_path_the_node_should_not_have_sent"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collector::tests::the_archived_runs_come_from_the_working_tree_or_from_origin_main_and_none_known_means_none_skipped"
+state = "kept"
