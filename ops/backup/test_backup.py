@@ -172,3 +172,43 @@ def test_with_real_restic_the_staged_databases_are_in_the_snapshot_and_the_live_
     assert any(n.endswith("/collected/node-a/events.jsonl") for n in names), "the lake"
     assert not any(n.endswith("/insights/conversations.db") for n in names), "the live database is not backed up as it is"
     assert not any("old.db" in n for n in names), "earlier backups are not backed up again"
+
+
+def test_with_real_restic_the_extra_paths_are_in_the_snapshot_workspace_folders_included(tmp_path):
+    """15 Oct 2026: before run data leaves git, the held-out detail, judge results and the reference and combination run records
+    (workspace/ folders included) must be in the backup. None of them was: they sit outside state/."""
+    cfg = config(tmp_path, repos=(str(tmp_path / "repo"),))
+    cfg.password_file.write_text("test-password")
+    extra = []
+    for name, rel in (("private-runs", "runs/vidi/r1/result.json"), ("private-gradings", "gradings/g1/grade.json"),
+                      ("reference", "vidi/opus/run-1/workspace/src/app.ts"), ("combinations", "qwen/x/benchmarks/vidi/r1/workspace/a.txt")):
+        f = tmp_path / name / rel
+        f.parent.mkdir(parents=True)
+        f.write_text(name)
+        extra.append(tmp_path / name)
+    cfg.extra_paths = extra
+    status = backup.run(cfg)
+    assert status["exit"] == 0, status
+    listing = subprocess.run(["restic", "-r", cfg.repos[0], "--password-file", str(cfg.password_file), "ls", "latest"], capture_output=True, text=True).stdout
+    names = [line.strip() for line in listing.splitlines()]
+    for tail in ("runs/vidi/r1/result.json", "gradings/g1/grade.json", "run-1/workspace/src/app.ts", "benchmarks/vidi/r1/workspace/a.txt"):
+        assert any(n.endswith(tail) for n in names), tail
+
+
+def test_an_extra_path_that_does_not_exist_fails_the_run_and_is_not_skipped(tmp_path):
+    """The optional reference folder was skipped silently while it did not exist, which is how it went unbacked. An extra path is
+    a promise: a missing one fails the run."""
+    cfg = config(tmp_path, repos=("/r/local",))
+    cfg.extra_paths = [tmp_path / "not-there"]
+    fake = FakeRestic({})
+    status = backup.run(cfg, fake, now=NOW)
+    assert status["exit"] != 0, status
+    assert not any("backup" in c for c in fake.calls), "nothing is backed up with a promised path missing"
+
+
+def test_the_config_file_lists_the_extra_paths_and_defaults_to_none(tmp_path):
+    base = 'state = "/s"\npassword_file = "/p"\nrepos = ["/r"]\n'
+    (tmp_path / "a.toml").write_text(base)
+    (tmp_path / "b.toml").write_text(base + 'extra_paths = ["/x/runs", "/x/gradings"]\n')
+    assert backup.load_config(tmp_path / "a.toml").extra_paths == []
+    assert backup.load_config(tmp_path / "b.toml").extra_paths == [Path("/x/runs"), Path("/x/gradings")]

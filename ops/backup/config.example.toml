@@ -5,3 +5,9 @@ repos = [
   "~/bench-backup-local/repo",                           # on this Mac: protects against a bad migration, not a dead disk
   "sftp:<user>@<backup-host>:<directory>/bench-backup/repo",  # on another machine (the RTX 4090 box): the copy that survives this disk
 ]
+extra_paths = [                                          # outside state/: before run data leaves git these must be backed up too
+  "~/expts/awesome-local-ai-bench-private/runs",
+  "~/expts/awesome-local-ai-bench-private/gradings",
+  "~/expts/awesome-local-ai/benchmarks/reference",
+  "~/expts/awesome-local-ai/combinations",
+]

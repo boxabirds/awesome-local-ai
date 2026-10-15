@@ -36,6 +36,7 @@ class Config:
     repos: list[str] = field(default_factory=list)   # restic repository URLs: a path, or sftp:user@host:/path
     free: dict = field(default_factory=dict)         # repo -> free bytes (tests); otherwise measured by free_bytes()
     ssh_hosts: dict = field(default_factory=dict)    # sftp repo -> ssh target to run df on
+    extra_paths: list[Path] = field(default_factory=list)   # absolute folders outside state/ that must be in every backup; a missing one fails the run
 
 
 def history_file(cfg: Config) -> Path:
@@ -69,11 +70,14 @@ def restic(cfg: Config, repo: str, *args: str) -> list[str]:
 
 def backup_one(cfg: Config, run, repo: str, staged: Path) -> int:
     """Back up to one repo (initialising it first if it isn't there), apply the retention policy, return its size in bytes."""
+    missing = [str(p) for p in cfg.extra_paths if not p.is_dir()]
+    if missing:
+        raise RuntimeError(f"extra paths that are not folders: {', '.join(missing)}")
     if run(restic(cfg, repo, "cat", "config")).returncode != 0:
         init = run(restic(cfg, repo, "init"))
         if init.returncode != 0:
             raise RuntimeError(f"init failed: {init.stderr.strip()}")
-    paths = [str(cfg.state / p) for p in STATE_PATHS] + [str(cfg.state / p) for p in OPTIONAL_STATE_PATHS if (cfg.state / p).is_dir()] + [str(staged)]
+    paths = [str(cfg.state / p) for p in STATE_PATHS] + [str(cfg.state / p) for p in OPTIONAL_STATE_PATHS if (cfg.state / p).is_dir()] + [str(p) for p in cfg.extra_paths] + [str(staged)]
     flags = [x for e in EXCLUDES for x in ("--exclude", e)]
     done = run(restic(cfg, repo, "backup", "--tag", "bench-state", *flags, *paths))
     if done.returncode != 0:
@@ -167,7 +171,8 @@ def render_plist(home: Path, script: Path) -> str:
 
 def load_config(path: Path) -> Config:
     raw = tomllib.loads(Path(path).expanduser().read_text())
-    return Config(state=Path(raw["state"]).expanduser(), password_file=Path(raw["password_file"]).expanduser(), repos=list(raw["repos"]))
+    return Config(state=Path(raw["state"]).expanduser(), password_file=Path(raw["password_file"]).expanduser(), repos=list(raw["repos"]),
+                  extra_paths=[Path(p).expanduser() for p in raw.get("extra_paths", [])])
 
 
 def main(argv: list[str]) -> int:
