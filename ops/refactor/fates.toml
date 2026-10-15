@@ -8,16 +8,19 @@
 # function = "path/to/file.py::name"  # retired: the touched function it covered
 # reason = "..."                      # retired: why
 
-# --- Story 5 (the lake takes the full record): the tests whose subject the story rewrites -------------------------------
+# --- Story 5 (the lake takes the full record): the tests whose subject the story rewrites or whose literals it changes ---
+# Kept, with one more pass in the three collect passes of tests/server.rs: a pass that pulled anything now starts the settle
+# grace over (TC-72). Kept, with the fields story 5 adds in their struct literals: the plan, the cadence, the round trip and
+# the settings tests.
 [[fate]]
 test = "rust:tools/dbench/src/lib.rs::collect::tests::the_lake_takes_a_runs_records_as_well_as_its_logs_so_scores_are_never_single_copy"
 state = "rewritten"
-new_test = "rust:tools/dbench/src/lib.rs::collect::tests::the_manifest_of_a_real_run_lists_the_full_record"
+new_test = "rust:tools/dbench/tests/lake_full_record.rs::the_manifest_of_a_real_run_lists_the_full_record"
 
 [[fate]]
 test = "rust:tools/dbench/src/lib.rs::collect::tests::only_allow_listed_names_parse"
 state = "rewritten"
-new_test = "rust:tools/dbench/src/lib.rs::collect::tests::the_collected_rules_accept_exactly_their_names"
+new_test = "rust:tools/dbench/src/lib.rs::collect::tests::every_fixed_record_name_parses_with_the_kind_and_class_of_the_table"
 
 [[fate]]
 test = "rust:tools/dbench/src/lib.rs::collect::tests::every_accepted_name_resolves_under_the_run_dir_or_the_egress_dir"
@@ -27,8 +30,36 @@ new_test = "rust:tools/dbench/src/lib.rs::collect::tests::every_rule_resolves_un
 [[fate]]
 test = "rust:tools/dbench/src/lib.rs::collector::tests::a_reference_models_run_is_never_pulled_so_the_lake_holds_no_claude_transcript"
 state = "rewritten"
-new_test = "rust:tools/dbench/src/lib.rs::collector::tests::a_reference_run_is_collected_by_record_class_only"
+new_test = "rust:tools/dbench/src/lib.rs::collector::tests::a_reference_run_is_wanted_an_archived_one_is_not_and_the_run_narrowing_works_as_before"
 
 [[fate]]
 test = "rust:tools/dbench/src/lib.rs::collector::tests::an_archived_run_is_never_pulled_even_when_asked_for_and_only_runs_still_narrows"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/tests/server.rs::collect_pulls_deltas_resumes_after_the_node_was_unreachable_and_completes_a_settled_run"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/tests/server.rs::collect_refetches_a_file_the_node_rewrote_and_backfills_a_run_that_has_no_job"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/tests/server.rs::a_collect_pass_in_git_mode_skips_runs_archived_on_origin_main_and_ingests_what_it_pulled_without_a_fetch"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collector::tests::plan_skips_unchanged_pulls_growth_refetches_a_shrunk_file_and_rewrites_whole_files"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collector::tests::complete_only_after_every_file_is_at_eof_and_due_follows_the_cadence"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collector::tests::collection_json_round_trips_and_has_no_error_field"
+state = "kept"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collector::tests::collect_settings_come_from_the_command_line_then_nodes_toml_and_the_records_repo_is_required_to_ingest"
 state = "kept"

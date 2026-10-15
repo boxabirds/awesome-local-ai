@@ -38,6 +38,8 @@ pub struct CollectEntry {
     pub db: Option<PathBuf>,
     pub repo: Option<PathBuf>,
     pub api: Option<String>,
+    /// Where a reference model's runs are kept; default: beside the lake, in a folder named `reference`.
+    pub reference: Option<PathBuf>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -83,11 +85,12 @@ impl RunRef {
             RunRef::Path(run) => format!("/v1/runs/files?run={}", urlencode(run)),
         }
     }
-    fn file_path(&self, name: &str, from: u64, check: Option<&str>) -> String {
+    fn file_path(&self, name: &str, from: u64, check: Option<&str>, mtime: Option<f64>) -> String {
         let check = check.map(|c| format!("&check={c}")).unwrap_or_default();
+        let mtime = mtime.map(|m| format!("&mtime={m:.3}")).unwrap_or_default();
         match self {
-            RunRef::Job(id) => format!("/v1/jobs/{id}/file?name={}&from={from}{check}", urlencode(name)),
-            RunRef::Path(run) => format!("/v1/runs/file?run={}&name={}&from={from}{check}", urlencode(run), urlencode(name)),
+            RunRef::Job(id) => format!("/v1/jobs/{id}/file?name={}&from={from}{check}{mtime}", urlencode(name)),
+            RunRef::Path(run) => format!("/v1/runs/file?run={}&name={}&from={from}{check}{mtime}", urlencode(run), urlencode(name)),
         }
     }
 }
@@ -173,10 +176,11 @@ impl Api {
         self.get_ok(&run.files_path()).await
     }
 
-    /// One chunk of a file from `from`, with the prefix check `check` (the hex FNV-1a-64 of the bytes before `from`).
-    pub async fn file_chunk(&self, run: &RunRef, name: &str, from: u64, check: Option<&str>) -> Result<Chunk> {
+    /// One chunk of a file from `from`, with the prefix check `check` (the hex FNV-1a-64 of the bytes before `from`) for
+    /// an append-only file, or the `mtime` its first chunk carried for a blob read from past 0.
+    pub async fn file_chunk(&self, run: &RunRef, name: &str, from: u64, check: Option<&str>, mtime: Option<f64>) -> Result<Chunk> {
         let resp = self
-            .req(reqwest::Method::GET, &run.file_path(name, from, check))
+            .req(reqwest::Method::GET, &run.file_path(name, from, check, mtime))
             .timeout(CHUNK_TIMEOUT)
             .send()
             .await?;

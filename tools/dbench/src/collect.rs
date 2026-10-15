@@ -1,11 +1,12 @@
 //! What a node lets the host collect from a run directory, and how it names it.
 //!
-//! The host pulls the files that git does not carry (the full agent transcript, the model server's
-//! log, the live progress file, the egress log) with `GET /v1/runs/files` and `/v1/runs/file`
-//! (server.rs). This module is the allow-list behind them: a request names a file, the name is
-//! matched against the table here, and the path is built from the table's own literals. A request
-//! never contributes a path segment longer than a story number, so a path outside the run
-//! directory (or the egress directory) cannot be asked for.
+//! The host pulls a run's full record with `GET /v1/runs/files` and `/v1/runs/file` (server.rs): the files git
+//! does not carry (the full agent transcript, the model server's log, the live progress file, the egress log) and
+//! the files git does (the scores, the held-out detail, the workspace bundle, the compact conversation logs, the
+//! re-scores). This module is the allow-list behind them: a request names a file, the name is matched against the
+//! rules here, and the path is built only from segments that passed the same rules. A name no rule accepts is never
+//! served and never listed. What is left out on purpose is named too (`NOT_COLLECTED`), and a test at the end of this
+//! file requires every file name the harness can write to be in exactly one of the two lists.
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -19,6 +20,11 @@ pub const COLLECT_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
 pub const PREFIX_CHECK_BYTES: u64 = 4096;
 /// A story directory is `stories/NN`; the harness numbers them with up to this many digits.
 pub const MAX_STORY_DIGITS: usize = 3;
+/// Longest segment of a name below a tree rule (artifacts, re-scores and the like).
+pub const MAX_SEGMENT_CHARS: usize = 128;
+/// Deepest name, in segments from the run directory, a tree rule accepts. The deepest name in the recorded corpus
+/// (tests/fixtures/run-file-names.txt) has 8; the test `the_deepest_corpus_name_is_within_the_tree_depth` pins it.
+pub const MAX_TREE_DEPTH: usize = 12;
 /// How deep under `combinations/` a combination directory (one with `config.sh`) may sit.
 const MAX_COMBINATION_DEPTH: usize = 8;
 /// A run directory is one with this file, written by run.sh at every start.
@@ -43,6 +49,27 @@ pub const GATE_FILE: &str = "gate.json";
 pub const BASE_COMMIT_FILE: &str = "base-commit";
 pub const BENCH_HOME_ENV: &str = "VIDI_BENCH_HOME";
 pub const DEFAULT_BENCH_HOME: &str = ".vidi-bench";
+/// Folders under a run directory whose whole content is on the list (any file below, valid names only).
+pub const RESCORE_DIR: &str = "rescore";
+pub const RESCORE_SPOILED_DIR: &str = "rescore-spoiled";
+pub const SUPERSEDED_DIR: &str = "superseded";
+pub const BASE_DIR: &str = "base";
+pub const PROMPTS_DIR: &str = "prompts";
+pub const AGENT_REPORTS_DIR: &str = "agent-reports";
+/// Folders under `stories/NN/` likewise.
+pub const ARTIFACTS_DIR: &str = "artifacts";
+pub const SCREENSHOTS_DIR: &str = "screenshots";
+pub const PRE_SUITE_FIX_DIR: &str = "pre-suite-fix";
+pub const SCORING_PREFIX: &str = "scoring-";
+/// Not collected, by name.
+pub const WORKSPACE_DIR: &str = "workspace";
+pub const CONTROL_DIR: &str = "control";
+pub const CURRENT_STORY_FILE: &str = "current_story";
+pub const GITIGNORE_FILE: &str = ".gitignore";
+pub const ARCHIVED_FILE: &str = "archived.json";
+/// An in-flight temporary: a dot, the name, then one of these.
+pub const TMP_SUFFIX: &str = ".tmp";
+pub const PARTIAL_SUFFIX: &str = ".partial";
 
 pub const HDR_FROM: &str = "x-dbench-from";
 pub const HDR_SIZE: &str = "x-dbench-size";
@@ -52,125 +79,187 @@ pub const HDR_EOF: &str = "x-dbench-eof";
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 
-/// How a file grows: appended to (served by byte range) or rewritten whole (served whole).
+/// How a file is transferred: appended to (served by byte range, with a prefix check), rewritten whole (served in
+/// one chunk), or a blob (any size, in chunks, held to the identity of the file it started from).
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum FileKind {
     Append,
     Whole,
+    Blob,
+}
+
+/// A record is what the harness publishes; raw is the full uncompacted streams and machine readings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Class {
+    Record,
+    Raw,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Source {
+pub enum Source {
     RunDir,
     Egress,
 }
 
+/// A folder whose files are on the list as a tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Pattern {
+pub enum TreeRoot {
+    /// `rescore/<version>/<files...>`
+    Rescore,
+    /// `rescore-spoiled/<version>/<files...>`
+    RescoreSpoiled,
+    /// `superseded/<name>/<files...>`
+    Superseded,
+    /// `base/<files...>`
+    Base,
+    /// `prompts/<files...>` (a record of an older layout)
+    Prompts,
+    /// `agent-reports/<files...>` (a record of an older layout)
+    AgentReports,
+    /// `stories/<NN>/<folder>/<files...>`
+    StoryDir(&'static str),
+    /// `stories/<NN>/scoring-<N>/<files...>`
+    StoryScoring,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Pattern {
     Fixed(&'static str),
     /// `stories/<digits>/<file>`
     Story(&'static str),
+    Tree(TreeRoot),
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Collectable {
-    pattern: Pattern,
-    kind: FileKind,
-    source: Source,
+pub struct Collectable {
+    /// The rule's name, as `--list-rules` prints it and the checks report it.
+    pub id: &'static str,
+    pub pattern: Pattern,
+    pub kind: FileKind,
+    pub class: Class,
+    pub source: Source,
 }
 
-/// The whole allow-list. Nothing outside it is ever served.
-const COLLECTABLE: [Collectable; 13] = [
-    Collectable {
-        pattern: Pattern::Story(EVENTS_FILE),
-        kind: FileKind::Append,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Story(CONDITIONS_FILE),
-        kind: FileKind::Append,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Fixed(SERVER_LOG),
-        kind: FileKind::Append,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Fixed(PROXY_LOG),
-        kind: FileKind::Append,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Fixed(progress::PROGRESS_FILE),
-        kind: FileKind::Whole,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Fixed(EGRESS_NAME),
-        kind: FileKind::Append,
-        source: Source::Egress,
-    },
+const fn fixed(name: &'static str, kind: FileKind, class: Class) -> Collectable {
+    Collectable { id: name, pattern: Pattern::Fixed(name), kind, class, source: Source::RunDir }
+}
+
+const fn story(id: &'static str, file: &'static str, kind: FileKind, class: Class) -> Collectable {
+    Collectable { id, pattern: Pattern::Story(file), kind, class, source: Source::RunDir }
+}
+
+const fn tree(id: &'static str, root: TreeRoot) -> Collectable {
+    Collectable { id, pattern: Pattern::Tree(root), kind: FileKind::Blob, class: Class::Record, source: Source::RunDir }
+}
+
+/// How many rules the full record has: 19 fixed record names, 4 fixed raw names, 9 story record names, 2 story raw
+/// names and 8 tree rules.
+pub const COLLECTED_RULES: usize = 42;
+/// How many more the corpus of recorded run directories needed (an older layout's records, one older file).
+pub const LEGACY_RULES: usize = 8;
+
+/// The allow-list. Nothing outside it is ever served. The first thirteen keep the order of the list this replaced.
+pub const COLLECTABLE: [Collectable; COLLECTED_RULES] = [
+    story("stories/NN/agent-events.jsonl", EVENTS_FILE, FileKind::Append, Class::Raw),
+    story("stories/NN/conditions.jsonl", CONDITIONS_FILE, FileKind::Append, Class::Raw),
+    fixed(SERVER_LOG, FileKind::Append, Class::Raw),
+    fixed(PROXY_LOG, FileKind::Append, Class::Raw),
+    fixed(progress::PROGRESS_FILE, FileKind::Whole, Class::Record),
+    Collectable { id: EGRESS_NAME, pattern: Pattern::Fixed(EGRESS_NAME), kind: FileKind::Append, class: Class::Raw, source: Source::Egress },
     // The run's published records. These are tracked in git, unlike everything above, so until the harness's push
     // lands they exist only in the machine's checkout -- one destructive git command or one dead disk from being
     // gone, while the raw data describing them sits safe here. Taking them makes the lake a complete second copy.
-    Collectable {
-        pattern: Pattern::Fixed(METRICS_FILE),
-        kind: FileKind::Whole,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Fixed(RUN_FILE),
-        kind: FileKind::Whole,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Fixed(RUN_STATUS_FILE),
-        kind: FileKind::Whole,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Fixed(INTERVENTIONS_FILE),
-        kind: FileKind::Whole,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Story(ACCEPT_SUMMARY_FILE),
-        kind: FileKind::Whole,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Story(GATE_FILE),
-        kind: FileKind::Whole,
-        source: Source::RunDir,
-    },
-    Collectable {
-        pattern: Pattern::Story(BASE_COMMIT_FILE),
-        kind: FileKind::Whole,
-        source: Source::RunDir,
-    },
+    fixed(METRICS_FILE, FileKind::Whole, Class::Record),
+    fixed(RUN_FILE, FileKind::Whole, Class::Record),
+    fixed(RUN_STATUS_FILE, FileKind::Whole, Class::Record),
+    fixed(INTERVENTIONS_FILE, FileKind::Whole, Class::Record),
+    story("stories/NN/accept-summary.json", ACCEPT_SUMMARY_FILE, FileKind::Whole, Class::Record),
+    story("stories/NN/gate.json", GATE_FILE, FileKind::Whole, Class::Record),
+    story("stories/NN/base-commit", BASE_COMMIT_FILE, FileKind::Whole, Class::Record),
+    // The rest of the full record.
+    fixed("run-history.jsonl", FileKind::Whole, Class::Record),
+    fixed("summary.md", FileKind::Whole, Class::Record),
+    fixed("summary-detail.md", FileKind::Whole, Class::Record),
+    fixed("finalize.json", FileKind::Whole, Class::Record),
+    fixed("server-health.json", FileKind::Whole, Class::Record),
+    fixed("flow-counts.json", FileKind::Whole, Class::Record),
+    fixed("machine-unfit.json", FileKind::Whole, Class::Record),
+    fixed("metrics.subagent.json", FileKind::Blob, Class::Record),
+    fixed("heldout-detail.json", FileKind::Blob, Class::Record),
+    fixed("workspace-git-log.txt", FileKind::Blob, Class::Record),
+    fixed("AUDIT.md", FileKind::Blob, Class::Record),
+    fixed("audit.jsonl", FileKind::Blob, Class::Record),
+    fixed("publish-refused.json", FileKind::Blob, Class::Record),
+    fixed("workspace.bundle", FileKind::Blob, Class::Record),
+    fixed("requests.jsonl", FileKind::Append, Class::Raw),
+    story("stories/NN/prompt.md", "prompt.md", FileKind::Whole, Class::Record),
+    story("stories/NN/accept-final-summary.json", "accept-final-summary.json", FileKind::Whole, Class::Record),
+    story("stories/NN/accept.json", "accept.json", FileKind::Blob, Class::Record),
+    story("stories/NN/accept-report.json", "accept-report.json", FileKind::Blob, Class::Record),
+    story("stories/NN/accept-final.json", "accept-final.json", FileKind::Blob, Class::Record),
+    story("stories/NN/agent-events.compact.jsonl.gz", "agent-events.compact.jsonl.gz", FileKind::Blob, Class::Record),
+    tree("rescore/V/**", TreeRoot::Rescore),
+    tree("rescore-spoiled/V/**", TreeRoot::RescoreSpoiled),
+    tree("superseded/NAME/**", TreeRoot::Superseded),
+    tree("base/**", TreeRoot::Base),
+    tree("stories/NN/artifacts/**", TreeRoot::StoryDir(ARTIFACTS_DIR)),
+    tree("stories/NN/screenshots/**", TreeRoot::StoryDir(SCREENSHOTS_DIR)),
+    tree("stories/NN/pre-suite-fix/**", TreeRoot::StoryDir(PRE_SUITE_FIX_DIR)),
+    tree("stories/NN/scoring-N/**", TreeRoot::StoryScoring),
 ];
+
+/// File names the design's rules did not cover but the recorded run directories hold: the records of the older
+/// layout of a hand-built reference run (prompts, agent reports, a README, an omitted-files note, run-level
+/// acceptance files) and one older story file. Collected like any record, because the lake must hold every tracked
+/// file of a run before the run leaves git.
+pub const LEGACY_RECORDS: [Collectable; LEGACY_RULES] = [
+    fixed("OMITTED.txt", FileKind::Whole, Class::Record),
+    fixed("README.md", FileKind::Whole, Class::Record),
+    fixed("accept-summary.json", FileKind::Blob, Class::Record),
+    fixed("accept-final.json", FileKind::Blob, Class::Record),
+    fixed("accept-final-summary.json", FileKind::Blob, Class::Record),
+    story("stories/NN/gate.original.json", "gate.original.json", FileKind::Whole, Class::Record),
+    tree("prompts/**", TreeRoot::Prompts),
+    tree("agent-reports/**", TreeRoot::AgentReports),
+];
+
+/// Every collected rule, the full record first and the legacy records after it.
+pub fn rules() -> impl Iterator<Item = &'static Collectable> {
+    COLLECTABLE.iter().chain(LEGACY_RECORDS.iter())
+}
 
 /// A collectable file, named: only `parse_name` makes one, so holding one proves the name was allowed.
 #[derive(Debug, Clone)]
 pub struct FileName {
     entry: Collectable,
-    story: Option<String>,
+    name: String,
 }
 
 impl FileName {
     pub fn kind(&self) -> FileKind {
-        self.entry.kind
+        todo!()
+    }
+
+    pub fn class(&self) -> Class {
+
+        todo!()
+
+    }
+
+    /// The rule that accepted the name.
+    pub fn rule(&self) -> &'static str {
+        todo!()
+    }
+
+    /// Where the file is read from: the run directory, or the egress folder.
+    pub fn source(&self) -> Source {
+        self.entry.source
     }
 
     /// The name as the manifest lists it.
     pub fn name(&self) -> String {
-        match (self.entry.pattern, &self.story) {
-            (Pattern::Fixed(f), _) => f.to_string(),
-            (Pattern::Story(f), Some(n)) => format!("{STORIES_DIR}/{n}/{f}"),
-            (Pattern::Story(f), None) => format!("{STORIES_DIR}/?/{f}"),
-        }
+        todo!()
     }
 }
 
@@ -178,28 +267,127 @@ fn story_number(s: &str) -> bool {
     !s.is_empty() && s.len() <= MAX_STORY_DIGITS && s.bytes().all(|b| b.is_ascii_digit())
 }
 
-/// The allow-list entry a name means, or None for anything else.
-pub fn parse_name(name: &str) -> Option<FileName> {
-    for entry in COLLECTABLE {
-        match entry.pattern {
-            Pattern::Fixed(f) if f == name => return Some(FileName { entry, story: None }),
-            Pattern::Fixed(_) => {}
-            Pattern::Story(f) => {
-                let mut parts = name.split('/');
-                if let (Some(STORIES_DIR), Some(n), Some(file), None) =
-                    (parts.next(), parts.next(), parts.next(), parts.next())
-                {
-                    if file == f && story_number(n) {
-                        return Some(FileName {
-                            entry,
-                            story: Some(n.to_string()),
-                        });
-                    }
-                }
-            }
-        }
+/// One segment of a name below a tree rule: 1 to `MAX_SEGMENT_CHARS` characters of `[A-Za-z0-9._+@=-]`, and not `.` or
+/// `..`. ASCII only, so no separator, space, backslash or letter outside the alphabet gets through.
+fn segment_ok(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= MAX_SEGMENT_CHARS
+        && s != "."
+        && s != ".."
+        && s.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'+' | b'@' | b'=' | b'-'))
+}
+
+/// An in-flight temporary: a dot, the name, then `.tmp` or `.partial`.
+pub fn is_temporary(last_segment: &str) -> bool {
+    last_segment.starts_with('.') && (last_segment.ends_with(TMP_SUFFIX) || last_segment.ends_with(PARTIAL_SUFFIX))
+}
+
+fn scoring_dir(s: &str) -> bool {
+    s.strip_prefix(SCORING_PREFIX).is_some_and(story_number)
+}
+
+fn tree_matches(root: TreeRoot, segs: &[&str]) -> bool {
+    let all_ok = |s: &[&str]| s.len() <= MAX_TREE_DEPTH && s.iter().all(|x| segment_ok(x));
+    match root {
+        TreeRoot::Rescore => segs.len() >= 3 && segs[0] == RESCORE_DIR && all_ok(segs),
+        TreeRoot::RescoreSpoiled => segs.len() >= 3 && segs[0] == RESCORE_SPOILED_DIR && all_ok(segs),
+        TreeRoot::Superseded => segs.len() >= 3 && segs[0] == SUPERSEDED_DIR && all_ok(segs),
+        TreeRoot::Base => segs.len() >= 2 && segs[0] == BASE_DIR && all_ok(segs),
+        TreeRoot::Prompts => segs.len() >= 2 && segs[0] == PROMPTS_DIR && all_ok(segs),
+        TreeRoot::AgentReports => segs.len() >= 2 && segs[0] == AGENT_REPORTS_DIR && all_ok(segs),
+        TreeRoot::StoryDir(dir) => segs.len() >= 4 && segs[0] == STORIES_DIR && story_number(segs[1]) && segs[2] == dir && all_ok(segs),
+        TreeRoot::StoryScoring => segs.len() >= 4 && segs[0] == STORIES_DIR && story_number(segs[1]) && scoring_dir(segs[2]) && all_ok(segs),
     }
-    None
+}
+
+fn matches_rule(entry: &Collectable, segs: &[&str]) -> bool {
+    match entry.pattern {
+        Pattern::Fixed(f) => segs.len() == 1 && segs[0] == f,
+        Pattern::Story(f) => segs.len() == 3 && segs[0] == STORIES_DIR && story_number(segs[1]) && segs[2] == f,
+        Pattern::Tree(root) => tree_matches(root, segs),
+    }
+}
+
+/// The allow-list entry a name means, or None for anything else (and for an in-flight temporary, always).
+pub fn parse_name(name: &str) -> Option<FileName> {
+    todo!()
+}
+
+/// What is left out on purpose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NcPattern {
+    /// A folder and everything below it.
+    Tree(&'static str),
+    Fixed(&'static str),
+    /// A dot, a name and this suffix, at any depth.
+    Temporary(&'static str),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NotCollected {
+    pub id: &'static str,
+    pub pattern: NcPattern,
+    /// Why it is left out, in one line.
+    pub reason: &'static str,
+}
+
+/// The named list of what the collector never takes. Every file name the harness can write is in this list or in
+/// `COLLECTABLE` (or `LEGACY_RECORDS`), and never in both.
+pub const NOT_COLLECTED: [NotCollected; 8] = [
+    NotCollected { id: "workspace/**", pattern: NcPattern::Tree(WORKSPACE_DIR), reason: "the agent's working tree: rebuildable from workspace.bundle" },
+    NotCollected { id: "control/**", pattern: NcPattern::Tree(CONTROL_DIR), reason: "live control files such as the operator's skip request" },
+    NotCollected { id: CURRENT_STORY_FILE, pattern: NcPattern::Fixed(CURRENT_STORY_FILE), reason: "the live marker of the story now running" },
+    NotCollected { id: WORK_DIR_FILE, pattern: NcPattern::Fixed(WORK_DIR_FILE), reason: "the work folder note: a machine path (the egress log is reached through it, the note is not taken)" },
+    NotCollected { id: GITIGNORE_FILE, pattern: NcPattern::Fixed(GITIGNORE_FILE), reason: "written only by the old harness, for git" },
+    NotCollected { id: ARCHIVED_FILE, pattern: NcPattern::Fixed(ARCHIVED_FILE), reason: "a marker the host writes into the lake, never a node" },
+    NotCollected { id: ".NAME.PID.tmp", pattern: NcPattern::Temporary(TMP_SUFFIX), reason: "an in-flight temporary: it exists for a moment" },
+    NotCollected { id: ".NAME.partial", pattern: NcPattern::Temporary(PARTIAL_SUFFIX), reason: "an in-flight temporary: a file part-way through its transfer" },
+];
+
+fn nc_matches(rule: &NotCollected, segs: &[&str]) -> bool {
+    match rule.pattern {
+        NcPattern::Tree(dir) => segs.len() >= 2 && segs[0] == dir,
+        NcPattern::Fixed(f) => segs.len() == 1 && segs[0] == f,
+        NcPattern::Temporary(suffix) => segs.last().is_some_and(|last| last.starts_with('.') && last.ends_with(suffix)),
+    }
+}
+
+/// The not-collected rule a name falls under, if any.
+pub fn not_collected_rule(name: &str) -> Option<&'static NotCollected> {
+    todo!()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Classification {
+    Collected(&'static str),
+    NotCollected(&'static str, &'static str),
+    Unclassified,
+}
+
+/// Where a name stands: collected (by which rule), left out (by which rule, and why), or neither. In-flight
+/// temporaries are tested first and win, which keeps the two lists disjoint.
+pub fn classify(name: &str) -> Classification {
+    todo!()
+}
+
+fn kind_label(k: FileKind) -> &'static str {
+    match k {
+        FileKind::Append => "append",
+        FileKind::Whole => "whole",
+        FileKind::Blob => "blob",
+    }
+}
+
+fn class_label(c: Class) -> &'static str {
+    match c {
+        Class::Record => "record",
+        Class::Raw => "raw",
+    }
+}
+
+/// `dbench collect --list-rules`: the collected rules, then the ones left out with their reasons, one line each.
+pub fn list_rules() -> String {
+    todo!()
 }
 
 /// `<bench_home>/egress/<basename of work_dir.txt>.jsonl`, or None when the run has no work dir
@@ -213,16 +401,20 @@ pub fn egress_path(run_dir: &Path, bench_home: &Path) -> Option<PathBuf> {
     Some(bench_home.join(EGRESS_DIR).join(format!("{id}.jsonl")))
 }
 
-/// Where a named file is on this machine. Built from the table's literals and the story number only.
+/// Where a named file is on this machine. Built only from segments that passed the rules. The egress log is the one
+/// named in work_dir.txt when that file exists, else a file of that name in the run directory itself.
 pub fn resolve(run_dir: &Path, bench_home: &Path, name: &FileName) -> Option<PathBuf> {
-    match (name.entry.source, name.entry.pattern, &name.story) {
-        (Source::Egress, _, _) => egress_path(run_dir, bench_home),
-        (Source::RunDir, Pattern::Fixed(f), _) => Some(run_dir.join(f)),
-        (Source::RunDir, Pattern::Story(f), Some(n)) => {
-            Some(run_dir.join(STORIES_DIR).join(n).join(f))
-        }
-        (Source::RunDir, Pattern::Story(_), None) => None,
-    }
+    todo!()
+}
+
+/// Whether `path` is, once every link in it is followed, below `run_dir`. A path that does not exist is not.
+pub fn is_inside_run(run_dir: &Path, path: &Path) -> bool {
+    todo!()
+}
+
+/// Whether any component of `path` below `run_dir` is a symbolic link (the file itself included).
+pub fn has_link_below(run_dir: &Path, path: &Path) -> bool {
+    todo!()
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -250,6 +442,10 @@ pub struct Manifest {
     pub run_status: Option<RunStatus>,
     pub job_state: Option<String>,
     pub files: Vec<FileEntry>,
+    /// Files below a tree rule whose names fail the rules (a character outside the alphabet, too long, too deep): a
+    /// fact, not a fault. They are not listed and not served, and they never delay completeness.
+    #[serde(default)]
+    pub unlisted: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -281,8 +477,9 @@ pub fn mtime_secs(m: &std::fs::Metadata) -> f64 {
     format!("{secs:.3}").parse().unwrap_or(secs)
 }
 
+/// A regular file, never a link: its size and mtime from `stat` alone.
 fn entry_for(path: &Path, name: String, kind: FileKind) -> Option<FileEntry> {
-    let m = std::fs::metadata(path).ok()?;
+    let m = std::fs::symlink_metadata(path).ok()?;
     if !m.is_file() {
         return None;
     }
@@ -294,41 +491,122 @@ fn entry_for(path: &Path, name: String, kind: FileKind) -> Option<FileEntry> {
     })
 }
 
-/// Every allow-listed file that exists for this run, with its size and mtime (from `stat` only;
-/// no file is opened). Story files are listed for every all-digit story directory.
-pub fn manifest(run_dir: &Path, bench_home: &Path) -> Vec<FileEntry> {
+fn story_dirs(run_dir: &Path) -> Vec<String> {
     let mut stories: Vec<String> = std::fs::read_dir(run_dir.join(STORIES_DIR))
         .map(|rd| {
             rd.filter_map(|e| e.ok())
+                .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
                 .filter_map(|e| e.file_name().to_str().map(String::from))
                 .filter(|n| story_number(n))
                 .collect()
         })
         .unwrap_or_default();
     stories.sort();
-    let mut out = Vec::new();
-    for entry in COLLECTABLE {
-        match entry.pattern {
-            Pattern::Story(_) => {
-                for n in &stories {
-                    let name = FileName {
-                        entry,
-                        story: Some(n.clone()),
-                    };
-                    if let Some(p) = resolve(run_dir, bench_home, &name) {
-                        out.extend(entry_for(&p, name.name(), entry.kind));
-                    }
-                }
+    stories
+}
+
+/// What a walk below a tree root found: the files that pass the rules and a count of those that do not.
+#[derive(Default)]
+struct Walk {
+    files: Vec<FileEntry>,
+    unlisted: u64,
+}
+
+/// Every regular file below `dir`, its name `prefix` plus its path under `dir`. Links are never followed or listed;
+/// a name that fails the rules is counted; a temporary is ignored. Folders deeper than the rules allow are not entered.
+fn walk(dir: &Path, prefix: &str, entry: &Collectable, depth: usize, out: &mut Walk) {
+    // The folder itself must be a real folder: a link to another one is not followed.
+    if !std::fs::symlink_metadata(dir).is_ok_and(|m| m.file_type().is_dir()) {
+        return;
+    }
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    let mut items: Vec<_> = rd.filter_map(|e| e.ok()).collect();
+    items.sort_by_key(|e| e.file_name());
+    for item in items {
+        let Ok(ft) = item.file_type() else { continue };
+        if ft.is_symlink() {
+            continue;
+        }
+        let Some(fname) = item.file_name().to_str().map(String::from) else {
+            out.unlisted += 1;
+            continue;
+        };
+        let name = format!("{prefix}{fname}");
+        if ft.is_dir() {
+            if depth + 1 > MAX_TREE_DEPTH {
+                out.unlisted += 1;
+            } else {
+                walk(&item.path(), &format!("{name}/"), entry, depth + 1, out);
             }
-            Pattern::Fixed(_) => {
-                let name = FileName { entry, story: None };
-                if let Some(p) = resolve(run_dir, bench_home, &name) {
-                    out.extend(entry_for(&p, name.name(), entry.kind));
+        } else if ft.is_file() {
+            if is_temporary(&fname) {
+                continue;
+            }
+            match parse_name(&name).filter(|f| f.entry.id == entry.id) {
+                Some(f) => out.files.extend(entry_for(&item.path(), f.name(), entry.kind)),
+                None => out.unlisted += 1,
+            }
+        }
+    }
+}
+
+fn walk_tree(run_dir: &Path, entry: &Collectable, root: TreeRoot, stories: &[String], out: &mut Walk) {
+    let top_dir = match root {
+        TreeRoot::Rescore => Some(RESCORE_DIR),
+        TreeRoot::RescoreSpoiled => Some(RESCORE_SPOILED_DIR),
+        TreeRoot::Superseded => Some(SUPERSEDED_DIR),
+        TreeRoot::Base => Some(BASE_DIR),
+        TreeRoot::Prompts => Some(PROMPTS_DIR),
+        TreeRoot::AgentReports => Some(AGENT_REPORTS_DIR),
+        TreeRoot::StoryDir(_) | TreeRoot::StoryScoring => None,
+    };
+    if let Some(dir) = top_dir {
+        walk(&run_dir.join(dir), &format!("{dir}/"), entry, 1, out);
+        return;
+    }
+    match root {
+        TreeRoot::Rescore | TreeRoot::RescoreSpoiled | TreeRoot::Superseded | TreeRoot::Base | TreeRoot::Prompts | TreeRoot::AgentReports => {}
+        TreeRoot::StoryDir(dir) => {
+            for n in stories {
+                let base = run_dir.join(STORIES_DIR).join(n);
+                walk(&base.join(dir), &format!("{STORIES_DIR}/{n}/{dir}/"), entry, 3, out);
+            }
+        }
+        TreeRoot::StoryScoring => {
+            for n in stories {
+                let base = run_dir.join(STORIES_DIR).join(n);
+                let Ok(rd) = std::fs::read_dir(&base) else { continue };
+                let mut dirs: Vec<String> = rd
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.file_type().is_ok_and(|t| t.is_dir() && !t.is_symlink()))
+                    .filter_map(|e| e.file_name().to_str().map(String::from))
+                    .filter(|d| scoring_dir(d))
+                    .collect();
+                dirs.sort();
+                for d in dirs {
+                    walk(&base.join(&d), &format!("{STORIES_DIR}/{n}/{d}/"), entry, 3, out);
                 }
             }
         }
     }
-    out
+}
+
+/// What a run directory offers: every allow-listed file that exists, with its size and mtime (from `stat` only; no
+/// file is opened), and a count of tree files whose names the rules refuse.
+pub struct Listing {
+    pub files: Vec<FileEntry>,
+    pub unlisted: u64,
+}
+
+pub fn manifest_listing(run_dir: &Path, bench_home: &Path) -> Listing {
+
+    todo!()
+
+}
+
+/// The files of `manifest_listing`, for callers that do not need the unlisted count.
+pub fn manifest(run_dir: &Path, bench_home: &Path) -> Vec<FileEntry> {
+    manifest_listing(run_dir, bench_home).files
 }
 
 /// `run-status.json`, read leniently: None when missing or not an object with a string `state`.
@@ -442,117 +720,6 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
-    }
-
-    #[test]
-    fn only_allow_listed_names_parse() {
-        for ok in [
-            "server.log",
-            "proxy.log",
-            "progress.json",
-            "egress.jsonl",
-            "stories/03/agent-events.jsonl",
-            "stories/123/agent-events.jsonl",
-            "stories/7/conditions.jsonl",
-        ] {
-            let n = parse_name(ok).unwrap_or_else(|| panic!("{ok}"));
-            assert_eq!(n.name(), ok);
-        }
-        for bad in [
-            "",
-            "../server.log",
-            "/server.log",
-            "server.log/",
-            "stories/../agent-events.jsonl",
-            "stories/03/accept.json",
-            "stories/03/../../server.log",
-            "stories/3x/agent-events.jsonl",
-            "stories//agent-events.jsonl",
-            "stories/1234/agent-events.jsonl",
-            "stories/03/agent-events.jsonl/x",
-            "work_dir.txt",
-            "SERVER.LOG",
-        ] {
-            assert!(parse_name(bad).is_none(), "{bad:?}");
-        }
-        // The records are allow-listed too, and whole-file: a half-written score is no score.
-        for name in ["metrics.json", "run.json", "run-status.json", "stories/01/accept-summary.json"] {
-            assert_eq!(parse_name(name).unwrap().kind(), FileKind::Whole, "{name}");
-        }
-        assert_eq!(parse_name("progress.json").unwrap().kind(), FileKind::Whole);
-        assert_eq!(parse_name("server.log").unwrap().kind(), FileKind::Append);
-    }
-
-    #[test]
-    fn every_accepted_name_resolves_under_the_run_dir_or_the_egress_dir() {
-        let root = temp_dir("resolve");
-        let run_dir = root.join("repo/combinations/a/b/benchmarks/p/r1");
-        let bench_home = root.join("bench");
-        std::fs::create_dir_all(&run_dir).unwrap();
-        std::fs::write(run_dir.join(WORK_DIR_FILE), "/home/x/.w/abc123/workspace\n").unwrap();
-        for name in [
-            "server.log",
-            "proxy.log",
-            "progress.json",
-            "stories/02/agent-events.jsonl",
-            "stories/02/conditions.jsonl",
-        ] {
-            let p = resolve(&run_dir, &bench_home, &parse_name(name).unwrap()).unwrap();
-            assert!(p.starts_with(&run_dir), "{name}: {}", p.display());
-            assert!(p
-                .strip_prefix(&run_dir)
-                .unwrap()
-                .components()
-                .all(|c| matches!(c, std::path::Component::Normal(_))));
-        }
-        // work_dir.txt names the agent's working copy; the egress log takes its basename.
-        let p = resolve(&run_dir, &bench_home, &parse_name(EGRESS_NAME).unwrap()).unwrap();
-        assert_eq!(p, bench_home.join(EGRESS_DIR).join("workspace.jsonl"));
-        // A basename that isn't a plain id gives nothing rather than a path.
-        std::fs::write(run_dir.join(WORK_DIR_FILE), "/home/x/.w/..\n").unwrap();
-        assert!(resolve(&run_dir, &bench_home, &parse_name(EGRESS_NAME).unwrap()).is_none());
-        std::fs::remove_file(run_dir.join(WORK_DIR_FILE)).unwrap();
-        assert!(resolve(&run_dir, &bench_home, &parse_name(EGRESS_NAME).unwrap()).is_none());
-        std::fs::remove_dir_all(&root).unwrap();
-    }
-
-    /// A run's published records -- its scores -- lived only in the machine's git checkout between the harness
-    /// committing them and the push landing, so a destructive git command or a dead disk lost them while the raw
-    /// data they describe sat safe in the lake. The lake takes them too now.
-    #[test]
-    fn the_lake_takes_a_runs_records_as_well_as_its_logs_so_scores_are_never_single_copy() {
-        let root = temp_dir("manifest-records");
-        let run_dir = root.join("run");
-        let bench_home = root.join("bench");
-        std::fs::create_dir_all(run_dir.join("stories/01")).unwrap();
-        std::fs::create_dir_all(bench_home.join(EGRESS_DIR)).unwrap();
-        for (name, body) in [
-            ("metrics.json", "{}"),
-            ("run.json", "{}"),
-            (RUN_STATUS_FILE, "{}"),
-            ("interventions.md", "-"),
-        ] {
-            std::fs::write(run_dir.join(name), body).unwrap();
-        }
-        for (name, body) in [
-            ("accept-summary.json", "{}"),
-            ("gate.json", "{}"),
-            ("base-commit", "abc"),
-        ] {
-            std::fs::write(run_dir.join("stories/01").join(name), body).unwrap();
-        }
-        let got: Vec<String> = manifest(&run_dir, &bench_home).iter().map(|f| f.name.clone()).collect();
-        for want in [
-            "metrics.json",
-            "run.json",
-            "run-status.json",
-            "interventions.md",
-            "stories/01/accept-summary.json",
-            "stories/01/gate.json",
-            "stories/01/base-commit",
-        ] {
-            assert!(got.iter().any(|g| g == want), "{want} is not offered: {got:?}");
-        }
     }
 
     #[test]
@@ -723,5 +890,743 @@ mod tests {
             check_window(PREFIX_CHECK_BYTES + 5),
             (5, PREFIX_CHECK_BYTES + 5)
         );
+    }
+
+    // ---- story 5: the lake takes the full record (lake.allowlist.full_record) ----
+
+    use std::collections::BTreeSet;
+
+    /// The 19 fixed record names of the design table, with their kinds.
+    const FIXED_RECORDS: [(&str, FileKind); 19] = [
+        ("run.json", FileKind::Whole),
+        ("run-history.jsonl", FileKind::Whole),
+        ("run-status.json", FileKind::Whole),
+        ("metrics.json", FileKind::Whole),
+        ("interventions.md", FileKind::Whole),
+        ("summary.md", FileKind::Whole),
+        ("summary-detail.md", FileKind::Whole),
+        ("finalize.json", FileKind::Whole),
+        ("server-health.json", FileKind::Whole),
+        ("flow-counts.json", FileKind::Whole),
+        ("machine-unfit.json", FileKind::Whole),
+        ("progress.json", FileKind::Whole),
+        ("metrics.subagent.json", FileKind::Blob),
+        ("heldout-detail.json", FileKind::Blob),
+        ("workspace-git-log.txt", FileKind::Blob),
+        ("AUDIT.md", FileKind::Blob),
+        ("audit.jsonl", FileKind::Blob),
+        ("publish-refused.json", FileKind::Blob),
+        ("workspace.bundle", FileKind::Blob),
+    ];
+    const FIXED_RAW: [&str; 4] = ["server.log", "proxy.log", "requests.jsonl", "egress.jsonl"];
+    /// The 9 story record names and the 2 story raw names.
+    const STORY_RECORDS: [(&str, FileKind); 9] = [
+        ("prompt.md", FileKind::Whole),
+        ("base-commit", FileKind::Whole),
+        ("gate.json", FileKind::Whole),
+        ("accept-summary.json", FileKind::Whole),
+        ("accept-final-summary.json", FileKind::Whole),
+        ("accept.json", FileKind::Blob),
+        ("accept-report.json", FileKind::Blob),
+        ("accept-final.json", FileKind::Blob),
+        ("agent-events.compact.jsonl.gz", FileKind::Blob),
+    ];
+    const STORY_RAW: [&str; 2] = ["agent-events.jsonl", "conditions.jsonl"];
+
+    #[test]
+    fn the_table_holds_the_42_rules_of_the_design_and_the_legacy_records_beside_them() {
+        assert_eq!(COLLECTABLE.len(), COLLECTED_RULES);
+        assert_eq!(LEGACY_RECORDS.len(), LEGACY_RULES);
+        let count = |f: &dyn Fn(&Collectable) -> bool| COLLECTABLE.iter().filter(|e| f(e)).count();
+        assert_eq!(count(&|e| matches!(e.pattern, Pattern::Fixed(_)) && e.class == Class::Record), 19);
+        assert_eq!(count(&|e| matches!(e.pattern, Pattern::Fixed(_)) && e.class == Class::Raw), 4);
+        assert_eq!(count(&|e| matches!(e.pattern, Pattern::Story(_)) && e.class == Class::Record), 9);
+        assert_eq!(count(&|e| matches!(e.pattern, Pattern::Story(_)) && e.class == Class::Raw), 2);
+        assert_eq!(count(&|e| matches!(e.pattern, Pattern::Tree(_))), 8);
+        let ids: BTreeSet<&str> = rules().map(|e| e.id).collect();
+        assert_eq!(ids.len(), COLLECTED_RULES + LEGACY_RULES, "every rule has its own id");
+    }
+
+    #[test]
+    fn every_fixed_record_name_parses_with_the_kind_and_class_of_the_table() {
+        // TC-01
+        for (name, kind) in FIXED_RECORDS {
+            let n = parse_name(name).unwrap_or_else(|| panic!("{name}"));
+            assert_eq!((n.name().as_str(), n.kind(), n.class()), (name, kind, Class::Record), "{name}");
+            assert_eq!(n.rule(), name);
+        }
+    }
+
+    #[test]
+    fn every_fixed_raw_name_parses_as_raw_and_append() {
+        // TC-02
+        for name in FIXED_RAW {
+            let n = parse_name(name).unwrap_or_else(|| panic!("{name}"));
+            assert_eq!((n.kind(), n.class()), (FileKind::Append, Class::Raw), "{name}");
+        }
+        assert_eq!(parse_name("egress.jsonl").unwrap().source(), Source::Egress);
+        assert_eq!(parse_name("server.log").unwrap().source(), Source::RunDir);
+    }
+
+    #[test]
+    fn every_story_name_parses_for_story_01_and_story_123() {
+        // TC-03
+        for story in ["01", "123"] {
+            for (file, kind) in STORY_RECORDS {
+                let name = format!("stories/{story}/{file}");
+                let n = parse_name(&name).unwrap_or_else(|| panic!("{name}"));
+                assert_eq!((n.name(), n.kind(), n.class()), (name.clone(), kind, Class::Record), "{name}");
+            }
+            for file in STORY_RAW {
+                let name = format!("stories/{story}/{file}");
+                let n = parse_name(&name).unwrap_or_else(|| panic!("{name}"));
+                assert_eq!((n.kind(), n.class()), (FileKind::Append, Class::Raw), "{name}");
+            }
+        }
+    }
+
+    #[test]
+    fn tree_names_parse_as_blob_records() {
+        // TC-04
+        for name in [
+            "rescore/vidi-v2.0-pre2/rescore.json",
+            "rescore/V/stories/12/accept-summary.json",
+            "rescore-spoiled/vidi-v2.0-pre2-20261009T125355/set-aside.json",
+            "superseded/S/x/y",
+            "base/accept.json",
+            "base/x/y/z.png",
+            "stories/01/artifacts/a/b.png",
+            "stories/01/artifacts/.last-run.json",
+            "stories/02/screenshots/shot-01.png",
+            "stories/02/pre-suite-fix/y.json",
+            "stories/01/scoring-2/accept.json",
+            "stories/123/scoring-12/a/b/c.log",
+        ] {
+            let n = parse_name(name).unwrap_or_else(|| panic!("{name}"));
+            assert_eq!((n.kind(), n.class(), n.name().as_str()), (FileKind::Blob, Class::Record, name), "{name}");
+        }
+    }
+
+    #[test]
+    fn the_13_names_of_the_list_this_replaced_still_parse_with_their_old_kind() {
+        // TC-11
+        let old: [(&str, FileKind); 13] = [
+            ("stories/03/agent-events.jsonl", FileKind::Append),
+            ("stories/03/conditions.jsonl", FileKind::Append),
+            ("server.log", FileKind::Append),
+            ("proxy.log", FileKind::Append),
+            ("progress.json", FileKind::Whole),
+            ("egress.jsonl", FileKind::Append),
+            ("metrics.json", FileKind::Whole),
+            ("run.json", FileKind::Whole),
+            ("run-status.json", FileKind::Whole),
+            ("interventions.md", FileKind::Whole),
+            ("stories/03/accept-summary.json", FileKind::Whole),
+            ("stories/03/gate.json", FileKind::Whole),
+            ("stories/03/base-commit", FileKind::Whole),
+        ];
+        for (name, kind) in old {
+            assert_eq!(parse_name(name).unwrap_or_else(|| panic!("{name}")).kind(), kind, "{name}");
+        }
+        assert_eq!(COLLECTABLE.iter().take(old.len()).map(|e| e.id).collect::<Vec<_>>().len(), 13);
+    }
+
+    #[test]
+    fn a_name_no_rule_accepts_is_not_parsed() {
+        // TC-05
+        for bad in [
+            "stories/01/other.json",
+            "rescore",
+            "rescore/",
+            "rescore/V",
+            "a/b",
+            "",
+            "/run.json",
+            "run.json/",
+            "RUN.JSON",
+            "stories/01/artifacts",
+            "stories/01/artifacts/",
+            "stories/01/scoring-/x",
+            "stories/01/scoring-x/y",
+            "stories/01/scoring-1234/y",
+            "workspace/a/b",
+            "control/skip-story.json",
+            "current_story",
+            "work_dir.txt",
+        ] {
+            assert!(parse_name(bad).is_none(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn a_story_number_of_four_digits_is_refused() {
+        // TC-06
+        assert!(parse_name("stories/1234/prompt.md").is_none());
+        assert!(parse_name("stories/1234/artifacts/a.png").is_none());
+        assert!(parse_name("stories/123/prompt.md").is_some());
+        assert!(parse_name("stories/x1/prompt.md").is_none());
+    }
+
+    #[test]
+    fn a_segment_outside_the_alphabet_is_refused() {
+        // TC-07
+        for bad in [
+            "stories/01/artifacts/a b.png",
+            "stories/01/artifacts/a\\b.png",
+            "stories/01/artifacts/é.png",
+            "stories/01/artifacts/a→b.png",
+            "stories/01/artifacts/a(1).png",
+            "rescore/v 2/rescore.json",
+            "base/a:b",
+        ] {
+            assert!(parse_name(bad).is_none(), "{bad:?}");
+        }
+        for ok in ["base/a+b", "base/a@b", "base/a=b", "base/a_b", "base/A-b.c"] {
+            assert!(parse_name(ok).is_some(), "{ok:?}");
+        }
+    }
+
+    #[test]
+    fn a_segment_may_be_128_characters_and_not_129() {
+        // TC-08
+        let long = "a".repeat(MAX_SEGMENT_CHARS);
+        let too_long = "a".repeat(MAX_SEGMENT_CHARS + 1);
+        assert!(parse_name(&format!("stories/01/artifacts/{long}")).is_some());
+        assert!(parse_name(&format!("stories/01/artifacts/{too_long}")).is_none());
+        assert!(parse_name(&format!("rescore/{long}/x.json")).is_some());
+        assert!(parse_name(&format!("rescore/{too_long}/x.json")).is_none());
+    }
+
+    #[test]
+    fn a_tree_name_may_be_as_deep_as_the_constant_and_not_one_deeper() {
+        // TC-09
+        let below = |extra: usize| format!("stories/01/artifacts/{}", vec!["d"; extra].join("/"));
+        let room = MAX_TREE_DEPTH - 3;
+        assert_eq!(below(room).split('/').count(), MAX_TREE_DEPTH);
+        assert!(parse_name(&below(room)).is_some());
+        assert!(parse_name(&below(room + 1)).is_none());
+        assert!(parse_name(&below(1)).is_some());
+    }
+
+    #[test]
+    fn a_dot_segment_or_an_empty_one_is_refused() {
+        // TC-10
+        for bad in [
+            "rescore/../x",
+            "rescore/./x",
+            "rescore//x",
+            "rescore/V/../x.json",
+            "stories/01/artifacts/../../x",
+            "stories/01/artifacts/./a",
+            "stories/01/artifacts//a",
+            "base/..",
+            "base/.",
+            "../server.log",
+            "stories/../agent-events.jsonl",
+        ] {
+            assert!(parse_name(bad).is_none(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn an_in_flight_temporary_is_never_a_collected_name() {
+        for tmp in [".progress.json.1234.tmp", ".x.partial", "stories/01/artifacts/.y.tmp", "base/.z.partial", "rescore/V/.a.json.9.tmp"] {
+            assert!(parse_name(tmp).is_none(), "{tmp}");
+        }
+        // A dot file that is not a temporary is a name like any other.
+        assert!(parse_name("stories/01/artifacts/.last-run.json").is_some());
+    }
+
+    #[test]
+    fn the_records_of_an_older_layout_are_collected_too() {
+        // The corpus of recorded run directories holds names the design's 42 rules do not cover (tests/fixtures/run-nonrun-literals.toml).
+        for name in [
+            "OMITTED.txt",
+            "README.md",
+            "accept-summary.json",
+            "accept-final.json",
+            "accept-final-summary.json",
+            "stories/04/gate.original.json",
+            "prompts/story-01.md",
+            "agent-reports/story-12.md",
+        ] {
+            let n = parse_name(name).unwrap_or_else(|| panic!("{name}"));
+            assert_eq!(n.class(), Class::Record, "{name}");
+        }
+        assert!(parse_name("prompts").is_none() && parse_name("agent-reports/").is_none());
+    }
+
+    #[test]
+    fn the_egress_log_is_the_one_work_dir_txt_names_else_a_file_of_that_name_in_the_run() {
+        let root = temp_dir("egress-fallback");
+        let run_dir = root.join("run");
+        let bench_home = root.join("bench");
+        std::fs::create_dir_all(&run_dir).unwrap();
+        std::fs::create_dir_all(bench_home.join(EGRESS_DIR)).unwrap();
+        let name = parse_name(EGRESS_NAME).unwrap();
+        // No work_dir.txt: the file in the run directory itself (one tracked run holds its egress log there).
+        assert_eq!(resolve(&run_dir, &bench_home, &name), Some(run_dir.join(EGRESS_NAME)));
+        // work_dir.txt names a log that exists: that one.
+        std::fs::write(run_dir.join(WORK_DIR_FILE), "/w/run-7\n").unwrap();
+        std::fs::write(bench_home.join(EGRESS_DIR).join("run-7.jsonl"), "{}\n").unwrap();
+        assert_eq!(resolve(&run_dir, &bench_home, &name), Some(bench_home.join(EGRESS_DIR).join("run-7.jsonl")));
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn every_rule_resolves_under_the_run_dir_or_the_egress_dir() {
+        let root = temp_dir("resolve-rules");
+        let run_dir = root.join("repo/combinations/a/b/benchmarks/p/r1");
+        let bench_home = root.join("bench");
+        std::fs::create_dir_all(&run_dir).unwrap();
+        std::fs::write(run_dir.join(WORK_DIR_FILE), "/home/x/.w/abc123/workspace\n").unwrap();
+        std::fs::create_dir_all(bench_home.join(EGRESS_DIR)).unwrap();
+        std::fs::write(bench_home.join(EGRESS_DIR).join("workspace.jsonl"), "{}\n").unwrap();
+        let mut names: Vec<String> = FIXED_RECORDS.iter().map(|(n, _)| n.to_string()).collect();
+        names.extend(FIXED_RAW.iter().map(|n| n.to_string()));
+        names.extend(STORY_RECORDS.iter().map(|(n, _)| format!("stories/02/{n}")));
+        names.extend(STORY_RAW.iter().map(|n| format!("stories/02/{n}")));
+        names.extend(["rescore/V/rescore.json", "base/x/y.json", "stories/02/artifacts/a/b.png", "stories/02/scoring-2/c.json"].map(String::from));
+        for name in names {
+            let p = resolve(&run_dir, &bench_home, &parse_name(&name).unwrap_or_else(|| panic!("{name}"))).unwrap();
+            let inside = p.starts_with(&run_dir) || p == bench_home.join(EGRESS_DIR).join("workspace.jsonl");
+            assert!(inside, "{name}: {}", p.display());
+            if p.starts_with(&run_dir) {
+                assert!(p.strip_prefix(&run_dir).unwrap().components().all(|c| matches!(c, std::path::Component::Normal(_))), "{name}");
+            }
+        }
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    // ---- lake.allowlist.not_collected ----
+
+    #[test]
+    fn each_name_left_out_on_purpose_is_classified_with_a_reason() {
+        // TC-29
+        for name in ["workspace/a/b", "control/skip-story.json", "current_story", "work_dir.txt", ".gitignore", "archived.json"] {
+            match classify(name) {
+                Classification::NotCollected(rule, reason) => assert!(!reason.is_empty() && !rule.is_empty(), "{name}"),
+                other => panic!("{name}: {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn a_temporary_is_left_out_and_wins_over_the_tree_rule() {
+        // TC-30
+        for tmp in [".progress.json.1234.tmp", ".x.partial", "stories/01/artifacts/.y.tmp", "rescore/V/.z.json.2.tmp", "base/.q.partial"] {
+            assert!(matches!(classify(tmp), Classification::NotCollected(id, _) if id.starts_with(".NAME.")), "{tmp}: {:?}", classify(tmp));
+        }
+        // One at the run root and one inside a tree folder: the same rule.
+        assert_eq!(classify(".a.tmp"), classify("stories/01/screenshots/.a.tmp"));
+        assert_ne!(classify(".a.tmp"), classify(".a.partial"));
+    }
+
+    #[test]
+    fn every_not_collected_rule_has_a_reason_and_the_list_has_eight() {
+        // TC-33
+        assert_eq!(NOT_COLLECTED.len(), 8);
+        for r in NOT_COLLECTED {
+            assert!(r.reason.len() > 10 && !r.id.is_empty(), "{}", r.id);
+        }
+        let ids: BTreeSet<&str> = NOT_COLLECTED.iter().map(|r| r.id).collect();
+        assert_eq!(ids.len(), 8);
+    }
+
+    #[test]
+    fn classify_is_total_over_the_old_names_and_the_not_collected_ones() {
+        // TC-34
+        for name in [
+            "stories/03/agent-events.jsonl",
+            "stories/03/conditions.jsonl",
+            "server.log",
+            "proxy.log",
+            "progress.json",
+            "egress.jsonl",
+            "metrics.json",
+            "run.json",
+            "run-status.json",
+            "interventions.md",
+            "stories/03/accept-summary.json",
+            "stories/03/gate.json",
+            "stories/03/base-commit",
+            "workspace/x/y",
+            "control/z",
+            "current_story",
+            "work_dir.txt",
+            ".gitignore",
+            "archived.json",
+            ".a.1.tmp",
+            ".a.partial",
+        ] {
+            assert_ne!(classify(name), Classification::Unclassified, "{name}");
+        }
+        assert!(matches!(classify("server.log"), Classification::Collected("server.log")));
+        // A name that is neither listed is unclassified.
+        for name in ["new-thing.json", "stories/01/new-thing.json", "notes.txt"] {
+            assert_eq!(classify(name), Classification::Unclassified, "{name}");
+        }
+    }
+
+    #[test]
+    fn the_rules_are_printed_one_line_each_with_the_reason_of_every_exclusion() {
+        // TC-32
+        let text = list_rules();
+        for e in rules() {
+            assert!(text.lines().any(|l| l.contains(e.id)), "collected rule {} is not printed", e.id);
+        }
+        for r in NOT_COLLECTED {
+            assert!(text.lines().any(|l| l.contains(r.id) && l.contains(r.reason)), "{} is not printed with its reason", r.id);
+        }
+        assert!(text.contains("collected rules") && text.contains("not collected"));
+        assert_eq!(text.lines().count(), 2 + COLLECTED_RULES + LEGACY_RULES + NOT_COLLECTED.len());
+    }
+
+    #[test]
+    fn the_node_never_lists_a_name_that_is_left_out() {
+        let root = temp_dir("manifest-left-out");
+        let run_dir = root.join("run");
+        let bench_home = root.join("bench");
+        std::fs::create_dir_all(run_dir.join("workspace/src")).unwrap();
+        std::fs::create_dir_all(run_dir.join("control")).unwrap();
+        std::fs::create_dir_all(run_dir.join("stories/01/artifacts")).unwrap();
+        for (path, body) in [
+            ("run.json", "{}"),
+            ("workspace/src/a.ts", "x"),
+            ("control/skip-story.json", "{}"),
+            ("current_story", "1"),
+            ("work_dir.txt", "/w/x"),
+            (".gitignore", "x"),
+            (".run-status.json.99.tmp", "x"),
+            ("stories/01/artifacts/.y.tmp", "x"),
+            ("stories/01/artifacts/kept.png", "x"),
+        ] {
+            std::fs::write(run_dir.join(path), body).unwrap();
+        }
+        let got: Vec<String> = manifest(&run_dir, &bench_home).into_iter().map(|f| f.name).collect();
+        assert_eq!(got, ["run.json", "stories/01/artifacts/kept.png"]);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    // ---- lake.serve.held_out_allowlist: path safety (the unit part) ----
+
+    #[test]
+    fn a_path_that_leaves_the_run_directory_through_a_link_is_not_inside_it() {
+        // TC-52
+        let root = temp_dir("inside-run");
+        let run_dir = root.join("run");
+        let outside = root.join("outside");
+        std::fs::create_dir_all(run_dir.join("stories/01")).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("secret.txt"), "s").unwrap();
+        std::fs::write(run_dir.join("run.json"), "{}").unwrap();
+        // A symlinked parent: stories/01/artifacts -> ../../../outside
+        std::os::unix::fs::symlink(&outside, run_dir.join("stories/01/artifacts")).unwrap();
+        let via_parent = run_dir.join("stories/01/artifacts/secret.txt");
+        assert!(via_parent.is_file(), "the link resolves");
+        assert!(!is_inside_run(&run_dir, &via_parent));
+        assert!(has_link_below(&run_dir, &via_parent));
+        // A plain file inside is inside and has no link.
+        assert!(is_inside_run(&run_dir, &run_dir.join("run.json")));
+        assert!(!has_link_below(&run_dir, &run_dir.join("run.json")));
+        // A link to a file in the same run directory is still a link.
+        std::os::unix::fs::symlink(run_dir.join("run.json"), run_dir.join("alias.json")).unwrap();
+        assert!(has_link_below(&run_dir, &run_dir.join("alias.json")));
+        // A path that does not exist is not inside.
+        assert!(!is_inside_run(&run_dir, &run_dir.join("nope.json")));
+        // A path outside the run directory has a link-free route but is not inside it.
+        assert!(!is_inside_run(&run_dir, &outside.join("secret.txt")));
+        assert!(has_link_below(&run_dir, &outside.join("secret.txt")), "not below the run directory at all");
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn the_destinations_the_rules_compute_are_only_names_below_the_run_directory() {
+        // TC-56 (the collect.rs half: every rule resolves below the run directory or to the egress folder; the destinations
+        // in the lake are tested in collector.rs).
+        for e in rules() {
+            assert!(matches!(e.source, Source::RunDir | Source::Egress));
+        }
+        for name in ["heldout-detail.json", "summary-detail.md", "AUDIT.md", "audit.jsonl", "stories/01/accept.json", "stories/01/accept-report.json", "stories/01/accept-final.json", "stories/01/artifacts/a.png", "rescore/V/rescore.json"] {
+            let n = parse_name(name).unwrap_or_else(|| panic!("{name}"));
+            assert_eq!(n.source(), Source::RunDir, "{name}");
+            let p = resolve(Path::new("/run"), Path::new("/bench"), &n).unwrap();
+            assert!(p.starts_with("/run"), "{name}: {}", p.display());
+        }
+    }
+}
+
+/// The classification check (lake.allowlist.file_name_check): every file name the harness can write is in exactly one of
+/// the two lists, and a rule that matches nothing recorded is named. The corpus (tests/fixtures/run-file-names.txt) is the
+/// recorded names; the scan reads the harness sources for the names they write. A new name fails the build until it is
+/// classified, so a harness release cannot be cut with a file the lake would miss.
+#[cfg(test)]
+mod name_check {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    pub const E_CLASS_UNLISTED: &str = "E-CLASS-UNLISTED";
+    pub const E_CLASS_OVERLAP: &str = "E-CLASS-OVERLAP";
+    pub const E_RULE_UNUSED: &str = "E-RULE-UNUSED";
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Problem {
+        pub code: &'static str,
+        pub subject: String,
+        pub detail: String,
+    }
+
+    /// Rules no recorded run exercises, each with the reason: they are on the list on purpose.
+    pub const UNOBSERVED: [(&str, &str); 10] = [
+        ("requests.jsonl", "only a metered run writes it"),
+        ("proxy.log", "only a metered run writes it"),
+        ("control/**", "exists only while a story is running"),
+        (".NAME.PID.tmp", "in flight for a moment; the corpus leaves temporaries out"),
+        (".NAME.partial", "in flight for a moment; the corpus leaves temporaries out"),
+        ("flow-counts.json", "the harness does not write it yet (story 4 adds it)"),
+        ("stories/NN/accept-final.json", "written by the final scoring of a run that has no held-out final suite yet"),
+        ("stories/NN/accept-final-summary.json", "written beside accept-final.json"),
+        ("stories/NN/scoring-N/**", "present only on a node while a story is scored"),
+        ("publish-refused.json", "written only by a refusal path that is being retired"),
+    ];
+
+    /// The recorded names, as the corpus holds them (placeholders NN, V, NAME, scoring-N).
+    pub fn corpus() -> Vec<String> {
+        include_str!("../tests/fixtures/run-file-names.txt")
+            .lines()
+            .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
+            .map(String::from)
+            .collect()
+    }
+
+    /// A corpus name made concrete: each placeholder segment becomes a name the rules accept.
+    pub fn concrete(name: &str) -> String {
+        todo!()
+    }
+
+    /// Every rule of both lists that accepts the name, by id. A collected rule never accepts a temporary.
+    pub fn matching_rules(name: &str, collected: &[Collectable], not_collected: &[NotCollected]) -> Vec<&'static str> {
+        todo!()
+    }
+
+    /// E-CLASS-UNLISTED for a name no rule accepts, E-CLASS-OVERLAP for a name more than one rule accepts.
+    pub fn check_names(names: &[String], collected: &[Collectable], not_collected: &[NotCollected]) -> Vec<Problem> {
+        todo!()
+    }
+
+    /// E-RULE-UNUSED for a rule that no recorded name matches and that is not on the unobserved list.
+    pub fn check_unused(names: &[String], collected: &[Collectable], not_collected: &[NotCollected], unobserved: &[(&str, &str)]) -> Vec<Problem> {
+        todo!()
+    }
+
+    /// File-name literals the harness sources hold: (file, line, literal). A literal is a quoted string of the shape
+    /// `[A-Za-z0-9_.-]+` then `.json`, `.jsonl`, `.md`, `.txt`, `.log`, `.gz` or `.bundle`; a comment or docstring is read too.
+    pub fn harness_literals(dir: &Path) -> Vec<(String, usize, String)> {
+        todo!()
+    }
+
+    /// The literals that are not run files, and the run files only a tree rule covers, from run-nonrun-literals.toml.
+    pub fn nonrun_literals() -> (BTreeSet<String>, BTreeSet<String>) {
+        todo!()
+    }
+
+    /// E-CLASS-UNLISTED, naming the file and line, for each literal that is not a non-run literal and that no rule explains,
+    /// read at the run root or at a story's root.
+    pub fn check_sources(dir: &Path, nonrun: &BTreeSet<String>, tree_covered: &BTreeSet<String>) -> Vec<Problem> {
+        todo!()
+    }
+
+    fn harness_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../benchmarks/spec-bench/harness")
+    }
+
+    fn rules_as_slices() -> (Vec<Collectable>, Vec<NotCollected>) {
+        (rules().copied().collect(), NOT_COLLECTED.to_vec())
+    }
+
+    #[test]
+    fn every_recorded_name_is_classified_by_exactly_one_rule() {
+        // TC-35, TC-36
+        let (c, n) = rules_as_slices();
+        let names = corpus();
+        assert!(names.len() > 50, "the corpus is read: {}", names.len());
+        let problems = check_names(&names, &c, &n);
+        assert!(problems.is_empty(), "{problems:#?}");
+    }
+
+    #[test]
+    fn a_collected_and_a_not_collected_rule_that_accept_one_name_are_an_overlap() {
+        // TC-38: plant a pair.
+        let (mut c, mut n) = rules_as_slices();
+        let planted = Collectable { id: "planted", pattern: Pattern::Fixed("planted.json"), kind: FileKind::Whole, class: Class::Record, source: Source::RunDir };
+        c.push(planted);
+        n.push(NotCollected { id: "planted-out", pattern: NcPattern::Fixed("planted.json"), reason: "planted" });
+        let problems = check_names(&["planted.json".to_string()], &c, &n);
+        assert_eq!(problems.len(), 1);
+        assert_eq!((problems[0].code, problems[0].subject.as_str()), (E_CLASS_OVERLAP, "planted.json"));
+        assert!(problems[0].detail.contains("planted") && problems[0].detail.contains("planted-out"));
+        // A name no rule accepts is unlisted.
+        let unlisted = check_names(&["new-thing.json".to_string()], &c, &n);
+        assert_eq!(unlisted.iter().map(|p| p.code).collect::<Vec<_>>(), [E_CLASS_UNLISTED]);
+    }
+
+    #[test]
+    fn a_rule_that_matches_no_recorded_name_is_unused_unless_it_is_on_the_unobserved_list() {
+        // TC-39
+        let (mut c, n) = rules_as_slices();
+        c.push(Collectable { id: "never-written.json", pattern: Pattern::Fixed("never-written.json"), kind: FileKind::Whole, class: Class::Record, source: Source::RunDir });
+        let problems = check_unused(&corpus(), &c, &n, &UNOBSERVED);
+        assert_eq!(problems.iter().map(|p| (p.code, p.subject.as_str())).collect::<Vec<_>>(), [(E_RULE_UNUSED, "never-written.json")]);
+        // The same rule, named with a reason, passes; one named without a reason does not.
+        let with_reason = [UNOBSERVED.as_slice(), &[("never-written.json", "a test rule")]].concat();
+        assert!(check_unused(&corpus(), &c, &n, &with_reason).is_empty());
+        let no_reason = [UNOBSERVED.as_slice(), &[("never-written.json", "")]].concat();
+        assert_eq!(check_unused(&corpus(), &c, &n, &no_reason).len(), 1);
+    }
+
+    #[test]
+    fn every_rule_matches_a_recorded_name_or_is_unobserved_with_a_reason() {
+        // TC-39, the real lists
+        let (c, n) = rules_as_slices();
+        let problems = check_unused(&corpus(), &c, &n, &UNOBSERVED);
+        assert!(problems.is_empty(), "{problems:#?}");
+    }
+
+    #[test]
+    fn the_unobserved_rules_are_rules_with_reasons() {
+        // TC-40
+        let ids: BTreeSet<&str> = rules().map(|e| e.id).chain(NOT_COLLECTED.iter().map(|r| r.id)).collect();
+        for (id, why) in UNOBSERVED {
+            assert!(ids.contains(id), "{id} is not a rule");
+            assert!(why.len() > 10, "{id} has no reason");
+        }
+        for must in ["requests.jsonl", "stories/NN/scoring-N/**"] {
+            assert!(UNOBSERVED.iter().any(|(id, _)| *id == must), "{must}");
+        }
+    }
+
+    #[test]
+    fn literals_that_are_not_run_files_are_named_in_the_non_run_file_and_not_reported() {
+        // TC-41
+        let (nonrun, _) = nonrun_literals();
+        for lit in ["package.json", "tasks.md", "models.json", "settings.json", "opencode.json", "story.md", "config.json", "generation_config.json", "transcript.jsonl"] {
+            assert!(nonrun.contains(lit), "{lit}");
+        }
+        let (nonrun, covered) = nonrun_literals();
+        let problems = check_sources(&harness_dir(), &nonrun, &covered);
+        assert!(!problems.iter().any(|p| ["package.json", "tasks.md", "models.json"].contains(&p.detail.as_str())), "{problems:#?}");
+    }
+
+    #[test]
+    fn a_story_number_and_a_version_are_normalised_in_the_corpus() {
+        // TC-44
+        let names = corpus();
+        assert!(names.iter().any(|n| n.starts_with("stories/NN/")));
+        assert!(names.iter().any(|n| n.starts_with("rescore/V/")));
+        assert!(!names.iter().any(|n| n.contains("stories/07/") || n.contains("rescore/vidi-v2.0-pre2")));
+        assert_eq!(concrete("stories/NN/scoring-N/NAME/NAME.png"), "stories/01/scoring-2/x/x.png");
+        assert_eq!(concrete("rescore/V/stories/NN/accept-summary.json"), "rescore/vidi-v2.0-pre2/stories/01/accept-summary.json");
+    }
+
+    #[test]
+    fn the_deepest_corpus_name_is_within_the_tree_depth() {
+        // TC-45: the constant is pinned by the data.
+        let deepest = corpus().iter().map(|n| n.split('/').count()).max().unwrap();
+        assert!(deepest <= MAX_TREE_DEPTH, "{deepest} segments");
+        assert!(MAX_TREE_DEPTH - deepest <= 6, "the margin is small enough to mean something: {deepest} against {MAX_TREE_DEPTH}");
+    }
+
+    #[test]
+    fn the_harness_sources_write_no_file_name_the_lists_do_not_know() {
+        // TC-42, TC-46: this test is part of cargo test, so a harness release cannot be cut with a new name unclassified.
+        let (nonrun, covered) = nonrun_literals();
+        let problems = check_sources(&harness_dir(), &nonrun, &covered);
+        assert!(problems.is_empty(), "{problems:#?}");
+    }
+
+    #[test]
+    fn the_scan_finds_the_file_name_literals_of_the_design_table() {
+        // TC-42
+        let found: BTreeSet<String> = harness_literals(&harness_dir()).into_iter().map(|(_, _, l)| l).collect();
+        for want in ["run.json", "finalize.json", "workspace.bundle", "accept-final.json", "requests.jsonl", "heldout-detail.json", "summary-detail.md", "agent-events.compact.jsonl.gz", "workspace-git-log.txt", "server-health.json", "run-history.jsonl", "audit.jsonl", "AUDIT.md", "publish-refused.json", "machine-unfit.json", "metrics.subagent.json"] {
+            assert!(found.contains(want), "the scan does not find {want}");
+        }
+    }
+
+    #[test]
+    fn a_new_literal_in_a_scratch_copy_of_the_harness_fails_with_its_file_and_line_and_passes_again_without_it() {
+        // TC-37
+        let scratch = std::env::temp_dir().join(format!("dbench-name-check-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&scratch);
+        std::fs::create_dir_all(&scratch).unwrap();
+        for e in std::fs::read_dir(harness_dir()).unwrap().filter_map(|e| e.ok()) {
+            let p = e.path();
+            if p.is_file() && p.extension().is_some_and(|x| x == "py" || x == "sh") {
+                std::fs::copy(&p, scratch.join(p.file_name().unwrap())).unwrap();
+            }
+        }
+        let (nonrun, covered) = nonrun_literals();
+        assert!(check_sources(&scratch, &nonrun, &covered).is_empty(), "the scratch copy starts clean");
+        let drive = scratch.join("drive.py");
+        let original = std::fs::read_to_string(&drive).unwrap();
+        let lines_before = original.lines().count();
+        std::fs::write(&drive, format!("{original}\nNEW_FILE = \"new-thing.json\"\n")).unwrap();
+        let problems = check_sources(&scratch, &nonrun, &covered);
+        assert_eq!(problems.len(), 1, "{problems:#?}");
+        assert_eq!(problems[0].code, E_CLASS_UNLISTED);
+        assert_eq!(problems[0].subject, format!("drive.py:{}", lines_before + 2));
+        assert_eq!(problems[0].detail, "new-thing.json");
+        std::fs::write(&drive, original).unwrap();
+        assert!(check_sources(&scratch, &nonrun, &covered).is_empty());
+        std::fs::remove_dir_all(&scratch).unwrap();
+    }
+
+    #[test]
+    fn a_literal_in_a_comment_or_a_docstring_is_still_reported() {
+        // TC-37, boundary
+        let scratch = std::env::temp_dir().join(format!("dbench-name-check-comment-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&scratch);
+        std::fs::create_dir_all(&scratch).unwrap();
+        std::fs::write(scratch.join("a.py"), "# writes 'in-comment.json' somewhere\n\"\"\"docstring names \"in-doc.md\" too\"\"\"\n").unwrap();
+        let problems = check_sources(&scratch, &BTreeSet::new(), &BTreeSet::new());
+        let found: Vec<&str> = problems.iter().map(|p| p.detail.as_str()).collect();
+        assert_eq!(found, ["in-comment.json", "in-doc.md"]);
+        // A reason in the non-run file resolves it.
+        let nonrun: BTreeSet<String> = ["in-comment.json".to_string(), "in-doc.md".to_string()].into();
+        assert!(check_sources(&scratch, &nonrun, &BTreeSet::new()).is_empty());
+        std::fs::remove_dir_all(&scratch).unwrap();
+    }
+
+    #[test]
+    fn the_corpus_header_names_the_commit_and_its_counts_match_what_git_tracked_there() {
+        // TC-43
+        let text = include_str!("../tests/fixtures/run-file-names.txt");
+        let header: Vec<&str> = text.lines().take_while(|l| l.starts_with('#')).collect();
+        let commit = header.iter().find_map(|l| l.strip_prefix("# commit: ")).expect("the header names the commit");
+        let want = header.iter().find_map(|l| l.strip_prefix("# tracked run records (run.json): ")).expect("the header counts run records");
+        let (total, rest) = want.split_once(' ').unwrap();
+        let total: usize = total.parse().unwrap();
+        assert!(rest.contains("combination") && rest.contains("reference"));
+        let out = std::process::Command::new("git")
+            .args(["ls-tree", "-r", "--full-tree", "--name-only", commit, "--", "combinations", "benchmarks/reference"])
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .output();
+        let listing = match out {
+            Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
+            _ => {
+                eprintln!("skipped: commit {commit} is not in this clone");
+                return;
+            }
+        };
+        let (mut combination, mut reference) = (0, 0);
+        for line in listing.lines() {
+            if line.ends_with("/run.json") && line.starts_with("combinations/") && line.contains("/benchmarks/") && line.matches('/').count() >= 5 {
+                combination += 1;
+            } else if line.starts_with("benchmarks/reference/") && line.ends_with("/run.json") && line.matches('/').count() == 5 {
+                reference += 1;
+            }
+        }
+        assert_eq!(combination + reference, total, "the header says {total}, git has {combination} + {reference} at {commit}");
+        assert!(rest.contains(&format!("combination {combination}")) && rest.contains(&format!("reference {reference}")), "{rest}");
     }
 }

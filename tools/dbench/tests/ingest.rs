@@ -1089,6 +1089,7 @@ fn collect_config(root: &std::path::Path, repo: Option<PathBuf>, worktree: bool)
         nodes: vec![],
         runs: vec![],
         no_ingest: false,
+        ..Default::default()
     }
 }
 

@@ -9,7 +9,73 @@ lake_ingest = "the lake-based ingest"
 lake_readers = "the lake-reading benchmarker, gallery and monitor"
 job_inputs = "the job inputs directory"
 export_step = "the export step"
+lake_full_record = "the lake takes the full record of a run (story 5): the rules, the not-collected list, the file-name check"
+lake_blob = "large files reach the lake whole, resumed and checked (story 5)"
+lake_reference = "a reference model's run is collected into the reference folder, records only (story 5)"
+lake_completeness = "a run is complete only when everything is held to its end (story 5)"
+lake_space = "the collector holds, once, when the lake's disk is nearly full (story 5)"
 
 # [[contract]]
 # area = "data_root"
 # test = "python:benchmarks/spec-bench/harness/test_roots.py::test_..."
+
+# --- Story 5 ---
+[[contract]]
+area = "allow_list"
+test = "rust:tools/dbench/src/lib.rs::collect::name_check::every_recorded_name_is_classified_by_exactly_one_rule"
+
+[[contract]]
+area = "allow_list"
+test = "rust:tools/dbench/src/lib.rs::collect::name_check::the_harness_sources_write_no_file_name_the_lists_do_not_know"
+
+[[contract]]
+area = "allow_list"
+test = "rust:tools/dbench/src/lib.rs::collect::name_check::a_new_literal_in_a_scratch_copy_of_the_harness_fails_with_its_file_and_line_and_passes_again_without_it"
+
+[[contract]]
+area = "lake_full_record"
+test = "rust:tools/dbench/src/lib.rs::collect::tests::every_fixed_record_name_parses_with_the_kind_and_class_of_the_table"
+
+[[contract]]
+area = "lake_full_record"
+test = "rust:tools/dbench/src/lib.rs::collect::tests::each_name_left_out_on_purpose_is_classified_with_a_reason"
+
+[[contract]]
+area = "lake_full_record"
+test = "rust:tools/dbench/tests/lake_full_record.rs::the_manifest_of_a_real_run_lists_the_full_record"
+
+[[contract]]
+area = "lake_full_record"
+test = "rust:tools/dbench/tests/lake_full_record.rs::w1_a_finished_run_is_collected_whole_and_marked_complete_only_after_everything_is_held"
+
+[[contract]]
+area = "lake_blob"
+test = "rust:tools/dbench/src/lib.rs::collector::tests::the_final_name_appears_only_after_the_last_chunk_while_the_partial_holds_what_was_pulled"
+
+[[contract]]
+area = "lake_blob"
+test = "rust:tools/dbench/tests/lake_full_record.rs::a_ten_megabyte_bundle_arrives_in_three_requests_and_leaves_no_partial"
+
+[[contract]]
+area = "lake_reference"
+test = "rust:tools/dbench/src/lib.rs::collector::tests::a_reference_run_goes_to_the_reference_folder_by_pack_stack_and_run_and_any_other_run_to_the_lake"
+
+[[contract]]
+area = "lake_reference"
+test = "rust:tools/dbench/tests/lake_full_record.rs::a_reference_run_lands_under_reference_with_its_records_and_compact_logs_and_no_raw_stream"
+
+[[contract]]
+area = "lake_completeness"
+test = "rust:tools/dbench/src/lib.rs::collector::tests::a_file_that_changes_on_the_node_after_the_run_settled_clears_the_settling"
+
+[[contract]]
+area = "lake_completeness"
+test = "rust:tools/dbench/tests/lake_full_record.rs::w3_a_pass_aborted_in_the_middle_of_a_bundle_and_a_rescore_rewrite_still_end_equal_to_the_node"
+
+[[contract]]
+area = "lake_space"
+test = "rust:tools/dbench/src/lib.rs::collector::tests::one_byte_below_the_margin_holds_with_one_line_that_names_the_free_space_and_the_margin"
+
+[[contract]]
+area = "lake_space"
+test = "rust:tools/dbench/tests/lake_full_record.rs::a_shortage_on_a_real_small_disk_pulls_nothing_and_a_partial_resumes_when_space_returns"

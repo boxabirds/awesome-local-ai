@@ -2037,7 +2037,10 @@ async fn collect_pulls_deltas_resumes_after_the_node_was_unreachable_and_complet
     assert_eq!(c["run_status"]["state"], "finished");
     assert_eq!(c["job_state"], "done");
     assert!(c["files"].as_object().unwrap().values().all(|f| f["at_eof"] == true), "{c:#}");
-    // Settled, every file at eof, grace 0: complete on this pass or the next.
+    // Settled, every file at eof, grace 0: a pass that pulled nothing starts the grace, the next completes (a pass that
+    // pulled anything starts it over: the delta above was pulled by the previous pass).
+    let (ok, _, err) = collect_once(&config, &[]);
+    assert!(ok, "{err}");
     let (ok, _, err) = collect_once(&config, &[]);
     assert!(ok, "{err}");
     assert_eq!(read_collection(&store, GROW_RUN)["complete"], true);
@@ -2090,9 +2093,11 @@ async fn collect_refetches_a_file_the_node_rewrote_and_backfills_a_run_that_has_
     assert_eq!(got, ["run-status.json", "run.json", "server.log", "stories/01/agent-events.jsonl"]);
     assert!(c["job"].is_null() && c["job_state"].is_null());
     assert_eq!(c["run_status"]["state"], "finished");
-    // Settled and at eof with no job: complete after the grace.
-    let (ok, _, _) = collect_once(&config, &["--no-ingest"]);
-    assert!(ok);
+    // Settled and at eof with no job: the next pass starts the grace (grace 0), the one after completes.
+    for _ in 0..2 {
+        let (ok, _, _) = collect_once(&config, &["--no-ingest"]);
+        assert!(ok);
+    }
     assert_eq!(read_collection(&store, GROW_RUN)["complete"], true);
 
     // The node rewrites the file: a byte changes inside the last 4 KiB the lake holds (the window the
@@ -2163,7 +2168,7 @@ async fn a_collect_pass_in_git_mode_skips_runs_archived_on_origin_main_and_inges
         collect: Default::default(),
         json: false,
     };
-    let cfg = Config { store: store.clone(), db: db.clone(), repo: Some(env.repo.clone()), worktree: false, api: None, nodes: vec![], runs: vec![], no_ingest: false };
+    let cfg = Config { store: store.clone(), db: db.clone(), repo: Some(env.repo.clone()), worktree: false, api: None, nodes: vec![], runs: vec![], no_ingest: false, ..Default::default() };
     let zero = Duration::from_millis(0);
     let cadence = Cadence { running_poll: zero, finished_recheck: zero, settle_grace: zero };
     // fetch = false: the ingest happens because a run changed, and reads origin/main as the checkout has it.
@@ -2176,8 +2181,9 @@ async fn a_collect_pass_in_git_mode_skips_runs_archived_on_origin_main_and_inges
     let rels: Vec<String> = wh.conn.prepare("select rel from stories order by rel").unwrap().query_map([], |r| r.get(0)).unwrap().map(|r| r.unwrap()).collect();
     assert_eq!(rels, [format!("{kept}/stories/01")]);
     drop(wh);
-    // The run settles and completes on the next pass (grace 0); once it has, a pass pulls nothing, and with no fetch due the
-    // published tree is not read again (the database file is not touched).
+    // The run settles on the next pass and completes on the one after (grace 0); once it has, a pass pulls nothing, and with
+    // no fetch due the published tree is not read again (the database file is not touched).
+    pass(&ctx, &cfg, &cadence, false, 1_790_000_125).await.unwrap();
     pass(&ctx, &cfg, &cadence, false, 1_790_000_150).await.unwrap();
     let before = std::fs::metadata(&db).unwrap().modified().unwrap();
     pass(&ctx, &cfg, &cadence, false, 1_790_000_200).await.unwrap();

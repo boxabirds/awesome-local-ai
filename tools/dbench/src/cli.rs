@@ -205,12 +205,26 @@ pub const DEFAULT_SETTLE_GRACE_MS: u64 = 60_000;
 /// How often the published records are fetched from git between passes.
 pub const DEFAULT_FETCH_EVERY_MS: u64 = 60_000;
 pub const DEFAULT_API_BIND: &str = "127.0.0.1:7761";
+/// Beside the lake, the folder a reference model's runs go to when none is set.
+pub const DEFAULT_REFERENCE_DIR: &str = "reference";
+/// The lake's disk must have this many GiB free for a pass to pull anything (a proposal; the owner may change it).
+pub const DEFAULT_FREE_SPACE_MARGIN_GIB: u64 = 10;
 
 #[derive(Args, Debug, Clone)]
 pub struct CollectArgs {
     /// The lake: a directory for each node's run directories. Default: nodes.toml `[collect] store`.
     #[arg(long)]
     pub store: Option<PathBuf>,
+    /// Where a reference model's runs are kept: <reference>/<pack>/<stack>/<run>. Default: nodes.toml `[collect] reference`,
+    /// else a `reference` folder beside the lake.
+    #[arg(long)]
+    pub reference: Option<PathBuf>,
+    /// Print the rules (what is collected, what is left out and why) and exit.
+    #[arg(long)]
+    pub list_rules: bool,
+    /// A pass pulls nothing while the lake's disk has less than this many GiB free.
+    #[arg(long, default_value_t = DEFAULT_FREE_SPACE_MARGIN_GIB)]
+    pub free_space_margin_gib: u64,
     /// The conversation database. Default: nodes.toml `[collect] db`.
     #[arg(long)]
     pub db: Option<PathBuf>,

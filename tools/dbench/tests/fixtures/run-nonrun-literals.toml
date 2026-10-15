@@ -174,45 +174,43 @@ reason = "the judge sandbox's own proxy log, not a run's proxy.log (judge.py)"
 name = "auth.json"
 reason = "a judge client's credentials file in the judge's own home (judge.py); never in a run"
 
-# --- Corpus names that no writer in the harness sources explains ---------------------------------------------------
-# The task says these are listed for the owner and not silently kept. Each is a name present in the corpus
-# (run-file-names.txt) for which no literal in the sources above writes it under a run directory, or a name the
-# design's 42 rules do not cover. The collector's classification has no rule for them yet, so the build check
-# (E-CLASS-UNLISTED) cannot pass until the owner decides: collect them (a new rule) or leave them out (not collected).
-# They matter beyond this story: story 16's parity check compares every tracked file with the lake.
+# --- more fixtures and arguments found when the scan ran in Rust (it also reads comments and docstrings) ---
+[[literal]]
+name = "cases.json"
+reason = "the accounting goldens' case list in the harness tests' fixtures (export_goldens.py), not in a run"
+[[literal]]
+name = "opencode-died-and-resumed.jsonl"
+reason = "a recorded OpenCode stream among the harness tests' fixtures (export_goldens.py)"
+[[literal]]
+name = "agents.json"
+reason = "the transcripts file named on import_run.py's command line, kept in the bench home, not in the run"
 
-[[unexplained]]
-name = "prompts/story-NN.md"
-where = "the hand-written reference record benchmarks/reference/vidi/opus-5.5/run-1 (tracked in git)"
-note = "a record file of an old-layout reference run; no writer in the sources"
-[[unexplained]]
-name = "agent-reports/story-NN.md"
-where = "the same reference record"
-note = "a record file of an old-layout reference run; no writer in the sources"
-[[unexplained]]
-name = "OMITTED.txt"
-where = "the same reference record"
-note = "a note in an old-layout reference run; no writer in the sources"
-[[unexplained]]
-name = "README.md (run level)"
-where = "the same reference record"
-note = "a run-level README, not the workspace seed file; no writer for it in the sources"
-[[unexplained]]
-name = "accept-summary.json, accept-final.json, accept-final-summary.json (run level, no stories/NN)"
-where = "the same reference record and one older node run"
-note = "the design's rules name these only under stories/NN/; publicise.py writes them with a story prefix"
-[[unexplained]]
-name = "egress.jsonl (a real file in the run directory)"
-where = "one tracked combination run (gufo-opencode v2-gufoopencode-r1)"
-note = "the design makes egress.jsonl a virtual name served from the egress folder; here it is also a real tracked file"
-[[unexplained]]
-name = "stories/NN/gate.original.json"
-where = "one run on one node"
-note = "no writer in the current harness sources; an older release wrote it"
-[[unexplained]]
-name = "flow-counts.json"
-where = "not yet written; story 4 adds it"
-note = "the corpus cannot contain it yet; the design lists it as a collected whole-file record"
+# --- run files that only a tree rule covers: the scan reads a name, the rule is about the folder it is in ---
+[[tree_covered]]
+name = "set-aside.json"
+reason = "written into rescore-spoiled/<version>/ by finalize.py; collected by the rescore-spoiled/V/** rule"
+[[tree_covered]]
+name = "rescore.json"
+reason = "written into rescore/<version>/ (and rescore-spoiled/) by finalize.py and rescore.py; collected by the rescore/V/** rule"
+[[tree_covered]]
+name = "per-story.md"
+reason = "written into rescore/<version>/ by rescore.py; collected by the rescore/V/** rule"
+[[tree_covered]]
+name = "story-NN.md"
+reason = "the agent's final message per story, written by claims.py into the run's agent-reports folder; collected by the agent-reports/** rule"
+
+# --- Corpus names the design's 42 rules did not cover -------------------------------------------------------------
+# The classification check found these names in the recorded run directories (run-file-names.txt) with no rule to
+# accept them. Every tracked file of a run must be in the lake before the run leaves git (story 16 compares them), so
+# they are collected, by LEGACY_RECORDS in collect.rs, a list kept beside the design's 42 rules. The owner decides
+# whether they stay in the lake or are left out; until then they are collected, which loses nothing.
+#
+#   prompts/story-NN.md, agent-reports/story-NN.md, OMITTED.txt, README.md (run level), accept-summary.json,
+#   accept-final.json and accept-final-summary.json at the run level, stories/NN/gate.original.json
+#
+# They come from the hand-written reference record benchmarks/reference/vidi/opus-5.5/run-1 (an older layout), and
+# gate.original.json from one run on one node with no writer in the current sources. A tracked egress.jsonl in the run
+# directory of one combination run is served too: the egress name falls back to a file of that name in the run.
 
 # The fourth node was unreachable when the corpus was captured (no answer from its dbench server or ssh), so the
 # node listings cover three of the four nodes; the source scan is the guard for names only that node writes.

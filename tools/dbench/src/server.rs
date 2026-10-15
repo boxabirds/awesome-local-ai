@@ -32,6 +32,14 @@ use crate::store;
 use crate::sys;
 use crate::timefmt::{fmt_utc, now_secs};
 
+/// Stable codes the node's file route answers with, ahead of the message.
+pub const E_NAME_NOT_ALLOWED: &str = "E-NAME-NOT-ALLOWED";
+pub const E_OUTSIDE_RUN: &str = "E-OUTSIDE-RUN";
+pub const E_BLOB_CHANGED: &str = "E-BLOB-CHANGED";
+pub const E_WHOLE_TOO_LARGE: &str = "E-WHOLE-TOO-LARGE";
+pub const E_BAD_RUN_ID: &str = "E-BAD-RUN-ID";
+pub const E_RUN_NOT_FOUND: &str = "E-RUN-NOT-FOUND";
+
 pub const TOKEN_FILE: &str = "token";
 const TOKEN_MODE: u32 = 0o600;
 const DIR_MODE: u32 = 0o700;
@@ -751,6 +759,8 @@ struct FileQuery {
     name: String,
     from: Option<u64>,
     check: Option<String>,
+    /// A blob read from past 0 names the mtime its first chunk carried; a different one means the file was rewritten.
+    mtime: Option<String>,
 }
 
 impl Shared {
@@ -805,8 +815,10 @@ async fn list_runs(State(st): State<Arc<Shared>>) -> Json<Vec<RunListing>> {
 fn manifest_of(st: &Shared, run: String, job: Option<(String, String)>) -> Manifest {
     let dir = st.cfg.repo.join(&run);
     let (job, job_state) = job.unzip();
+    let listing = collect::manifest_listing(&dir, &st.cfg.bench_home);
     Manifest {
-        files: collect::manifest(&dir, &st.cfg.bench_home),
+        files: listing.files,
+        unlisted: listing.unlisted,
         run_status: collect::run_status(&dir),
         run,
         job,
@@ -894,91 +906,31 @@ fn conflict(reason: &str, size: u64) -> Response {
         .into_response()
 }
 
+/// 409 for a blob whose file is no longer the one the client started from: the current size and mtime ride along.
+fn blob_changed(size: u64, mtime: f64) -> Response {
+    (
+        StatusCode::CONFLICT,
+        Json(json!({ "error": E_BLOB_CHANGED, "size": size, "mtime": mtime })),
+    )
+        .into_response()
+}
+
+/// Whether a blob read is stale: it starts past the end of the file, or (past 0) the mtime the client names is not the
+/// file's current one, so the client's partial copy belongs to a file that has since been rewritten.
+pub fn blob_stale(from: u64, size: u64, mtime: f64, held_mtime: Option<f64>) -> bool {
+    todo!()
+}
+
 /// Bytes of one allow-listed file of a run: from `from`, at most `COLLECT_CHUNK_BYTES`, never past the
 /// size seen at the start. An append-only file read from past 0 needs `check`, the FNV-1a-64 of the
 /// last `PREFIX_CHECK_BYTES` bytes before `from` as the client holds them: 409 when they differ or the
 /// file is shorter than `from`, so the client knows to fetch the whole file again. A whole file is
-/// read from 0 only, and refused (413) when it is larger than one chunk.
+/// read from 0 only, and refused (413) when it is larger than one chunk. A blob is any size and read from any
+/// offset up to its size, but a read from past 0 names the mtime of its first chunk (`mtime`): 409 E-BLOB-CHANGED when
+/// the file's mtime is another, or the offset is past its size. A link, or a path that leaves the run directory, is
+/// never followed: 404 E-OUTSIDE-RUN.
 async fn file_of(st: &Shared, run: &str, q: FileQuery) -> Response {
-    let Some(name): Option<FileName> = collect::parse_name(&q.name) else {
-        return err(
-            StatusCode::NOT_FOUND,
-            format!("{:?} is not a file the node serves", q.name),
-        );
-    };
-    let Some(path) = collect::resolve(&st.cfg.repo.join(run), &st.cfg.bench_home, &name) else {
-        return err(
-            StatusCode::NOT_FOUND,
-            format!("{} is not on this node", name.name()),
-        );
-    };
-    let meta = match tokio::fs::metadata(&path).await {
-        Ok(m) if m.is_file() => m,
-        _ => {
-            return err(
-                StatusCode::NOT_FOUND,
-                format!("{} is not on this node", name.name()),
-            )
-        }
-    };
-    let size = meta.len();
-    let mtime = collect::mtime_secs(&meta);
-    let from = q.from.unwrap_or(0);
-    match name.kind() {
-        FileKind::Whole => {
-            if from != 0 {
-                return err(
-                    StatusCode::BAD_REQUEST,
-                    format!("{} is served whole: from must be 0", name.name()),
-                );
-            }
-            if size > collect::COLLECT_CHUNK_BYTES {
-                return err(
-                    StatusCode::PAYLOAD_TOO_LARGE,
-                    format!(
-                        "{} is {size} bytes, over the {} byte limit",
-                        name.name(),
-                        collect::COLLECT_CHUNK_BYTES
-                    ),
-                );
-            }
-        }
-        FileKind::Append => {
-            if from > size {
-                return conflict("file is shorter than from", size);
-            }
-            if from > 0 {
-                let Some(check) = q.check.as_deref() else {
-                    return err(
-                        StatusCode::BAD_REQUEST,
-                        "check= is needed when from > 0: the hash of the bytes before from",
-                    );
-                };
-                let (start, end) = collect::check_window(from);
-                let held = match read_at(&path, start, end - start, end).await {
-                    Ok(b) if b.len() as u64 == end - start => b,
-                    Ok(_) => return conflict("prefix mismatch", size),
-                    Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
-                };
-                if hex64(collect::fnv1a64(&held)) != check.trim().to_ascii_lowercase() {
-                    return conflict("prefix mismatch", size);
-                }
-            }
-        }
-    }
-    let bytes = match read_at(&path, from, collect::COLLECT_CHUNK_BYTES, size).await {
-        Ok(b) => b,
-        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
-    };
-    let eof = from + bytes.len() as u64 >= size;
-    Response::builder()
-        .header(header::CONTENT_TYPE, "application/octet-stream")
-        .header(collect::HDR_FROM, from.to_string())
-        .header(collect::HDR_SIZE, size.to_string())
-        .header(collect::HDR_MTIME, format!("{mtime:.3}"))
-        .header(collect::HDR_EOF, if eof { "1" } else { "0" })
-        .body(Body::from(bytes))
-        .unwrap_or_else(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "response"))
+    todo!()
 }
 
 fn ensure_dir(path: &std::path::Path) -> Result<()> {
@@ -1025,5 +977,49 @@ async fn shutdown_signal() {
     tokio::select! {
         _ = term.recv() => {},
         _ = int.recv() => {},
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MTIME: f64 = 1_790_000_000.123;
+
+    #[test]
+    fn a_blob_read_from_the_start_is_never_stale_whatever_it_names() {
+        // TC-27, boundary: from 0 needs no identity (it is the first chunk, which carries the identity).
+        assert!(!blob_stale(0, 10, MTIME, None));
+        assert!(!blob_stale(0, 0, MTIME, None));
+        assert!(!blob_stale(0, 10, MTIME, Some(1.0)));
+    }
+
+    #[test]
+    fn a_blob_read_from_past_the_end_is_stale() {
+        // TC-27
+        assert!(blob_stale(11, 10, MTIME, Some(MTIME)));
+        assert!(blob_stale(1, 0, MTIME, Some(MTIME)));
+    }
+
+    #[test]
+    fn a_blob_read_from_past_zero_with_another_mtime_or_none_is_stale() {
+        // TC-27
+        assert!(blob_stale(5, 10, MTIME, Some(MTIME + 1.0)));
+        assert!(blob_stale(5, 10, MTIME, None));
+        assert!(!blob_stale(5, 10, MTIME, Some(MTIME)));
+    }
+
+    #[test]
+    fn a_blob_read_from_its_last_byte_is_fresh_and_from_exactly_the_size_too() {
+        // TC-27, boundary
+        assert!(!blob_stale(9, 10, MTIME, Some(MTIME)));
+        assert!(!blob_stale(10, 10, MTIME, Some(MTIME)));
+    }
+
+    #[test]
+    fn the_mtime_is_compared_to_the_millisecond_the_headers_carry() {
+        // The header text has three decimals; a client that sends it back must be taken as the same time.
+        assert!(!blob_stale(5, 10, 1_790_000_000.1234, Some(1_790_000_000.123)));
+        assert!(blob_stale(5, 10, 1_790_000_000.1236, Some(1_790_000_000.123)));
     }
 }

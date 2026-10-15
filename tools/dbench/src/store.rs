@@ -36,6 +36,26 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
+/// Mode of a file the lake holds: held-out detail is in it, so the owner alone may read it.
+pub const PRIVATE_FILE_MODE: u32 = 0o600;
+/// Mode of a folder the lake holds.
+pub const PRIVATE_DIR_MODE: u32 = 0o700;
+
+/// `create_dir_all`, every folder it makes readable by the owner alone.
+pub fn create_private_dir_all(path: &Path) -> Result<()> {
+    todo!()
+}
+
+/// Open a file for writing, created readable by the owner alone: appended to, or (when `truncate`) emptied.
+pub fn open_private(path: &Path, append: bool, truncate: bool) -> std::io::Result<fs::File> {
+    todo!()
+}
+
+/// `write_atomic` for a file of the lake: the temporary and so the result are readable by the owner alone.
+pub fn write_atomic_private(path: &Path, bytes: &[u8]) -> Result<()> {
+    todo!()
+}
+
 pub fn save_job(jobs_dir: &Path, job: &Job) -> Result<()> {
     let bytes = serde_json::to_vec_pretty(job)?;
     write_atomic(&job_path(jobs_dir, &job.id), &bytes)
