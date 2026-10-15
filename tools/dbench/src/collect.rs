@@ -238,18 +238,16 @@ pub struct FileName {
 
 impl FileName {
     pub fn kind(&self) -> FileKind {
-        todo!()
+        self.entry.kind
     }
 
     pub fn class(&self) -> Class {
-
-        todo!()
-
+        self.entry.class
     }
 
     /// The rule that accepted the name.
     pub fn rule(&self) -> &'static str {
-        todo!()
+        self.entry.id
     }
 
     /// Where the file is read from: the run directory, or the egress folder.
@@ -259,7 +257,7 @@ impl FileName {
 
     /// The name as the manifest lists it.
     pub fn name(&self) -> String {
-        todo!()
+        self.name.clone()
     }
 }
 
@@ -310,7 +308,12 @@ fn matches_rule(entry: &Collectable, segs: &[&str]) -> bool {
 
 /// The allow-list entry a name means, or None for anything else (and for an in-flight temporary, always).
 pub fn parse_name(name: &str) -> Option<FileName> {
-    todo!()
+    let segs: Vec<&str> = name.split('/').collect();
+    if segs.len() > MAX_TREE_DEPTH || segs.last().is_none_or(|last| is_temporary(last)) {
+        return None;
+    }
+    let entry = rules().find(|e| matches_rule(e, &segs))?;
+    Some(FileName { entry: *entry, name: name.to_string() })
 }
 
 /// What is left out on purpose.
@@ -354,7 +357,8 @@ fn nc_matches(rule: &NotCollected, segs: &[&str]) -> bool {
 
 /// The not-collected rule a name falls under, if any.
 pub fn not_collected_rule(name: &str) -> Option<&'static NotCollected> {
-    todo!()
+    let segs: Vec<&str> = name.split('/').collect();
+    NOT_COLLECTED.iter().find(|r| nc_matches(r, &segs))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -367,7 +371,17 @@ pub enum Classification {
 /// Where a name stands: collected (by which rule), left out (by which rule, and why), or neither. In-flight
 /// temporaries are tested first and win, which keeps the two lists disjoint.
 pub fn classify(name: &str) -> Classification {
-    todo!()
+    let segs: Vec<&str> = name.split('/').collect();
+    if let Some(r) = NOT_COLLECTED.iter().find(|r| matches!(r.pattern, NcPattern::Temporary(_)) && nc_matches(r, &segs)) {
+        return Classification::NotCollected(r.id, r.reason);
+    }
+    if let Some(f) = parse_name(name) {
+        return Classification::Collected(f.rule());
+    }
+    match not_collected_rule(name) {
+        Some(r) => Classification::NotCollected(r.id, r.reason),
+        None => Classification::Unclassified,
+    }
 }
 
 fn kind_label(k: FileKind) -> &'static str {
@@ -387,7 +401,15 @@ fn class_label(c: Class) -> &'static str {
 
 /// `dbench collect --list-rules`: the collected rules, then the ones left out with their reasons, one line each.
 pub fn list_rules() -> String {
-    todo!()
+    let mut out = String::from("collected rules (kind, class):\n");
+    for e in rules() {
+        out.push_str(&format!("  {:<42} {:<6} {}\n", e.id, kind_label(e.kind), class_label(e.class)));
+    }
+    out.push_str("not collected (reason):\n");
+    for r in NOT_COLLECTED {
+        out.push_str(&format!("  {:<42} {}\n", r.id, r.reason));
+    }
+    out
 }
 
 /// `<bench_home>/egress/<basename of work_dir.txt>.jsonl`, or None when the run has no work dir
@@ -404,17 +426,34 @@ pub fn egress_path(run_dir: &Path, bench_home: &Path) -> Option<PathBuf> {
 /// Where a named file is on this machine. Built only from segments that passed the rules. The egress log is the one
 /// named in work_dir.txt when that file exists, else a file of that name in the run directory itself.
 pub fn resolve(run_dir: &Path, bench_home: &Path, name: &FileName) -> Option<PathBuf> {
-    todo!()
+    match name.entry.source {
+        Source::Egress => {
+            let logged = egress_path(run_dir, bench_home).filter(|p| p.is_file());
+            Some(logged.unwrap_or_else(|| run_dir.join(EGRESS_NAME)))
+        }
+        Source::RunDir => Some(name.name.split('/').fold(run_dir.to_path_buf(), |p, seg| p.join(seg))),
+    }
 }
 
 /// Whether `path` is, once every link in it is followed, below `run_dir`. A path that does not exist is not.
 pub fn is_inside_run(run_dir: &Path, path: &Path) -> bool {
-    todo!()
+    match (run_dir.canonicalize(), path.canonicalize()) {
+        (Ok(root), Ok(target)) => target.starts_with(root),
+        _ => false,
+    }
 }
 
 /// Whether any component of `path` below `run_dir` is a symbolic link (the file itself included).
 pub fn has_link_below(run_dir: &Path, path: &Path) -> bool {
-    todo!()
+    let Ok(rel) = path.strip_prefix(run_dir) else { return true };
+    let mut cur = run_dir.to_path_buf();
+    for comp in rel.components() {
+        cur.push(comp);
+        if std::fs::symlink_metadata(&cur).is_ok_and(|m| m.file_type().is_symlink()) {
+            return true;
+        }
+    }
+    false
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -599,9 +638,30 @@ pub struct Listing {
 }
 
 pub fn manifest_listing(run_dir: &Path, bench_home: &Path) -> Listing {
-
-    todo!()
-
+    let stories = story_dirs(run_dir);
+    let mut out = Vec::new();
+    let mut tree_walk = Walk::default();
+    for entry in rules() {
+        match entry.pattern {
+            Pattern::Story(f) => {
+                for n in &stories {
+                    let name = FileName { entry: *entry, name: format!("{STORIES_DIR}/{n}/{f}") };
+                    if let Some(p) = resolve(run_dir, bench_home, &name) {
+                        out.extend(entry_for(&p, name.name(), entry.kind));
+                    }
+                }
+            }
+            Pattern::Fixed(f) => {
+                let name = FileName { entry: *entry, name: f.to_string() };
+                if let Some(p) = resolve(run_dir, bench_home, &name) {
+                    out.extend(entry_for(&p, name.name(), entry.kind));
+                }
+            }
+            Pattern::Tree(root) => walk_tree(run_dir, entry, root, &stories, &mut tree_walk),
+        }
+    }
+    out.extend(tree_walk.files);
+    Listing { files: out, unlisted: tree_walk.unlisted }
 }
 
 /// The files of `manifest_listing`, for callers that do not need the unlisted count.
@@ -1401,39 +1461,110 @@ mod name_check {
 
     /// A corpus name made concrete: each placeholder segment becomes a name the rules accept.
     pub fn concrete(name: &str) -> String {
-        todo!()
+        name.split('/')
+            .map(|seg| match seg {
+                "NN" => "01".to_string(),
+                "V" => "vidi-v2.0-pre2".to_string(),
+                "scoring-N" => "scoring-2".to_string(),
+                s if s.starts_with("NAME") => format!("x{}", &s["NAME".len()..]),
+                s => s.to_string(),
+            })
+            .collect::<Vec<_>>()
+            .join("/")
     }
 
     /// Every rule of both lists that accepts the name, by id. A collected rule never accepts a temporary.
     pub fn matching_rules(name: &str, collected: &[Collectable], not_collected: &[NotCollected]) -> Vec<&'static str> {
-        todo!()
+        let segs: Vec<&str> = name.split('/').collect();
+        let mut out: Vec<&'static str> = Vec::new();
+        if !segs.last().is_some_and(|l| is_temporary(l)) {
+            out.extend(collected.iter().filter(|e| matches_rule(e, &segs)).map(|e| e.id));
+        }
+        out.extend(not_collected.iter().filter(|r| nc_matches(r, &segs)).map(|r| r.id));
+        out
     }
 
     /// E-CLASS-UNLISTED for a name no rule accepts, E-CLASS-OVERLAP for a name more than one rule accepts.
     pub fn check_names(names: &[String], collected: &[Collectable], not_collected: &[NotCollected]) -> Vec<Problem> {
-        todo!()
+        let mut problems = Vec::new();
+        for name in names {
+            let hits = matching_rules(&concrete(name), collected, not_collected);
+            match hits.len() {
+                0 => problems.push(Problem { code: E_CLASS_UNLISTED, subject: name.clone(), detail: "no rule accepts it".into() }),
+                1 => {}
+                _ => problems.push(Problem { code: E_CLASS_OVERLAP, subject: name.clone(), detail: hits.join(" and ") }),
+            }
+        }
+        problems
     }
 
     /// E-RULE-UNUSED for a rule that no recorded name matches and that is not on the unobserved list.
     pub fn check_unused(names: &[String], collected: &[Collectable], not_collected: &[NotCollected], unobserved: &[(&str, &str)]) -> Vec<Problem> {
-        todo!()
+        let used: BTreeSet<&str> = names.iter().flat_map(|n| matching_rules(&concrete(n), collected, not_collected)).collect();
+        let allowed: BTreeSet<&str> = unobserved.iter().filter(|(_, why)| !why.is_empty()).map(|(id, _)| *id).collect();
+        collected
+            .iter()
+            .map(|e| e.id)
+            .chain(not_collected.iter().map(|r| r.id))
+            .filter(|id| !used.contains(id) && !allowed.contains(id))
+            .map(|id| Problem { code: E_RULE_UNUSED, subject: id.to_string(), detail: "no recorded name matches it".into() })
+            .collect()
     }
 
     /// File-name literals the harness sources hold: (file, line, literal). A literal is a quoted string of the shape
     /// `[A-Za-z0-9_.-]+` then `.json`, `.jsonl`, `.md`, `.txt`, `.log`, `.gz` or `.bundle`; a comment or docstring is read too.
     pub fn harness_literals(dir: &Path) -> Vec<(String, usize, String)> {
-        todo!()
+        let re = regex_lite::Regex::new(r#"["'/]([A-Za-z0-9_.-]+\.(?:jsonl|json|md|txt|log|gz|bundle))["'\s]"#).unwrap();
+        let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
+            .unwrap()
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| {
+                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                (name.ends_with(".py") || name.ends_with(".sh")) && !name.starts_with("test_") && !name.ends_with("_test.py") && name != "conftest.py"
+            })
+            .collect();
+        files.sort();
+        let mut out = Vec::new();
+        for f in files {
+            let text = std::fs::read_to_string(&f).unwrap_or_default();
+            for (i, line) in text.lines().enumerate() {
+                for c in re.captures_iter(line) {
+                    out.push((f.file_name().unwrap().to_string_lossy().into_owned(), i + 1, c[1].to_string()));
+                }
+            }
+        }
+        out
     }
 
     /// The literals that are not run files, and the run files only a tree rule covers, from run-nonrun-literals.toml.
     pub fn nonrun_literals() -> (BTreeSet<String>, BTreeSet<String>) {
-        todo!()
+        let text = include_str!("../tests/fixtures/run-nonrun-literals.toml");
+        let v: toml::Value = toml::from_str(text).expect("run-nonrun-literals.toml");
+        let names = |table: &str| -> BTreeSet<String> {
+            v.get(table)
+                .and_then(|a| a.as_array())
+                .map(|a| {
+                    a.iter()
+                        .map(|e| {
+                            assert!(!e["reason"].as_str().unwrap_or("").is_empty(), "{table} entry without a reason: {:?}", e["name"]);
+                            e["name"].as_str().unwrap().to_string()
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        (names("literal"), names("tree_covered"))
     }
 
     /// E-CLASS-UNLISTED, naming the file and line, for each literal that is not a non-run literal and that no rule explains,
     /// read at the run root or at a story's root.
     pub fn check_sources(dir: &Path, nonrun: &BTreeSet<String>, tree_covered: &BTreeSet<String>) -> Vec<Problem> {
-        todo!()
+        harness_literals(dir)
+            .into_iter()
+            .filter(|(_, _, lit)| !nonrun.contains(lit) && !tree_covered.contains(lit))
+            .filter(|(_, _, lit)| classify(lit) == Classification::Unclassified && classify(&format!("stories/01/{lit}")) == Classification::Unclassified)
+            .map(|(file, line, lit)| Problem { code: E_CLASS_UNLISTED, subject: format!("{file}:{line}"), detail: lit })
+            .collect()
     }
 
     fn harness_dir() -> PathBuf {

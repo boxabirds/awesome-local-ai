@@ -43,17 +43,39 @@ pub const PRIVATE_DIR_MODE: u32 = 0o700;
 
 /// `create_dir_all`, every folder it makes readable by the owner alone.
 pub fn create_private_dir_all(path: &Path) -> Result<()> {
-    todo!()
+    use std::os::unix::fs::DirBuilderExt;
+    fs::DirBuilder::new()
+        .recursive(true)
+        .mode(PRIVATE_DIR_MODE)
+        .create(path)
+        .with_context(|| format!("create {}", path.display()))
 }
 
 /// Open a file for writing, created readable by the owner alone: appended to, or (when `truncate`) emptied.
 pub fn open_private(path: &Path, append: bool, truncate: bool) -> std::io::Result<fs::File> {
-    todo!()
+    use std::os::unix::fs::OpenOptionsExt;
+    let mut options = fs::OpenOptions::new();
+    options.create(true).write(true).mode(PRIVATE_FILE_MODE);
+    if append {
+        options.append(true);
+    } else if truncate {
+        options.truncate(true);
+    }
+    options.open(path)
 }
 
 /// `write_atomic` for a file of the lake: the temporary and so the result are readable by the owner alone.
 pub fn write_atomic_private(path: &Path, bytes: &[u8]) -> Result<()> {
-    todo!()
+    let dir = path.parent().context("path has no parent")?;
+    let name = path.file_name().context("path has no file name")?.to_string_lossy();
+    let tmp = dir.join(format!(".{name}.{}{TMP_SUFFIX}", std::process::id()));
+    {
+        let mut f = open_private(&tmp, false, true).with_context(|| format!("create {}", tmp.display()))?;
+        f.write_all(bytes)?;
+        f.sync_all()?;
+    }
+    fs::rename(&tmp, path).with_context(|| format!("rename to {}", path.display()))?;
+    Ok(())
 }
 
 pub fn save_job(jobs_dir: &Path, job: &Job) -> Result<()> {

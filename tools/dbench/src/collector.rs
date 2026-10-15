@@ -73,6 +73,7 @@ pub struct Collected {
     #[serde(default)]
     pub refetches: u32,
     /// Set while a blob is being pulled; a note written before blobs existed has none.
+    #[serde(default)]
     pub partial: Option<Partial>,
 }
 
@@ -122,7 +123,38 @@ fn partial_path(dest: &Path) -> PathBuf {
 /// What to do about each file the node lists, from what the lake holds (the local length first,
 /// the record second).
 pub fn plan(manifest: &Manifest, local: &Collection, local_len: impl Fn(&str) -> u64) -> Vec<(FileEntry, Action)> {
-    todo!()
+    manifest
+        .files
+        .iter()
+        .map(|f| {
+            let len = local_len(&f.name);
+            let rec = local.files.get(&f.name);
+            let action = match f.kind {
+                FileKind::Whole => match rec {
+                    Some(r) if r.node_size == f.size && r.node_mtime == f.mtime && len == f.size => Action::Skip,
+                    _ => Action::Whole,
+                },
+                FileKind::Append => {
+                    if len > f.size {
+                        Action::Refetch
+                    } else if len == f.size {
+                        Action::Skip
+                    } else {
+                        Action::Append { from: len }
+                    }
+                }
+                FileKind::Blob => match rec {
+                    Some(r) if r.partial.is_none() && r.at_eof && r.node_size == f.size && r.node_mtime == f.mtime && len == f.size => Action::Skip,
+                    Some(r) => match &r.partial {
+                        Some(p) if p.node_size == f.size && p.node_mtime == f.mtime && local_len(&partial_name(&f.name)) >= p.bytes => Action::Blob { resume_from: p.bytes },
+                        _ => Action::Blob { resume_from: 0 },
+                    },
+                    None => Action::Blob { resume_from: 0 },
+                },
+            };
+            (f.clone(), action)
+        })
+        .collect()
 }
 
 /// The run is over on the node: its status is final and its job, if any, has ended.
@@ -136,7 +168,7 @@ pub fn settled(m: &Manifest) -> bool {
 pub fn all_at_eof(m: &Manifest, local: &Collection) -> bool {
     m.files
         .iter()
-        .all(|f| local.files.get(&f.name).is_some_and(|r| r.at_eof && r.node_size == f.size && r.node_mtime == f.mtime))
+        .all(|f| local.files.get(&f.name).is_some_and(|r| r.at_eof && r.partial.is_none() && r.node_size == f.size && r.node_mtime == f.mtime))
 }
 
 /// Whether a run is looked at this pass: always, unless its collection is complete and was checked recently.
@@ -150,24 +182,45 @@ pub fn due(c: Option<&Collection>, now: u64, cadence: &Cadence) -> bool {
 /// Whether a repo-relative path is a run: `combinations/<...>/benchmarks/<pack>/<run>` or
 /// `benchmarks/reference/<pack>/<stack>/<run>`, every segment a valid id. `a/b` and `../x` are not.
 pub fn is_run_path(run: &str) -> bool {
-    todo!()
+    if !valid_run_dir(run) {
+        return false;
+    }
+    let segs: Vec<&str> = run.split('/').collect();
+    if let Some(rest) = run.strip_prefix(REFERENCE_RUN_PREFIX) {
+        return rest.split('/').count() == REFERENCE_SEGMENTS;
+    }
+    segs.len() >= MIN_COMBINATION_RUN_SEGMENTS && segs[0] == COMBINATIONS_TOP && segs[segs.len() - BENCHMARKS_FROM_END] == BENCHMARKS_SEGMENT
 }
 
 /// `<store>/<node>/<run path>`; None for a run path the node should not have sent.
 pub fn store_dir(store: &Path, node: &str, run: &str) -> Option<PathBuf> {
-    todo!()
+    if !is_run_path(run) || !valid_id(node) {
+        return None;
+    }
+    Some(store.join(node).join(run))
 }
 
 /// Where a run's files go: `<reference>/<pack>/<stack>/<run>` for a reference model's run (the node is not in the path,
 /// because a run name is unique and the note records the node), `<store>/<node>/<run path>` for any other.
 pub fn dest_dir(store: &Path, reference: &Path, node: &str, run: &str) -> Option<PathBuf> {
-    todo!()
+    match run.strip_prefix(REFERENCE_RUN_PREFIX) {
+        Some(rest) if is_run_path(run) => {
+            let parts: Vec<&str> = rest.split('/').collect();
+            Some(reference.join(parts[0]).join(parts[1]).join(parts[2]))
+        }
+        Some(_) => None,
+        None => store_dir(store, node, run),
+    }
 }
 
 /// Which classes of file a run's destination takes: a reference model's run takes its records only, so the lake never
 /// holds its uncompacted transcript.
 pub fn classes_for(run: &str) -> &'static [Class] {
-    todo!()
+    if run.starts_with(REFERENCE_RUN_PREFIX) {
+        &[Class::Record]
+    } else {
+        &[Class::Record, Class::Raw]
+    }
 }
 
 pub fn load_collection(dir: &Path) -> Option<Collection> {
@@ -209,7 +262,56 @@ pub struct Pulled {
 /// Pull one file into `dest`: an append-only file from its local length with the prefix check,
 /// refetched from 0 when the node says the prefix differs; a whole file replaced atomically.
 pub async fn pull_file(api: &Api, run: &RunRef, entry: &FileEntry, action: Action, dest: &Path) -> Result<Pulled> {
-    todo!()
+    if let Some(dir) = dest.parent() {
+        crate::store::create_private_dir_all(dir)?;
+    }
+    let mut refetches = 0;
+    let mut from = match action {
+        Action::Append { from } => from,
+        Action::Refetch | Action::Whole => 0,
+        Action::Skip | Action::Blob { .. } => local_len(dest),
+    };
+    if matches!(action, Action::Refetch) {
+        refetches += 1;
+    }
+    if matches!(action, Action::Whole) {
+        let chunk = api.file_chunk(run, &entry.name, 0, None, None).await?;
+        let Some(meta) = chunk.meta.filter(|_| chunk.status.is_success()) else {
+            anyhow::bail!("{}: {} {}", entry.name, chunk.status, chunk.error.unwrap_or_default());
+        };
+        crate::store::write_atomic_private(dest, &chunk.bytes)?;
+        return Ok(Pulled { bytes: chunk.bytes.len() as u64, pulled: chunk.bytes.len() as u64, at_eof: meta.eof, refetches, meta });
+    }
+    let mut pulled = 0;
+    let meta = loop {
+        let check = if from > 0 { Some(tail_hash(dest, from)?) } else { None };
+        let Chunk { status, meta, bytes, error } = api.file_chunk(run, &entry.name, from, check.as_deref(), None).await?;
+        if status == reqwest::StatusCode::CONFLICT {
+            refetches += 1;
+            if refetches > MAX_REFETCHES_PER_PASS {
+                anyhow::bail!("{}: {E_REFETCH_LIMIT}: the node's file keeps changing under the read", entry.name);
+            }
+            crate::store::open_private(dest, false, true)?;
+            from = 0;
+            continue;
+        }
+        let Some(meta) = meta.filter(|_| status.is_success()) else {
+            anyhow::bail!("{}: {} {}", entry.name, status, error.unwrap_or_default());
+        };
+        if from == 0 && local_len(dest) > 0 {
+            crate::store::open_private(dest, false, true)?;
+        }
+        let mut f = crate::store::open_private(dest, true, false)?;
+        f.write_all(&bytes)?;
+        f.sync_data()?;
+        from += bytes.len() as u64;
+        pulled += bytes.len() as u64;
+        // Nothing more came: the node's file ends here (eof), or nothing to wait for and the next pass tries again.
+        if meta.eof || bytes.is_empty() {
+            break meta;
+        }
+    };
+    Ok(Pulled { bytes: from, pulled, at_eof: meta.eof, refetches, meta })
 }
 
 /// Pull a large file into a dot-partial file beside `dest` and rename it into place once its length equals the size the
@@ -224,7 +326,63 @@ pub async fn pull_blob(
     resume: Option<&Partial>,
     progress: &mut (dyn FnMut(&Partial) -> Result<()> + Send),
 ) -> Result<Pulled> {
-    todo!()
+    if let Some(dir) = dest.parent() {
+        crate::store::create_private_dir_all(dir)?;
+    }
+    let part = partial_path(dest);
+    let mut refetches = 0;
+    let mut pulled = 0u64;
+    let mut from = 0u64;
+    let mut mtime_held: Option<f64> = None;
+    if let Some(p) = resume.filter(|p| p.node_size == entry.size && p.node_mtime == entry.mtime && local_len(&part) >= p.bytes) {
+        let f = std::fs::OpenOptions::new().write(true).open(&part)?;
+        f.set_len(p.bytes)?;
+        from = p.bytes;
+        mtime_held = Some(p.node_mtime);
+    } else {
+        let _ = std::fs::remove_file(&part);
+    }
+    loop {
+        let chunk = api.file_chunk(run, &entry.name, from, None, mtime_held.filter(|_| from > 0)).await?;
+        let discard = |why: &str, refetches: &mut u32| -> Result<()> {
+            let _ = std::fs::remove_file(&part);
+            *refetches += 1;
+            if *refetches > MAX_REFETCHES_PER_PASS {
+                anyhow::bail!("{}: {E_REFETCH_LIMIT}: the node's file keeps changing under the read ({why})", entry.name);
+            }
+            Ok(())
+        };
+        if chunk.status == reqwest::StatusCode::CONFLICT {
+            discard("E-BLOB-CHANGED", &mut refetches)?;
+            from = 0;
+            mtime_held = None;
+            continue;
+        }
+        let Chunk { status, meta, bytes, error } = chunk;
+        let Some(meta) = meta.filter(|_| status.is_success()) else {
+            anyhow::bail!("{}: {} {}", entry.name, status, error.unwrap_or_default());
+        };
+        if from == 0 {
+            crate::store::open_private(&part, false, true)?;
+            mtime_held = Some(meta.mtime);
+        }
+        let mut f = crate::store::open_private(&part, true, false)?;
+        f.write_all(&bytes)?;
+        f.sync_data()?;
+        from += bytes.len() as u64;
+        pulled += bytes.len() as u64;
+        progress(&Partial { bytes: from, node_size: meta.size, node_mtime: meta.mtime })?;
+        if meta.eof || bytes.is_empty() {
+            if from != meta.size {
+                discard(E_BLOB_SHORT, &mut refetches)?;
+                from = 0;
+                mtime_held = None;
+                continue;
+            }
+            std::fs::rename(&part, dest).with_context(|| format!("rename to {}", dest.display()))?;
+            return Ok(Pulled { bytes: from, pulled, at_eof: true, refetches, meta });
+        }
+    }
 }
 
 /// What one pass did for one run.
@@ -240,7 +398,80 @@ pub struct RunSummary {
 /// Collect one run of one node into `dir`; the record it leaves says what it holds. Only the classes of file in
 /// `classes` are taken (a reference model's run takes its records only).
 pub async fn collect_run(api: &Api, node: &str, run: &str, dir: &Path, classes: &[Class], cadence: &Cadence, now: u64) -> Result<RunSummary> {
-    todo!()
+    let mut local = load_collection(dir).unwrap_or_else(|| Collection {
+        node: node.to_string(),
+        run: run.to_string(),
+        first_collected_at: now,
+        dbench_version: crate::VERSION.to_string(),
+        ..Default::default()
+    });
+    let mut summary = RunSummary { run: run.to_string(), ..Default::default() };
+    if !due(Some(&local), now, cadence) {
+        summary.complete = local.complete;
+        return Ok(summary);
+    }
+    let run_ref = RunRef::Path(run.to_string());
+    let mut manifest = api.files(&run_ref).await?;
+    manifest.files.retain(|f| crate::collect::parse_name(&f.name).is_some_and(|n| classes.contains(&n.class())));
+    let was_complete = local.complete;
+    for (entry, action) in plan(&manifest, &local, |name| local_len(&dir.join(name))) {
+        let dest = dir.join(&entry.name);
+        let pulled = match action {
+            Action::Skip => {
+                if let Some(r) = local.files.get_mut(&entry.name) {
+                    r.node_size = entry.size;
+                    r.node_mtime = entry.mtime;
+                    r.at_eof = r.bytes >= entry.size;
+                }
+                continue;
+            }
+            Action::Blob { resume_from } => {
+                let resume = local.files.get(&entry.name).and_then(|r| r.partial.clone()).filter(|p| p.bytes == resume_from);
+                let name = entry.name.clone();
+                let mut record = |p: &Partial| -> Result<()> {
+                    local.files.entry(name.clone()).or_default().partial = Some(p.clone());
+                    save_collection(dir, &local)
+                };
+                pull_blob(api, &run_ref, &entry, &dest, resume.as_ref(), &mut record).await?
+            }
+            other => pull_file(api, &run_ref, &entry, other, &dest).await?,
+        };
+        summary.pulled_files += 1;
+        summary.pulled_bytes += pulled.pulled;
+        summary.changed = true;
+        let rec = local.files.entry(entry.name.clone()).or_default();
+        *rec = Collected {
+            bytes: pulled.bytes,
+            node_size: pulled.meta.size,
+            node_mtime: pulled.meta.mtime,
+            at_eof: pulled.at_eof,
+            pulled_at: now,
+            refetches: rec.refetches + pulled.refetches,
+            partial: None,
+        };
+    }
+    local.node = node.to_string();
+    local.job = manifest.job.clone();
+    local.run_status = manifest.run_status.clone();
+    local.job_state = manifest.job_state.clone();
+    local.unlisted = manifest.unlisted;
+    local.collected_at = now;
+    local.dbench_version = crate::VERSION.to_string();
+    // A run is complete only when a look after the grace finds nothing to pull: a pass that pulled anything starts it over.
+    if settled(&manifest) && all_at_eof(&manifest, &local) && summary.pulled_files == 0 {
+        match local.settled_at {
+            None => local.settled_at = Some(now),
+            Some(at) if now.saturating_sub(at) >= cadence.settle_grace.as_secs() => local.complete = true,
+            Some(_) => {}
+        }
+    } else {
+        local.settled_at = None;
+        local.complete = false;
+    }
+    summary.complete = local.complete;
+    summary.changed |= local.complete != was_complete;
+    save_collection(dir, &local)?;
+    Ok(summary)
 }
 
 /// What one pass did for one node.
@@ -255,7 +486,7 @@ pub struct NodeSummary {
 /// Whether a pass pulls this run: never an archived one, even when asked for by name; otherwise every run, or only the
 /// ones asked for. A reference model's run is wanted too: its records go to the reference folder.
 pub fn wanted(run: &str, only_runs: &[String], archived: &BTreeSet<String>) -> bool {
-    todo!()
+    !archived.contains(run) && (only_runs.is_empty() || only_runs.iter().any(|r| r == run))
 }
 
 /// The archived runs, from the same published tree the ingest reads. None known (no repo, or it can't be read) means
@@ -273,19 +504,26 @@ fn archived_runs(cfg: &Config) -> BTreeSet<String> {
     })
 }
 
-pub async fn collect_node(ctx: &Ctx, node: &str, store: &Path, reference: &Path, only_runs: &[String], archived: &BTreeSet<String>, cadence: &Cadence, now: u64) -> NodeSummary {
+/// Where a pass puts what it pulls: the lake for a node's runs, the reference folder for a reference model's.
+#[derive(Debug, Clone, Copy)]
+pub struct Lake<'a> {
+    pub store: &'a Path,
+    pub reference: &'a Path,
+}
+
+pub async fn collect_node(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs: &[String], archived: &BTreeSet<String>, cadence: &Cadence, now: u64) -> NodeSummary {
     let mut out = NodeSummary { node: node.to_string(), ..Default::default() };
     let api = match ctx.api(node) {
         Ok(a) => a,
         Err(e) => {
-            out.problems.push(format!("{e:#}"));
+            out.problems.push(format!("{E_NODE_UNREACHABLE}: {e:#}"));
             return out;
         }
     };
     let runs = match api.runs().await {
         Ok(r) => r,
         Err(e) => {
-            out.problems.push(if e.to_string().contains("404") { "needs the new dbench (no /v1/runs)".to_string() } else { format!("unreachable: {e:#}") });
+            out.problems.push(if e.to_string().contains("404") { format!("{E_NODE_OLD}: needs the new dbench (no /v1/runs)") } else { format!("{E_NODE_UNREACHABLE}: unreachable: {e:#}") });
             return out;
         }
     };
@@ -294,7 +532,7 @@ pub async fn collect_node(ctx: &Ctx, node: &str, store: &Path, reference: &Path,
         if !wanted(&r.run, only_runs, archived) {
             continue;
         }
-        let Some(dir) = dest_dir(store, reference, node, &r.run) else {
+        let Some(dir) = dest_dir(lake.store, lake.reference, node, &r.run) else {
             let code = if r.run.starts_with(REFERENCE_RUN_PREFIX) { E_REFERENCE_DEST } else { E_NOT_A_RUN_PATH };
             out.problems.push(format!("{code}: {}: not a run path", r.run));
             continue;
@@ -309,7 +547,15 @@ pub async fn collect_node(ctx: &Ctx, node: &str, store: &Path, reference: &Path,
 
 /// The free bytes of the disk that holds `path`.
 pub fn free_bytes(path: &Path) -> std::io::Result<u64> {
-    todo!()
+    use std::os::unix::ffi::OsStrExt;
+    let c = std::ffi::CString::new(path.as_os_str().as_bytes()).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+    // SAFETY: an all-zero statvfs is a valid value to pass for the call to fill in.
+    let mut s: libc::statvfs = unsafe { std::mem::zeroed() };
+    // SAFETY: `c` is a NUL-terminated path that outlives the call, and `s` is a statvfs the call writes into.
+    if unsafe { libc::statvfs(c.as_ptr(), &mut s) } != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok((s.f_bavail as u64).saturating_mul(s.f_frsize as u64))
 }
 
 /// What the pass does about disk space: pull, or hold with a line that says why. Taken once, before any file is pulled.
@@ -321,7 +567,12 @@ pub enum SpaceDecision {
 
 /// `free < margin` holds; exactly at the margin pulls. A reading that cannot be taken holds, and never guesses.
 pub fn space_decision(free: std::io::Result<u64>, margin_gib: u64) -> SpaceDecision {
-    todo!()
+    let margin = margin_gib.saturating_mul(BYTES_PER_GIB);
+    match free {
+        Ok(f) if f >= margin => SpaceDecision::Pull,
+        Ok(f) => SpaceDecision::Hold(format!("holding: {f} bytes free on the lake's disk, below the margin of {margin} bytes ({margin_gib} GiB)")),
+        Err(e) => SpaceDecision::Hold(format!("holding: could not read the lake's free space ({e})")),
+    }
 }
 
 /// One pass over the nodes, then the ingest of what changed.
@@ -333,7 +584,8 @@ pub async fn pass(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: 
     }
     let names: Vec<String> = if cfg.nodes.is_empty() { ctx.nodes.keys().cloned().collect() } else { cfg.nodes.clone() };
     let archived = archived_runs(cfg);
-    let futs = names.iter().map(|n| collect_node(ctx, n, &cfg.store, &cfg.reference, &cfg.runs, &archived, cadence, now));
+    let lake = Lake { store: &cfg.store, reference: &cfg.reference };
+    let futs = names.iter().map(|n| collect_node(ctx, n, lake, &cfg.runs, &archived, cadence, now));
     let summaries = futures_util::future::join_all(futs).await;
     for s in &summaries {
         for p in &s.problems {
@@ -1323,10 +1575,10 @@ mod tests {
         let ctx = Ctx { nodes: BTreeMap::from([("old".to_string(), NodeEntry { url, token: None })]), collect: Default::default(), json: false };
         let root = scratch_dir("old-node");
         let none = BTreeSet::new();
-        let old = collect_node(&ctx, "old", &root, &root, &[], &none, &cadence_with_grace(0), 1).await;
+        let old = collect_node(&ctx, "old", Lake { store: &root, reference: &root }, &[], &none, &cadence_with_grace(0), 1).await;
         assert!(!old.reachable && old.problems.len() == 1 && old.problems[0].starts_with(E_NODE_OLD), "{:?}", old.problems);
         let ctx = Ctx { nodes: BTreeMap::from([("gone".to_string(), NodeEntry { url: "http://127.0.0.1:1".into(), token: None })]), collect: Default::default(), json: false };
-        let gone = collect_node(&ctx, "gone", &root, &root, &[], &none, &cadence_with_grace(0), 1).await;
+        let gone = collect_node(&ctx, "gone", Lake { store: &root, reference: &root }, &[], &none, &cadence_with_grace(0), 1).await;
         assert!(!gone.reachable && gone.problems[0].starts_with(E_NODE_UNREACHABLE), "{:?}", gone.problems);
         assert!(std::fs::read_dir(&root).unwrap().next().is_none(), "the lake is left as it was");
         std::fs::remove_dir_all(root).unwrap();

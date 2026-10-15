@@ -14,7 +14,6 @@ use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 const COMBINATION: &str = "test/combo/fake";
-const PACK: &str = "vidipack";
 const RUN: &str = "combinations/test/combo/fake/benchmarks/vidipack/v2-r1";
 const REFERENCE_INSTALL: &str = "ref-install";
 const REFERENCE_BASE: &str = "benchmarks/reference/vidi/opus-5.5";
@@ -1056,7 +1055,7 @@ async fn w3_a_pass_aborted_in_the_middle_of_a_bundle_and_a_rescore_rewrite_still
     for kill in 0..2 {
         let (ctx, cfg) = (ctx_of(&[(NODE_NAME, &srv)]), config(&env));
         let task = tokio::spawn(async move { collector::pass(&ctx, &cfg, &cadence(0), false, 100 + kill).await });
-        wait_until("a partial of at least one chunk", || std::fs::metadata(&part).map_or(false, |m| m.len() >= COLLECT_CHUNK_BYTES) || task.is_finished()).await;
+        wait_until("a partial of at least one chunk", || std::fs::metadata(&part).is_ok_and(|m| m.len() >= COLLECT_CHUNK_BYTES) || task.is_finished()).await;
         task.abort();
         let _ = task.await;
         if part.exists() {

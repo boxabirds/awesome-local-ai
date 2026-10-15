@@ -845,12 +845,12 @@ fn named_run(st: &Shared, run: &str) -> Result<String, (StatusCode, String)> {
     if !crate::ids::valid_run_dir(run) {
         return Err((
             StatusCode::BAD_REQUEST,
-            format!("not a run directory path: {run:?}"),
+            format!("{E_BAD_RUN_ID}: not a run directory path: {run:?}"),
         ));
     }
     match collect::is_run_dir(&st.cfg.repo, run) {
         Some(_) => Ok(run.to_string()),
-        None => Err((StatusCode::NOT_FOUND, format!("no run {run} on this node"))),
+        None => Err((StatusCode::NOT_FOUND, format!("{E_RUN_NOT_FOUND}: no run {run} on this node"))),
     }
 }
 
@@ -918,7 +918,7 @@ fn blob_changed(size: u64, mtime: f64) -> Response {
 /// Whether a blob read is stale: it starts past the end of the file, or (past 0) the mtime the client names is not the
 /// file's current one, so the client's partial copy belongs to a file that has since been rewritten.
 pub fn blob_stale(from: u64, size: u64, mtime: f64, held_mtime: Option<f64>) -> bool {
-    todo!()
+    from > size || (from > 0 && held_mtime.map(|m| format!("{m:.3}")) != Some(format!("{mtime:.3}")))
 }
 
 /// Bytes of one allow-listed file of a run: from `from`, at most `COLLECT_CHUNK_BYTES`, never past the
@@ -930,7 +930,107 @@ pub fn blob_stale(from: u64, size: u64, mtime: f64, held_mtime: Option<f64>) -> 
 /// the file's mtime is another, or the offset is past its size. A link, or a path that leaves the run directory, is
 /// never followed: 404 E-OUTSIDE-RUN.
 async fn file_of(st: &Shared, run: &str, q: FileQuery) -> Response {
-    todo!()
+    let Some(name): Option<FileName> = collect::parse_name(&q.name) else {
+        return err(
+            StatusCode::NOT_FOUND,
+            format!("{E_NAME_NOT_ALLOWED}: {:?} is not a file the node serves", q.name),
+        );
+    };
+    let run_dir = st.cfg.repo.join(run);
+    let Some(path) = collect::resolve(&run_dir, &st.cfg.bench_home, &name) else {
+        return err(
+            StatusCode::NOT_FOUND,
+            format!("{} is not on this node", name.name()),
+        );
+    };
+    let meta = match tokio::fs::symlink_metadata(&path).await {
+        Ok(m) => m,
+        Err(_) => {
+            return err(
+                StatusCode::NOT_FOUND,
+                format!("{} is not on this node", name.name()),
+            )
+        }
+    };
+    let in_run_dir = name.source() == collect::Source::RunDir;
+    let escapes = meta.file_type().is_symlink()
+        || (in_run_dir && (collect::has_link_below(&run_dir, &path) || !collect::is_inside_run(&run_dir, &path)));
+    if escapes {
+        return err(
+            StatusCode::NOT_FOUND,
+            format!("{E_OUTSIDE_RUN}: {} is not a file of this run", name.name()),
+        );
+    }
+    if !meta.is_file() {
+        return err(
+            StatusCode::NOT_FOUND,
+            format!("{} is not on this node", name.name()),
+        );
+    }
+    let size = meta.len();
+    let mtime = collect::mtime_secs(&meta);
+    let from = q.from.unwrap_or(0);
+    match name.kind() {
+        FileKind::Whole => {
+            if from != 0 {
+                return err(
+                    StatusCode::BAD_REQUEST,
+                    format!("{} is served whole: from must be 0", name.name()),
+                );
+            }
+            if size > collect::COLLECT_CHUNK_BYTES {
+                return err(
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    format!(
+                        "{E_WHOLE_TOO_LARGE}: {} is {size} bytes, over the {} byte limit",
+                        name.name(),
+                        collect::COLLECT_CHUNK_BYTES
+                    ),
+                );
+            }
+        }
+        FileKind::Append => {
+            if from > size {
+                return conflict("file is shorter than from", size);
+            }
+            if from > 0 {
+                let Some(check) = q.check.as_deref() else {
+                    return err(
+                        StatusCode::BAD_REQUEST,
+                        "check= is needed when from > 0: the hash of the bytes before from",
+                    );
+                };
+                let (start, end) = collect::check_window(from);
+                let held = match read_at(&path, start, end - start, end).await {
+                    Ok(b) if b.len() as u64 == end - start => b,
+                    Ok(_) => return conflict("prefix mismatch", size),
+                    Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+                };
+                if hex64(collect::fnv1a64(&held)) != check.trim().to_ascii_lowercase() {
+                    return conflict("prefix mismatch", size);
+                }
+            }
+        }
+        FileKind::Blob => {
+            let held = q.mtime.as_deref().and_then(|m| m.trim().parse::<f64>().ok());
+            if blob_stale(from, size, mtime, held) {
+                return blob_changed(size, mtime);
+            }
+        }
+    }
+    let bytes = match read_at(&path, from, collect::COLLECT_CHUNK_BYTES, size).await {
+        Ok(b) => b,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    };
+    let eof = from + bytes.len() as u64 >= size;
+    Response::builder()
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .header(collect::HDR_FROM, from.to_string())
+        .header(collect::HDR_SIZE, size.to_string())
+        .header(collect::HDR_MTIME, format!("{mtime:.3}"))
+        .header(collect::HDR_EOF, if eof { "1" } else { "0" })
+        .body(Body::from(bytes))
+        .unwrap_or_else(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "response"))
 }
 
 fn ensure_dir(path: &std::path::Path) -> Result<()> {
@@ -1019,7 +1119,7 @@ mod tests {
     #[test]
     fn the_mtime_is_compared_to_the_millisecond_the_headers_carry() {
         // The header text has three decimals; a client that sends it back must be taken as the same time.
-        assert!(!blob_stale(5, 10, 1_790_000_000.1234, Some(1_790_000_000.123)));
-        assert!(blob_stale(5, 10, 1_790_000_000.1236, Some(1_790_000_000.123)));
+        assert!(!blob_stale(5, 10, 1_790_000_000.123_4, Some(1_790_000_000.123)));
+        assert!(blob_stale(5, 10, 1_790_000_000.123_6, Some(1_790_000_000.123)));
     }
 }
