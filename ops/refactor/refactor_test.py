@@ -3209,3 +3209,141 @@ def test_tc56_an_unlisted_function_the_derivation_matches_is_still_refused_when_
     run_git(repo, "add", "tools/e.py")
     unlisted = tool(repo, "check-touched-set")
     assert unlisted.returncode == R.EXIT_FAIL and "E-UNLISTED-MATCH  tools/e.py::peek" in unlisted.stdout
+
+
+# ---- story 19: the stage moves back when the touched set has grown since the proof (TC-60 to TC-65; task 19.23) ------------------------
+
+def member_ids(n: int) -> list[str]:
+    return [f"src/m{i}.py::f{i}" for i in range(n)]
+
+
+def proof_toml(ids: list[str]) -> str:
+    digest = R.members_digest([{"file": i.split("::")[0], "function": i.split("::")[1]} for i in ids])
+    return f'\n[proved_members]\ndigest = "{digest}"\ncount = {len(ids)}\nmembers = [{", ".join(chr(34) + i + chr(34) for i in ids)}]\n'
+
+
+def staged_root(tmp_path: Path, stage: str, proved: list[str] | None, current: list[str]) -> Path:
+    root = make_root(tmp_path, touched="".join(entry("python", i.split("::")[0], i.split("::")[1], '"C"') for i in current))
+    write(root, "ops/refactor/stage.toml", f'stage = "{stage}"\n' + (proof_toml(proved) if proved is not None else ""))
+    return root
+
+
+def stage_file(root: Path) -> dict:
+    return tomllib.loads((root / "ops/refactor/stage.toml").read_text())
+
+
+def test_tc60_the_same_members_leave_a_proved_stage_alone(tmp_path):
+    root = staged_root(tmp_path, "Proved", member_ids(5), member_ids(5))
+    before = (root / "ops/refactor/stage.toml").read_bytes()
+    result = R.reconcile_stage(root)
+    assert result.exit_code == R.EXIT_OK and (root / "ops/refactor/stage.toml").read_bytes() == before
+
+
+def test_tc61_a_member_added_since_the_proof_moves_a_proved_stage_back_to_matrices_naming_it(tmp_path):
+    root = staged_root(tmp_path, "Proved", member_ids(5), member_ids(6))
+    result = R.reconcile_stage(root)
+    assert codes(result) == ["E-MEMBER-UNPROVED"] and "src/m5.py::f5" in result.problems[0].detail
+    state = stage_file(root)
+    assert state["stage"] == "Matrices" and state["move"][-1]["from"] == "Proved" and "E-MEMBER-UNPROVED" in state["move"][-1]["justified_by"]
+    assert R.reconcile_stage(root).exit_code == R.EXIT_OK, "a second reconcile at Matrices changes nothing"
+
+
+def test_tc62_a_member_removed_leaves_the_proof_standing(tmp_path):
+    root = staged_root(tmp_path, "Proved", member_ids(5), member_ids(4))
+    assert R.reconcile_stage(root).exit_code == R.EXIT_OK and stage_file(root)["stage"] == "Proved"
+
+
+@pytest.mark.parametrize("stage", ["Deleted", "RedContracts", "Reimplemented"])
+def test_tc63_a_later_stage_also_moves_back_when_a_member_was_added(tmp_path, stage):
+    root = staged_root(tmp_path, stage, member_ids(5), member_ids(6))
+    assert codes(R.reconcile_stage(root)) == ["E-MEMBER-UNPROVED"] and stage_file(root)["stage"] == "Matrices"
+
+
+@pytest.mark.parametrize("stage", ["Inventory", "Matrices"])
+def test_tc64_before_proved_a_new_member_changes_nothing(tmp_path, stage):
+    root = staged_root(tmp_path, stage, None, member_ids(6))
+    before = (root / "ops/refactor/stage.toml").read_bytes()
+    assert R.reconcile_stage(root).exit_code == R.EXIT_OK and (root / "ops/refactor/stage.toml").read_bytes() == before
+
+
+def test_tc65_a_proved_stage_with_no_recorded_proof_moves_back_once(tmp_path):
+    root = staged_root(tmp_path, "Proved", None, member_ids(5))
+    assert codes(R.reconcile_stage(root)) == ["E-STAGE-DIGEST-MISSING"] and stage_file(root)["stage"] == "Matrices"
+
+
+def test_boundary_a_one_entry_set_is_unproved_when_a_second_member_appears(tmp_path):
+    assert R.reconcile_stage(staged_root(tmp_path / "same", "Proved", member_ids(1), member_ids(1))).exit_code == R.EXIT_OK
+    assert codes(R.reconcile_stage(staged_root(tmp_path / "grown", "Proved", member_ids(1), member_ids(2)))) == ["E-MEMBER-UNPROVED"]
+
+
+def test_the_reconciliation_never_moves_the_stage_forward(tmp_path):
+    root = staged_root(tmp_path, "Matrices", member_ids(5), member_ids(5))          # a proof on record and equal members, but the stage is still Matrices
+    assert R.reconcile_stage(root).exit_code == R.EXIT_OK and stage_file(root)["stage"] == "Matrices"
+
+
+def test_a_move_to_proved_records_the_members_and_later_moves_keep_them(tmp_path):
+    root = make_root(tmp_path, touched="".join(entry("python", i.split("::")[0], i.split("::")[1], '"C"') for i in member_ids(3)))
+    write(root, "ops/refactor/stage.toml", 'stage = "Matrices"\n')
+    ok = {("Matrices", "Proved"): lambda r: R.Result(), ("Proved", "Deleted"): lambda r: R.Result()}
+    assert R.move_stage(root, "Proved", ok).exit_code == R.EXIT_OK
+    recorded = stage_file(root)["proved_members"]
+    assert recorded["count"] == 3 and recorded["members"] == member_ids(3) and recorded["digest"] == R.members_digest([{"file": i.split("::")[0], "function": i.split("::")[1]} for i in member_ids(3)])
+    assert R.move_stage(root, "Deleted", ok).exit_code == R.EXIT_OK and stage_file(root)["proved_members"] == recorded
+
+
+@pytest.mark.parametrize("command", ["stage", "check-stubs", "report-deletion", "check-coverage"])
+def test_each_stage_aware_command_reconciles_first_and_stops_when_it_moved_the_stage(tmp_path, capsys, command):
+    root = staged_root(tmp_path, "Proved", member_ids(5), member_ids(6))
+    assert cli(root, command) == R.EXIT_FAIL
+    out = capsys.readouterr().out
+    assert "E-MEMBER-UNPROVED" in out and stage_file(root)["stage"] == "Matrices"
+    assert not (root / "ops/refactor/reports/stubs.json").exists(), "the command itself did not run"
+
+
+# ---- story 19: re-proving records the digest, and a killed write is never partial (TC-66, TC-67; task 19.24) ---------------------------
+
+def without_entry(touched: str, function: str) -> str:
+    blocks = touched.split("[[entry]]")
+    return "[[entry]]".join(b for b in blocks if f'function = "{function}"' not in b)
+
+
+def test_tc66_after_the_stage_moved_back_the_added_member_is_proved_and_the_new_digest_is_recorded(coverage_tools, tmp_path):
+    root = mini_at_matrices(tmp_path)
+    touched_file = root / "ops/refactor/touched_set.toml"
+    full = touched_file.read_text()
+    touched_file.write_text(without_entry(full, "titleOf"))                       # the proof is made over three members
+    assert tool(root, "stage", "Proved").returncode == R.EXIT_OK, "the first proof"
+    first = stage_file(root)["proved_members"]
+    assert first["count"] == 3 and not any("titleOf" in m for m in first["members"])
+    touched_file.write_text(full)                                                 # a fourth member joins the set (it is covered and has its matrix)
+    moved = tool(root, "stage")
+    assert moved.returncode == R.EXIT_FAIL and "E-MEMBER-UNPROVED" in moved.stdout and "titleOf" in moved.stdout
+    assert stage_file(root)["stage"] == "Matrices"
+    proved = tool(root, "stage", "Proved")                                        # matrix and coverage are green for all four
+    assert proved.returncode == R.EXIT_OK, proved.stdout + proved.stderr
+    second = stage_file(root)
+    assert second["stage"] == "Proved" and second["proved_members"]["count"] == 4 and any("titleOf" in m for m in second["proved_members"]["members"])
+    assert second["proved_members"]["digest"] != first["digest"]
+
+
+@pytest.mark.parametrize("where", sorted(KILL_POINTS))
+def test_tc67_a_process_killed_while_it_writes_the_back_move_leaves_the_old_or_the_new_stage_file_never_a_partial_one(tmp_path, where):
+    old_root = staged_root(tmp_path / "old", "Proved", member_ids(5), member_ids(6))
+    old = (old_root / "ops/refactor/stage.toml").read_text()
+    new_root = staged_root(tmp_path / "new", "Proved", member_ids(5), member_ids(6))
+    R.reconcile_stage(new_root, now=datetime_for_tests())
+    new = (new_root / "ops/refactor/stage.toml").read_text()
+    kill = "os.kill(os.getpid(), signal.SIGKILL)"
+    point = KILL_POINTS[where]
+    patch = (f"_real = os.replace\ndef _replace(*a, **k):\n    _real(*a, **k)\n    {kill}\nos.replace = _replace\n" if point == "after-replace"
+             else f"os.{point.split('.')[1]} = lambda *a, **k: {kill}\n")
+    script = ("import os, signal, sys, pathlib, datetime\nsys.path.insert(0, %r)\nimport refactor as R\n%s"
+              "R.reconcile_stage(pathlib.Path(%r), now=datetime.datetime(2026, 10, 15, tzinfo=datetime.timezone.utc))\n" % (str(Path(R.__file__).parent), patch, str(old_root)))
+    proc = subprocess.run([sys.executable, "-c", script])
+    assert proc.returncode != 0
+    assert (old_root / "ops/refactor/stage.toml").read_text() in (old, new)
+
+
+def datetime_for_tests():
+    import datetime
+    return datetime.datetime(2026, 10, 15, tzinfo=datetime.timezone.utc)
