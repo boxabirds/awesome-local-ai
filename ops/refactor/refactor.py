@@ -1688,6 +1688,50 @@ def check_pass_shape(root: Path, p: Pass, earlier: set[str], result: Result, gre
             result.fail("E-PASS-NOT-REPRODUCIBLE", where, f"{identity} is returned by {', '.join(sorted(queries))} and is not recorded")
 
 
+ACCESS_VALUES, VIA_VALUES = ("reader", "writer"), ("command", "path")
+OUTCOMES = ("protected", "excluded", "intrinsic")
+USE_CASES_FILE = REFACTOR_DIR / "use_cases.toml"
+
+
+def known_use_cases(root: Path) -> set[str]:
+    """U1 to U14, and any further use case the owner agreed: recorded under [agreed.Un] with a reason."""
+    data = read_toml(root / USE_CASES_FILE)
+    agreed = {k for k, v in data.get("agreed", {}).items() if str(v.get("reason", "")).strip()}
+    return set(data.get("use_cases", {})) | agreed
+
+
+def check_hits(root: Path, passes: list[Pass], result: Result) -> None:
+    """Every hit says how it reads (reader or writer), by what way (a version-control command or a path in the working tree) and
+    has one outcome: protected (with a use case), excluded (with a reason), or intrinsic (git in the agent's own repository, so a
+    class W function, with a reason). An intrinsic row with no reason is refused with the excluded code: both are decisions to leave
+    a place alone."""
+    use_cases = known_use_cases(root)
+    own_repository = load_classes(root).workspace_functions
+    for p in passes:
+        where = p.path.name
+        outcomes: dict[str, set[str]] = {}
+        for row in p.hits:
+            outcomes.setdefault(row.identity, set()).add(row.outcome)
+            if row.access not in ACCESS_VALUES:
+                result.fail("E-ACCESS-INVALID", where, f"{row.identity}: access '{row.access}' is not reader or writer")
+            if row.via not in VIA_VALUES:
+                result.fail("E-VIA-INVALID", where, f"{row.identity}: via '{row.via}' is not command or path")
+            if row.outcome not in OUTCOMES:
+                result.fail("E-HIT-NO-OUTCOME", where, f"{row.identity}: outcome '{row.outcome}' is not protected, excluded or intrinsic")
+            elif row.outcome == "protected":
+                if not row.use_case.strip():
+                    result.fail("E-HIT-NO-USE-CASE", where, f"{row.identity} is protected and names no use case")
+                elif row.use_case not in use_cases:
+                    result.fail("E-USE-CASE-UNKNOWN", where, f"{row.identity}: {row.use_case} is neither U1 to U14 nor recorded as agreed")
+            elif not row.reason.strip():
+                result.fail("E-EXCLUDED-NO-REASON", where, f"{row.identity} is {row.outcome} with no reason")
+            elif row.outcome == "intrinsic" and row.function.split(".")[-1] not in own_repository:
+                result.fail("E-INTRINSIC-NOT-OWN-REPO", where, f"{row.identity} is not a class W function (git in the agent's own repository)")
+        for identity, seen in sorted(outcomes.items()):
+            if len(seen) > 1:
+                result.fail("E-HIT-OUTCOME-CONFLICT", where, f"{identity} is listed as {' and '.join(sorted(seen))}")
+
+
 def query_set(pass_: Pass) -> frozenset[tuple[str, str, str]]:
     """What a pass searched for: each query's category, pattern and paths (their order ignored), as a set."""
     return frozenset((q.category, q.pattern, " ".join(sorted(q.paths))) for q in pass_.queries)
@@ -1768,6 +1812,7 @@ def check_audit(root: Path, require_final: bool = False, grep=git_grep, snapshot
                                   "new": sum(1 for r in p.hits if r.identity not in earlier),
                                   "outcomes": dict(Counter(r.outcome for r in p.hits))})
                 earlier |= {r.identity for r in p.hits}
+            check_hits(root, passes, result)
             final = check_stop_rule(passes, result, require_final)
             result.data["final_pass"], result.data["final_reason"] = final.final_pass, final.reason
     after = snapshot(root)
