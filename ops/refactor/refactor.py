@@ -1734,6 +1734,23 @@ def check_hits(root: Path, passes: list[Pass]) -> Result:
     return result
 
 
+SEED_FILE = AUDIT_DIR / "seed.toml"
+WHOLE_FILE = "*"
+
+
+def check_seed(root: Path, passes: list[Pass]) -> list[Problem]:
+    """Pass 01 has a row for every place of seed.toml; a place with function `*` is satisfied by any row in its file."""
+    if not passes:
+        return []
+    rows = [r for r in passes[0].hits if r.outcome.strip()]
+    problems = []
+    for place in read_toml(root / SEED_FILE).get("place", []):
+        file, function = place["file"], place["function"]
+        if not any(r.place == file and function in (WHOLE_FILE, r.function) for r in rows):
+            problems.append(Problem("E-SEED-MISSING", passes[0].path.name, f"{file}::{function} is seeded ({place.get('reason', '')}) and has no row in pass 01"))
+    return problems
+
+
 def query_set(pass_: Pass) -> frozenset[tuple[str, str, str]]:
     """What a pass searched for: each query's category, pattern and paths (their order ignored), as a set."""
     return frozenset((q.category, q.pattern, " ".join(sorted(q.paths))) for q in pass_.queries)
@@ -1817,6 +1834,8 @@ def check_audit(root: Path, require_final: bool = False, grep=git_grep, snapshot
             classification = check_hits(root, passes)
             result.problems += classification.problems
             result.exit_code = max(result.exit_code, classification.exit_code)
+            for problem in check_seed(root, passes):
+                result.fail(problem.code, problem.subject, problem.detail)
             final = check_stop_rule(passes, result, require_final)
             result.data["final_pass"], result.data["final_reason"] = final.final_pass, final.reason
     after = snapshot(root)

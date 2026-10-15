@@ -1,0 +1,132 @@
+# The places known on 15 October 2026 that pass 01 of the audit must account for (a row with an outcome each).
+# `function = "*"` is satisfied by any row in that file. The seed is data: adding a place later is a commit to this file.
+
+[[place]]
+file = "benchmarks/spec-bench/harness/annotate.py"
+function = "*"
+reason = "reads a story's compact conversation log from the checkout; skips stories whose log is not there (found 15 Oct 2026)"
+
+[[place]]
+file = "benchmarks/spec-bench/harness/claims.py"
+function = "*"
+reason = "reads run records from the checkout to judge claims; in no class and not in the touched set"
+
+[[place]]
+file = "tools/anthropic-token-counter/src/corpus.rs"
+function = "*"
+reason = "reads the run corpus from the checkout; not in the touched set"
+
+[[place]]
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "inputs_for"
+reason = "reads metrics.json, run.json and run-status.json of a run from version control"
+
+[[place]]
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "ids"
+reason = "GitSource: lists run ids from a git tree"
+
+[[place]]
+file = "tools/dbench/src/ingest/inputs.rs"
+function = "read"
+reason = "GitSource: reads a file of a run from a git revision"
+
+[[place]]
+file = "benchmarks/spec-bench/harness/history.py"
+function = "_event_times"
+reason = "falls back to the raw log in the checkout when the compact log is not committed"
+
+[[place]]
+file = "tools/dbench/src/collect.rs"
+function = "manifest"
+reason = "lists the files of a run the node offers; the lake now takes the full record (story 5)"
+
+[[place]]
+file = "tools/dbench/src/collect.rs"
+function = "resolve"
+reason = "maps an allow-listed name to a path under the run directory (story 5)"
+
+[[place]]
+file = "tools/dbench/src/collect.rs"
+function = "parse_name"
+reason = "the allow-list of run file names (story 5)"
+
+[[place]]
+file = "tools/dbench/src/collector.rs"
+function = "plan"
+reason = "decides which files to pull (story 5)"
+
+[[place]]
+file = "tools/dbench/src/collector.rs"
+function = "pull_blob"
+reason = "pulls one file into the lake (story 5)"
+
+[[place]]
+file = "tools/dbench/src/collector.rs"
+function = "store_dir"
+reason = "where a run lives in the lake (story 5)"
+
+[[place]]
+file = "tools/dbench/src/collector.rs"
+function = "classes_for"
+reason = "which file classes a run's lake copy takes (story 5)"
+
+[[place]]
+file = "tools/dbench/src/collector.rs"
+function = "wanted"
+reason = "which runs the collector pulls (story 5)"
+
+[[place]]
+file = "tools/dbench/src/server.rs"
+function = "file_of"
+reason = "serves a run file to the collector (story 5)"
+
+[[place]]
+file = "tools/benchmarker/server/domain.ts"
+function = "findRuns"
+reason = "sets hasBundle from the tracked run folders"
+
+[[place]]
+file = "tools/benchmarker/server/sources.ts"
+function = "loadRuns"
+reason = "reads run records from git through cat-file"
+
+[[place]]
+file = "tools/vidi-gallery/src/runs.rs"
+function = "*"
+reason = "reads a run's workspace and workspace.bundle from the checkout"
+
+[[place]]
+file = "tools/vidi-gallery/src/builds.rs"
+function = "*"
+reason = "copies a record's committed workspace to build it"
+
+[[place]]
+file = "tools/vidi-gallery/src/main.rs"
+function = "*"
+reason = "rescans the checkout for runs with a bundle or a workspace"
+
+[[place]]
+file = "ops/monitor/monitor.py"
+function = "git_json"
+reason = "reads JSON records from git"
+
+[[place]]
+file = "benchmarks/spec-bench/harness/drive.py"
+function = "known_good_base"
+reason = "reads another run's bundle from the node checkout"
+
+[[place]]
+file = "benchmarks/spec-bench/harness/progress.py"
+function = "baselines"
+reason = "reads other runs' records for baselines"
+
+[[place]]
+file = "benchmarks/spec-bench/harness/logscan.py"
+function = "known_runs"
+reason = "lists runs known from the repository"
+
+[[place]]
+file = "benchmarks/spec-bench/harness/judge.py"
+function = "*"
+reason = "builds and reads judge packages from run records"
