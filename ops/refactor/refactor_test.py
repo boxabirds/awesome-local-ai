@@ -3465,3 +3465,41 @@ mod tests {
 def test_a_hit_in_a_rust_test_module_is_attributed_to_the_test_module_not_the_top_level(tmp_path, line, expected):
     write(tmp_path, "src/lib.rs", RUST_WITH_TESTS)
     assert R.function_at(tmp_path, "src/lib.rs", line) == expected
+
+
+# ---- story 19: a comment block directly above a function belongs to that function (task 19.37) --------------------------------------
+
+LEADING_RUST = """const TOP: u8 = 1;
+
+fn a() {
+    run("git pull");
+}
+// a stray remark about git push, then a blank line
+
+/// docs of b: mentions git fetch
+#[inline]
+fn b() {
+    run("git show");
+}
+"""
+LEADING_SHELL = "first() {\n  git pull\n}\n# note about git push\nsecond() {\n  git show\n}\n"
+LEADING_PYTHON = "def first():\n    return 1\n\n\n# note about git push\n@decorated\ndef second():\n    return 2\n"
+LEADING_TS = "export function first() {\n  return 1\n}\n/** docs of second: git fetch */\nexport function second() {\n  return 2\n}\n"
+
+
+@pytest.mark.parametrize("rel,text,line,expected", [
+    pytest.param("src/x.rs", LEADING_RUST, 4, "a", id="rust-the-body-of-a-function"),
+    pytest.param("src/x.rs", LEADING_RUST, 6, "a", id="rust-a-remark-followed-by-a-blank-line-stays-above"),
+    pytest.param("src/x.rs", LEADING_RUST, 8, "b", id="rust-a-doc-comment-directly-above-belongs-to-the-function"),
+    pytest.param("src/x.rs", LEADING_RUST, 9, "b", id="rust-an-attribute-directly-above-belongs-to-the-function"),
+    pytest.param("src/x.rs", LEADING_RUST, 1, "<module>", id="rust-a-constant-at-the-top"),
+    pytest.param("src/x.sh", LEADING_SHELL, 4, "second", id="shell-a-comment-directly-above-belongs-to-the-function"),
+    pytest.param("src/x.sh", LEADING_SHELL, 2, "first", id="shell-the-body"),
+    pytest.param("src/x.py", LEADING_PYTHON, 5, "second", id="python-a-comment-above-a-decorator-belongs-to-the-function"),
+    pytest.param("src/x.py", LEADING_PYTHON, 6, "second", id="python-a-decorator-belongs-to-the-function"),
+    pytest.param("src/x.ts", LEADING_TS, 4, "second", id="typescript-a-doc-comment-directly-above-belongs-to-the-function"),
+    pytest.param("src/x.ts", LEADING_TS, 2, "first", id="typescript-the-body"),
+])
+def test_a_comment_block_directly_above_a_function_belongs_to_that_function(tmp_path, rel, text, line, expected):
+    write(tmp_path, rel, text)
+    assert R.function_at(tmp_path, rel, line) == expected
