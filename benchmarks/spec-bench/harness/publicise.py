@@ -95,6 +95,27 @@ def is_private(rel: str) -> bool:
     return False
 
 
+# What the lake holds and git does not: the compacted conversation of each story. It is the largest thing a story adds to
+# the repository (100 of 146 MiB in the four days to 15 Oct 2026), it is not secret (the agent's own words, checked like
+# any other file of its), and `dbench collect` already takes it into the lake from the node. Committing it filled the
+# repository's host to its size limit, so it is no longer committed; a copy an older harness committed is dropped from the
+# index with the next record of the run (drive.untrack_private) and stays in history.
+LAKE_ONLY_FILES = {"agent-events.compact.jsonl.gz"}
+
+
+def is_lake_only(rel: str) -> bool:
+    """Whether a repo-relative path is a run file the lake keeps and git does not: LAKE_ONLY_FILES directly under a
+    story's folder, stories/NN/, of a run record. The agent's own files of the same name, under workspace/, are its work."""
+    parts = _parts(rel)
+    return (_in_run_records(parts) and "workspace" not in parts and len(parts) >= 3
+            and parts[-1] in LAKE_ONLY_FILES and parts[-3] == "stories" and parts[-2].isdigit())
+
+
+def lake_only_lines() -> list[str]:
+    """A run's .gitignore lines for is_lake_only: stories/*/<name>."""
+    return [f"stories/*/{name}" for name in sorted(LAKE_ONLY_FILES)]
+
+
 def summary_path(rel: str) -> str | None:
     """The public summary that stands beside a held-out result; None for anything else."""
     parts = _parts(rel)

@@ -161,7 +161,7 @@ PRIVATE_KINDS = [
 # The agent's own files, some named like private ones: always public.
 OWN_KINDS = ["workspace/accept.json", "workspace/AUDIT.md", "workspace/tests/e2e/screenshots/w.png",
              "workspace/artifacts/notes.md", "workspace/tests/e2e/notes.spec.ts", "stories/01/gate.json",
-             "stories/01/agent-events.compact.jsonl.gz", "workspace-git-log.txt"]
+             "workspace-git-log.txt"]
 # Each held-out result, and its public summary beside it.
 SUMMARIES = {"stories/01/accept.json": "stories/01/accept-summary.json",
              "stories/02/accept.json": "stories/02/accept-summary.json",
@@ -268,28 +268,31 @@ def test_A2_the_agents_own_files_are_published_whatever_their_names(recorded, ki
 
 CORPUS_PUBLIC = ["metrics.json", "summary.md", "run.json", "interventions.md", "workspace-git-log.txt",
                  "stories/01/gate.json", "stories/01/accept-summary.json", "stories/01/prompt.md",
-                 "stories/01/agent-events.compact.jsonl.gz", f"rescore/{VERSION}/rescore.json",
+                 f"rescore/{VERSION}/rescore.json",
                  f"rescore/{VERSION}/per-story.md", f"rescore/{VERSION}/metrics.json",
                  f"rescore/{VERSION}/stories/02/accept-summary.json", "accept-final-summary.json",
                  "superseded/story-03-early-stop/prompt.md", "workspace/accept.json", "workspace/AUDIT.md",
                  "workspace/audit.jsonl", "workspace/tests/e2e/screenshots/a.png", "workspace/artifacts/notes.md",
                  "workspace/src/stories/01/artifacts/x.ts", "workspace/test-results/x/error-context.md",
                  "workspace/scoring-2/x.md"]
+CORPUS_LAKE_ONLY = ["stories/01/agent-events.compact.jsonl.gz", "stories/02/agent-events.compact.jsonl.gz"]
 CORPUS_PRIVATE = [*PRIVATE_KINDS, "accept.json", pub.PUBLISH_REFUSED, f"rescore/{VERSION}/stories/02/scoring-3/screenshots/s.png",
                   f"rescore-spoiled/{VERSION}-20260930T000000/stories/02/accept.json", "stories/01/pre-suite-fix/screenshots/p.png"]
 
 
-def test_A3_the_runs_gitignore_ignores_exactly_the_private_paths(tmp_path):
-    """The .gitignore record_story writes, as git reads it, against publicise.is_private: same answer for every path."""
+def test_A3_the_runs_gitignore_ignores_exactly_the_private_and_lake_only_paths(tmp_path):
+    """The .gitignore record_story writes, as git reads it, against publicise.is_private and is_lake_only: same answer for
+    every path."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     run = tmp_path / RUN_REL
     write(run / ".gitignore", drive.RUN_GITIGNORE)
-    for rel in CORPUS_PUBLIC + CORPUS_PRIVATE:
+    every = CORPUS_PUBLIC + CORPUS_LAKE_ONLY + CORPUS_PRIVATE
+    for rel in every:
         write(run / rel, "x")
-    ignored = set(subprocess.run(["git", "check-ignore", "--stdin"], cwd=run, input="\n".join(CORPUS_PUBLIC + CORPUS_PRIVATE),
+    ignored = set(subprocess.run(["git", "check-ignore", "--stdin"], cwd=run, input="\n".join(every),
                                  capture_output=True, text=True).stdout.split())
-    assert {r: pub.is_private(f"{RUN_REL}/{r}") for r in CORPUS_PUBLIC + CORPUS_PRIVATE} == \
-           {r: r in ignored for r in CORPUS_PUBLIC + CORPUS_PRIVATE}
+    assert {r: pub.is_private(f"{RUN_REL}/{r}") or pub.is_lake_only(f"{RUN_REL}/{r}") for r in every} == \
+           {r: r in ignored for r in every}
 
 
 def test_A4_private_files_an_older_harness_committed_are_untracked_and_kept_on_disk(tmp_path):
@@ -304,6 +307,37 @@ def test_A4_private_files_an_older_harness_committed_are_untracked_and_kept_on_d
     tracked = git(repo, "ls-files", "--", RUN_REL).split()
     assert not [f for f in tracked if pub.is_private(f)]
     assert (run / "stories/01/accept.json").exists() and (run / "stories/01/screenshots/a.png").exists()
+
+
+@pytest.mark.parametrize("kind", CORPUS_LAKE_ONLY)
+def test_A5_the_compacted_conversation_of_a_story_is_in_neither_repo_and_stays_on_the_machine(recorded, kind):
+    assert pub.is_lake_only(f"{RUN_REL}/{kind}")
+    assert f"{RUN_REL}/{kind}" not in recorded.public and f"{RUN_REL}/{kind}" not in recorded.in_private
+    assert (recorded.run / kind).exists()
+
+
+def test_A6_lake_only_files_an_older_harness_committed_are_untracked_counted_and_kept_on_disk(tmp_path):
+    repo, remote = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "stories/01/agent-events.compact.jsonl.gz", b"\x1f\x8b compact")
+    git(repo, "add", "-f", "--", RUN_REL)
+    git(repo, "commit", "-qm", "an older harness's record, compact log and all")
+    assert f"{RUN_REL}/stories/01/agent-events.compact.jsonl.gz" in git(repo, "ls-files", "--", RUN_REL).split()
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
+    assert res["committed"] and res["untracked_lake_only"] == 1 and res["untracked_private"] == 1, res      # and the metrics sidecar small_run wrote
+    assert f"{RUN_REL}/stories/01/agent-events.compact.jsonl.gz" not in git(repo, "ls-tree", "-r", "--name-only", "HEAD").split()
+    assert (run / "stories/01/agent-events.compact.jsonl.gz").exists()
+
+
+def test_A7_a_record_that_untracks_both_kinds_counts_each_kind_on_its_own(tmp_path):
+    repo, remote = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "stories/01/accept.json", STORY_1)
+    write(run / "stories/01/agent-events.compact.jsonl.gz", b"\x1f\x8b compact")
+    git(repo, "add", "-f", "--", RUN_REL)
+    git(repo, "commit", "-qm", "an older harness's record")
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
+    assert res["untracked_lake_only"] == 1 and res["untracked_private"] == 2, res      # accept.json and the metrics sidecar
 
 
 # ---------- B. each held-out result has its public summary beside it ----------

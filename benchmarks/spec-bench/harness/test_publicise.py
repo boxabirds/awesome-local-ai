@@ -4,6 +4,7 @@ MECE by what decides the answer:
   A. which paths are private      B. the public summary of a held-out result    C. metrics.json
   D. reports in markdown          E. fingerprints of the held-out suite          F. finding leaks
   G. which leaks count            H. what the publishing gate needed (sidecars, split metrics, gitignore)
+  I. what the lake holds and git does not
 Run: uv run --with pytest pytest test_publicise.py
 """
 import json
@@ -45,7 +46,6 @@ def test_A1_held_out_detail_is_private(rel):
     f"{RUN}/metrics.json",
     f"{RUN}/summary.md",
     f"{RUN}/stories/02/gate.json",                          # the agent's own checks
-    f"{RUN}/stories/02/agent-events.compact.jsonl.gz",
     f"{RUN}/stories/02/accept-summary.json",
     f"{RUN}/rescore/vidi-v2.0-pre2/rescore.json",
     f"{RUN}/workspace/tests/e2e/screenshots/a.png",          # the agent's own work, whatever its names
@@ -295,3 +295,36 @@ def test_H9_the_run_gitignore_names_every_private_file_and_dir_and_gives_the_wor
     assert {f"{d}/" for d in pub.PRIVATE_DIRS} | {"scoring-[0-9]*/"} <= set(lines)
     assert {f"!/workspace/**/{x}" for x in ["accept.json", "artifacts/", "scoring-[0-9]*/"]} <= set(lines)
     # git reads them as is_private does: test_publish_gate.test_A3 checks every kind of path with git itself.
+
+
+# ---------- I. what the lake holds and git does not ----------
+# The compacted conversation of each story is the largest thing a story adds to the repository (100 of 146 MiB in the four
+# days to 15 Oct 2026), and the lake holds it (dbench collect). It is not secret, so it is not private; it is not committed.
+
+@pytest.mark.parametrize("rel", [
+    f"{RUN}/stories/02/agent-events.compact.jsonl.gz",
+    f"{RUN}/stories/12/agent-events.compact.jsonl.gz",
+    f"{REF}/stories/03/agent-events.compact.jsonl.gz",
+])
+def test_I1_the_compacted_conversation_of_a_story_is_kept_in_the_lake_and_not_in_git(rel):
+    assert pub.is_lake_only(rel) and not pub.is_private(rel)
+
+
+@pytest.mark.parametrize("rel", [
+    f"{RUN}/metrics.json",
+    f"{RUN}/summary.md",
+    f"{RUN}/workspace.bundle",                                    # the gallery and the benchmarker still read it from git
+    f"{RUN}/stories/02/gate.json",
+    f"{RUN}/stories/02/accept-summary.json",
+    f"{RUN}/stories/02/agent-events.jsonl",                       # the raw log is git-ignored already, not by this rule
+    f"{RUN}/agent-events.compact.jsonl.gz",                       # not under stories/NN/
+    f"{RUN}/workspace/stories/02/agent-events.compact.jsonl.gz",  # the agent's own file of that name is its own work
+    "tools/dbench/tests/fixtures/stories/02/agent-events.compact.jsonl.gz",   # not a run record
+])
+def test_I2_nothing_else_is_kept_in_the_lake_only(rel):
+    assert not pub.is_lake_only(rel)
+
+
+def test_I3_the_run_gitignore_names_the_compacted_conversation_of_every_story():
+    assert "stories/*/agent-events.compact.jsonl.gz" in pub.lake_only_lines()
+    # Ignored as is_lake_only decides: test_publish_gate.test_A3 asks the version control program itself, path by path.

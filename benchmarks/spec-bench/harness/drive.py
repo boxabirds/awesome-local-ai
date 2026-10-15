@@ -464,6 +464,8 @@ current_story
 work_dir.txt
 progress.json
 control/
+# What the lake holds and git does not (publicise.is_lake_only): the compacted conversation of each story.
+""" + "\n".join(publicise.lake_only_lines()) + """
 # Held-out detail (publicise.py): kept on this machine and in the private repo, never in this one.
 """ + "\n".join(publicise.gitignore_lines()) + "\n"
 REFUSED_SHOWN = 3       # problems a refused commit names in its one-line error; the rest are in PUBLISH_REFUSED
@@ -557,8 +559,11 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
         if subprocess.run([*git, "rev-parse", "-q", "--verify", "HEAD"], cwd=repo_root, capture_output=True).returncode == 0:
             subprocess.run([*git, "read-tree", "HEAD"], cwd=repo_root, env=env, capture_output=True)
         untracked = untrack_private(repo_root, rel, git, env)
-        if untracked:
-            out["untracked_private"] = len(untracked)
+        lake_only = [p for p in untracked if publicise.is_lake_only(p)]
+        if len(untracked) > len(lake_only):
+            out["untracked_private"] = len(untracked) - len(lake_only)
+        if lake_only:
+            out["untracked_lake_only"] = len(lake_only)
         add = subprocess.run([*git, "add", "--", rel], cwd=repo_root, capture_output=True, text=True, env=env)
         if add.returncode != 0:
             return {**out, "error": add.stderr[-500:]}
@@ -677,9 +682,10 @@ def _merged_tree(repo_root: Path, git: list[str], base: str, ours: str, theirs: 
 
 
 def untrack_private(repo_root: Path, rel: str, git: list[str], env: dict | None = None) -> list[str]:
-    """Drop from the index the run's private files that an older harness committed; the files stay on disk."""
+    """Drop from the index the run's private files, and the files the lake keeps instead of git (publicise.is_lake_only),
+    that an older harness committed; the files stay on disk."""
     listed = subprocess.run([*git, "ls-files", "-z", "--", rel], cwd=repo_root, capture_output=True, env=env)
-    tracked = [p for p in listed.stdout.decode().split("\0") if p and publicise.is_private(p)]
+    tracked = [p for p in listed.stdout.decode().split("\0") if p and (publicise.is_private(p) or publicise.is_lake_only(p))]
     if tracked:
         subprocess.run([*git, "rm", "-q", "--cached", "--pathspec-from-file=-", "--pathspec-file-nul"],
                        cwd=repo_root, input="\0".join(tracked).encode(), capture_output=True, env=env)
