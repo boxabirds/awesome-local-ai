@@ -1751,6 +1751,29 @@ def check_seed(root: Path, passes: list[Pass]) -> list[Problem]:
     return problems
 
 
+FINDINGS_FILE = AUDIT_DIR / "findings.toml"
+FIRST_PASS = 1
+
+
+def check_findings(root: Path, passes: list[Pass]) -> list[Problem]:
+    """Open findings stay listed in every pass from the one they opened in; a pass names no finding the file does not hold; a closed
+    finding carries the owner's record. The tool only reads the file: closing a finding is the owner's act."""
+    findings = {f["id"]: f for f in read_toml(root / FINDINGS_FILE).get("finding", [])}
+    problems = []
+    for fid, f in sorted(findings.items()):
+        if str(f.get("status", "")).strip().lower() == "closed" and not (str(f.get("closed_on", "")).strip() and str(f.get("closed_by", "")).strip()):
+            problems.append(Problem("E-FINDING-CLOSE-NO-RECORD", FINDINGS_FILE.name, f"{fid} is closed with no closed_on and closed_by"))
+    for p in passes:
+        listed = {row.get("Finding", "").strip() for row in p.findings}
+        for fid in sorted(listed - set(findings)):
+            problems.append(Problem("E-FINDING-UNKNOWN", p.path.name, f"{fid} is listed and is not in {FINDINGS_FILE.name}"))
+        for fid, f in sorted(findings.items()):
+            still_open = str(f.get("status", "")).strip().lower() != "closed"
+            if still_open and p.number >= int(f.get("opened_in_pass", FIRST_PASS)) and fid not in listed:
+                problems.append(Problem("E-FINDING-DROPPED", p.path.name, f"the open finding {fid} is not listed"))
+    return problems
+
+
 def query_set(pass_: Pass) -> frozenset[tuple[str, str, str]]:
     """What a pass searched for: each query's category, pattern and paths (their order ignored), as a set."""
     return frozenset((q.category, q.pattern, " ".join(sorted(q.paths))) for q in pass_.queries)
@@ -1835,6 +1858,8 @@ def check_audit(root: Path, require_final: bool = False, grep=git_grep, snapshot
             result.problems += classification.problems
             result.exit_code = max(result.exit_code, classification.exit_code)
             for problem in check_seed(root, passes):
+                result.fail(problem.code, problem.subject, problem.detail)
+            for problem in check_findings(root, passes):
                 result.fail(problem.code, problem.subject, problem.detail)
             final = check_stop_rule(passes, result, require_final)
             result.data["final_pass"], result.data["final_reason"] = final.final_pass, final.reason

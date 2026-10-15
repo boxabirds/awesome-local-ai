@@ -1,0 +1,21 @@
+# Findings of the audit that are not code. Only the owner closes one: the tool never writes this file.
+# A closed finding needs `closed_on` (a date) and `closed_by` (the owner's record: a commit or a decision).
+# An open finding must be listed, with its id, in the Open findings table of every pass from `opened_in_pass` (default 1) on.
+
+[[finding]]
+id = "F-01"
+title = "ten finished runs hold the only copy of the agent's final source tree in version control and have no bundle"
+detail = "The five reference runs and five combination runs below have a tracked workspace/ folder and no workspace.bundle, and the lake does not take workspace/. They need archiving into the owner's store (and a backup) before any history rewrite."
+status = "open"
+runs = [
+  "benchmarks/reference/todoodle/opus-5.5/run-1",
+  "benchmarks/reference/todoodle/opus-5.5/run-2",
+  "benchmarks/reference/vidi/opus-5.5/run-1",
+  "benchmarks/reference/vidi/sonnet-5.5/v2-r2",
+  "benchmarks/reference/vidi/sonnet-5.5/v2-r3",
+  "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4",
+  "combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4",
+  "combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/benchmarks/vidi/strata-s2on-r1",
+  "combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/benchmarks/vidi/v2-strata0141-r2",
+  "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/strata-pi/benchmarks/vidi/v2-stratastrix-r1",
+]
