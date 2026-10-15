@@ -44,6 +44,7 @@ normalise() {
       while (match(name, /(^|\/)stories\/[0-9]+\//)) {
         name = substr(name, 1, RSTART - 1) (RSTART > 1 ? "/" : "") "stories/NN/" substr(name, RSTART + RLENGTH)
       }
+      if (name ~ /^(prompts|agent-reports)\/story-[0-9]+\.md$/) sub(/story-[0-9]+/, "story-NN", name)
       if (name ~ /^rescore\//) sub(/^rescore\/[^\/]+\//, "rescore/V/", name)
       if (name ~ /^rescore-spoiled\//) sub(/^rescore-spoiled\/[^\/]+\//, "rescore-spoiled/V/", name)
       if (name ~ /^superseded\//) {
