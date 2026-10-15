@@ -19,7 +19,8 @@ from pathlib import Path
 import forecast
 
 DATABASES = ("conversations", "analytics")          # state/insights/<name>.db: staged by SQLite's online backup, never copied live
-STATE_PATHS = ("collected", "recordings", "judging", "annotate", "keys", "recording-secret", "insights")   # relative to state/
+STATE_PATHS = ("collected", "recordings", "judging", "annotate", "keys", "recording-secret", "insights")
+OPTIONAL_STATE_PATHS = ("reference",)    # made by the collector with its first reference-model run; backed up once it exists   # relative to state/
 EXCLUDES = ("insights/*.db", "insights/*.db-wal", "insights/*.db-shm", "insights/conv_full.db.zst", "backups")
 KEEP_DAILY, KEEP_WEEKLY = "14", "8"
 STAGING = Path("backup-staging")                    # not under backups/: the `backups` exclude would take it too
@@ -72,7 +73,7 @@ def backup_one(cfg: Config, run, repo: str, staged: Path) -> int:
         init = run(restic(cfg, repo, "init"))
         if init.returncode != 0:
             raise RuntimeError(f"init failed: {init.stderr.strip()}")
-    paths = [str(cfg.state / p) for p in STATE_PATHS] + [str(staged)]
+    paths = [str(cfg.state / p) for p in STATE_PATHS] + [str(cfg.state / p) for p in OPTIONAL_STATE_PATHS if (cfg.state / p).is_dir()] + [str(staged)]
     flags = [x for e in EXCLUDES for x in ("--exclude", e)]
     done = run(restic(cfg, repo, "backup", "--tag", "bench-state", *flags, *paths))
     if done.returncode != 0:

@@ -367,40 +367,59 @@ What changes:
 
 ## Refactoring method
 
-The owner's method, applied to this change. The "touched set" is every function the inventory names in classes A, B,
-C and E (`docs/dataflow.md` and the sweep behind this design list them by file and line); W is excluded on purpose.
+The owner's method (15 Oct 2026), applied to this change. The repository's standing rule "Refactor DELETE FIRST" is
+step 4 of it. Everything below is done in a detached working copy: stubs and deletions never reach `main`, and the
+nodes run released binaries, so no step touches the running system. The "touched set" is every function the final
+audit pass lists (it began as classes A, B, C and E of the first inventory in `docs/dataflow.md`; W is excluded on
+purpose).
 
-1. **Enumerate the use cases, MECE.** Fourteen, by actor:
+1. **Audit, MECE, repeated until nothing new turns up.** Find every place the code uses git to reach data: git
+   subprocess calls and the commands `ls-files`, `ls-tree`, `cat-file`, `show`, `log`, `diff`, `pull`, `push`,
+   `commit` and `bundle`; reads and globs of tracked run paths in the working tree; code-host addresses built from the
+   remote; fixtures and tests that read git history; in Python, Rust, TypeScript, shell, `ops/`, `tests/` and
+   `tools/*`. Each pass is a file, `ops/refactor/audit/pass-NN.md`: the queries run, every hit with file and line, which
+   hits were new, the verdict. A pass must use queries different from the last. The audit ends when a pass finds
+   nothing new. Every hit ends in exactly one state: in the touched set, excluded with a reason, or intrinsic (git on
+   the agent's own repository, which is the artifact under review). `check-touched-set` fails on any audited site that
+   is not in the set. Story 19 owns this step.
+2. **Implement the non-git functionality separately, once.** A shared library reads a run's records, files and logs
+   from the data root and is tested on real lake fixtures. The old code keeps running unchanged beside it; nothing is
+   switched. Story 21 owns this step.
+3. **Write the MECE regression tests at those sites, and prove them.** Fourteen use cases, by actor:
    U1 the harness records a story; U2 the node serves run files; U3 the collector fills the lake; U4 the ingest fills
    the warehouse and analytics; U5 the benchmarker shows state; U6 the gallery reviews builds; U7 the monitor reads
    records; U8 a judge package goes out and results come back; U9 a job references another run (known-good,
    baselines); U10 finalize and rescore write the score of record; U11 export; U12 backup and restore; U13 node setup;
    U14 the release gate. Each existing test in the touched set is assigned to exactly one use case; a test that fits
-   none is listed and either assigned or retired with a reason.
-2. **Prove 100% line and branch coverage of the touched set, per language, on the code as it is.** Python:
-   `--cov` widened from `drive` alone (`checks.toml:48-58`) to `drive roots heldout publicise packdir progress
-   finalize finalize_pending logscan record_event judge judge_collect grading_package annotate history import_run`.
-   Rust: `cargo llvm-cov` over `tools/dbench` (`collect`, `collector`, `ingest/inputs`, `ingest/mod`, `progress`,
-   `server`, `job`, `runner`, `harness`, `release`, `node`) and `tools/vidi-gallery` (`runs`, `sync`, `main`'s
-   rescan). TypeScript: vitest coverage over `server/sources.ts`, `server/domain.ts`, `server/main.ts`,
-   `shared/conversation.ts`. Shell: `bats` or the repository's own `tests/*.sh` style for `setup-node.sh`,
-   `judge-setup.sh`, `judge-submit.sh`, which have no tests today. For each use case, a test matrix whose dimensions
+   none is listed and either assigned or retired with a reason. Prove 100% line and branch coverage of the touched set,
+   per language, on the code as it is. Python: `--cov` widened from `drive` alone (`checks.toml:48-58`) to `drive roots
+   heldout publicise packdir progress finalize finalize_pending logscan record_event judge judge_collect
+   grading_package annotate history import_run`. Rust: `cargo llvm-cov` over `tools/dbench` (`collect`, `collector`,
+   `ingest/inputs`, `ingest/mod`, `progress`, `server`, `job`, `runner`, `harness`, `release`, `node`) and
+   `tools/vidi-gallery` (`runs`, `sync`, `main`'s rescan). TypeScript: vitest coverage over `server/sources.ts`,
+   `server/domain.ts`, `server/main.ts`, `shared/conversation.ts`. Shell: `bats` or the repository's own `tests/*.sh`
+   style for `setup-node.sh`, `judge-setup.sh`, `judge-submit.sh`. For each use case, a test matrix whose dimensions
    are written down first (U1's: run kind {combination, reference}; story outcome {done, partial, stopped, failed};
    private files {present, absent}; credential {present, absent}; held-out title {present, absent}; size {under,
    over}; results root {set and valid, unset, a git checkout, inside one}; run position {inside root, outside}) and
    whose cells each have one test. Missing cells are written against the current code until the matrix is full and
-   coverage is 100%. The suite is green at the end of this step.
-3. **Delete first.** Every function in the touched set is replaced by a stub that raises (`NotImplementedError`,
-   `todo!()`, `throw`). The whole suite runs. **Every test assigned to a use case must fail.** A test that passes
-   proved nothing about the code it claims to cover: the deletion is reverted, that test is rewritten (it must assert
-   what the function produces, not that it exists or was called), step 2 is repeated, and the deletion is tried again.
-   Tests outside the touched set are expected to pass and are the complement that makes the partition MECE.
-4. **Write the new contracts as tests, red.** The data-root resolution, `RunId` goldens in four languages, the
-   extended allow-list and its MECE file-name test, `LakeSource`, the lake-reading benchmarker, gallery and monitor,
-   the job inputs directory, the export step. Each old test ends in exactly one state: kept unchanged, rewritten to the
-   new contract, or retired together with a deleted function; the mapping is a table in the plan.
-5. **Reimplement until green**, in the order of the cutover below, each component running beside its old version
-   until the comparison in "Verification" holds.
+   coverage is 100%. The suite is green at the end of this step. Story 1 owns this step for the first touched set;
+   story 19 re-runs it for every site the audit adds.
+4. **Delete all of it at once.** Every function in the touched set is replaced by a stub that raises
+   (`NotImplementedError`, `todo!()`, `throw`), in one working copy, for the whole epic. The whole suite runs in every
+   language. **Every test assigned to a use case must fail.** A test that passes proved nothing about the code it
+   claims to cover: the deletion is reverted, that test is rewritten (it must assert what the function produces, not
+   that it exists or was called), step 3 is repeated, and the deletion is tried again. Tests outside the touched set
+   are expected to pass and make the partition MECE. The new contracts (the data-root resolution, `RunId` goldens, the
+   extended allow-list, `LakeSource`, the lake-reading benchmarker, gallery and monitor, the job inputs directory, the
+   export step) are written as tests and seen red. Each old test ends in exactly one state: kept unchanged, rewritten
+   to the new contract, or retired together with a deleted function. No story moves the refactor stage alone: story 20
+   owns this step and the stage moves.
+5. **Integrate until every test passes.** Each deleted site is wired to the shared library, in the order of the
+   cutover below, until the whole suite is green in every language and a search by the audit's final queries finds no
+   git access left outside the recorded exclusions. Then each component runs beside its old version until the
+   comparison in "Verification" holds (story 16). Story 20 owns the integration; the stories that own a component carry
+   the tests and the wiring of that component.
 
 ## Ordered sequence
 

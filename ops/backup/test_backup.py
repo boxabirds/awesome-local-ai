@@ -62,6 +62,24 @@ def test_each_repo_gets_a_backup_with_the_password_file_the_staged_databases_and
         assert sqlite3.connect(staged / f"{name}.db").execute("pragma integrity_check").fetchone() == ("ok",)
 
 
+def test_the_reference_runs_the_collector_keeps_in_the_lake_are_in_every_backup(tmp_path):
+    # `dbench collect` writes reference-model runs to state/reference since 15 Oct 2026; they have no other copy once git lets go.
+    cfg, fake = config(tmp_path), FakeRestic({})
+    (cfg.state / "reference").mkdir()
+    backup.run(cfg, fake, now=NOW)
+    for repo in cfg.repos:
+        b = next(c for c in fake.calls if c[c.index("-r") + 1] == repo and "backup" in c)
+        assert str(cfg.state / "reference") in b
+
+
+def test_a_machine_that_has_no_reference_folder_yet_is_still_backed_up_without_it(tmp_path):
+    cfg, fake = config(tmp_path), FakeRestic({})
+    backup.run(cfg, fake, now=NOW)
+    for repo in cfg.repos:
+        b = next(c for c in fake.calls if c[c.index("-r") + 1] == repo and "backup" in c)
+        assert str(cfg.state / "reference") not in b and str(cfg.state / "collected") in b
+
+
 def test_old_snapshots_are_forgotten_by_policy_after_each_backup(tmp_path):
     cfg, fake = config(tmp_path), FakeRestic({})
     backup.run(cfg, fake, now=NOW)
