@@ -19,6 +19,13 @@ except `stage.toml`.
 forward, and only when the checks that justify the move pass. `Deleted` goes back to `Proved` when an assigned test
 passes against the stubs (the tool does it itself). `stage` alone prints the stage.
 
+`stage.toml` also records the proof (`[proved_members]`: a digest, a count and the member list, as `file::function`), written in
+the same atomic write that moves to `Proved`. From `Proved` on, `stage`, `check-stubs`, `report-deletion` and `check-coverage`
+first compare the touched set with that proof: a member added since moves the stage back to `Matrices` (the tool writes it, and
+the move records why) and the command stops with `E-MEMBER-UNPROVED` naming the members; a stage with no recorded proof moves
+back once with `E-STAGE-DIGEST-MISSING`. A member removed leaves the proof standing, and reconciling never moves the stage
+forward. Moving to `Proved` again records the new proof.
+
 | move | justified by |
 |---|---|
 | Inventory to Matrices | `check-register` and `check-touched-set` |

@@ -24,6 +24,15 @@ def write(root: Path, rel: str, text: str) -> Path:
     return path
 
 
+def write_stage(root: Path, stage: str) -> None:
+    """A stage file for a hand-built root. From Proved on it carries the proof of the root's touched set, as a real move to Proved
+    records (without one the stage reads as unproved and goes back to Matrices: E-STAGE-DIGEST-MISSING)."""
+    touched = root / "ops/refactor/touched_set.toml"
+    entries = tomllib.loads(touched.read_text()).get("entry", []) if touched.exists() else []
+    proved = R.proof_of(entries) if R.STAGES.index(stage) >= R.STAGES.index("Proved") else None
+    write(root, "ops/refactor/stage.toml", R.render_stage(stage, [], proved))
+
+
 def make_root(tmp_path: Path, assignments: str = "", touched: str = "") -> Path:
     """A repository skeleton holding only the tool's own data files."""
     lines = ["[use_cases]"] + [f'{u} = "use case {u}"' for u in USE_CASE_IDS]
@@ -523,7 +532,7 @@ OUTSIDE = ["python:u.py::u1", "python:u.py::u2"]
 def deletion_root(tmp_path: Path, stage: str = "Deleted") -> Path:
     root = stub_root(tmp_path)
     write(root, "ops/refactor/assignments.toml", "[assignments]\nU1 = [%s]\n" % ", ".join(f'"{t}"' for t in SIX_TESTS))
-    write(root, "ops/refactor/stage.toml", f'stage = "{stage}"\n')
+    write_stage(root, stage)
     return root
 
 
@@ -577,7 +586,7 @@ def test_a_real_body_left_behind_stops_the_report_before_any_result_is_read(tmp_
     files = dict(STUB_FILES, **{"src/a.py": "def pull(repo):\n    return 1\n"})
     root = make_code_root(tmp_path, files, touched=STUB_ENTRIES)
     write(root, "ops/refactor/assignments.toml", "[assignments]\nU1 = []\n")
-    write(root, "ops/refactor/stage.toml", 'stage = "Deleted"\n')
+    write_stage(root, "Deleted")
     assert codes(R.report_deletion(root, results({}))) == ["E-NOT-STUB"]
 
 
@@ -892,7 +901,7 @@ def test_check_fates_and_check_stubs_run_from_the_command_line(tmp_path):
 
 def test_a_deletion_advance_is_refused_until_the_stubs_are_in(tmp_path):
     root = make_root(tmp_path, touched=FATE_TOUCHED)
-    write(root, "ops/refactor/stage.toml", 'stage = "Proved"\n')
+    write_stage(root, "Proved")
     write(root, "src/a.py", "def record():\n    return 1\n")
     assert cli(root, "stage", "Deleted") == R.EXIT_FAIL
     write(root, "src/a.py", "def record():\n    raise NotImplementedError\n")
@@ -1570,7 +1579,7 @@ def stubbed_mini(tmp_path: Path) -> Path:
     for rel, text in STUBBED.items():
         (root / rel).write_text(text)
     (root / "ops/refactor/assignments.toml").write_text(SIX_ASSIGNED_MINI)
-    (root / "ops/refactor/stage.toml").write_text('stage = "Deleted"\n')
+    write_stage(root, "Deleted")
     return root
 
 

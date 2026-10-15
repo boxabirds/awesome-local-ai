@@ -452,19 +452,68 @@ def read_stage(root: Path) -> str:
         raise StageFileCorrupt(str(exc)) from exc
 
 
-def render_stage(stage: str, moves: list[dict]) -> str:
-    lines = [f'stage = "{stage}"', ""]
+def render_stage(stage: str, moves: list[dict], proved: dict | None = None) -> str:
+    lines = [f"stage = {json.dumps(stage)}", ""]
+    if proved:
+        lines += ["[proved_members]", f"digest = {json.dumps(proved['digest'])}", f"count = {proved['count']}", "members = ["]
+        lines += [f"  {json.dumps(m)}," for m in proved["members"]] + ["]", ""]
     for m in moves:
-        lines += ["[[move]]", f'from = "{m["from"]}"', f'to = "{m["to"]}"', f'at = "{m["at"]}"', f'justified_by = "{m["justified_by"]}"', ""]
+        lines += ["[[move]]", f'from = {json.dumps(m["from"])}', f'to = {json.dumps(m["to"])}', f'at = {json.dumps(m["at"])}', f'justified_by = {json.dumps(m["justified_by"])}', ""]
     return "\n".join(lines)
 
 
-def record_move(root: Path, current: str, to: str, justified_by: str, now: datetime | None = None) -> None:
+KEEP_PROOF = "keep"       # record_move: leave the recorded proof as it is
+
+
+def record_move(root: Path, current: str, to: str, justified_by: str, now: datetime | None = None, proved: dict | None | str = KEEP_PROOF) -> None:
+    """Write the new stage and the move that led to it in one atomic write; `proved` is the proof recorded with it (kept, replaced or dropped)."""
     path = root / STAGE_FILE
-    moves = read_toml(path).get("move", []) if path.exists() else []
+    old = read_toml(path) if path.exists() else {}
+    moves = old.get("move", [])
     stamp = (now or datetime.now(timezone.utc)).isoformat(timespec="seconds")
     moves.append({"from": current, "to": to, "at": stamp, "justified_by": justified_by})
-    atomic_write(path, render_stage(to, moves))
+    atomic_write(path, render_stage(to, moves, old.get("proved_members") if proved == KEEP_PROOF else proved))
+
+
+def member_identities(entries: list[dict]) -> list[str]:
+    """The places the touched set protects, as file::function, sorted: what a proof is about (not the language or the classes)."""
+    return sorted({f"{e['file']}::{e['function']}" for e in entries})
+
+
+def members_digest(entries: list[dict]) -> str:
+    return hashlib.sha256("\n".join(member_identities(entries)).encode()).hexdigest()
+
+
+def proof_of(entries: list[dict]) -> dict:
+    members = member_identities(entries)
+    return {"digest": members_digest(entries), "count": len(members), "members": members}
+
+
+MAX_NAMED_MEMBERS = 20      # how many unproved members a reason names before it says how many more
+
+
+def reconcile_stage(root: Path, now: datetime | None = None) -> Result:
+    """From Proved on, the stage is only as good as the proof: a member added to the touched set since it moves the stage back to
+    Matrices (and says so), and so does a stage with no recorded proof. Fewer members keep the proof. Before Proved nothing changes."""
+    result = Result()
+    try:
+        current = read_stage(root)
+    except StageFileCorrupt:
+        return result                                         # the command that follows reports the corrupt file
+    if STAGES.index(current) < STAGES.index("Proved"):
+        return result
+    entries = read_toml(root / TOUCHED_FILE).get("entry", [])
+    recorded = read_toml(root / STAGE_FILE).get("proved_members")
+    if not recorded or "members" not in recorded:
+        record_move(root, current, "Matrices", "reconcile: E-STAGE-DIGEST-MISSING, no proof is recorded", now, proved=None)
+        result.fail("E-STAGE-DIGEST-MISSING", STAGE_FILE.as_posix(), f"the stage was {current} and no proof is recorded; it is now Matrices")
+        return result
+    added = sorted(set(member_identities(entries)) - set(recorded["members"]))
+    if added:
+        named = ", ".join(added[:MAX_NAMED_MEMBERS]) + (f" and {len(added) - MAX_NAMED_MEMBERS} more" if len(added) > MAX_NAMED_MEMBERS else "")
+        record_move(root, current, "Matrices", f"reconcile: E-MEMBER-UNPROVED, added since the proof: {named}", now, proved=None)
+        result.fail("E-MEMBER-UNPROVED", STAGE_FILE.as_posix(), f"the stage was {current}; added since the proof: {named}; it is now Matrices")
+    return result
 
 
 def move_stage(root: Path, to: str, justifiers: dict[tuple[str, str], Justifier], now: datetime | None = None) -> Result:
@@ -487,7 +536,8 @@ def move_stage(root: Path, to: str, justifiers: dict[tuple[str, str], Justifier]
         if checked.exit_code != EXIT_OK:
             result.fail("E-NOT-JUSTIFIED", f"{current} -> {to}", "; ".join(f"{p.code} {p.subject}" for p in checked.problems))
             return result
-    record_move(root, current, to, ALLOWED_MOVES[move], now)
+    proved = proof_of(read_toml(root / TOUCHED_FILE).get("entry", [])) if move == ("Matrices", "Proved") else KEEP_PROOF
+    record_move(root, current, to, ALLOWED_MOVES[move], now, proved=proved)
     result.data = {"from": current, "to": to}
     return result
 
@@ -1950,6 +2000,7 @@ def audit_run(root: Path, number: int, grep=git_grep, snapshot=tree_snapshot) ->
     return result
 
 
+RECONCILING_COMMANDS = ("stage", "report-deletion", "check-stubs", "check-coverage")      # these read the stage, so they check it against the set first
 SCOPED_COMMANDS = ("check-stubs", "report-deletion", "check-coverage", "stage", "check-touched-set")    # the ones that act on the whole list
 
 
@@ -1999,6 +2050,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command in SCOPED_COMMANDS:
             print(scope_line(root))
+        if args.command in RECONCILING_COMMANDS:
+            moved = reconcile_stage(root)
+            if moved.exit_code != EXIT_OK:
+                print_result(args.command, moved)
+                return moved.exit_code
         if args.command == "stage" and args.to is None:
             print(read_stage(root))
             return EXIT_OK
