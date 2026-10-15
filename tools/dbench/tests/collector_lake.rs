@@ -640,6 +640,25 @@ async fn an_old_node_with_no_runs_route_is_reported_with_its_code_and_an_unreach
     std::fs::remove_dir_all(root).unwrap();
 }
 
+#[tokio::test]
+async fn a_run_a_node_lists_that_is_not_a_run_path_is_reported_with_its_code_and_nothing_is_written() {
+    // TC-82: E-NOT-A-RUN-PATH, and E-REFERENCE-DEST for a reference id of the wrong shape
+    let runs = ["a/b", "../x", "benchmarks/reference/vidi/opus-5.5"].map(String::from).to_vec();
+    let (url, _, node) = serve_fake(FakeNode { runs, ..Default::default() }).await;
+    let ctx = Ctx { nodes: BTreeMap::from([("n".to_string(), NodeEntry { url, token: None })]), collect: Default::default(), json: false };
+    let root = scratch_dir("not-a-run");
+    let none = BTreeSet::new();
+    let out = collect_node(&ctx, "n", Lake { store: &root, reference: &root }, &[], &none, &cadence_with_grace(0), 1).await;
+    assert!(out.reachable && out.runs.is_empty(), "{out:?}");
+    assert_eq!(out.problems.len(), 3, "{:?}", out.problems);
+    assert!(out.problems[0].starts_with(E_NOT_A_RUN_PATH) && out.problems[0].contains("a/b"), "{:?}", out.problems);
+    assert!(out.problems[1].starts_with(E_NOT_A_RUN_PATH) && out.problems[1].contains("../x"), "{:?}", out.problems);
+    assert!(out.problems[2].starts_with(E_REFERENCE_DEST), "{:?}", out.problems);
+    assert!(std::fs::read_dir(&root).unwrap().next().is_none(), "nothing is written");
+    assert!(node.lock().unwrap().requests.is_empty(), "no file of them was asked for");
+    std::fs::remove_dir_all(root).unwrap();
+}
+
 #[test]
 fn a_run_a_node_sends_that_is_not_a_run_path_is_reported_and_skipped() {
     // TC-82 (collect_node side), TC-61
