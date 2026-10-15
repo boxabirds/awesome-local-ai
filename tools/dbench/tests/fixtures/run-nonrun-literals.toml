@@ -1,0 +1,218 @@
+# String literals in benchmarks/spec-bench/harness that have the shape of a file name
+# ([A-Za-z0-9_.-]+ then .json .jsonl .md .txt .log .gz or .bundle) but are not files written under a run directory.
+# The classification check (collect.rs, mod name_check, lake.allowlist.file_name_check) reads the harness sources, takes
+# every such literal, removes the ones named here, and requires the rest to be classified as collected or not collected.
+# A literal belongs here only with a reason; a literal that IS a run file never does.
+#
+# Scanned at f0066f55b41e80e41b8a4b86840e081ab5addda6 with the Python ast (real string constants of *.py, tests
+# excluded) and a pattern over *.sh: 87 distinct literals. 39 are run files and are classified by the collector's
+# rules; the rest are below.
+
+# --- files inside the agent's workspace or in the held-out pack, not in the run directory ---
+[[literal]]
+name = "PROGRESS.md"
+reason = "the agent's progress file inside its workspace (progress_file.py); the workspace is not collected"
+[[literal]]
+name = "README.md"
+reason = "seed file of the agent's fresh workspace (drive.py setup_workspace); the workspace is not collected"
+[[literal]]
+name = "story.md"
+reason = "a story's text inside the pack and the workspace spec folder (pack.py, drive.py)"
+[[literal]]
+name = "tasks.md"
+reason = "a file the sandbox proof and the agent write inside the workspace (drive.py, prove_sandbox.py)"
+[[literal]]
+name = "package.json"
+reason = "the agent project's package manifest, read by the gates inside the workspace"
+[[literal]]
+name = "package-lock.json"
+reason = "the agent project's lock file, read by the gates inside the workspace"
+[[literal]]
+name = "bench.json"
+reason = "a pack's description in the pack checkout (pack.py, setup-node.sh)"
+[[literal]]
+name = "GRADING.md"
+reason = "the pack's grading document, copied into a judge package (grading_package.py)"
+[[literal]]
+name = "scope.json"
+reason = "a pack's scope file, read by the grading package and the judge preparation"
+
+# --- the harness's own configuration and release files ---
+[[literal]]
+name = "RELEASE.json"
+reason = "written by dbench at the root of a materialised release (roots.py RELEASE_FILE), not into a run"
+[[literal]]
+name = "EVALUATION-POLICY.md"
+reason = "the evaluation policy in the repository; summary.md links to it (history.py), it is not a run file"
+[[literal]]
+name = "models.json"
+reason = "the client's model catalogue written into the agent's home (clients.py)"
+[[literal]]
+name = "opencode.json"
+reason = "the OpenCode client's configuration written into the agent's home (clients.py)"
+[[literal]]
+name = "settings.json"
+reason = "the client's settings file in the agent's home (clients.py)"
+[[literal]]
+name = "config.json"
+reason = "an engine's model configuration read by engine_settings.py"
+[[literal]]
+name = "generation_config.json"
+reason = "a model's generation configuration read by engine_settings.py"
+[[literal]]
+name = ".shared-settings.json"
+reason = "a suffix of an engine settings file name (engine_settings.py), never a run file"
+[[literal]]
+name = "scoring-env.json"
+reason = "the scoring environment's description under the scoring home (scoring_tools.py), not in a run"
+[[literal]]
+name = "browsers.json"
+reason = "Playwright's own list of browser builds inside node_modules (scoring_env.py)"
+[[literal]]
+name = ".suite-ready.json"
+reason = "the marker file of a prepared held-out suite checkout (tagsuite.py), not in a run"
+[[literal]]
+name = "series.log"
+reason = "run-series.sh's own log, written beside the series script and not into a run directory"
+
+# --- control-file name fragments (control/ is deliberately not collected) ---
+[[literal]]
+name = "skip-story.json"
+reason = "the operator's skip request, written under control/ which is deliberately not collected"
+[[literal]]
+name = ".applied.json"
+reason = "suffix of skip-story-N.applied.json, renamed inside control/ (drive.py mark_skip_applied)"
+[[literal]]
+name = ".too-late.json"
+reason = "suffix of skip-story-N.too-late.json, renamed inside control/ (drive.py)"
+[[literal]]
+name = ".compact.jsonl.gz"
+reason = "suffix appended to a raw stream's stem to make agent-events.compact.jsonl.gz (drive.py compact_events), a name fragment"
+
+# --- sentinels, fixtures and tools that never write into a run directory ---
+[[literal]]
+name = "no-server.log"
+reason = "a path that is deliberately absent, so model time comes from the client's stream (accounting.py/attempts.py)"
+[[literal]]
+name = "attempts.json"
+reason = "the annotation tool's cache under the private repository's state folder (annotate.py)"
+[[literal]]
+name = "claude-stream.jsonl"
+reason = "recorded fixture stream name in export_goldens.py"
+[[literal]]
+name = "pi-smoke-events.jsonl"
+reason = "recorded fixture stream name in export_goldens.py"
+[[literal]]
+name = "opencode-stream.jsonl"
+reason = "recorded fixture stream name in export_goldens.py"
+[[literal]]
+name = "gufo-excerpt.txt"
+reason = "recorded engine-log excerpt name in export_goldens.py"
+[[literal]]
+name = "mlx-serve-excerpt.txt"
+reason = "recorded engine-log excerpt name in export_goldens.py"
+[[literal]]
+name = "strata-excerpt.txt"
+reason = "recorded engine-log excerpt name in export_goldens.py"
+[[literal]]
+name = "flags.json"
+reason = "a golden-export flags file in export_goldens.py"
+[[literal]]
+name = "answer.txt"
+reason = "a probe file the sandbox proof writes inside its own scratch workspace (prove_sandbox.py)"
+[[literal]]
+name = "new.md"
+reason = "a probe file the sandbox proof writes inside its own scratch workspace (prove_sandbox.py)"
+[[literal]]
+name = "mine.txt"
+reason = "a probe file the sandbox proof writes inside its own scratch workspace (prove_sandbox.py)"
+[[literal]]
+name = "job.json"
+reason = "a fixture the sandbox proof writes in its scratch area (prove_sandbox.py)"
+[[literal]]
+name = "events.jsonl"
+reason = "a fixture the sandbox proof writes in its scratch area (prove_sandbox.py)"
+[[literal]]
+name = "browser-events.jsonl"
+reason = "a fixture the sandbox proof writes in its scratch area (prove_sandbox.py)"
+
+# --- the judging flow: files of a grading package and a judge's sandbox, not of a run ---
+[[literal]]
+name = "judge.md"
+reason = "the judge's instructions file inside a grading package (judge_prep.py)"
+[[literal]]
+name = ".key.json"
+reason = "suffix of the package key file (judge_prep.py); the key stays with the owner"
+[[literal]]
+name = "heldout.json"
+reason = "a file of a grading package (grading_package.py)"
+[[literal]]
+name = "commits.txt"
+reason = "a file of a grading package (grading_package.py, judge.py)"
+[[literal]]
+name = "build-A.jsonl"
+reason = "a judge's transcript for blinded build A (judge.py, judge_collect.py)"
+[[literal]]
+name = "build-B.jsonl"
+reason = "a judge's transcript for blinded build B (judge.py, judge_collect.py)"
+[[literal]]
+name = "test-faults.jsonl"
+reason = "a judge's result file in a grading package (judge.py, judge_collect.py)"
+[[literal]]
+name = "report.md"
+reason = "a judge's report file (judge.py)"
+[[literal]]
+name = "stderr.txt"
+reason = "a judge sandbox's captured error stream (judge.py)"
+[[literal]]
+name = "transcript.jsonl"
+reason = "a judge sandbox's transcript (judge.py)"
+[[literal]]
+name = "proxy.jsonl"
+reason = "the judge sandbox's own proxy log, not a run's proxy.log (judge.py)"
+[[literal]]
+name = "auth.json"
+reason = "a judge client's credentials file in the judge's own home (judge.py); never in a run"
+
+# --- Corpus names that no writer in the harness sources explains ---------------------------------------------------
+# The task says these are listed for the owner and not silently kept. Each is a name present in the corpus
+# (run-file-names.txt) for which no literal in the sources above writes it under a run directory, or a name the
+# design's 42 rules do not cover. The collector's classification has no rule for them yet, so the build check
+# (E-CLASS-UNLISTED) cannot pass until the owner decides: collect them (a new rule) or leave them out (not collected).
+# They matter beyond this story: story 16's parity check compares every tracked file with the lake.
+
+[[unexplained]]
+name = "prompts/story-NN.md"
+where = "the hand-written reference record benchmarks/reference/vidi/opus-5.5/run-1 (tracked in git)"
+note = "a record file of an old-layout reference run; no writer in the sources"
+[[unexplained]]
+name = "agent-reports/story-NN.md"
+where = "the same reference record"
+note = "a record file of an old-layout reference run; no writer in the sources"
+[[unexplained]]
+name = "OMITTED.txt"
+where = "the same reference record"
+note = "a note in an old-layout reference run; no writer in the sources"
+[[unexplained]]
+name = "README.md (run level)"
+where = "the same reference record"
+note = "a run-level README, not the workspace seed file; no writer for it in the sources"
+[[unexplained]]
+name = "accept-summary.json, accept-final.json, accept-final-summary.json (run level, no stories/NN)"
+where = "the same reference record and one older node run"
+note = "the design's rules name these only under stories/NN/; publicise.py writes them with a story prefix"
+[[unexplained]]
+name = "egress.jsonl (a real file in the run directory)"
+where = "one tracked combination run (gufo-opencode v2-gufoopencode-r1)"
+note = "the design makes egress.jsonl a virtual name served from the egress folder; here it is also a real tracked file"
+[[unexplained]]
+name = "stories/NN/gate.original.json"
+where = "one run on one node"
+note = "no writer in the current harness sources; an older release wrote it"
+[[unexplained]]
+name = "flow-counts.json"
+where = "not yet written; story 4 adds it"
+note = "the corpus cannot contain it yet; the design lists it as a collected whole-file record"
+
+# The fourth node was unreachable when the corpus was captured (no answer from its dbench server or ssh), so the
+# node listings cover three of the four nodes; the source scan is the guard for names only that node writes.

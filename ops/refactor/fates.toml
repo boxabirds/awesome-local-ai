@@ -7,3 +7,28 @@
 # new_test = "..."                    # rewritten: the test that replaces it
 # function = "path/to/file.py::name"  # retired: the touched function it covered
 # reason = "..."                      # retired: why
+
+# --- Story 5 (the lake takes the full record): the tests whose subject the story rewrites -------------------------------
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collect::tests::the_lake_takes_a_runs_records_as_well_as_its_logs_so_scores_are_never_single_copy"
+state = "rewritten"
+new_test = "rust:tools/dbench/src/lib.rs::collect::tests::the_manifest_of_a_real_run_lists_the_full_record"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collect::tests::only_allow_listed_names_parse"
+state = "rewritten"
+new_test = "rust:tools/dbench/src/lib.rs::collect::tests::the_collected_rules_accept_exactly_their_names"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collect::tests::every_accepted_name_resolves_under_the_run_dir_or_the_egress_dir"
+state = "rewritten"
+new_test = "rust:tools/dbench/src/lib.rs::collect::tests::every_rule_resolves_under_the_run_dir_or_the_egress_dir"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collector::tests::a_reference_models_run_is_never_pulled_so_the_lake_holds_no_claude_transcript"
+state = "rewritten"
+new_test = "rust:tools/dbench/src/lib.rs::collector::tests::a_reference_run_is_collected_by_record_class_only"
+
+[[fate]]
+test = "rust:tools/dbench/src/lib.rs::collector::tests::an_archived_run_is_never_pulled_even_when_asked_for_and_only_runs_still_narrows"
+state = "kept"
