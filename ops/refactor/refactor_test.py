@@ -2514,8 +2514,11 @@ def hit_row(n: int, place: str, function: str, source: str, new: str = "yes", re
     return [f"H{n}", place, function, source, "reader", "command", use_case, outcome, reason, new]
 
 
-def pass_md(queries=AUDIT_QUERIES, hits=AUDIT_HITS, verdict="verdict: another pass required, first pass", new_flags=None, hit_columns=HIT_COLUMNS, extra_hits=(), default_new="yes") -> str:
+def pass_md(queries=AUDIT_QUERIES, hits=AUDIT_HITS, verdict="verdict: another pass required, first pass", new_flags=None, hit_columns=HIT_COLUMNS, extra_hits=(), default_new="yes", overrides=None) -> str:
     rows = [hit_row(i + 1, p, f, s, (new_flags or {}).get(i, default_new)) for i, (p, f, s) in enumerate(hits)] + list(extra_hits)
+    for index, columns in (overrides or {}).items():                    # {row index: {column name: value}}
+        for column, value in columns.items():
+            rows[index][HIT_COLUMNS.index(column)] = value
     rows = [[c for c, name in zip(r, HIT_COLUMNS) if name in hit_columns] for r in rows]
     return ("# Audit pass\n\n## Queries\n\n" + md_table(QUERY_COLUMNS, [[q, c, f"`{p}`", paths] for q, c, p, paths in queries])
             + "\n## Hits\n\n" + md_table(hit_columns, rows) + "\n## Open findings\n\n" + md_table(FINDING_COLUMNS, []) + f"\n{verdict}\n")
@@ -2525,6 +2528,8 @@ def audit_root(tmp_path: Path, passes: dict[int, str] | None = None, files: dict
     root = tmp_path / "audit-root"
     for rel, text in (files or AUDIT_FILES).items():
         write(root, rel, text)
+    write(root, "ops/refactor/use_cases.toml", "[use_cases]\n" + "".join(f'{u} = "use case {u}"\n' for u in USE_CASE_IDS))
+    write(root, "ops/refactor/classes.toml", '[classes.W]\nfunctions = ["agent_git"]\n')
     for n, text in (passes if passes is not None else {1: pass_md()}).items():
         write(root, f"{AUDIT_DIR}/pass-{n:02d}.md", text)
     return root
@@ -2803,3 +2808,73 @@ def test_tc25_tc20_tc26_require_final_as_a_process_single_pass_final_pass_and_re
     report = json.loads((repo / "ops/refactor/reports/audit.json").read_text())
     assert three.returncode == R.EXIT_FAIL and "E-NOT-FINAL" in three.stdout
     assert report["final_pass"] is None and report["final_reason"] == "new-hits" and report["passes"][2]["new"] == 1
+
+
+# ---- story 19: every hit has one outcome, an access, a way and a use case (TC-30 to TC-39; task 19.13) --------------------------
+
+AGENT_FILES = {**AUDIT_FILES, "tools/agent.py": 'def agent_git():\n    run("git push")\n'}       # agent_git is a class W function (the agent's own repository)
+AGENT_HITS = AUDIT_HITS + [("tools/agent.py", "agent_git", "Q1")]
+SHOW_ROW, AGENT_ROW = 2, 6                                                                      # indexes in AGENT_HITS
+
+
+def classified(tmp_path: Path, overrides=None, extra=(), use_cases_toml=None) -> tuple[R.Result, Path]:
+    root = audit_root(tmp_path, passes={1: pass_md(hits=AGENT_HITS, overrides={AGENT_ROW: {"Outcome": "intrinsic", "UseCase": "", "Reason": "git in the agent's own repository"}, **(overrides or {})}, extra_hits=extra)}, files=AGENT_FILES)
+    if use_cases_toml is not None:
+        write(root, "ops/refactor/use_cases.toml", use_cases_toml)
+    return check(root), root
+
+
+def test_tc30_protected_excluded_and_intrinsic_rows_are_accepted_and_counted(tmp_path):
+    result, root = classified(tmp_path, overrides={SHOW_ROW: {"Outcome": "excluded", "UseCase": "", "Reason": "reads the agent-visible clone only"}})
+    assert result.exit_code == R.EXIT_OK, [(p.code, p.detail) for p in result.problems]
+    assert audit_json(root)["passes"][0]["outcomes"] == {"protected": 5, "excluded": 1, "intrinsic": 1}
+
+
+@pytest.mark.parametrize("overrides,extra,code", [
+    pytest.param({0: {"Outcome": ""}}, (), "E-HIT-NO-OUTCOME", id="TC-31-no-outcome"),
+    pytest.param({}, [hit_row(9, "tools/pull.py", "pull", "Q1", outcome="excluded", reason="a second opinion", use_case="")], "E-HIT-OUTCOME-CONFLICT", id="TC-32-one-identity-two-outcomes"),
+    pytest.param({0: {"UseCase": ""}}, (), "E-HIT-NO-USE-CASE", id="TC-33-protected-without-a-use-case"),
+    pytest.param({0: {"UseCase": "U15"}}, (), "E-USE-CASE-UNKNOWN", id="TC-34-an-unrecorded-use-case"),
+    pytest.param({0: {"Outcome": "excluded", "UseCase": "", "Reason": ""}}, (), "E-EXCLUDED-NO-REASON", id="TC-35-excluded-without-a-reason"),
+    pytest.param({0: {"Outcome": "intrinsic", "UseCase": "", "Reason": "own repository"}}, (), "E-INTRINSIC-NOT-OWN-REPO", id="TC-36-intrinsic-outside-class-W"),
+    pytest.param({0: {"Access": "reads"}}, (), "E-ACCESS-INVALID", id="TC-37-bad-access"),
+    pytest.param({0: {"Via": "both"}}, (), "E-VIA-INVALID", id="TC-38-bad-via"),
+])
+def test_a_hit_that_breaks_a_classification_rule_is_refused_with_its_code(tmp_path, overrides, extra, code):
+    result, _ = classified(tmp_path, overrides=overrides, extra=extra)
+    assert codes(result) == [code], [(p.code, p.subject, p.detail) for p in result.problems]
+    assert "tools/agent.py::agent_git" not in " ".join(p.detail for p in result.problems), "the valid intrinsic row is not blamed"
+
+
+def test_tc39_a_use_case_the_owner_agreed_is_accepted_only_when_recorded_with_a_reason(tmp_path):
+    base = "[use_cases]\n" + "".join(f'{u} = "use case {u}"\n' for u in USE_CASE_IDS)
+    agreed = base + '\n[agreed.U15]\ndescription = "the owner reads the audit"\nreason = "agreed 15 Oct 2026"\n'
+    unexplained = base + '\n[agreed.U15]\ndescription = "the owner reads the audit"\nreason = ""\n'
+    ok, _ = classified(tmp_path / "ok", overrides={0: {"UseCase": "U15"}}, use_cases_toml=agreed)
+    assert ok.exit_code == R.EXIT_OK, [(p.code, p.detail) for p in ok.problems]
+    refused, _ = classified(tmp_path / "no", overrides={0: {"UseCase": "U15"}}, use_cases_toml=unexplained)
+    assert codes(refused) == ["E-USE-CASE-UNKNOWN"]
+
+
+# ---- story 19: the real use-case and class tables are accepted (TC-40; task 19.14) ---------------------------------------------
+
+NOTHING_MATCHES = r"zz-matches-nothing-zz"
+
+
+def test_tc40_the_fourteen_real_use_cases_and_a_real_class_w_function_are_accepted_by_audit_check_as_a_process(tmp_path):
+    real = Path(__file__).parent
+    use_cases = tomllib.loads((real / "use_cases.toml").read_text())["use_cases"]
+    workspace_function = tomllib.loads((real / "classes.toml").read_text())["classes"]["W"]["functions"][0]
+    repo = load_fixture_module("build_mini_repo").build(tmp_path / "audited")
+    write(repo, "ops/refactor/use_cases.toml", (real / "use_cases.toml").read_text())
+    write(repo, "ops/refactor/classes.toml", (real / "classes.toml").read_text())
+    queries = [(f"Q{i + 1}", category, NOTHING_MATCHES, ".") for i, category in enumerate(CATEGORIES)]
+    rows = [hit_row(i + 1, "tools/publish.py", f"reads_for_{u.lower()}", "manual", reason=f"found by reading, {u}", use_case=u) for i, u in enumerate(sorted(use_cases, key=lambda u: int(u[1:])))]
+    rows.append(hit_row(99, "tools/publish.py", workspace_function, "manual", reason="git in the agent's own repository", outcome="intrinsic", use_case=""))
+    write(repo, f"{AUDIT_DIR}/pass-01.md", pass_md(queries=queries, hits=[], extra_hits=rows))
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-q", "-m", "pass 01 with every real use case")
+    done = tool(repo, "audit-check")
+    assert done.returncode == R.EXIT_OK, done.stdout
+    outcomes = json.loads((repo / "ops/refactor/reports/audit.json").read_text())["passes"][0]["outcomes"]
+    assert outcomes == {"protected": len(use_cases), "intrinsic": 1} and len(use_cases) == 14
