@@ -5,8 +5,8 @@
 MTPLX run is queued or started until then. The issue, filed by the owner on 8 Oct 2026 and still open on 16 Oct, is "HTTP 500
 on valid requests: `ValueError: QSA pooled hold N rows; resizing to M would cut them`" on MTPLX 2.12.2 with Qwen3.8-Flash-Next;
 the owner's comment on it today says they are pulling MTPLX from the benchmark suite until it is fixed. On 16 Oct no MTPLX job
-was queued or running on any node that answered (tritus did not answer); the five `v2-mtplx2122` runs on quintus show failed,
-and their reruns one done and four cancelled. Nothing below is changed: it is the history up to the quarantine.
+was queued or running on any machine that answered (the Strix Halo box did not answer); the five `v2-mtplx2122` runs on the
+M5 Max show failed, and their reruns one done and four cancelled. Nothing below is changed: it is the history up to the quarantine.
 **What lifts it:** a MTPLX release that fixes issue 605, or a workaround, shown by a request that used to fail and now
 completes, and then the checks in "What would unblock it" below.
 **Status before the quarantine:** back in the queue (3 Oct 2026). MTPLX 2.12.1 (2 Oct) closed issue 567, the compaction deadlock below:
