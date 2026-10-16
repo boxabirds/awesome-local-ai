@@ -391,8 +391,10 @@ purpose).
    records; U8 a judge package goes out and results come back; U9 a job references another run (known-good,
    baselines); U10 finalize and rescore write the score of record; U11 export; U12 backup and restore; U13 node setup;
    U14 the release gate. Each existing test in the touched set is assigned to exactly one use case; a test that fits
-   none is listed and either assigned or retired with a reason. Prove 100% line and branch coverage of the touched set,
-   per language, on the code as it is. Python: `--cov` widened from `drive` alone (`checks.toml:48-58`) to `drive roots
+   none is listed and either assigned or retired with a reason. Prove 100% line and branch coverage of the cut statements of
+   the touched set, of the statements that use their results and of the conditions that guard them (the owner's reading
+   of 16 Oct 2026: the unit is the code that depends on the git access, not the whole function; a site that is itself the
+   git access is cut whole), per language, on the code as it is. Python: `--cov` widened from `drive` alone (`checks.toml:48-58`) to `drive roots
    heldout publicise packdir progress finalize finalize_pending logscan record_event judge judge_collect
    grading_package annotate history import_run`. Rust: `cargo llvm-cov` over `tools/dbench` (`collect`, `collector`,
    `ingest/inputs`, `ingest/mod`, `progress`, `server`, `job`, `runner`, `harness`, `release`, `node`) and
@@ -405,11 +407,14 @@ purpose).
    whose cells each have one test. Missing cells are written against the current code until the matrix is full and
    coverage is 100%. The suite is green at the end of this step. Story 1 owns this step for the first touched set;
    story 19 re-runs it for every site the audit adds.
-4. **Delete all of it at once.** Every function in the touched set is replaced by a stub that raises
-   (`NotImplementedError`, `todo!()`, `throw`), in one working copy, for the whole epic. The whole suite runs in every
-   language. **Every test assigned to a use case must fail.** A test that passes proved nothing about the code it
-   claims to cover: the deletion is reverted, that test is rewritten (it must assert what the function produces, not
-   that it exists or was called), step 3 is repeated, and the deletion is tried again. Tests outside the touched set
+4. **Delete the cut statements at once.** In every site of the touched set, each cut statement (the statement that runs
+   git on data or chooses a location that exists only because git tracks it; the whole function where the function is
+   itself that access) is replaced by a stand-in that raises (`NotImplementedError`, `unimplemented!()`, `throw`), in one
+   working copy, for the whole epic; the rest of each function stays as it is (owner, 16 Oct 2026: delete the code that
+   depends on the code being refactored, not everything). The whole suite runs in every language. **Every cut must make
+   at least one test fail, for the stand-in's reason.** A cut that fails no test shows a coverage gap: the deletion is
+   reverted, the missing test is written (it must assert what the statement produces, not that it exists or was
+   called), step 3 is repeated, and the deletion is tried again. Tests outside the touched set
    are expected to pass and make the partition MECE. The new contracts (the data-root resolution, `RunId` goldens, the
    extended allow-list, `LakeSource`, the lake-reading benchmarker, gallery and monitor, the job inputs directory, the
    export step) are written as tests and seen red. Each old test ends in exactly one state: kept unchanged, rewritten
