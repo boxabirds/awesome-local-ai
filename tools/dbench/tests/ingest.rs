@@ -176,6 +176,13 @@ fn run_paths_and_iso_stamps_are_read() {
     assert_eq!((r.stack.as_str(), r.pack.as_str(), r.run.as_str(), r.machine.as_str(), r.client.as_str()), ("reference/opus-5.5", "vidi", "run-3", "cloud", "claude-code"));
     assert!(ingest::run_parts("combinations/x/benchmarks/vidi/r1").is_none());
     assert!(ingest::run_parts("docs/x").is_none());
+    // A combination path with `benchmarks` deep enough but not followed by exactly <pack>/<run>.
+    assert!(ingest::run_parts("combinations/a/b/c/d/benchmarks/vidi").is_none());
+    assert!(ingest::run_parts("combinations/a/b/c/d/benchmarks/vidi/r1/extra").is_none());
+    assert!(ingest::run_parts("combinations/a/b/c/d/e/f").is_none());
+    // Five segments that are not a reference run: another top directory, or another second segment.
+    assert!(ingest::run_parts("elsewhere/reference/vidi/opus-5.5/run-3").is_none());
+    assert!(ingest::run_parts("benchmarks/other/vidi/opus-5.5/run-3").is_none());
     assert_eq!(ingest::split_story_rel("a/b/stories/07"), Some(("a/b", 7)));
     assert_eq!(ingest::epoch_of("2026-10-02T09:00:00Z"), Some(1_790_931_600.0));
     assert_eq!(ingest::epoch_of("2026-10-02T10:00:00+01:00"), Some(1_790_931_600.0));
@@ -764,6 +771,104 @@ fn the_published_git_tree_names_its_archived_runs_reference_ones_included() {
     let src = GitSource::new(&repo, "HEAD");
     assert_eq!(src.archived().unwrap(), BTreeSet::from([gone.to_string(), reference.to_string()]));
     std::fs::remove_dir_all(&repo).unwrap();
+}
+
+/// An origin, a clone of it, and a second clone that plays the machine that pushes records: `push_from_machine` publishes a file from it.
+struct Origin {
+    root: std::path::PathBuf,
+}
+
+impl Origin {
+    const PUBLISHED_FILE: &'static str = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1/metrics.json";
+
+    fn git(dir: &std::path::Path, args: &[&str]) {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    }
+
+    fn new(tag: &str) -> Origin {
+        let root = std::env::temp_dir().join(format!("dbench-ingest-origin-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("origin.git")).unwrap();
+        Origin::git(&root.join("origin.git"), &["init", "-q", "--bare", "-b", "main"]);
+        Origin::git(&root, &["clone", "-q", "origin.git", "reader"]);
+        Origin::git(&root, &["clone", "-q", "origin.git", "machine"]);
+        let origin = Origin { root };
+        origin.push_from_machine("{\"first\": true}");
+        Origin::git(&origin.root.join("reader"), &["pull", "-q", "--ff-only", "origin", "main"]);
+        origin
+    }
+
+    fn reader(&self) -> std::path::PathBuf {
+        self.root.join("reader")
+    }
+
+    fn push_from_machine(&self, text: &str) {
+        let machine = self.root.join("machine");
+        let path = machine.join(Origin::PUBLISHED_FILE);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
+        Origin::git(&machine, &["add", "."]);
+        Origin::git(&machine, &["commit", "-q", "-m", "record"]);
+        Origin::git(&machine, &["push", "-q", "origin", "HEAD:main"]);
+    }
+}
+
+impl Drop for Origin {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.root);
+    }
+}
+
+#[test]
+fn fetching_origin_main_brings_in_what_a_machine_pushed_and_fetching_a_local_revision_does_nothing() {
+    use dbench::ingest::inputs::{GitSource, Published};
+    let origin = Origin::new("fetch");
+    let remote = GitSource::new(&origin.reader(), "origin/main");
+    remote.fetch().unwrap();
+    assert_eq!(remote.read(Origin::PUBLISHED_FILE).unwrap(), Some(b"{\"first\": true}".to_vec()));
+    origin.push_from_machine("{\"second\": true}");
+    // The reader's copy of origin/main is behind until the fetch; a source built before it has not read anything yet.
+    let behind = GitSource::new(&origin.reader(), "origin/main");
+    assert_eq!(behind.read(Origin::PUBLISHED_FILE).unwrap(), Some(b"{\"first\": true}".to_vec()));
+    let ahead = GitSource::new(&origin.reader(), "origin/main");
+    ahead.fetch().unwrap();
+    assert_eq!(ahead.read(Origin::PUBLISHED_FILE).unwrap(), Some(b"{\"second\": true}".to_vec()));
+    // A revision with no remote in its name is read as it is: nothing is fetched.
+    let local = GitSource::new(&origin.reader(), "HEAD");
+    local.fetch().unwrap();
+    assert_eq!(local.read(Origin::PUBLISHED_FILE).unwrap(), Some(b"{\"first\": true}".to_vec()), "HEAD did not move");
+    assert_eq!(local.read("combinations/not/published.json").unwrap(), None);
+}
+
+#[test]
+fn fetching_from_a_remote_that_is_gone_is_an_error_that_names_the_git_command() {
+    use dbench::ingest::inputs::GitSource;
+    let origin = Origin::new("fetch-gone");
+    std::fs::remove_dir_all(origin.root.join("origin.git")).unwrap();
+    let err = GitSource::new(&origin.reader(), "origin/main").fetch().unwrap_err().to_string();
+    assert!(err.starts_with("git fetch --quiet origin main:"), "{err}");
+}
+
+#[test]
+fn a_tree_source_reads_a_file_gives_none_for_a_missing_one_and_an_error_for_what_cannot_be_read() {
+    use dbench::ingest::inputs::{Published, TreeSource};
+    let root = std::env::temp_dir().join(format!("dbench-ingest-tree-read-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("combinations/dir")).unwrap();
+    std::fs::write(root.join("combinations/file.json"), "{}").unwrap();
+    let src = TreeSource { root: root.clone() };
+    assert_eq!(src.read("combinations/file.json").unwrap(), Some(b"{}".to_vec()));
+    assert_eq!(src.read("combinations/missing.json").unwrap(), None);
+    // A directory is there but is not a file: that is not "absent".
+    assert!(src.read("combinations/dir").is_err());
+    std::fs::remove_dir_all(&root).unwrap();
 }
 
 #[test]
