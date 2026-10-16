@@ -1,9 +1,19 @@
 //! Typed absence and refusal (lakelib.absence.typed).
 
+use crate::canonical;
 use crate::layout::RunRef;
 use serde_json::Value;
 use std::io;
 
+pub const DETAIL_NO_RUN: &str = "no run with this id";
+pub const DETAIL_NOT_COLLECTED: &str = "no such file";
+pub const DETAIL_NOT_A_FILE: &str = "not a regular file";
+pub const DETAIL_PERMISSION: &str = "permission denied";
+pub const DETAIL_IO: &str = "io error";
+pub const DETAIL_NOT_JSON: &str = "not valid JSON";
+pub const DETAIL_NOT_UTF8: &str = "not valid UTF-8";
+pub const DETAIL_NOT_GZIP: &str = "not valid gzip";
+pub const TEXT_NO_NODE: &str = "-";
 pub const CODE_NO_RUN: &str = "E-LAKE-NO-RUN";
 pub const CODE_NOT_COLLECTED: &str = "E-LAKE-NOT-COLLECTED";
 pub const CODE_NOT_A_FILE: &str = "E-LAKE-NOT-A-FILE";
@@ -41,15 +51,30 @@ pub enum Reason {
 
 impl Reason {
     pub fn code(&self) -> &'static str {
-        todo!("Reason::code")
+        match self {
+            Reason::NoRun => CODE_NO_RUN,
+            Reason::NotCollected => CODE_NOT_COLLECTED,
+            Reason::NotAFile => CODE_NOT_A_FILE,
+            Reason::Unreadable(_) => CODE_UNREADABLE,
+            Reason::Malformed(_) => CODE_MALFORMED,
+            Reason::BadName(_) => CODE_BAD_NAME,
+        }
     }
     pub fn detail(&self) -> String {
-        todo!("Reason::detail")
+        match self {
+            Reason::NoRun => DETAIL_NO_RUN.to_string(),
+            Reason::NotCollected => DETAIL_NOT_COLLECTED.to_string(),
+            Reason::NotAFile => DETAIL_NOT_A_FILE.to_string(),
+            Reason::Unreadable(d) | Reason::Malformed(d) | Reason::BadName(d) => d.clone(),
+        }
     }
     /// The reason for an operating system error: `permission denied` for a refusal, `io error` otherwise.
     pub fn from_io(error: &io::Error) -> Reason {
-        let _ = error;
-        todo!("Reason::from_io")
+        if error.kind() == io::ErrorKind::PermissionDenied {
+            Reason::Unreadable(DETAIL_PERMISSION.to_string())
+        } else {
+            Reason::Unreadable(DETAIL_IO.to_string())
+        }
     }
 }
 
@@ -66,34 +91,39 @@ pub struct Absent {
 
 impl Absent {
     pub fn new(run: &str, node: Option<&str>, item: Item, reason: Reason) -> Absent {
-        let _ = (run, node, item, reason);
-        todo!("Absent::new")
+        Absent { run: run.to_string(), node: node.map(String::from), item, reason, message: None }
     }
     pub fn for_run(run: &RunRef, item: Item, reason: Reason) -> Absent {
-        let _ = (run, item, reason);
-        todo!("Absent::for_run")
+        Absent::new(&run.id, run.node.as_deref(), item, reason)
     }
     pub fn code(&self) -> &'static str {
-        todo!("Absent::code")
+        self.reason.code()
     }
     pub fn detail(&self) -> String {
-        todo!("Absent::detail")
+        self.reason.detail()
     }
     /// `record:accept:1`, `log:2`, `bundle`, `run`, `workspace:1`.
     pub fn item_text(&self) -> String {
-        todo!("Absent::item_text")
+        item_text(&self.item)
     }
     /// `run=<id> node=<node or -> item=<item> code=<code> detail=<detail>`.
     pub fn to_text(&self) -> String {
-        todo!("Absent::to_text")
+        format!(
+            "run={} node={} item={} code={} detail={}",
+            self.run,
+            self.node.as_deref().unwrap_or(TEXT_NO_NODE),
+            self.item_text(),
+            self.code(),
+            self.detail()
+        )
     }
     /// The object `{"code","detail","item","node","run"}`.
     pub fn to_value(&self) -> Value {
-        todo!("Absent::to_value")
+        object(&self.run, self.node.as_deref(), &self.item, self.code(), &self.detail())
     }
     /// The canonical JSON of the object (the four-plus-one fields, keys sorted).
     pub fn to_json(&self) -> String {
-        todo!("Absent::to_json")
+        canonical(&self.to_value())
     }
 }
 
@@ -108,10 +138,19 @@ pub enum RefusedReason {
 
 impl RefusedReason {
     pub fn code(&self) -> &'static str {
-        todo!("RefusedReason::code")
+        match self {
+            RefusedReason::DestInsideRoot => CODE_DEST_INSIDE_ROOT,
+            RefusedReason::DestNotEmpty => CODE_DEST_NOT_EMPTY,
+            RefusedReason::GitClone | RefusedReason::GitCheckout => CODE_GIT_FAILED,
+        }
     }
     pub fn detail(&self) -> &'static str {
-        todo!("RefusedReason::detail")
+        match self {
+            RefusedReason::DestInsideRoot => "destination is inside the lake",
+            RefusedReason::DestNotEmpty => "destination is not empty",
+            RefusedReason::GitClone => "git clone failed",
+            RefusedReason::GitCheckout => "git checkout failed",
+        }
     }
 }
 
@@ -128,13 +167,13 @@ pub struct Refused {
 
 impl Refused {
     pub fn code(&self) -> &'static str {
-        todo!("Refused::code")
+        self.reason.code()
     }
     pub fn to_value(&self) -> Value {
-        todo!("Refused::to_value")
+        object(&self.run, self.node.as_deref(), &self.item, self.code(), self.reason.detail())
     }
     pub fn to_json(&self) -> String {
-        todo!("Refused::to_json")
+        canonical(&self.to_value())
     }
 }
 
@@ -149,4 +188,24 @@ impl From<Absent> for Error {
     fn from(a: Absent) -> Error {
         Error::Absent(a)
     }
+}
+
+fn item_text(item: &Item) -> String {
+    match item {
+        Item::Run => "run".to_string(),
+        Item::Record(name) => format!("record:{name}"),
+        Item::Log(story) => format!("log:{story}"),
+        Item::Bundle => "bundle".to_string(),
+        Item::Workspace(story) => format!("workspace:{story}"),
+    }
+}
+
+fn object(run: &str, node: Option<&str>, item: &Item, code: &str, detail: &str) -> Value {
+    let mut map = serde_json::Map::new();
+    map.insert("code".to_string(), Value::String(code.to_string()));
+    map.insert("detail".to_string(), Value::String(detail.to_string()));
+    map.insert("item".to_string(), Value::String(item_text(item)));
+    map.insert("node".to_string(), node.map_or(Value::Null, |n| Value::String(n.to_string())));
+    map.insert("run".to_string(), Value::String(run.to_string()));
+    Value::Object(map)
 }
