@@ -554,6 +554,9 @@ class Results:
     missing: set[str] = field(default_factory=set)
     file_failures: set[str] = field(default_factory=set)         # "language:file" whose whole file failed before any test ran
     rust_names: dict[str, str] = field(default_factory=dict)     # cargo's json names tests but not their binary: outcome by name
+    texts: dict[str, str] = field(default_factory=dict)          # what each failing test said, by qualified test id (so a failure can cite a cut)
+    rust_texts: dict[str, str] = field(default_factory=dict)     # the same for Rust, by test name
+    exit_codes: dict[str, int] = field(default_factory=dict)     # a shell test's exit status, by qualified test id
 
     def outcome_of(self, test: str) -> str | None:
         """Exact result, else a whole-file failure, else (Rust) the result of the test of that name."""
@@ -1096,6 +1099,24 @@ def check_stubs(root: Path, base: Callable[[str], str | None] | None = None) -> 
     return result
 
 
+def cuts_cited(results: Results) -> dict[str, set[str]]:
+    """{cut id: the failing tests whose failure text cites it} (Rust tests are named `rust:NAME`: cargo's json does not name the binary)."""
+    cited: dict[str, set[str]] = {}
+    failing_texts = [(t, text) for t, text in results.texts.items() if results.outcomes.get(t, FAILED_OTHER) != PASSED]
+    failing_texts += [(f"rust:{name}", text) for name, text in results.rust_texts.items() if results.rust_names.get(name, FAILED_OTHER) != PASSED]
+    for test, text in failing_texts:
+        for cid in CUT_ID_CITED.findall(text):
+            cited.setdefault(f"{CUT_ID_PREFIX}{cid}", set()).add(test)
+    return cited
+
+
+def shell_cut_failed(root: Path, e: dict, results: Results) -> bool:
+    """A shell stand-in cannot carry its id, so a shell cut is proved by a test script that names the cut's script and ended with exit 99."""
+    scripts = {t.split(":", 1)[1] for t in results.exit_codes}
+    named = shell_touching(root, [e], scripts)
+    return any(results.exit_codes.get(f"shell:{t}") == SHELL_STUB_CODE for t in named)
+
+
 def assigned_tests(root: Path) -> set[str]:
     return {t for tests in read_toml(root / ASSIGNMENTS_FILE).get("assignments", {}).values() for t in tests}
 
@@ -1111,6 +1132,7 @@ def report_deletion(root: Path, results: Results, base: Callable[[str], str | No
     unfit = {e.get("test") for e in read_toml(root / ASSIGNMENTS_FILE).get("unfit", [])}
     for language in sorted(results.missing):
         result.fail("E-RESULTS-MISSING", language, "the runner produced no result file, so no test can be counted as failed")
+    cut_entries = [e for e in read_toml(root / TOUCHED_FILE).get("entry", []) if entry_kind(e) == KIND_CUT]
     passed_assigned = False
     for test in sorted(assigned):
         if test.split(":", 1)[0] in results.missing:
@@ -1119,8 +1141,9 @@ def report_deletion(root: Path, results: Results, base: Callable[[str], str | No
         if outcome is None:
             result.fail("E-RESULTS-MISSING", test, "no result for an assigned test")
         elif outcome == PASSED:
-            passed_assigned = True
-            result.fail("E-ASSIGNED-PASSED", test, "the test passes against the stubs: rewrite it")
+            if not cut_entries:         # with cuts a test that does not depend on them passes, and the cuts are proved by the tests that fail
+                passed_assigned = True
+                result.fail("E-ASSIGNED-PASSED", test, "the test passes against the stubs: rewrite it")
         elif outcome == FAILED_OTHER:
             result.fail("E-STUB-FAILS-TO-IMPORT", test, "it failed, but not for the stub's reason: a broken import proves nothing about assertions")
     contract_tests = {c.get("test") for c in read_toml(root / CONTRACTS_FILE).get("contract", [])}      # expected red: not outsiders
@@ -1130,8 +1153,24 @@ def report_deletion(root: Path, results: Results, base: Callable[[str], str | No
             result.fail("E-OUTSIDE-FAILED", test, "a test outside the touched set failed: the partition is not MECE")
     if passed_assigned and read_stage(root) == "Deleted":
         record_move(root, "Deleted", "Proved", ALLOWED_MOVES[BACK_EDGE])
+    if cut_entries:
+        cited_by = cuts_cited(results)
+        for e in cut_entries:
+            if e["language"] in results.missing:
+                continue
+            if e["language"] == "shell":
+                if not shell_cut_failed(root, e, results):
+                    result.fail("E-CUT-NO-TEST-FAILED", entry_subject(e), f"no failing shell test that names the script ended with exit {SHELL_STUB_CODE}: the cut is not covered")
+                continue
+            for n in range(1, len(e["cut"]) + 1):
+                if cut_id(e, n) not in cited_by:
+                    result.fail("E-CUT-NO-TEST-FAILED", cut_id(e, n), "no failing test cites this cut: it is a coverage gap, go back to proving coverage")
     if result.exit_code == EXIT_OK:
-        result.data = {"assigned_failed": sorted(assigned)}
+        failed = [t for t in sorted(assigned) if results.outcome_of(t) != PASSED] if cut_entries else sorted(assigned)
+        result.data = {"assigned_failed": failed}
+        if cut_entries:
+            declared = {cut_id(e, n) for e in cut_entries if e["language"] != "shell" for n in range(1, len(e["cut"]) + 1)}
+            result.data["cuts_cited"] = {cid: sorted(tests) for cid, tests in cuts_cited(results).items() if cid in declared}
     write_report(root, "deletion", result)
     return result
 
@@ -1151,8 +1190,9 @@ def classify_failure(language: str, text: str) -> str:
     return FAILED_STUB if STUB_REASON[language].search(text) else FAILED_OTHER
 
 
-def parse_junit(folder: str, xml_text: str) -> tuple[dict[str, str], set[str]]:
-    """pytest --junitxml with junit_family=xunit1 (which names the file). A collection error becomes a whole-file failure."""
+def parse_junit(folder: str, xml_text: str, texts: dict[str, str] | None = None) -> tuple[dict[str, str], set[str]]:
+    """pytest --junitxml with junit_family=xunit1 (which names the file). A collection error becomes a whole-file failure. When
+    `texts` is given, each failing test's message and trace are put in it, by test id."""
     outcomes: dict[str, str] = {}
     file_failures: set[str] = set()
     for case in ElementTree.fromstring(xml_text).iter("testcase"):
@@ -1166,11 +1206,14 @@ def parse_junit(folder: str, xml_text: str) -> tuple[dict[str, str], set[str]]:
         file = case.get("file") or f"{module}.py"
         test_id = qualified("python", "::".join([posixpath.normpath(f"{folder}/{file}"), *classes, case.get("name", "")]))
         outcomes[test_id] = PASSED if failure is None else classify_failure("python", text)
+        if failure is not None and texts is not None:
+            texts[test_id] = text
     return outcomes, file_failures
 
 
-def parse_cargo_json(text: str) -> dict[str, str]:
-    """cargo +nightly test -- -Z unstable-options --format json: one event per line; the binary is not named."""
+def parse_cargo_json(text: str, texts: dict[str, str] | None = None) -> dict[str, str]:
+    """cargo +nightly test -- -Z unstable-options --format json: one event per line; the binary is not named. When `texts` is given,
+    each failing test's output is put in it, by test name."""
     outcomes: dict[str, str] = {}
     for line in text.splitlines():
         try:
@@ -1179,22 +1222,34 @@ def parse_cargo_json(text: str) -> dict[str, str]:
             continue
         if event.get("type") == "test" and event.get("event") in ("ok", "failed"):
             outcomes[event["name"]] = PASSED if event["event"] == "ok" else classify_failure("rust", event.get("stdout", ""))
+            if event["event"] != "ok" and texts is not None:
+                texts[event["name"]] = event.get("stdout", "")
     return outcomes
 
 
-def parse_vitest_json(root: Path, text: str) -> dict[str, str]:
+def parse_vitest_json(root: Path, text: str, texts: dict[str, str] | None = None) -> dict[str, str]:
     outcomes: dict[str, str] = {}
     for file in json.loads(text)["testResults"]:
         rel = relative(root, file["name"])
         for test in file["assertionResults"]:
             title = " > ".join([*test["ancestorTitles"], test["title"]])
             failed = test["status"] != "passed"
-            outcomes[qualified("typescript", f"{rel}::{title}")] = classify_failure("typescript", " ".join(test["failureMessages"])) if failed else PASSED
+            test_id = qualified("typescript", f"{rel}::{title}")
+            outcomes[test_id] = classify_failure("typescript", " ".join(test["failureMessages"])) if failed else PASSED
+            if failed and texts is not None:
+                texts[test_id] = " ".join(test["failureMessages"])
     return outcomes
 
 
-def parse_shell_results(text: str) -> dict[str, str]:
-    return {qualified("shell", script): PASSED if body["code"] == 0 else classify_failure("shell", body["output"])
+def parse_shell_results(text: str, texts: dict[str, str] | None = None, codes: dict[str, int] | None = None) -> dict[str, str]:
+    """Outcome per test script. When given, `texts` gets each failing script's output and `codes` every script's exit status."""
+    for script, body in json.loads(text).items():
+        if codes is not None:
+            codes[qualified("shell", script)] = body["code"]
+        if texts is not None and body["code"] != 0:
+            texts[qualified("shell", script)] = body["output"]
+    return {qualified("shell", script): PASSED if body["code"] == 0 else FAILED_STUB if body["code"] == SHELL_STUB_CODE
+            else classify_failure("shell", body["output"])
             for script, body in json.loads(text).items()}
 
 
@@ -1245,15 +1300,15 @@ def read_results(root: Path) -> Results:
             continue
         text = path.read_text()
         if language == "python":
-            outcomes, file_failures = parse_junit(spec["dir"], text)
+            outcomes, file_failures = parse_junit(spec["dir"], text, found.texts)
             found.outcomes.update(outcomes)
             found.file_failures |= file_failures
         elif language == "rust":
-            found.rust_names.update(parse_cargo_json(text))
+            found.rust_names.update(parse_cargo_json(text, found.rust_texts))
         elif language == "typescript":
-            found.outcomes.update(parse_vitest_json(root, text))
+            found.outcomes.update(parse_vitest_json(root, text, found.texts))
         elif language == "shell":
-            found.outcomes.update(parse_shell_results(text))
+            found.outcomes.update(parse_shell_results(text, found.texts, found.exit_codes))
     return found
 
 

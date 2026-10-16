@@ -4174,3 +4174,222 @@ def test_apply_cuts_without_dry_run_is_refused_and_with_it_prints_and_writes_not
     out = capsys.readouterr().out
     assert f'raise NotImplementedError("{PY_ID1}")' in out and "src/p.py::publish" in out
     assert (root / "src/p.py").read_bytes() == before
+
+
+# Step 4: report-deletion with cuts. A cut is proved by a failing test whose failure text cites the cut's id.
+
+def test_del_the_result_readers_keep_the_failure_text_of_each_failing_test():
+    texts: dict[str, str] = {}
+    R.parse_junit("py", JUNIT, texts)
+    assert texts == {"python:py/test_core.py::test_a": "NotImplementedError: deleted trace", "python:py/test_core.py::test_c": "assert 1 == 2 trace"}
+    cargo: dict[str, str] = {}
+    R.parse_cargo_json(CARGO_JSON, cargo)
+    assert cargo == {"tests::a": "thread 'tests::a' panicked at src/lib.rs:4:5:\nnot yet implemented\n", "tests::c": "assertion failed: x"}
+    vitest: dict[str, str] = {}
+    R.parse_vitest_json(Path("/r"), VITEST_JSON, vitest)
+    assert vitest == {"typescript:ts/src/core.test.ts::a run > shows it": "Error: not implemented", "typescript:ts/src/core.test.ts::other": "expected 1 to be 2"}
+    shell: dict[str, str] = {}
+    codes_: dict[str, int] = {}
+    R.parse_shell_results(SHELL_JSON, shell, codes_)
+    assert codes_ == {"shell:tests/one-test.sh": 1, "shell:tests/two-test.sh": 0, "shell:tests/three-test.sh": 1}
+    assert shell["shell:tests/one-test.sh"].endswith("actual:   exit 99") and "shell:tests/two-test.sh" not in shell
+
+
+def test_del_the_readers_work_as_before_without_a_text_collector():
+    assert R.parse_junit("py", JUNIT)[0]["python:py/test_core.py::test_a"] == R.FAILED_STUB
+    assert R.parse_cargo_json(CARGO_JSON)["tests::a"] == R.FAILED_STUB
+
+
+def test_del_read_results_fills_the_texts_the_report_cites(tmp_path):
+    root = make_root(tmp_path)
+    write(root, "ops/refactor/runners.toml", '[python]\ndir = "py"\n[python.results]\nformat = "junit"\ncommand = []\n'
+                                             '[rust]\ndir = "rs"\n[rust.results]\nformat = "cargo-json"\ncommand = []\n'
+                                             '[shell]\nglob = "tests/*-test.sh"\n[shell.results]\nformat = "shell-exit"\n')
+    write(root, "ops/refactor/reports/results-python.xml", JUNIT)
+    write(root, "ops/refactor/reports/results-rust.jsonl", CARGO_JSON)
+    write(root, "ops/refactor/reports/results-shell.json", SHELL_JSON)
+    found = R.read_results(root)
+    assert "NotImplementedError: deleted" in found.texts["python:py/test_core.py::test_a"]
+    assert "not yet implemented" in found.rust_texts["tests::a"]
+    assert found.exit_codes["shell:tests/one-test.sh"] == 1
+
+
+CUT_TEST = "python:py/t.py::test_publish"
+CUT_TEST_2 = "python:py/t.py::test_publish_fails"
+CUT_OUTSIDE = "python:py/u.py::test_other"
+TWO_PY_DELETED = two_cut_text('raise NotImplementedError("refactor-cut:src/p.py::publish#1")', 'raise NotImplementedError("refactor-cut:src/p.py::publish#2")')
+
+
+def cut_deletion_root(tmp_path: Path, stage: str = "Deleted", body: str = GUARDED, current: str = PY_DELETED, tests=(CUT_TEST, CUT_TEST_2)) -> Path:
+    root = cuts_root(tmp_path, body, current)
+    write(root, "ops/refactor/assignments.toml", "[assignments]\nU1 = [%s]\n" % ", ".join(f'"{t}"' for t in tests))
+    write_stage(root, stage)
+    return root
+
+
+def cited(n: int = 1, file: str = "src/p.py", function: str = "publish") -> str:
+    return f'NotImplementedError: refactor-cut:{file}::{function}#{n}'
+
+
+def cut_results(outcomes: dict[str, str], texts: dict[str, str] | None = None, **kw) -> R.Results:
+    return R.Results(outcomes=dict(outcomes), texts=dict(texts or {}), **kw)
+
+
+BASE_PY = lambda f: CUT_PY      # noqa: E731
+
+
+def test_del_a_cut_cited_by_a_failing_test_is_proved_and_an_assigned_test_that_passes_is_no_error(tmp_path):
+    root = cut_deletion_root(tmp_path)
+    outcomes = {CUT_TEST: R.FAILED_STUB, CUT_TEST_2: R.PASSED, CUT_OUTSIDE: R.PASSED}
+    result = R.report_deletion(root, cut_results(outcomes, {CUT_TEST: cited()}), BASE_PY)
+    assert result.exit_code == R.EXIT_OK and result.problems == []
+    assert result.data["assigned_failed"] == [CUT_TEST]
+    assert result.data["cuts_cited"] == {PY_ID1: [CUT_TEST]}
+    assert stage_of(root) == "Deleted"                                  # a passing assigned test does not send the stage back when cuts exist
+
+
+def test_del_a_cut_that_no_failing_test_cites_is_a_coverage_gap(tmp_path):
+    root = cut_deletion_root(tmp_path)
+    outcomes = {CUT_TEST: R.PASSED, CUT_TEST_2: R.PASSED}
+    result = R.report_deletion(root, cut_results(outcomes), BASE_PY)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-NO-TEST-FAILED", PY_ID1)]
+    assert result.exit_code == R.EXIT_FAIL
+
+
+def test_del_a_failure_that_names_another_cut_does_not_prove_this_one(tmp_path):
+    root = cut_deletion_root(tmp_path, body=TWO_CUTS, current=TWO_PY_DELETED)
+    base = lambda f: PY_TWO      # noqa: E731
+    outcomes = {CUT_TEST: R.FAILED_STUB, CUT_TEST_2: R.PASSED}
+    result = R.report_deletion(root, cut_results(outcomes, {CUT_TEST: cited(2)}), base)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-NO-TEST-FAILED", "refactor-cut:src/p.py::publish#1")]
+    both = R.report_deletion(root, cut_results(outcomes, {CUT_TEST: cited(2) + " " + cited(1)}), base)
+    assert both.exit_code == R.EXIT_OK
+
+
+def test_del_a_cut_id_that_is_a_prefix_of_another_is_not_cited_by_it(tmp_path):
+    root = cut_deletion_root(tmp_path)
+    result = R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB, CUT_TEST_2: R.PASSED}, {CUT_TEST: cited(10)}), BASE_PY)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-NO-TEST-FAILED", PY_ID1)]
+
+
+def test_del_a_passing_test_never_cites(tmp_path):
+    root = cut_deletion_root(tmp_path)
+    result = R.report_deletion(root, cut_results({CUT_TEST: R.PASSED, CUT_TEST_2: R.PASSED}, {CUT_TEST: cited()}), BASE_PY)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-NO-TEST-FAILED", PY_ID1)]
+
+
+def test_del_a_failure_for_another_reason_and_an_outside_failure_keep_their_meaning_with_cuts(tmp_path):
+    root = cut_deletion_root(tmp_path)
+    outcomes = {CUT_TEST: R.FAILED_STUB, CUT_TEST_2: R.FAILED_OTHER, CUT_OUTSIDE: R.FAILED_STUB}
+    result = R.report_deletion(root, cut_results(outcomes, {CUT_TEST: cited()}), BASE_PY)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-STUB-FAILS-TO-IMPORT", CUT_TEST_2), ("E-OUTSIDE-FAILED", CUT_OUTSIDE)]
+
+
+def test_del_an_assigned_test_with_no_result_is_still_missing(tmp_path):
+    root = cut_deletion_root(tmp_path)
+    result = R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB}, {CUT_TEST: cited()}), BASE_PY)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-RESULTS-MISSING", CUT_TEST_2)]
+
+
+def test_del_without_any_cut_entry_a_passing_assigned_test_is_still_an_error_and_the_data_is_as_before(tmp_path):
+    root = deletion_root(tmp_path)
+    passes = R.report_deletion(root, results(ALL_FAILED | {SIX_TESTS[2]: R.PASSED}))
+    assert [p.code for p in passes.problems] == ["E-ASSIGNED-PASSED"]
+    assert R.report_deletion(deletion_root(tmp_path / "b"), results(ALL_FAILED)).data == {"assigned_failed": sorted(SIX_TESTS)}
+
+
+def test_del_one_cut_entry_among_whole_entries_switches_the_assigned_rule_for_the_set(tmp_path):
+    touched = cut_entry(body=GUARDED) + entry("python", "src/w.py", "gone", '"B"', "whole = true\n")
+    root = make_root(tmp_path, touched=touched)
+    write(root, "src/p.py", PY_DELETED)
+    write(root, "src/w.py", "def gone():\n    raise NotImplementedError(\"deleted\")\n")
+    write(root, "ops/refactor/assignments.toml", "[assignments]\nU1 = [\"%s\", \"%s\"]\n" % (CUT_TEST, CUT_TEST_2))
+    write_stage(root, "Deleted")
+    result = R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB, CUT_TEST_2: R.PASSED}, {CUT_TEST: cited()}), BASE_PY)
+    assert result.exit_code == R.EXIT_OK
+
+
+def test_del_a_cut_left_in_place_stops_the_report_before_any_result_is_read(tmp_path):
+    root = cut_deletion_root(tmp_path, current=CUT_PY)
+    result = R.report_deletion(root, cut_results({}), BASE_PY)
+    assert [p.code for p in result.problems] == ["E-CUT-NOT-REPLACED"]
+
+
+def test_del_an_empty_cut_list_entry_has_no_obligation_in_the_report(tmp_path):
+    root = make_root(tmp_path, touched=cut_entry(head="cut = []\n") + entry("python", "src/w.py", "gone", '"B"', "whole = true\n"))
+    write(root, "src/p.py", CUT_PY)
+    write(root, "src/w.py", "def gone():\n    raise NotImplementedError(\"deleted\")\n")
+    write(root, "ops/refactor/assignments.toml", "[assignments]\nU1 = [\"%s\"]\n" % CUT_TEST)
+    write_stage(root, "Deleted")
+    assert R.report_deletion(root, results({CUT_TEST: R.FAILED_STUB}), BASE_PY).exit_code == R.EXIT_OK      # no cut entry: the old rules
+
+
+def test_del_a_language_with_no_result_file_is_missing_not_a_cut_without_a_test(tmp_path):
+    root = cut_deletion_root(tmp_path)
+    result = R.report_deletion(root, R.Results(outcomes={}, missing={"python"}), BASE_PY)
+    assert {p.code for p in result.problems} == {"E-RESULTS-MISSING"}
+
+
+def test_del_a_rust_cut_is_cited_through_the_name_keyed_texts(tmp_path):
+    body = RS_BODY
+    root = make_root(tmp_path, touched=cut_entry("pull", body, "rust", "src/p.rs"))
+    write(root, "src/p.rs", rs_deleted(f'unimplemented!("{RS_ID}");'))
+    write(root, "ops/refactor/assignments.toml", '[assignments]\nU2 = ["rust:rs/mini/src/lib.rs::tests::a"]\n')
+    write_stage(root, "Deleted")
+    base = lambda f: RS_CUT      # noqa: E731
+    text = f"thread 'tests::a' panicked:\nnot implemented: {RS_ID}\n"
+    ok = R.report_deletion(root, R.Results(rust_names={"tests::a": R.FAILED_STUB}, rust_texts={"tests::a": text}), base)
+    assert ok.exit_code == R.EXIT_OK and ok.data["cuts_cited"] == {RS_ID: ["rust:tests::a"]}
+    none = R.report_deletion(root, R.Results(rust_names={"tests::a": R.FAILED_STUB}, rust_texts={"tests::a": "not implemented"}), base)
+    assert [(p.code, p.subject) for p in none.problems] == [("E-CUT-NO-TEST-FAILED", RS_ID)]
+
+
+def test_del_a_typescript_cut_is_cited_by_the_vitest_failure_message(tmp_path):
+    root = make_root(tmp_path, touched=cut_entry("load", TS_BODY, "typescript", "src/p.ts"))
+    write(root, "src/p.ts", ts_deleted(f'throw new Error("not implemented: {TS_ID}");'))
+    write(root, "ops/refactor/assignments.toml", '[assignments]\nU3 = ["typescript:ts/src/core.test.ts::loads"]\n')
+    write_stage(root, "Deleted")
+    got = R.report_deletion(root, cut_results({"typescript:ts/src/core.test.ts::loads": R.FAILED_STUB}, {"typescript:ts/src/core.test.ts::loads": f"Error: not implemented: {TS_ID}"}),
+                            lambda f: TS_CUT)
+    assert got.exit_code == R.EXIT_OK
+
+
+SH_TEST = "shell:tests/sync-test.sh"
+
+
+def shell_cut_root(tmp_path: Path, test_text: str = "bash src/p.sh\n") -> Path:
+    deleted = SH_FN.replace('  git add "runs/$run"\n  git commit -m "run $run"\n', "  return 99\n  return 99\n")
+    root = make_root(tmp_path, touched=cut_entry("sync", SH_BODY, "shell", "src/p.sh"))
+    write(root, "src/p.sh", deleted)
+    write(root, "tests/sync-test.sh", test_text)
+    write(root, "ops/refactor/assignments.toml", f'[assignments]\nU13 = ["{SH_TEST}"]\n')
+    write_stage(root, "Deleted")
+    return root
+
+
+def test_del_a_shell_cut_needs_a_test_naming_the_script_that_failed_with_exit_99(tmp_path):
+    root = shell_cut_root(tmp_path)
+    base = lambda f: SH_FN      # noqa: E731
+    ok = R.report_deletion(root, R.Results(outcomes={SH_TEST: R.FAILED_STUB}, exit_codes={SH_TEST: 99}), base)
+    assert ok.exit_code == R.EXIT_OK
+    other_code = R.report_deletion(root, R.Results(outcomes={SH_TEST: R.FAILED_STUB}, exit_codes={SH_TEST: 1}), base)
+    assert [(p.code, p.subject) for p in other_code.problems] == [("E-CUT-NO-TEST-FAILED", "src/p.sh::sync")]
+    passed = R.report_deletion(root, R.Results(outcomes={SH_TEST: R.PASSED}, exit_codes={SH_TEST: 0}), base)
+    assert [(p.code, p.subject) for p in passed.problems] == [("E-CUT-NO-TEST-FAILED", "src/p.sh::sync")]
+
+
+def test_del_a_shell_test_that_does_not_name_the_script_does_not_prove_its_cut(tmp_path):
+    root = shell_cut_root(tmp_path, test_text="echo unrelated\n")
+    result = R.report_deletion(root, R.Results(outcomes={SH_TEST: R.FAILED_STUB}, exit_codes={SH_TEST: 99}), lambda f: SH_FN)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-NO-TEST-FAILED", "src/p.sh::sync")]
+
+
+def test_del_the_report_never_edits_production_code_with_cuts(tmp_path):
+    root = cut_deletion_root(tmp_path)
+    before = (root / "src/p.py").read_bytes()
+    R.report_deletion(root, cut_results({CUT_TEST: R.PASSED, CUT_TEST_2: R.PASSED}), BASE_PY)
+    assert (root / "src/p.py").read_bytes() == before
+
+
+def test_del_a_shell_test_that_ends_with_exit_99_failed_for_the_stand_in_whatever_it_printed():
+    assert R.parse_shell_results(json.dumps({"tests/a-test.sh": {"code": 99, "output": ""}})) == {"shell:tests/a-test.sh": R.FAILED_STUB}
