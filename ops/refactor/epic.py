@@ -374,6 +374,10 @@ def epic_worktree(root: Path, action: str, path: Path | None, base: str, git: Gi
     return result
 
 
+# ======================================================================================================================
+# epic-groups
+# ======================================================================================================================
+
 @dataclass
 class Group:
     name: str
@@ -384,25 +388,216 @@ class Group:
     except_patterns: list[str] = field(default_factory=list)
     sites: list[str] = field(default_factory=list)
 
+    def takes(self, file: str) -> bool:
+        return any(glob_matches(file, p) for p in self.patterns) and not any(glob_matches(file, p) for p in self.except_patterns)
+
+
+DBENCH_FILES = ("collect.rs", "collector.rs", "server.rs", "job.rs", "runner.rs", "progress.rs", "node.rs", "harness.rs", "release.rs")
+ENGINE_FILES = tuple(f"tools/benchmarker/server/{n}" for n in ("sources.ts", "domain.ts", "faults.ts", "runNotes.ts"))
+OFFLINE_FILES = tuple(f"benchmarks/spec-bench/harness/{n}" for n in (
+    "annotate.py", "history.py", "claims.py", "judge.py", "judge_prep.py", "judge_collect.py", "grading_package.py", "logscan.py", "rescore.py", "import_run.py"))
+# The default path rules of the design, in the epic's cutover order: name, patterns, patterns that leave a file out.
+DEFAULT_GROUP_RULES: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
+    ("dbench ingest and collector", tuple(f"tools/dbench/src/{n}" for n in DBENCH_FILES) + ("tools/dbench/src/ingest/**",), ()),
+    ("the engine", ENGINE_FILES, ()),
+    ("the benchmarker web forwarder", ("tools/benchmarker/**",), ENGINE_FILES),
+    ("the gallery", ("tools/vidi-gallery/src/**",), ()),
+    ("the monitor", ("ops/monitor/**",), ()),
+    ("harness offline tools", OFFLINE_FILES, ()),
+    ("harness record path", ("benchmarks/spec-bench/harness/*.py",), OFFLINE_FILES),
+    ("node setup", ("**/*.sh",), ()),
+)
+
+
+def touched_entries(root: Path) -> list[dict]:
+    return R.read_toml(root / R.TOUCHED_FILE).get("entry", [])
+
+
+def site_name(entry: dict) -> str:
+    return f"{entry['file']}::{entry['function']}"
+
 
 def propose_groups(root: Path) -> list[Group]:
-    raise NotImplementedError("skeleton")
-
-
-def render_groups_toml(groups: list[Group]) -> str:
-    raise NotImplementedError("skeleton")
+    """The default path rules applied to the touched set: each site goes to the first group whose rule takes its file."""
+    groups = [Group(name, order, list(patterns), except_patterns=list(excluded)) for order, (name, patterns, excluded) in enumerate(DEFAULT_GROUP_RULES, start=1)]
+    for entry in touched_entries(root):
+        owner = next((g for g in groups if g.takes(entry["file"])), None)
+        if owner is not None:
+            owner.sites.append(site_name(entry))
+    return groups
 
 
 def ungrouped_sites(root: Path, groups: list[Group]) -> list[str]:
-    raise NotImplementedError("skeleton")
+    placed = {s for g in groups for s in g.sites}
+    return sorted(site_name(e) for e in touched_entries(root) if site_name(e) not in placed)
+
+
+def render_groups_toml(groups: list[Group]) -> str:
+    out = ["# The component groups of the epic, in the cutover order. A site belongs to the one group whose patterns take its file;",
+           "# a protecting test (one that failed in reports/deletion.json) is listed under the one group whose sites it needs;",
+           "# a group with no site gives an empty_reason. `epic-groups check` makes the grouping complete and exclusive.", ""]
+    for g in groups:
+        out += ["[[group]]", f"name = {json.dumps(g.name)}", f"order = {g.order}", f"patterns = {json.dumps(g.patterns)}"]
+        if g.except_patterns:
+            out.append(f"except = {json.dumps(g.except_patterns)}")
+        out.append(f"tests = {json.dumps(g.tests)}")
+        if g.empty_reason:
+            out.append(f"empty_reason = {json.dumps(g.empty_reason)}")
+        out.append("")
+    return "\n".join(out)
+
+
+def load_groups(root: Path) -> list[Group]:
+    """groups.toml with each group's sites worked out from the touched set."""
+    entries = touched_entries(root)
+    groups = [Group(g["name"], g["order"], list(g.get("patterns", [])), list(g.get("tests", [])), g.get("empty_reason", ""), list(g.get("except", [])))
+              for g in R.read_toml(root / GROUPS_FILE).get("group", [])]
+    for g in groups:
+        g.sites = [site_name(e) for e in entries if g.takes(e["file"])]
+    return sorted(groups, key=lambda g: g.order)
+
+
+def slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def deletion_failed(root: Path) -> list[str] | None:
+    """The tests that failed in a passing deletion report; None when there is no passing report to judge by."""
+    try:
+        report = json.loads((root / DELETION_REPORT).read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return list(report.get("assigned_failed", [])) if report.get("exit_code") == EXIT_OK else None
 
 
 def site_is_stub(root: Path, entry: R.Entry | dict) -> bool:
-    raise NotImplementedError("skeleton")
+    """Whether the site is still a hand-written stand-in (the stub detector of check-stubs). A function that is gone is not one."""
+    fields = entry if isinstance(entry, dict) else {"language": entry.language, "file": entry.file, "function": entry.function}
+    return site_still_stub(root, fields)
+
+
+def check_groups(root: Path, groups: list[Group], results: R.Results) -> Result:
+    """The grouping is complete and exclusive: every site in one group, every group with a site or a reason, orders 1..n, every
+    failed protecting test in one group, every listed test known."""
+    result = Result()
+    if sorted(g.order for g in groups) != list(range(1, len(groups) + 1)):
+        result.fail("E-ORDER-INVALID", GROUPS_FILE.as_posix(), f"orders are {sorted(g.order for g in groups)}; they must be 1 to {len(groups)}, each once")
+    for entry in touched_entries(root):
+        owners = [g.name for g in groups if g.takes(entry["file"])]
+        if not owners:
+            result.fail("E-SITE-UNGROUPED", site_name(entry), "no group takes this file")
+        elif len(owners) > 1:
+            result.fail("E-SITE-IN-TWO-GROUPS", site_name(entry), f"groups {', '.join(owners)}")
+    skipped = {}
+    for g in groups:
+        if not g.sites:
+            if g.empty_reason.strip():
+                skipped[g.name] = g.empty_reason
+            else:
+                result.fail("E-GROUP-EMPTY", g.name, "the group has no site and gives no empty_reason")
+    known = R.assigned_tests(root) | set(all_outcomes(results))
+    listed: dict[str, list[str]] = {}
+    for g in groups:
+        for test in dict.fromkeys(g.tests):
+            listed.setdefault(test, []).append(g.name)
+            if test not in known:
+                result.fail("E-TEST-UNKNOWN", test, f"group {g.name} lists a test no runner reports")
+    failed = deletion_failed(root)
+    for test, owners in sorted(listed.items()):
+        if len(owners) > 1:
+            result.fail("E-TEST-IN-TWO-GROUPS", test, f"groups {', '.join(owners)}")
+    if failed is not None:
+        for test in sorted(failed):
+            if test not in listed:
+                result.fail("E-TEST-UNGROUPED", test, "failed in the deletion report and is listed under no group")
+    result.data = {"skipped": skipped, "tests_checked": failed is not None}
+    return result
+
+
+@dataclass
+class GroupState:
+    group: Group
+    sites_connected: list[str]
+    sites_stub: list[str]
+    tests_green: list[str]
+    tests_red: list[str]
+
+    @property
+    def state(self) -> str:
+        if not self.group.sites:
+            return GROUP_SKIPPED
+        if self.sites_stub and not self.sites_connected:
+            return GROUP_WAITING
+        return GROUP_GREEN if not self.sites_stub and not self.tests_red else GROUP_RED
+
+
+def group_state(root: Path, group: Group, results: R.Results) -> GroupState:
+    by_name = {site_name(e): e for e in touched_entries(root)}
+    stub = [s for s in group.sites if site_is_stub(root, by_name[s])]
+    green, red = [], []
+    for test in dict.fromkeys(group.tests):
+        (green if results.outcome_of(test) == R.PASSED else red).append(test)
+    return GroupState(group, [s for s in group.sites if s not in stub], stub, green, red)
+
+
+def group_row(state: GroupState) -> dict:
+    return {"name": state.group.name, "order": state.group.order, "state": state.state, "sites": len(state.group.sites),
+            "sites_stub": len(state.sites_stub), "tests": len(state.tests_green) + len(state.tests_red), "tests_red": len(state.tests_red)}
+
+
+def connect_group(root: Path, groups: list[Group], name: str, results: R.Results, result: Result) -> None:
+    target = next((g for g in groups if g.name == name), None)
+    if target is None:
+        result.fail("E-GROUP-UNKNOWN", name, f"groups: {', '.join(g.name for g in groups)}")
+        return
+    earlier = [g for g in groups if g.order < target.order]
+    for g in earlier:
+        if group_state(root, g, results).sites_stub:
+            result.fail("E-GROUP-OUT-OF-ORDER", g.name, f"connect {g.name} first: it still has a stand-in")
+    if result.problems:
+        return
+    for language in sorted(results.missing):
+        result.error("E-RESULTS-MISSING", language, "no readable result file: run the suites first")
+    if result.exit_code == EXIT_ERROR:
+        return
+    mine = group_state(root, target, results)
+    for site in mine.sites_stub:
+        result.fail("E-GROUP-SITE-STUB", site, "still a stand-in")
+    for test in mine.tests_red:
+        result.fail("E-GROUP-TEST-RED", test, f"outcome: {results.outcome_of(test) or 'no result'}")
+    for g in earlier:
+        for test in group_state(root, g, results).tests_red:
+            result.fail("E-REGRESSION", test, f"a test of the earlier group {g.name} is red")
+    failed = deletion_failed(root)
+    turned = sorted(t for t in mine.tests_green if failed is not None and t in failed)
+    never = sorted(t for t in dict.fromkeys(target.tests) if failed is not None and t not in failed)
+    result.data.update({"group": target.name, "sites_connected": mine.sites_connected, "sites_stub": mine.sites_stub,
+                        "tests_green": mine.tests_green, "tests_red": mine.tests_red, "turned_green": turned, "never_failed": never})
 
 
 def epic_groups(root: Path, action: str, name: str | None, results: R.Results) -> Result:
-    raise NotImplementedError("skeleton")
+    result = Result()
+    if action == "propose":
+        groups = propose_groups(root)
+        result.data = {"groups": [{"name": g.name, "order": g.order, "sites": g.sites} for g in groups], "ungrouped": ungrouped_sites(root, groups)}
+        return result                                          # a draft is printed, never written
+    if not (root / GROUPS_FILE).exists():
+        result.error("E-GROUPS-MISSING", GROUPS_FILE.as_posix(), "no groups file: `epic-groups propose --toml` prints a draft")
+        R.write_report(root, "epic-groups", result)
+        return result
+    groups = load_groups(root)
+    checked = check_groups(root, groups, results)
+    if action == "check" or checked.exit_code != EXIT_OK:
+        R.write_report(root, "epic-groups", checked)
+        return checked
+    if action == "status":
+        result.data = {"groups": [group_row(group_state(root, g, results)) for g in groups], **checked.data}
+        R.write_report(root, "epic-groups", result)
+        return result
+    result.data = dict(checked.data)
+    connect_group(root, groups, name or "", results, result)
+    R.write_report(root, f"epic-group-{slug(name or '')}" if any(g.name == name for g in groups) else "epic-groups", result)
+    return result
 
 
 def epic_finish(root: Path, git: GitRunner = run_git, results: R.Results | None = None) -> Result:

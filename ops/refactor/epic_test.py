@@ -31,6 +31,7 @@ OVERLAY = EPIC_FIXTURES / "overlay"
 AUDIT_FIXTURES = EPIC_FIXTURES / "audit"
 MINI_IGNORED = shutil.ignore_patterns("target", "node_modules", "__pycache__", ".pytest_cache", "reports")
 REAL_ROOT = HERE.parent.parent
+COPY_IGNORED = shutil.ignore_patterns("node_modules", "__pycache__", ".pytest_cache")      # a copied bytecode cache would keep naming the original folder
 
 NO_NEWS = ""
 TEN_THOUSAND = 10_000
@@ -101,7 +102,7 @@ def canned_results(overrides: dict[str, str] | None = None, default: str = R.PAS
     for test in ASSIGNED:
         outcome = (overrides or {}).get(test, default)
         if test.startswith("rust:"):
-            found.rust_names[test.split("::", 1)[1].split("::", 1)[1]] = outcome
+            found.rust_names[test.partition(":")[2].split("::", 1)[1]] = outcome
         else:
             found.outcomes[test] = outcome
     return found
@@ -937,7 +938,7 @@ def stubbed_base(mini_deps, tool_env, tmp_path_factory):
 
 def stubbed_copy(stubbed_base: Path, tmp_path: Path, mini_deps: Path) -> Path:
     root = tmp_path / "mini"
-    shutil.copytree(stubbed_base, root, symlinks=True, ignore=shutil.ignore_patterns("node_modules"))
+    shutil.copytree(stubbed_base, root, symlinks=True, ignore=COPY_IGNORED)
     link_deps(root, mini_deps)
     return root
 
@@ -1081,7 +1082,7 @@ def finish_base(mini_deps, tool_env, tmp_path_factory):
 
 def finish_copy(finish_base: Path, tmp_path: Path) -> Path:
     root = tmp_path / "mini"
-    shutil.copytree(finish_base, root, symlinks=True)
+    shutil.copytree(finish_base, root, symlinks=True, ignore=COPY_IGNORED)
     return root
 
 
