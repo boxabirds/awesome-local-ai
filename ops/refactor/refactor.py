@@ -2055,7 +2055,7 @@ def main(argv: list[str] | None = None) -> int:
                        ("check-touched-set", "the committed whole touched set equals the scan"),
                        ("check-stubs", "every function in the whole touched set is a stub"),
                        ("fates", "every old test has one fate, every contract area a new test seen red; --render PATH writes the table"),
-                       ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every file in the whole touched set"),
+                       ("check-coverage", "run each language's suite under coverage: 100%% of lines and branches of every file in the whole touched set"),
                        ("report-deletion", "every assigned test failed against the stubs of the whole touched set, read from the files run-suites wrote"),
                        ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)"),
                        ("audit-check", "every audit pass is well formed, gives the hits its recorded queries give, and marks its new hits correctly"),

@@ -2459,6 +2459,16 @@ def test_tc101_the_help_of_each_scoped_command_names_the_whole_touched_set_and_n
     assert not [b for b in BANNED_PHRASES if b in out]
 
 
+def test_the_tool_s_own_help_prints_and_lists_every_command_instead_of_crashing(capsys):
+    with pytest.raises(SystemExit) as stopped:
+        R.main(["--help"])
+    assert stopped.value.code == 0
+    out = " ".join(capsys.readouterr().out.split())
+    for command in SCOPED_COMMANDS:
+        assert command in out, f"{command} is missing from the tool's own help"
+    assert "100% of lines and branches" in out
+
+
 def test_tc103_the_readme_says_the_stage_and_the_checks_act_on_the_whole_epic_and_uses_none_of_the_banned_phrases():
     text = " ".join((Path(__file__).parent / "README.md").read_text().lower().split())
     assert "whole epic" in text
