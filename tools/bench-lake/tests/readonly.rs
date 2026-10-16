@@ -45,7 +45,7 @@ fn tc77_the_lake_is_unchanged_after_every_call() {
     let answers = ask_everything(&lake);
     assert!(answers.len() > 100);
     // also the workspace call, a refusal and an absence
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     lake.workspace(&run, 1, &s.join("w")).unwrap();
     let _ = lake.workspace(&run, 1, &state.join("collected/x"));
     assert_eq!(snapshot(&state), before);

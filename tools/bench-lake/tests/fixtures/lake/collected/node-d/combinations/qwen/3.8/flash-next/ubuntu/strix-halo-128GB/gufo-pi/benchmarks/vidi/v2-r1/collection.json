@@ -1,0 +1,135 @@
+{
+  "node": "node-d",
+  "run": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1",
+  "job": "vidi-v2-gufo-r1",
+  "run_status": {
+    "state": "finished",
+    "at": "2026-09-30T07:18:36Z"
+  },
+  "job_state": "done",
+  "complete": true,
+  "first_collected_at": 1791026431,
+  "collected_at": 1792157056,
+  "settled_at": 1791026431,
+  "files": {
+    "progress.json": {
+      "bytes": 125809,
+      "node_size": 125809,
+      "node_mtime": 1790752716.569,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "server.log": {
+      "bytes": 1642822,
+      "node_size": 1642822,
+      "node_mtime": 1790752720.746,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/agent-events.jsonl": {
+      "bytes": 21107178,
+      "node_size": 21107178,
+      "node_mtime": 1790713555.694,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/agent-events.jsonl": {
+      "bytes": 30919740,
+      "node_size": 30919740,
+      "node_mtime": 1790718406.789,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/agent-events.jsonl": {
+      "bytes": 15184375,
+      "node_size": 15184375,
+      "node_mtime": 1790721197.114,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/agent-events.jsonl": {
+      "bytes": 12085639,
+      "node_size": 12085639,
+      "node_mtime": 1790724145.404,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/agent-events.jsonl": {
+      "bytes": 8939255,
+      "node_size": 8939255,
+      "node_mtime": 1790726362.558,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/agent-events.jsonl": {
+      "bytes": 6909669,
+      "node_size": 6909669,
+      "node_mtime": 1790728394.488,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/agent-events.jsonl": {
+      "bytes": 8597213,
+      "node_size": 8597213,
+      "node_mtime": 1790730857.258,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/agent-events.jsonl": {
+      "bytes": 8140850,
+      "node_size": 8140850,
+      "node_mtime": 1790733336.655,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/agent-events.jsonl": {
+      "bytes": 34807845,
+      "node_size": 34807845,
+      "node_mtime": 1790745771.65,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/agent-events.jsonl": {
+      "bytes": 20260547,
+      "node_size": 20260547,
+      "node_mtime": 1790749833.542,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/agent-events.jsonl": {
+      "bytes": 15983194,
+      "node_size": 15983194,
+      "node_mtime": 1790752619.892,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    }
+  },
+  "unlisted": 0,
+  "dbench_version": "0.1.0+cad9da4ad"
+}

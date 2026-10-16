@@ -26,7 +26,7 @@ fn assert_record_equals_file(lake: &Lake, run: &RunRef, record: &Record) {
 #[test]
 fn tc17_every_record_of_a_combination_run() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     for r in &SIX {
         assert_record_equals_file(&lake, &run, r);
     }
@@ -44,7 +44,7 @@ fn tc18_records_of_a_reference_run() {
 #[test]
 fn tc19_story_records() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     for r in [Record::Accept(1), Record::Prompt(1), Record::BaseCommit(1), Record::Gate(1)] {
         assert_record_equals_file(&lake, &run, &r);
     }
@@ -62,8 +62,8 @@ fn add_rescore(state: &std::path::Path, node: &str, id: &str, version: &str) {
 #[test]
 fn tc20_rescore_records() {
     let (_s, state, lake) = scratch_lake("rescore");
-    add_rescore(&state, "gruntus", ID_FRESH, "vidi-v2.0-pre2");
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    add_rescore(&state, "node-a", ID_FRESH, "vidi-v2.0-pre2");
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let v = "vidi-v2.0-pre2".to_string();
     assert_eq!(lake.bytes(&run, &Record::Rescore(v.clone())).unwrap(), br#"{"version":"x"}"#);
     assert_eq!(lake.value(&run, &Record::Rescore(v.clone())).unwrap()["version"], "x");
@@ -78,28 +78,28 @@ fn tc20_rescore_records() {
 fn tc21_rescore_versions() {
     let (_s, state, lake) = scratch_lake("versions");
     // created in reverse byte order
-    add_rescore(&state, "gruntus", ID_FRESH, "v2");
-    add_rescore(&state, "gruntus", ID_FRESH, "v1");
+    add_rescore(&state, "node-a", ID_FRESH, "v2");
+    add_rescore(&state, "node-a", ID_FRESH, "v1");
     // a file, a link and a folder with a bad name are not versions
-    write(&state.join("collected/gruntus").join(ID_FRESH).join("rescore/notes.txt"), b"x");
-    fs::create_dir_all(state.join("collected/gruntus").join(ID_FRESH).join("rescore/bad name")).unwrap();
+    write(&state.join("collected/node-a").join(ID_FRESH).join("rescore/notes.txt"), b"x");
+    fs::create_dir_all(state.join("collected/node-a").join(ID_FRESH).join("rescore/bad name")).unwrap();
     symlink(
-        state.join("collected/gruntus").join(ID_FRESH).join("rescore/v1"),
-        state.join("collected/gruntus").join(ID_FRESH).join("rescore/v0-link"),
+        state.join("collected/node-a").join(ID_FRESH).join("rescore/v1"),
+        state.join("collected/node-a").join(ID_FRESH).join("rescore/v0-link"),
     )
     .unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(lake.rescore_versions(&run).unwrap(), ["v1", "v2"]);
-    let none = find(&lake, ID_Q36, Some("gruntus"));
+    let none = find(&lake, ID_Q36, Some("node-a"));
     assert_eq!(lake.rescore_versions(&none).unwrap(), Vec::<String>::new());
 }
 
 #[test]
 fn tc21_rescore_that_is_a_link_is_not_a_file() {
     let (_s, state, lake) = scratch_lake("rescorelink");
-    let run_dir = state.join("collected/gruntus").join(ID_FRESH);
+    let run_dir = state.join("collected/node-a").join(ID_FRESH);
     symlink(&state, run_dir.join("rescore")).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let e = lake.rescore_versions(&run).unwrap_err();
     assert_eq!(e.reason, Reason::NotAFile);
 }
@@ -107,7 +107,7 @@ fn tc21_rescore_that_is_a_link_is_not_a_file() {
 #[test]
 fn tc22_text_records_are_text_and_the_same_bytes() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     for r in [Record::Prompt(1), Record::BaseCommit(1)] {
         let bytes = lake.bytes(&run, &r).unwrap();
         match lake.value(&run, &r).unwrap() {
@@ -120,10 +120,10 @@ fn tc22_text_records_are_text_and_the_same_bytes() {
 #[test]
 fn tc23_bytes_are_exact_for_non_utf8_and_crlf() {
     let (_s, state, lake) = scratch_lake("exact");
-    let run_dir = state.join("collected/gruntus").join(ID_FRESH);
+    let run_dir = state.join("collected/node-a").join(ID_FRESH);
     let odd: Vec<u8> = vec![0xff, 0xfe, b'\r', b'\n', 0x00, b'x'];
     fs::write(run_dir.join("stories/01/prompt.md"), &odd).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(lake.bytes(&run, &Record::Prompt(1)).unwrap(), odd);
     let e = lake.value(&run, &Record::Prompt(1)).unwrap_err();
     assert_eq!(e.reason, Reason::Malformed("not valid UTF-8".to_string()));
@@ -151,7 +151,7 @@ fn tc23_bytes_are_exact_for_non_utf8_and_crlf() {
 #[test]
 fn tc24_commit_of_a_story() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let metrics = lake.value(&run, &Record::Metrics).unwrap();
     let commit = metrics["stories"]["1"]["commit"].as_str().unwrap();
     assert_eq!(commit.len(), 40);
@@ -163,15 +163,15 @@ fn tc24_commit_of_a_story() {
 #[test]
 fn tc27_absent_record_combination() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_Q36, Some("quintus"));
+    let run = find(&lake, ID_Q36, Some("node-c"));
     let e = lake.bytes(&run, &Record::Finalize).unwrap_err();
     assert_eq!(e.reason, Reason::NotCollected);
     assert_eq!(e.run, ID_Q36);
-    assert_eq!(e.node.as_deref(), Some("quintus"));
+    assert_eq!(e.node.as_deref(), Some("node-c"));
     assert_eq!(e.item, Item::Record("finalize".to_string()));
     assert_eq!(
         e.to_text(),
-        format!("run={ID_Q36} node=quintus item=record:finalize code=E-LAKE-NOT-COLLECTED detail=no such file")
+        format!("run={ID_Q36} node=node-c item=record:finalize code=E-LAKE-NOT-COLLECTED detail=no such file")
     );
     assert_eq!(lake.value(&run, &Record::Finalize).unwrap_err(), e);
 }
@@ -192,10 +192,10 @@ fn tc28_absent_record_reference() {
 #[test]
 fn tc29_a_link_in_the_place_of_a_record() {
     let (_s, state, lake) = scratch_lake("linkrecord");
-    let run_dir = state.join("collected/gruntus").join(ID_FRESH);
+    let run_dir = state.join("collected/node-a").join(ID_FRESH);
     fs::remove_file(run_dir.join("metrics.json")).unwrap();
     symlink(run_dir.join("finalize.json"), run_dir.join("metrics.json")).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(lake.bytes(&run, &Record::Metrics).unwrap_err().reason, Reason::NotAFile);
     assert_eq!(lake.value(&run, &Record::Metrics).unwrap_err().reason, Reason::NotAFile);
     // a folder in the place of a record
@@ -213,10 +213,10 @@ fn tc29_a_link_in_the_place_of_a_record() {
 #[test]
 fn tc30_story_0_and_999_names() {
     let (_s, state, lake) = scratch_lake("stories");
-    let run_dir = state.join("collected/gruntus").join(ID_FRESH);
+    let run_dir = state.join("collected/node-a").join(ID_FRESH);
     write(&run_dir.join("stories/00/gate.json"), b"{\"s\":0}");
     write(&run_dir.join("stories/999/gate.json"), b"{\"s\":999}");
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(lake.value(&run, &Record::Gate(0)).unwrap()["s"], 0);
     assert_eq!(lake.value(&run, &Record::Gate(999)).unwrap()["s"], 999);
 }
@@ -265,11 +265,11 @@ fn tc32_and_tc33_versions_before_any_file_is_touched() {
 #[test]
 fn tc34_a_record_that_does_not_parse() {
     let (_s, state, lake) = scratch_lake("cut");
-    let run_dir = state.join("collected/gruntus").join(ID_FRESH);
+    let run_dir = state.join("collected/node-a").join(ID_FRESH);
     let whole = fs::read(run_dir.join("metrics.json")).unwrap();
     let half = &whole[..whole.len() / 2];
     fs::write(run_dir.join("metrics.json"), half).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let e = lake.value(&run, &Record::Metrics).unwrap_err();
     assert_eq!(e.reason, Reason::Malformed("not valid JSON".to_string()));
     assert!(e.message.as_deref().is_some_and(|m| !m.is_empty()), "the parser's message is carried: {:?}", e.message);
@@ -283,9 +283,9 @@ fn tc73_unreadable_record() {
         return;
     }
     let (_s, state, lake) = scratch_lake("unreadable");
-    let p = state.join("collected/gruntus").join(ID_FRESH).join("metrics.json");
+    let p = state.join("collected/node-a").join(ID_FRESH).join("metrics.json");
     fs::set_permissions(&p, fs::Permissions::from_mode(0o000)).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let e = lake.bytes(&run, &Record::Metrics).unwrap_err();
     assert_eq!(e.reason, Reason::Unreadable("permission denied".to_string()));
     assert_eq!(e.code(), "E-LAKE-UNREADABLE");
@@ -297,18 +297,18 @@ fn tc73_unreadable_record() {
 fn tc74_no_fallback_to_another_copy() {
     let lake = fixture_lake();
     let d = lake.discover();
-    let gruntus = lake.find_run(&d, ID_Q36).unwrap();
-    assert!(lake.bytes(gruntus, &Record::Finalize).is_ok(), "the preferred copy holds finalize.json");
-    let quintus = lake.find_run(&d, &format!("quintus@{ID_Q36}")).unwrap();
-    let e = lake.bytes(quintus, &Record::Finalize).unwrap_err();
+    let first = lake.find_run(&d, ID_Q36).unwrap();
+    assert!(lake.bytes(first, &Record::Finalize).is_ok(), "the preferred copy holds finalize.json");
+    let second = lake.find_run(&d, &format!("node-c@{ID_Q36}")).unwrap();
+    let e = lake.bytes(second, &Record::Finalize).unwrap_err();
     assert_eq!(e.reason, Reason::NotCollected);
-    assert_eq!(e.node.as_deref(), Some("quintus"));
+    assert_eq!(e.node.as_deref(), Some("node-c"));
 }
 
 #[test]
 fn tc75_no_default_value_for_an_absent_record() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_FLASH, Some("tritus"));
+    let run = find(&lake, ID_FLASH, Some("node-d"));
     for r in [Record::Metrics, Record::Accept(1), Record::Prompt(1), Record::BaseCommit(1)] {
         assert!(lake.value(&run, &r).is_err(), "{r:?}");
         assert!(lake.bytes(&run, &r).is_err(), "{r:?}");
@@ -318,11 +318,11 @@ fn tc75_no_default_value_for_an_absent_record() {
 #[test]
 fn tc79_a_transfer_in_progress_is_never_returned() {
     let (_s, state, lake) = scratch_lake("partial");
-    let run_dir = state.join("collected/gruntus").join(ID_FRESH);
+    let run_dir = state.join("collected/node-a").join(ID_FRESH);
     fs::remove_file(run_dir.join("metrics.json")).unwrap();
     fs::write(run_dir.join(".metrics.json.partial"), b"{\"half\":").unwrap();
     fs::write(run_dir.join(".metrics.json.1234.tmp"), b"{\"half\":").unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let e = lake.bytes(&run, &Record::Metrics).unwrap_err();
     assert_eq!(e.reason, Reason::NotCollected);
     assert_eq!(lake.value(&run, &Record::Metrics).unwrap_err().reason, Reason::NotCollected);
@@ -333,10 +333,10 @@ fn tc79_a_transfer_in_progress_is_never_returned() {
 #[test]
 fn tc80_a_transfer_next_to_a_good_file() {
     let (_s, state, lake) = scratch_lake("partialgood");
-    let run_dir = state.join("collected/gruntus").join(ID_FRESH);
+    let run_dir = state.join("collected/node-a").join(ID_FRESH);
     let good = fs::read(run_dir.join("metrics.json")).unwrap();
     fs::write(run_dir.join(".metrics.json.partial"), b"{\"half\":").unwrap();
     fs::write(run_dir.join(".metrics.json.1234.tmp"), b"junk").unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(lake.bytes(&run, &Record::Metrics).unwrap(), good);
 }

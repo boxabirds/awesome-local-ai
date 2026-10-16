@@ -21,7 +21,7 @@ fn parts(c: Completeness) -> (&'static str, Option<String>, Option<u64>, Option<
 #[test]
 fn tc59_combination_complete() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(
         parts(lake.completeness(&run).unwrap()),
         ("complete", Some("finished".to_string()), Some(1792116937), Some(1792160967))
@@ -31,15 +31,15 @@ fn tc59_combination_complete() {
 #[test]
 fn tc60_combination_incomplete() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_DRY, Some("gruntus"));
+    let run = find(&lake, ID_DRY, Some("node-a"));
     assert_eq!(parts(lake.completeness(&run).unwrap()), ("incomplete", None, None, Some(1792161516)));
 }
 
 #[test]
 fn tc61_combination_no_note() {
     let (_s, state, lake) = scratch_lake("nonote");
-    fs::remove_file(state.join("collected/gruntus").join(ID_FRESH).join(NOTE)).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    fs::remove_file(state.join("collected/node-a").join(ID_FRESH).join(NOTE)).unwrap();
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(lake.completeness(&run).unwrap(), Completeness::NoNote);
 }
 
@@ -72,9 +72,9 @@ fn tc64_reference_no_note() {
 #[test]
 fn tc66_note_not_json() {
     let (_s, state, lake) = scratch_lake("notjson");
-    let p = state.join("collected/gruntus").join(ID_FRESH).join(NOTE);
+    let p = state.join("collected/node-a").join(ID_FRESH).join(NOTE);
     fs::write(&p, b"this is text").unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let e = lake.completeness(&run).unwrap_err();
     assert_eq!(e.reason, Reason::Malformed("not valid JSON".to_string()));
     assert_eq!(e.item, Item::Record("collection".to_string()));
@@ -83,9 +83,9 @@ fn tc66_note_not_json() {
 #[test]
 fn tc67_no_boolean_complete() {
     let (_s, state, lake) = scratch_lake("nobool");
-    let p = state.join("collected/gruntus").join(ID_FRESH).join(NOTE);
+    let p = state.join("collected/node-a").join(ID_FRESH).join(NOTE);
     fs::write(&p, br#"{"complete":"yes"}"#).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(lake.completeness(&run).unwrap_err().reason, Reason::Malformed("complete is not a boolean".to_string()));
     fs::write(&p, b"[true]").unwrap();
     assert_eq!(lake.completeness(&run).unwrap_err().reason, Reason::Malformed("note is not an object".to_string()));
@@ -94,11 +94,11 @@ fn tc67_no_boolean_complete() {
 #[test]
 fn the_note_as_a_link_or_unreadable() {
     let (s, state, lake) = scratch_lake("notelink");
-    let p = state.join("collected/gruntus").join(ID_FRESH).join(NOTE);
+    let p = state.join("collected/node-a").join(ID_FRESH).join(NOTE);
     let moved = s.join("moved.json");
     fs::rename(&p, &moved).unwrap();
     symlink(&moved, &p).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(lake.completeness(&run).unwrap_err().reason, Reason::NotAFile);
     fs::remove_file(&p).unwrap();
     fs::create_dir(&p).unwrap();
@@ -123,9 +123,9 @@ fn tc68_only_the_note_is_read() {
         return;
     }
     let (_s, state, lake) = scratch_lake("onlynote");
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let want = lake.completeness(&run).unwrap();
-    let dir = state.join("collected/gruntus").join(ID_FRESH);
+    let dir = state.join("collected/node-a").join(ID_FRESH);
     for e in fs::read_dir(&dir).unwrap().flatten() {
         if e.file_name() != NOTE {
             if e.path().is_dir() {

@@ -7,7 +7,7 @@ use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::Path;
 
-const NODE_PATH: &str = "collected/gruntus/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi";
+const NODE_PATH: &str = "collected/node-a/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi";
 const REAL_HOST_ENV: &str = "BENCH_LAKE_HOST_STATE";
 
 fn labels(d: &bench_lake::Discovery) -> Vec<(String, &'static str)> {
@@ -26,10 +26,10 @@ fn tc01_combination_run_one_copy() {
     assert_eq!(copies.len(), 1);
     let r = copies[0];
     assert_eq!(r.kind, Kind::Combination);
-    assert_eq!(r.node.as_deref(), Some("tritus"));
+    assert_eq!(r.node.as_deref(), Some("node-d"));
     assert_eq!(r.id, ID_FLASH);
-    assert_eq!(r.dir, fixture_state().join("collected/tritus").join(ID_FLASH));
-    assert_eq!(r.label, format!("collected/tritus/{ID_FLASH}"));
+    assert_eq!(r.dir, fixture_state().join("collected/node-d").join(ID_FLASH));
+    assert_eq!(r.label, format!("collected/node-d/{ID_FLASH}"));
 }
 
 #[test]
@@ -41,12 +41,12 @@ fn whole_fixture_lake_is_listed_in_order() {
     let want: Vec<(String, Option<String>)> = vec![
         (ID_TODOODLE, None),
         (ID_REFV, None),
-        (ID_Q36, Some("gruntus")),
-        (ID_Q36, Some("quintus")),
-        (ID_Q36, Some("tritus")),
-        (ID_DRY, Some("gruntus")),
-        (ID_FRESH, Some("gruntus")),
-        (ID_FLASH, Some("tritus")),
+        (ID_Q36, Some("node-a")),
+        (ID_Q36, Some("node-c")),
+        (ID_Q36, Some("node-d")),
+        (ID_DRY, Some("node-a")),
+        (ID_FRESH, Some("node-a")),
+        (ID_FLASH, Some("node-d")),
     ]
     .into_iter()
     .map(|(i, n)| (i.to_string(), n.map(String::from)))
@@ -61,7 +61,7 @@ fn tc02_combination_run_several_copies() {
     let d = lake.discover();
     let copies = lake.copies(&d, ID_Q36);
     let nodes: Vec<&str> = copies.iter().map(|r| r.node.as_deref().unwrap()).collect();
-    assert_eq!(nodes, ["gruntus", "quintus", "tritus"]);
+    assert_eq!(nodes, ["node-a", "node-c", "node-d"]);
     assert!(copies.iter().all(|r| r.kind == Kind::Combination && r.id == ID_Q36));
 }
 
@@ -94,10 +94,10 @@ fn tc04_reference_run_has_no_node_and_one_place() {
 #[test]
 fn tc05_the_real_stray_folder() {
     let (_s, state, lake) = scratch_lake("stray");
-    fs::create_dir(state.join("collected/tritus/benchmarks")).unwrap();
+    fs::create_dir(state.join("collected/node-d/benchmarks")).unwrap();
     let d = lake.discover();
-    assert_eq!(labels(&d), [("collected/tritus/benchmarks".to_string(), "E-LAKE-STRAY")]);
-    assert_eq!(d.rejected[0].path, state.join("collected/tritus/benchmarks"));
+    assert_eq!(labels(&d), [("collected/node-d/benchmarks".to_string(), "E-LAKE-STRAY")]);
+    assert_eq!(d.rejected[0].path, state.join("collected/node-d/benchmarks"));
     assert_eq!(d.runs.len(), FIXTURE_RUN_COUNT);
 }
 
@@ -105,18 +105,18 @@ fn tc05_the_real_stray_folder() {
 fn tc06_file_and_symlink_where_folders_belong() {
     let (_s, state, lake) = scratch_lake("links");
     write(&state.join("collected/zz-file"), b"x");
-    symlink(state.join("collected/gruntus"), state.join("collected/zz-link")).unwrap();
+    symlink(state.join("collected/node-a"), state.join("collected/zz-link")).unwrap();
     // A link at run depth that points to a run.
     let pack = state.join(NODE_PATH);
     symlink(pack.join("v2-fresh-r1"), pack.join("v2-link")).unwrap();
     // A file and a link inside a node folder.
-    write(&state.join("collected/tritus/readme.txt"), b"x");
+    write(&state.join("collected/node-d/readme.txt"), b"x");
     let d = lake.discover();
     let got = labels(&d);
     assert!(got.contains(&("collected/zz-file".to_string(), "E-LAKE-NOT-A-FOLDER")), "{got:?}");
     assert!(got.contains(&("collected/zz-link".to_string(), "E-LAKE-NOT-A-FOLDER")), "{got:?}");
     assert!(got.contains(&(format!("{NODE_PATH}/v2-link"), "E-LAKE-NOT-A-FOLDER")), "{got:?}");
-    assert!(got.contains(&("collected/tritus/readme.txt".to_string(), "E-LAKE-STRAY")), "{got:?}");
+    assert!(got.contains(&("collected/node-d/readme.txt".to_string(), "E-LAKE-STRAY")), "{got:?}");
     assert_eq!(got.len(), 4, "{got:?}");
     assert_eq!(d.runs.len(), FIXTURE_RUN_COUNT, "the link's target is not listed twice");
 }
@@ -125,7 +125,7 @@ fn tc06_file_and_symlink_where_folders_belong() {
 fn tc06_a_link_named_combinations_is_not_followed() {
     let (_s, state, lake) = scratch_lake("combolink");
     fs::create_dir(state.join("collected/newnode")).unwrap();
-    symlink(state.join("collected/tritus/combinations"), state.join("collected/newnode/combinations")).unwrap();
+    symlink(state.join("collected/node-d/combinations"), state.join("collected/newnode/combinations")).unwrap();
     let d = lake.discover();
     assert_eq!(labels(&d), [("collected/newnode/combinations".to_string(), "E-LAKE-NOT-A-FOLDER")]);
     assert_eq!(d.runs.len(), FIXTURE_RUN_COUNT);
@@ -134,7 +134,7 @@ fn tc06_a_link_named_combinations_is_not_followed() {
 #[test]
 fn tc07_depth_nine_and_ten() {
     let (_s, state, lake) = scratch_lake("depth");
-    let nine = "collected/tritus/combinations/a/b/c/d/e/f-g/benchmarks/p/r9";
+    let nine = "collected/node-d/combinations/a/b/c/d/e/f-g/benchmarks/p/r9";
     make_run(&state, nine);
     // A run-like folder one level deeper, inside a run folder: it is the run's own content.
     make_run(&state, &format!("{nine}/r10"));
@@ -148,13 +148,13 @@ fn tc07_depth_nine_and_ten() {
 #[test]
 fn tc07_a_chain_that_ends_too_early_is_shallow() {
     let (_s, state, lake) = scratch_lake("shallow");
-    fs::create_dir_all(state.join("collected/tritus/combinations/a/b/c")).unwrap();
+    fs::create_dir_all(state.join("collected/node-d/combinations/a/b/c")).unwrap();
     fs::create_dir_all(state.join("reference/pack")).unwrap();
     let d = lake.discover();
     assert_eq!(
         labels(&d),
         [
-            ("collected/tritus/combinations/a/b/c".to_string(), "E-LAKE-SHALLOW"),
+            ("collected/node-d/combinations/a/b/c".to_string(), "E-LAKE-SHALLOW"),
             ("reference/pack".to_string(), "E-LAKE-SHALLOW")
         ]
     );
@@ -163,18 +163,18 @@ fn tc07_a_chain_that_ends_too_early_is_shallow() {
 #[test]
 fn tc07_a_file_above_run_depth_is_not_a_folder() {
     let (_s, state, lake) = scratch_lake("fileabove");
-    write(&state.join("collected/tritus/combinations/a/file.txt"), b"x");
+    write(&state.join("collected/node-d/combinations/a/file.txt"), b"x");
     let d = lake.discover();
     assert_eq!(
         labels(&d),
-        [("collected/tritus/combinations/a/file.txt".to_string(), "E-LAKE-NOT-A-FOLDER")]
+        [("collected/node-d/combinations/a/file.txt".to_string(), "E-LAKE-NOT-A-FOLDER")]
     );
 }
 
 #[test]
 fn tc08_to_tc10_part_rule_in_the_walk() {
     let (_s, state, lake) = scratch_lake("parts");
-    let base = "collected/tritus/combinations/a/b/c/d/e/f-g/benchmarks/p";
+    let base = "collected/node-d/combinations/a/b/c/d/e/f-g/benchmarks/p";
     make_run(&state, &format!("{base}/{}", "x".repeat(64)));
     make_run(&state, &format!("{base}/{}", "y".repeat(65)));
     make_run(&state, &format!("{base}/with space"));
@@ -192,14 +192,14 @@ fn tc08_to_tc10_part_rule_in_the_walk() {
 #[test]
 fn tc09_literal_benchmarks_and_dash_rules() {
     let (_s, state, lake) = scratch_lake("literal");
-    make_run(&state, "collected/tritus/combinations/a/b/c/d/e/f-g/notbenchmarks/p/r");
-    make_run(&state, "collected/tritus/combinations/a/b/c/d/e/nodash/benchmarks/p/r");
+    make_run(&state, "collected/node-d/combinations/a/b/c/d/e/f-g/notbenchmarks/p/r");
+    make_run(&state, "collected/node-d/combinations/a/b/c/d/e/nodash/benchmarks/p/r");
     let d = lake.discover();
     assert_eq!(
         labels(&d),
         [
-            ("collected/tritus/combinations/a/b/c/d/e/f-g/notbenchmarks".to_string(), "E-LAKE-BAD-PART"),
-            ("collected/tritus/combinations/a/b/c/d/e/nodash".to_string(), "E-LAKE-BAD-PART"),
+            ("collected/node-d/combinations/a/b/c/d/e/f-g/notbenchmarks".to_string(), "E-LAKE-BAD-PART"),
+            ("collected/node-d/combinations/a/b/c/d/e/nodash".to_string(), "E-LAKE-BAD-PART"),
         ]
     );
     assert_eq!(d.runs.len(), FIXTURE_RUN_COUNT);
@@ -216,14 +216,14 @@ fn tc09_a_bad_node_name() {
 #[test]
 fn tc11_no_marker() {
     let (_s, state, lake) = scratch_lake("nomarker");
-    let rel = "collected/tritus/combinations/a/b/c/d/e/f-g/benchmarks/p/r";
+    let rel = "collected/node-d/combinations/a/b/c/d/e/f-g/benchmarks/p/r";
     fs::create_dir_all(state.join(rel).join("stories")).unwrap();
     let d = lake.discover();
     assert_eq!(labels(&d), [(rel.to_string(), "E-LAKE-NO-MARKER")]);
     // A marker that is a folder or a link is not a marker.
-    let rel2 = "collected/tritus/combinations/a/b/c/d/e/f-g/benchmarks/p/r2";
+    let rel2 = "collected/node-d/combinations/a/b/c/d/e/f-g/benchmarks/p/r2";
     fs::create_dir_all(state.join(rel2).join("run.json")).unwrap();
-    let rel3 = "collected/tritus/combinations/a/b/c/d/e/f-g/benchmarks/p/r3";
+    let rel3 = "collected/node-d/combinations/a/b/c/d/e/f-g/benchmarks/p/r3";
     fs::create_dir_all(state.join(rel3)).unwrap();
     write(&state.join("target.json"), b"{}");
     symlink(state.join("target.json"), state.join(rel3).join("collection.json")).unwrap();
@@ -235,7 +235,7 @@ fn tc11_no_marker() {
 #[test]
 fn either_marker_makes_a_run() {
     let (_s, state, lake) = scratch_lake("markers");
-    let base = "collected/tritus/combinations/a/b/c/d/e/f-g/benchmarks/p";
+    let base = "collected/node-d/combinations/a/b/c/d/e/f-g/benchmarks/p";
     write(&state.join(base).join("r1/collection.json"), b"{}");
     write(&state.join(base).join("r2/run.json"), b"{}");
     let d = lake.discover();
@@ -276,7 +276,7 @@ fn tc13_empty_root() {
 fn tc14_preferred_on_real_notes() {
     let lake = fixture_lake();
     let d = lake.discover();
-    assert_eq!(lake.preferred(&d, ID_Q36).unwrap().node.as_deref(), Some("gruntus"));
+    assert_eq!(lake.preferred(&d, ID_Q36).unwrap().node.as_deref(), Some("node-a"));
     assert_eq!(lake.preferred(&d, ID_REFV).unwrap().node, None);
     assert!(lake.preferred(&d, "combinations/nothing").is_none());
 }
@@ -295,29 +295,29 @@ fn tc14_preferred_follows_the_ranking_on_scratch_notes() {
         let d = lake.discover();
         lake.preferred(&d, ID_Q36).unwrap().node.clone().unwrap()
     };
-    assert_eq!(pref(&lake), "gruntus");
-    // quintus settles later: it wins (same complete flag, same number of files).
-    set_note(&state, "quintus", |v| v["settled_at"] = serde_json::json!(1792116938));
-    assert_eq!(pref(&lake), "quintus");
+    assert_eq!(pref(&lake), "node-a");
+    // node-c settles later: it wins (same complete flag, same number of files).
+    set_note(&state, "node-c", |v| v["settled_at"] = serde_json::json!(1792116938));
+    assert_eq!(pref(&lake), "node-c");
     // equal settled_at: the smaller node name.
-    set_note(&state, "quintus", |v| v["settled_at"] = serde_json::json!(1792116937));
-    assert_eq!(pref(&lake), "gruntus");
-    // gruntus incomplete: a complete copy ranks first.
-    set_note(&state, "gruntus", |v| v["complete"] = serde_json::json!(false));
-    assert_eq!(pref(&lake), "quintus");
-    // quintus's note lists fewer files than tritus's; make tritus complete with more files.
-    set_note(&state, "tritus", |v| {
+    set_note(&state, "node-c", |v| v["settled_at"] = serde_json::json!(1792116937));
+    assert_eq!(pref(&lake), "node-a");
+    // node-a incomplete: a complete copy ranks first.
+    set_note(&state, "node-a", |v| v["complete"] = serde_json::json!(false));
+    assert_eq!(pref(&lake), "node-c");
+    // node-c's note lists fewer files than node-d's; make node-d complete with more files.
+    set_note(&state, "node-d", |v| {
         let files: serde_json::Map<String, serde_json::Value> =
             (0..100).map(|i| (format!("f{i}"), serde_json::json!({}))).collect();
         v["files"] = serde_json::Value::Object(files);
     });
-    assert_eq!(pref(&lake), "tritus");
+    assert_eq!(pref(&lake), "node-d");
     // a copy with no note ranks last.
-    fs::remove_file(state.join("collected/tritus").join(ID_Q36).join("collection.json")).unwrap();
-    assert_eq!(pref(&lake), "quintus");
+    fs::remove_file(state.join("collected/node-d").join(ID_Q36).join("collection.json")).unwrap();
+    assert_eq!(pref(&lake), "node-c");
     // a note that is not JSON counts as no note.
-    fs::write(state.join("collected/quintus").join(ID_Q36).join("collection.json"), b"not json").unwrap();
-    assert_eq!(pref(&lake), "gruntus");
+    fs::write(state.join("collected/node-c").join(ID_Q36).join("collection.json"), b"not json").unwrap();
+    assert_eq!(pref(&lake), "node-a");
 }
 
 #[test]
@@ -387,7 +387,7 @@ fn tc16_order_is_stable() {
 fn tc81_discover_ignores_temporaries_beside_records() {
     let (_s, state, lake) = scratch_lake("tmpdiscover");
     let before = lake.discover();
-    let run = state.join("collected/gruntus").join(ID_FRESH);
+    let run = state.join("collected/node-a").join(ID_FRESH);
     write(&run.join(".collection.json.partial"), b"x");
     write(&run.join(".metrics.json.1234.tmp"), b"x");
     let after = lake.discover();
@@ -403,7 +403,7 @@ fn an_unlistable_folder_is_rejected_unreadable() {
     }
     use std::os::unix::fs::PermissionsExt;
     let (_s, state, lake) = scratch_lake("unlistable");
-    let dir = state.join("collected/gruntus/combinations/qwen/3.8-swift-1.5/27b");
+    let dir = state.join("collected/node-a/combinations/qwen/3.8-swift-1.5/27b");
     fs::set_permissions(&dir, fs::Permissions::from_mode(0o000)).unwrap();
     let d = lake.discover();
     fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
@@ -418,9 +418,9 @@ fn an_unlistable_folder_is_rejected_unreadable() {
 fn find_run_by_id_and_by_node() {
     let lake = fixture_lake();
     let d = lake.discover();
-    assert_eq!(lake.find_run(&d, ID_Q36).unwrap().node.as_deref(), Some("gruntus"));
-    let spec = format!("quintus@{ID_Q36}");
-    assert_eq!(lake.find_run(&d, &spec).unwrap().node.as_deref(), Some("quintus"));
+    assert_eq!(lake.find_run(&d, ID_Q36).unwrap().node.as_deref(), Some("node-a"));
+    let spec = format!("node-c@{ID_Q36}");
+    assert_eq!(lake.find_run(&d, &spec).unwrap().node.as_deref(), Some("node-c"));
     let e = lake.find_run(&d, &format!("nonode@{ID_Q36}")).unwrap_err();
     assert_eq!(e.code(), "E-LAKE-NO-RUN");
     assert_eq!(e.node.as_deref(), Some("nonode"));

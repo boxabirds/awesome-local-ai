@@ -281,14 +281,14 @@ fn completeness_names() {
 // ---- absence (TC-69, TC-70, TC-71, TC-75) ----
 
 fn finalize_absent() -> Absent {
-    Absent::new("combinations/x", Some("gruntus"), Item::Record("finalize".into()), Reason::NotCollected)
+    Absent::new("combinations/x", Some("node-a"), Item::Record("finalize".into()), Reason::NotCollected)
 }
 
 #[test]
 fn tc69_canonical_text() {
     assert_eq!(
         finalize_absent().to_text(),
-        "run=combinations/x node=gruntus item=record:finalize code=E-LAKE-NOT-COLLECTED detail=no such file"
+        "run=combinations/x node=node-a item=record:finalize code=E-LAKE-NOT-COLLECTED detail=no such file"
     );
     let reference = Absent::new("benchmarks/reference/p/s/r", None, Item::Run, Reason::NoRun);
     assert_eq!(
@@ -301,7 +301,7 @@ fn tc69_canonical_text() {
 fn tc70_canonical_json() {
     assert_eq!(
         finalize_absent().to_json(),
-        r#"{"code":"E-LAKE-NOT-COLLECTED","detail":"no such file","item":"record:finalize","node":"gruntus","run":"combinations/x"}"#
+        r#"{"code":"E-LAKE-NOT-COLLECTED","detail":"no such file","item":"record:finalize","node":"node-a","run":"combinations/x"}"#
     );
     let reference = Absent::new("r", None, Item::Log(2), Reason::Malformed("not valid gzip".into()));
     assert_eq!(

@@ -1,5 +1,5 @@
 {
-  "node": "macbook-air",
+  "node": "node-b",
   "run": "benchmarks/reference/vidi/sonnet-5.5/v2-r1",
   "job": "vidi-v2-sonnet-c-r1",
   "run_status": {

@@ -155,7 +155,7 @@ Example (the whole fixture lake):
 
 ```example
 $ bench-lake <LAKE> runs
-{"missing_roots":[],"rejected":[],"runs":[{"dir":"reference/todoodle/opus-5.5/run-1","id":"benchmarks/reference/todoodle/opus-5.5/run-1","kind":"reference","node":null},{"dir":"reference/vidi/sonnet-5.5/v2-r1","id":"benchmarks/reference/vidi/sonnet-5.5/v2-r1","kind":"reference","node":null},{"dir":"collected/gruntus/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"gruntus"},{"dir":"collected/quintus/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"quintus"},{"dir":"collected/tritus/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"tritus"},{"dir":"collected/gruntus/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","id":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","kind":"combination","node":"gruntus"},{"dir":"collected/gruntus/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","id":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","kind":"combination","node":"gruntus"},{"dir":"collected/tritus/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1","id":"combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1","kind":"combination","node":"tritus"}],"status":"found"}
+{"missing_roots":[],"rejected":[],"runs":[{"dir":"reference/todoodle/opus-5.5/run-1","id":"benchmarks/reference/todoodle/opus-5.5/run-1","kind":"reference","node":null},{"dir":"reference/vidi/sonnet-5.5/v2-r1","id":"benchmarks/reference/vidi/sonnet-5.5/v2-r1","kind":"reference","node":null},{"dir":"collected/node-a/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-a"},{"dir":"collected/node-c/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-c"},{"dir":"collected/node-d/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-d"},{"dir":"collected/node-a/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","id":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","kind":"combination","node":"node-a"},{"dir":"collected/node-a/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","id":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","kind":"combination","node":"node-a"},{"dir":"collected/node-d/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1","id":"combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1","kind":"combination","node":"node-d"}],"status":"found"}
 ```
 
 
@@ -168,7 +168,7 @@ list, not an absence. `copies` takes an id, not `node@id`.
 
 ```example
 $ bench-lake <LAKE> copies combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2
-{"copies":[{"dir":"collected/gruntus/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"gruntus"},{"dir":"collected/quintus/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"quintus"},{"dir":"collected/tritus/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"tritus"}],"status":"found"}
+{"copies":[{"dir":"collected/node-a/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-a"},{"dir":"collected/node-c/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-c"},{"dir":"collected/node-d/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-d"}],"status":"found"}
 ```
 
 
@@ -184,7 +184,7 @@ counts as no note.
 
 ```example
 $ bench-lake <LAKE> preferred combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2
-{"preferred":{"dir":"collected/gruntus/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"gruntus"},"status":"found"}
+{"preferred":{"dir":"collected/node-a/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-a"},"status":"found"}
 ```
 
 
@@ -200,19 +200,19 @@ record that is a symbolic link makes the record `E-LAKE-NOT-A-FILE`.
 
 ```example
 $ bench-lake <LAKE> record combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1 status
-{"length":164,"node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","sha256":"9b61c0b048dca355d1cc3907e87d2026c2203c13851e70d32ceed4177a9de962","status":"found","value":{"at":"2026-10-03T06:45:06Z","host":"13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB","reason":"","state":"finished"}}
+{"length":164,"node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","sha256":"9b61c0b048dca355d1cc3907e87d2026c2203c13851e70d32ceed4177a9de962","status":"found","value":{"at":"2026-10-03T06:45:06Z","host":"13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB","reason":"","state":"finished"}}
 ```
 
 
 ```example
 $ bench-lake <LAKE> record combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1 accept 1
-{"length":308,"node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","sha256":"f150c3e8964dd324d32d1c4b8ff7b06cb7717ff3a8c0c4fabf7515dbdcb75b7a","status":"found","value":{"build_exit":0,"by_story":{"01":{"passed":6,"total":6}},"harness_fault":null,"on_partial":{"passed":0,"total":0},"passed":6,"runner_exit":0,"setup_fallbacks":{"by_owner":{},"tests":0},"skipped":false,"total":6}}
+{"length":308,"node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","sha256":"f150c3e8964dd324d32d1c4b8ff7b06cb7717ff3a8c0c4fabf7515dbdcb75b7a","status":"found","value":{"build_exit":0,"by_story":{"01":{"passed":6,"total":6}},"harness_fault":null,"on_partial":{"passed":0,"total":0},"passed":6,"runner_exit":0,"setup_fallbacks":{"by_owner":{},"tests":0},"skipped":false,"total":6}}
 ```
 
 
 ```example
 $ bench-lake <LAKE> record combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1 base-commit 1
-{"length":40,"node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","sha256":"9e38c0cc8d92434d7caa330975512b0c28915d09179527b6a14d226757b5bd3b","status":"found","value":"30816ab716043c8a400ee0e43b0e7f8b3438a3ea"}
+{"length":40,"node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","sha256":"9e38c0cc8d92434d7caa330975512b0c28915d09179527b6a14d226757b5bd3b","status":"found","value":"30816ab716043c8a400ee0e43b0e7f8b3438a3ea"}
 ```
 
 
@@ -224,19 +224,19 @@ $ bench-lake <LAKE> record benchmarks/reference/todoodle/opus-5.5/run-1 status
 
 ```example
 $ bench-lake <LAKE> record combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2 metrics
-{"absent":{"code":"E-LAKE-NOT-COLLECTED","detail":"no such file","item":"record:metrics","node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2"},"status":"absent"}
+{"absent":{"code":"E-LAKE-NOT-COLLECTED","detail":"no such file","item":"record:metrics","node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2"},"status":"absent"}
 ```
 
 
 ```example
 $ bench-lake <LAKE> record combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1 accept 1000
-{"absent":{"code":"E-LAKE-BAD-NAME","detail":"story out of range","item":"record:accept:1000","node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1"},"status":"absent"}
+{"absent":{"code":"E-LAKE-BAD-NAME","detail":"story out of range","item":"record:accept:1000","node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1"},"status":"absent"}
 ```
 
 
 ```example
 $ bench-lake <LAKE> record combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1 rescore ..
-{"absent":{"code":"E-LAKE-BAD-NAME","detail":"version not valid","item":"record:rescore:..","node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1"},"status":"absent"}
+{"absent":{"code":"E-LAKE-BAD-NAME","detail":"version not valid","item":"record:rescore:..","node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1"},"status":"absent"}
 ```
 
 
@@ -261,19 +261,19 @@ item `log:S`; if reading fails the operating system's `E-LAKE-UNREADABLE`.
 
 ```example
 $ bench-lake <LAKE> log combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1 1
-{"form":"raw","length":20512,"lines":20,"node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","sha256":"09d5ed00ca140e000ce37c67431902ec1ce67e14ad668bafc8347abbb5ea2a12","status":"found","story":1}
+{"form":"raw","length":20512,"lines":20,"node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","sha256":"09d5ed00ca140e000ce37c67431902ec1ce67e14ad668bafc8347abbb5ea2a12","status":"found","story":1}
 ```
 
 
 ```example
 $ bench-lake <LAKE> log combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1
-{"form":"compact","length":3869372,"lines":2522,"node":"gruntus","run":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","sha256":"f65e73473d0ea44f5ec38f8a1fa768347977281cb7113134fd6e87abd699f2f2","status":"found","story":1}
+{"form":"compact","length":3869372,"lines":2522,"node":"node-a","run":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","sha256":"f65e73473d0ea44f5ec38f8a1fa768347977281cb7113134fd6e87abd699f2f2","status":"found","story":1}
 ```
 
 
 ```example
 $ bench-lake <LAKE> log combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1 2
-{"absent":{"code":"E-LAKE-NOT-COLLECTED","detail":"no such file","item":"log:2","node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1"},"status":"absent"}
+{"absent":{"code":"E-LAKE-NOT-COLLECTED","detail":"no such file","item":"log:2","node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1"},"status":"absent"}
 ```
 
 
@@ -292,19 +292,19 @@ characters or not in the bundle is `E-LAKE-MALFORMED`); then git (refusal `E-LAK
 
 ```example
 $ bench-lake <LAKE> workspace combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1 <DEST>
-{"commit":"59a592fca04af9fe2c8b667b3a784298795ccde9","node":"gruntus","path":"<DEST>","run":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","status":"found","story":1}
+{"commit":"59a592fca04af9fe2c8b667b3a784298795ccde9","node":"node-a","path":"<DEST>","run":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","status":"found","story":1}
 ```
 
 
 ```example
 $ bench-lake <LAKE> workspace combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1 <NONEMPTY-DEST>
-{"refused":{"code":"E-LAKE-DEST-NOT-EMPTY","detail":"destination is not empty","item":"workspace:1","node":"gruntus","run":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2"},"status":"refused"}
+{"refused":{"code":"E-LAKE-DEST-NOT-EMPTY","detail":"destination is not empty","item":"workspace:1","node":"node-a","run":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2"},"status":"refused"}
 ```
 
 
 ```example
 $ bench-lake <LAKE> workspace combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1 1 <DEST>
-{"absent":{"code":"E-LAKE-NOT-COLLECTED","detail":"no such file","item":"bundle","node":"tritus","run":"combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1"},"status":"absent"}
+{"absent":{"code":"E-LAKE-NOT-COLLECTED","detail":"no such file","item":"bundle","node":"node-d","run":"combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1"},"status":"absent"}
 ```
 
 
@@ -322,13 +322,13 @@ is a string, otherwise `null`. `settled_at` and `collected_at` are the note's nu
 
 ```example
 $ bench-lake <LAKE> complete combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1
-{"collected_at":1792160967,"completeness":"complete","node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","settled_at":1792116937,"state":"finished","status":"found"}
+{"collected_at":1792160967,"completeness":"complete","node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","settled_at":1792116937,"state":"finished","status":"found"}
 ```
 
 
 ```example
 $ bench-lake <LAKE> complete combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2
-{"collected_at":1792161516,"completeness":"incomplete","node":"gruntus","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","settled_at":null,"state":null,"status":"found"}
+{"collected_at":1792161516,"completeness":"incomplete","node":"node-a","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","settled_at":null,"state":null,"status":"found"}
 ```
 
 

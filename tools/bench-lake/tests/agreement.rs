@@ -169,7 +169,7 @@ fn tc98_b_on_the_real_repository_nothing_differs() {
 fn tc99_b_a_difference_is_reported() {
     let (s, state, lake) = scratch_lake("cmp-differs");
     let (repo, rev) = build_repo(&s, &lake, &[], &[]);
-    let p = state.join("collected/gruntus").join(ID_FRESH).join("metrics.json");
+    let p = state.join("collected/node-a").join(ID_FRESH).join("metrics.json");
     let mut bytes = fs::read(&p).unwrap();
     let last = bytes.len() - 1;
     bytes[last] = if bytes[last] == b' ' { b'\n' } else { b' ' };
@@ -177,7 +177,7 @@ fn tc99_b_a_difference_is_reported() {
     let report = compare_git(&lake, &repo, &rev).unwrap();
     assert_eq!(report.differences, 1, "{}", report.value);
     assert_eq!(differences(&report.value), [(ID_FRESH.to_string(), "metrics.json".to_string(), "differs".to_string())]);
-    assert_eq!(report.value["differences"][0]["node"], json!("gruntus"));
+    assert_eq!(report.value["differences"][0]["node"], json!("node-a"));
     assert_eq!(report.value["differences"][0]["lake_complete"], json!(true));
     assert_eq!(report.defects, 0);
 }
@@ -187,7 +187,7 @@ fn tc99_b_equal_values_with_different_bytes_still_differ() {
     // Bytes are compared first; a reformatted file is a difference even if its parsed value is equal.
     let (s, state, lake) = scratch_lake("cmp-format");
     let (repo, rev) = build_repo(&s, &lake, &[], &[]);
-    let p = state.join("collected/gruntus").join(ID_FRESH).join("run-status.json");
+    let p = state.join("collected/node-a").join(ID_FRESH).join("run-status.json");
     let v: Value = serde_json::from_slice(&fs::read(&p).unwrap()).unwrap();
     fs::write(&p, serde_json::to_vec(&v).unwrap()).unwrap();
     let report = compare_git(&lake, &repo, &rev).unwrap();
@@ -198,8 +198,8 @@ fn tc99_b_equal_values_with_different_bytes_still_differ() {
 fn tc100_b_the_lake_lacks_a_file() {
     let (s, state, lake) = scratch_lake("cmp-lakeabsent");
     let (repo, rev) = build_repo(&s, &lake, &[], &[]);
-    fs::remove_file(state.join("collected/gruntus").join(ID_FRESH).join("finalize.json")).unwrap();
-    fs::remove_file(state.join("collected/gruntus").join(ID_DRY).join("finalize.json")).unwrap();
+    fs::remove_file(state.join("collected/node-a").join(ID_FRESH).join("finalize.json")).unwrap();
+    fs::remove_file(state.join("collected/node-a").join(ID_DRY).join("finalize.json")).unwrap();
     let report = compare_git(&lake, &repo, &rev).unwrap();
     let mut got = differences(&report.value);
     got.sort();

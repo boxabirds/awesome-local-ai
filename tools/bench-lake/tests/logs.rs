@@ -57,9 +57,9 @@ fn collect_lines(log: &bench_lake::Log) -> (Vec<Vec<u8>>, Option<Absent>) {
 #[test]
 fn tc36_raw_log_not_compressed() {
     let (_s, state, lake) = scratch_lake("rawplain");
-    let dir = story_dir(&state, "gruntus", ID_FRESH);
+    let dir = story_dir(&state, "node-a", ID_FRESH);
     fs::remove_file(dir.join(COMPACT)).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let log = lake.log(&run, 1).unwrap();
     assert_eq!(log.form(), Form::Raw);
     assert_eq!(log.bytes().unwrap(), fs::read(dir.join(RAW)).unwrap());
@@ -72,7 +72,7 @@ fn tc36_raw_log_not_compressed() {
 #[test]
 fn tc38_compact_log_not_compressed() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let log = lake.log(&run, 1).unwrap();
     assert_eq!(log.form(), Form::Compact);
     let direct = gunzip(&fs::read(run.dir.join("stories/01").join(COMPACT)).unwrap());
@@ -86,7 +86,7 @@ fn tc38_compact_log_not_compressed() {
 #[test]
 fn tc40_both_forms_the_raw_is_preferred() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let dir = run.dir.join("stories/01");
     assert!(dir.join(RAW).is_file() && dir.join(COMPACT).is_file());
     let log = lake.log(&run, 1).unwrap();
@@ -115,7 +115,7 @@ fn stored_gzip(decoded: &[u8]) -> Vec<u8> {
 #[test]
 fn tc35_raw_log_compressed_on_disk() {
     let (s, state, lake) = scratch_lake("rawfs");
-    let dir = story_dir(&state, "gruntus", ID_FRESH);
+    let dir = story_dir(&state, "node-a", ID_FRESH);
     let plain = fs::read(dir.join(RAW)).unwrap();
     fs::remove_file(dir.join(COMPACT)).unwrap();
     let source = s.join("raw-source.jsonl");
@@ -125,7 +125,7 @@ fn tc35_raw_log_compressed_on_disk() {
         not_run("TC-35", "this file system did not mark the copy as compressed");
         return;
     }
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let log = lake.log(&run, 1).unwrap();
     assert_eq!(log.form(), Form::Raw);
     assert_eq!(log.bytes().unwrap(), plain);
@@ -134,7 +134,7 @@ fn tc35_raw_log_compressed_on_disk() {
 #[test]
 fn tc37_and_tc39_compact_log_compressed_on_disk() {
     let (s, state, lake) = scratch_lake("compactfs");
-    let dir = story_dir(&state, "gruntus", ID_Q36);
+    let dir = story_dir(&state, "node-a", ID_Q36);
     let decoded = gunzip(&fs::read(dir.join(COMPACT)).unwrap());
     // A gzip file made of stored blocks, which the file system can compress (a normal gzip file does not shrink).
     let source = s.join("stored.gz");
@@ -144,7 +144,7 @@ fn tc37_and_tc39_compact_log_compressed_on_disk() {
         not_run("TC-37, TC-39", "this file system did not mark the copy as compressed");
         return;
     }
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let log = lake.log(&run, 1).unwrap();
     assert_eq!(log.form(), Form::Compact);
     assert_eq!(log.bytes().unwrap(), decoded);
@@ -164,18 +164,18 @@ fn tc37_and_tc39_compact_log_compressed_on_disk() {
 #[test]
 fn tc41_neither_form() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let e = lake.log(&run, 2).unwrap_err();
     assert_eq!(e.reason, Reason::NotCollected);
     assert_eq!(e.item, Item::Log(2));
-    assert_eq!(e.node.as_deref(), Some("gruntus"));
-    assert_eq!(e.to_json(), format!("{{\"code\":\"E-LAKE-NOT-COLLECTED\",\"detail\":\"no such file\",\"item\":\"log:2\",\"node\":\"gruntus\",\"run\":\"{ID_FRESH}\"}}"));
+    assert_eq!(e.node.as_deref(), Some("node-a"));
+    assert_eq!(e.to_json(), format!("{{\"code\":\"E-LAKE-NOT-COLLECTED\",\"detail\":\"no such file\",\"item\":\"log:2\",\"node\":\"node-a\",\"run\":\"{ID_FRESH}\"}}"));
 }
 
 #[test]
 fn log_story_out_of_range() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     for s in [1000, -1] {
         let e = lake.log(&run, s).unwrap_err();
         assert_eq!(e.reason, Reason::BadName("story out of range".to_string()));
@@ -186,9 +186,9 @@ fn log_story_out_of_range() {
 #[test]
 fn tc42_zero_byte_raw_log() {
     let (_s, state, lake) = scratch_lake("zero");
-    let dir = story_dir(&state, "gruntus", ID_FRESH);
+    let dir = story_dir(&state, "node-a", ID_FRESH);
     fs::write(dir.join(RAW), b"").unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let log = lake.log(&run, 1).unwrap();
     assert_eq!(log.form(), Form::Raw);
     assert!(log.bytes().unwrap().is_empty());
@@ -201,8 +201,8 @@ fn tc42_zero_byte_raw_log() {
 #[test]
 fn tc43_one_line_without_a_final_newline_and_other_shapes() {
     let (_s, state, lake) = scratch_lake("oneline");
-    let dir = story_dir(&state, "gruntus", ID_FRESH);
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let dir = story_dir(&state, "node-a", ID_FRESH);
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let cases: [(&[u8], &[&[u8]]); 6] = [
         (b"abc", &[b"abc"]),
         (b"abc\n", &[b"abc"]),
@@ -232,7 +232,7 @@ fn rss_kib() -> u64 {
 #[test]
 fn tc44_lines_on_a_large_log_use_memory_of_one_line() {
     let (s, state, lake) = scratch_lake("big");
-    let dir = story_dir(&state, "gruntus", ID_FRESH);
+    let dir = story_dir(&state, "node-a", ID_FRESH);
     let line = format!("{{\"type\":\"x\",\"pad\":\"{}\"}}\n", "p".repeat(BIG_LINE_BYTES - 20));
     let count = BIG_LOG_BYTES / line.len();
     {
@@ -242,7 +242,7 @@ fn tc44_lines_on_a_large_log_use_memory_of_one_line() {
         }
     }
     let _ = &s;
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let log = lake.log(&run, 1).unwrap();
     let before = rss_kib();
     let mut peak = before;
@@ -265,10 +265,10 @@ fn tc44_lines_on_a_large_log_use_memory_of_one_line() {
 #[test]
 fn tc45_a_damaged_compact_file() {
     let (_s, state, lake) = scratch_lake("damaged");
-    let dir = story_dir(&state, "gruntus", ID_Q36);
+    let dir = story_dir(&state, "node-a", ID_Q36);
     let whole = fs::read(dir.join(COMPACT)).unwrap();
     fs::write(dir.join(COMPACT), &whole[..whole.len() / 2]).unwrap();
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let log = lake.log(&run, 1).unwrap();
     assert_eq!(log.form(), Form::Compact);
     let (lines, err) = collect_lines(&log);
@@ -285,9 +285,9 @@ fn tc45_a_damaged_compact_file() {
 #[test]
 fn tc45_a_compact_file_that_is_not_gzip() {
     let (_s, state, lake) = scratch_lake("notgzip");
-    let dir = story_dir(&state, "gruntus", ID_Q36);
+    let dir = story_dir(&state, "node-a", ID_Q36);
     fs::write(dir.join(COMPACT), b"this is not gzip at all, just text\n").unwrap();
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let log = lake.log(&run, 1).unwrap();
     let (lines, err) = collect_lines(&log);
     assert!(lines.is_empty());
@@ -297,12 +297,12 @@ fn tc45_a_compact_file_that_is_not_gzip() {
 #[test]
 fn tc46_a_link_in_a_logs_place() {
     let (_s, state, lake) = scratch_lake("loglink");
-    let dir = story_dir(&state, "gruntus", ID_FRESH);
+    let dir = story_dir(&state, "node-a", ID_FRESH);
     let raw_bytes = fs::read(dir.join(RAW)).unwrap();
     fs::remove_file(dir.join(COMPACT)).unwrap();
     fs::rename(dir.join(RAW), dir.join("moved.jsonl")).unwrap();
     symlink(dir.join("moved.jsonl"), dir.join(RAW)).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let e = lake.log(&run, 1).unwrap_err();
     assert_eq!(e.reason, Reason::NotAFile);
     assert_eq!(e.item, Item::Log(1));
@@ -325,9 +325,9 @@ fn an_unreadable_log() {
         return;
     }
     let (_s, state, lake) = scratch_lake("logperm");
-    let dir = story_dir(&state, "gruntus", ID_FRESH);
+    let dir = story_dir(&state, "node-a", ID_FRESH);
     fs::set_permissions(dir.join(RAW), fs::Permissions::from_mode(0o000)).unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     let e = lake.log(&run, 1).unwrap_err();
     assert_eq!(e.reason, Reason::Unreadable("permission denied".to_string()));
 }
@@ -335,19 +335,19 @@ fn an_unreadable_log() {
 #[test]
 fn a_transfer_in_progress_is_not_a_log() {
     let (_s, state, lake) = scratch_lake("logpartial");
-    let dir = story_dir(&state, "gruntus", ID_FRESH);
+    let dir = story_dir(&state, "node-a", ID_FRESH);
     fs::remove_file(dir.join(RAW)).unwrap();
     fs::remove_file(dir.join(COMPACT)).unwrap();
     fs::write(dir.join(".agent-events.jsonl.partial"), b"{}\n").unwrap();
     fs::write(dir.join(".agent-events.compact.jsonl.gz.99.tmp"), b"x").unwrap();
-    let run = find(&lake, ID_FRESH, Some("gruntus"));
+    let run = find(&lake, ID_FRESH, Some("node-a"));
     assert_eq!(lake.log(&run, 1).unwrap_err().reason, Reason::NotCollected);
 }
 
 #[test]
 fn digest_equals_hash_of_bytes() {
     let lake = fixture_lake();
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let log = lake.log(&run, 1).unwrap();
     let bytes = log.bytes().unwrap();
     let d = log.digest().unwrap();

@@ -32,7 +32,7 @@ fn refused(e: Error) -> bench_lake::Refused {
 }
 
 fn set_commit(state: &Path, story: i64, commit: &str) {
-    let p = state.join("collected/gruntus").join(ID_Q36).join("metrics.json");
+    let p = state.join("collected/node-a").join(ID_Q36).join("metrics.json");
     let mut v: serde_json::Value = serde_json::from_slice(&fs::read(&p).unwrap()).unwrap();
     v["stories"][story.to_string()]["commit"] = serde_json::json!(commit);
     fs::write(&p, serde_json::to_vec(&v).unwrap()).unwrap();
@@ -48,7 +48,7 @@ fn empty_or_missing(p: &Path) -> bool {
 #[test]
 fn tc47_good() {
     let (s, _state, lake) = scratch_lake("ws-good");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("work");
     let ws = lake.workspace(&run, 1, &dest).unwrap();
     assert_eq!(ws.path, dest);
@@ -84,7 +84,7 @@ fn tc48_and_tc109_files_equal_the_repository_workspace() {
         return;
     }
     let (s, _state, lake) = scratch_lake("ws-repo");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("last");
     let ws = lake.workspace(&run, LAST_STORY, &dest).unwrap();
     assert_eq!(git(&dest, &["rev-parse", "HEAD"]), ws.commit);
@@ -113,7 +113,7 @@ fn tc48_and_tc109_files_equal_the_repository_workspace() {
 #[test]
 fn tc49_bundle_unchanged() {
     let (s, _state, lake) = scratch_lake("ws-hash");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let before = fs::read(run.dir.join(BUNDLE)).unwrap();
     lake.workspace(&run, 1, &s.join("w")).unwrap();
     assert_eq!(fs::read(run.dir.join(BUNDLE)).unwrap(), before);
@@ -122,7 +122,7 @@ fn tc49_bundle_unchanged() {
 #[test]
 fn tc50_destination_is_an_existing_empty_folder() {
     let (s, _state, lake) = scratch_lake("ws-empty");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("w");
     fs::create_dir(&dest).unwrap();
     let ws = lake.workspace(&run, 1, &dest).unwrap();
@@ -132,12 +132,12 @@ fn tc50_destination_is_an_existing_empty_folder() {
 #[test]
 fn tc51_no_bundle() {
     let (s, _state, lake) = scratch_lake("ws-nobundle");
-    let run = find(&lake, ID_FLASH, Some("tritus"));
+    let run = find(&lake, ID_FLASH, Some("node-d"));
     let dest = s.join("w");
     let a = absent(lake.workspace(&run, 1, &dest).unwrap_err());
     assert_eq!(a.reason, Reason::NotCollected);
     assert_eq!(a.item, Item::Bundle);
-    assert_eq!(a.node.as_deref(), Some("tritus"));
+    assert_eq!(a.node.as_deref(), Some("node-d"));
     assert!(!dest.exists(), "nothing was made");
     // no bundle and no metrics at all: the same absence (the bundle is looked for first)
     let a = absent(lake.workspace(&run, 99, &dest).unwrap_err());
@@ -147,8 +147,8 @@ fn tc51_no_bundle() {
 #[test]
 fn tc51_bundle_that_is_a_link_or_a_folder() {
     let (s, state, lake) = scratch_lake("ws-linkbundle");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
-    let b = state.join("collected/gruntus").join(ID_Q36).join(BUNDLE);
+    let run = find(&lake, ID_Q36, Some("node-a"));
+    let b = state.join("collected/node-a").join(ID_Q36).join(BUNDLE);
     let moved = s.join("moved.bundle");
     fs::rename(&b, &moved).unwrap();
     symlink(&moved, &b).unwrap();
@@ -159,8 +159,8 @@ fn tc51_bundle_that_is_a_link_or_a_folder() {
 #[test]
 fn tc51_metrics_not_there() {
     let (s, state, lake) = scratch_lake("ws-nometrics");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
-    fs::remove_file(state.join("collected/gruntus").join(ID_Q36).join("metrics.json")).unwrap();
+    let run = find(&lake, ID_Q36, Some("node-a"));
+    fs::remove_file(state.join("collected/node-a").join(ID_Q36).join("metrics.json")).unwrap();
     let a = absent(lake.workspace(&run, 1, &s.join("w")).unwrap_err());
     assert_eq!(a.reason, Reason::NotCollected);
     assert_eq!(a.item, Item::Workspace(1));
@@ -169,7 +169,7 @@ fn tc51_metrics_not_there() {
 #[test]
 fn tc52_no_commit_for_the_story() {
     let (s, _state, lake) = scratch_lake("ws-nocommit");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let metrics = lake.value(&run, &bench_lake::Record::Metrics).unwrap();
     assert!(metrics["stories"].get(STORY_WITHOUT_COMMIT.to_string()).is_none(), "story 6 has no entry in the real metrics");
     let dest = s.join("w");
@@ -179,12 +179,12 @@ fn tc52_no_commit_for_the_story() {
     assert!(!dest.exists());
     // a story entry without a commit field, and a commit that is not a string
     let (_s2, state2, lake2) = scratch_lake("ws-nocommit2");
-    let p = state2.join("collected/gruntus").join(ID_Q36).join("metrics.json");
+    let p = state2.join("collected/node-a").join(ID_Q36).join("metrics.json");
     let mut v: serde_json::Value = serde_json::from_slice(&fs::read(&p).unwrap()).unwrap();
     v["stories"]["2"].as_object_mut().unwrap().remove("commit");
     v["stories"]["3"]["commit"] = serde_json::json!(7);
     fs::write(&p, serde_json::to_vec(&v).unwrap()).unwrap();
-    let run2 = find(&lake2, ID_Q36, Some("gruntus"));
+    let run2 = find(&lake2, ID_Q36, Some("node-a"));
     for st in [2, 3] {
         let a = absent(lake2.workspace(&run2, st, &s.join("w2")).unwrap_err());
         assert_eq!(a.reason, Reason::Malformed("no commit for story".to_string()), "story {st}");
@@ -195,7 +195,7 @@ fn tc52_no_commit_for_the_story() {
 fn tc53_commit_not_in_the_bundle() {
     let (s, state, lake) = scratch_lake("ws-notin");
     set_commit(&state, 1, "0123456789abcdef0123456789abcdef01234567");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("w");
     let a = absent(lake.workspace(&run, 1, &dest).unwrap_err());
     assert_eq!(a.reason, Reason::Malformed("commit not in bundle".to_string()));
@@ -210,7 +210,7 @@ fn tc53_commit_not_in_the_bundle() {
 #[test]
 fn tc54_commit_not_hexadecimal() {
     let (s, state, lake) = scratch_lake("ws-hex");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     for bad in [&REAL_COMMIT_1[..39], "zzz592fca04af9fe2c8b667b3a784298795ccde9", "", "HEAD", "--upload-pack=x"] {
         set_commit(&state, 1, bad);
         let a = absent(lake.workspace(&run, 1, &s.join("w")).unwrap_err());
@@ -222,7 +222,7 @@ fn tc54_commit_not_hexadecimal() {
 #[test]
 fn story_out_of_range_for_a_workspace() {
     let (s, _state, lake) = scratch_lake("ws-range");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     for st in [1000, -1] {
         let a = absent(lake.workspace(&run, st, &s.join("w")).unwrap_err());
         assert_eq!(a.reason, Reason::BadName("story out of range".to_string()));
@@ -233,7 +233,7 @@ fn story_out_of_range_for_a_workspace() {
 #[test]
 fn tc55_destination_inside_a_root() {
     let (s, state, lake) = scratch_lake("ws-inside");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let inside = state.join("collected/new-dest");
     let r = refused(lake.workspace(&run, 1, &inside).unwrap_err());
     assert_eq!(r.reason, RefusedReason::DestInsideRoot);
@@ -257,7 +257,7 @@ fn tc55_destination_inside_a_root() {
 #[test]
 fn tc56_destination_not_empty() {
     let (s, _state, lake) = scratch_lake("ws-notempty");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("w");
     write(&dest.join("keep.txt"), b"mine");
     let r = refused(lake.workspace(&run, 1, &dest).unwrap_err());
@@ -273,7 +273,7 @@ fn tc56_destination_not_empty() {
 #[test]
 fn tc57_git_fails() {
     let (s, state, lake) = scratch_lake("ws-gitfail");
-    let b = state.join("collected/gruntus").join(ID_Q36).join(BUNDLE);
+    let b = state.join("collected/node-a").join(ID_Q36).join(BUNDLE);
     let mut x = 12345u64;
     let random: Vec<u8> = (0..RANDOM_BUNDLE_BYTES)
         .map(|_| {
@@ -282,7 +282,7 @@ fn tc57_git_fails() {
         })
         .collect();
     fs::write(&b, random).unwrap();
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("w");
     let r = refused(lake.workspace(&run, 1, &dest).unwrap_err());
     assert_eq!(r.reason, RefusedReason::GitClone);
@@ -308,7 +308,7 @@ impl Drop for EnvGuard {
 #[test]
 fn tc58_the_callers_git_settings_do_not_matter() {
     let (s, _state, lake) = scratch_lake("ws-env");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let plain = s.join("plain");
     lake.workspace(&run, 1, &plain).unwrap();
     // A template folder with a hook, a global config that sets a hooks path and a template folder.
@@ -353,7 +353,7 @@ fn tc58_the_callers_git_settings_do_not_matter() {
 #[test]
 fn tc84_workspace_writes_only_its_destination() {
     let (s, state, lake) = scratch_lake("ws-writes");
-    let run = find(&lake, ID_Q36, Some("gruntus"));
+    let run = find(&lake, ID_Q36, Some("node-a"));
     let before = snapshot(&state);
     let dest = s.join("w");
     lake.workspace(&run, 1, &dest).unwrap();

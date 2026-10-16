@@ -27,10 +27,10 @@ Not copied: the 11 stories' logs of each run beyond the ones named below, `serve
 
 | Run (lake id) | Node folder | What it holds | Cell |
 |---|---|---|---|
-| `combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1` | collected/gruntus | the six records, story 01 whole, raw log (20 lines) and compact log | combination run, complete note, raw and compact logs (TC-01, TC-17, TC-19, TC-24, TC-35 to TC-40, TC-59) |
-| `combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2` | collected/gruntus, collected/quintus, collected/tritus | the owner copy with metrics, story 01, compact log and `workspace.bundle`; a pulled copy with a note and a run description; tritus's copy with a note and progress | one id as three copies (TC-02, TC-14 on real notes, TC-47 to TC-50, TC-53, TC-57) |
-| `combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2` | collected/gruntus | run description, note, finalize, progress | incomplete note (TC-60) |
-| `combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1` | collected/tritus | note and progress; no `workspace.bundle` | the real v2-r1 run with no bundle (TC-51) |
+| `combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1` | collected/node-a | the six records, story 01 whole, raw log (20 lines) and compact log | combination run, complete note, raw and compact logs (TC-01, TC-17, TC-19, TC-24, TC-35 to TC-40, TC-59) |
+| `combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2` | collected/node-a, collected/node-c, collected/node-d | the owner copy with metrics, story 01, compact log and `workspace.bundle`; a pulled copy with a note and a run description; node-d's copy with a note and progress | one id as three copies (TC-02, TC-14 on real notes, TC-47 to TC-50, TC-53, TC-57) |
+| `combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2` | collected/node-a | run description, note, finalize, progress | incomplete note (TC-60) |
+| `combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1` | collected/node-d | note and progress; no `workspace.bundle` | the real v2-r1 run with no bundle (TC-51) |
 | `vidi/sonnet-5.5/v2-r1` | reference | the six records, story 01 with its compact log only, `workspace.bundle` | reference run with a bundle, compact log only (TC-03, TC-18, TC-37, TC-38, TC-62) |
 | `todoodle/opus-5.5/run-1` | reference | run description and status; no note | reference run with no note (TC-64) |
 
@@ -43,8 +43,8 @@ Not copied: the 11 stories' logs of each run beyond the ones named below, `serve
   first run by removing `collection.json`. The only real runs without a note are the hand-built reference runs (above).
 - **The dry run's raw log is left out**: the first 20 lines of its story 02 raw log hold a home path. `v2-q36fork-b-r2` has
   no raw logs in the lake (compact only), so the raw-log cells use `v2-fresh-r1`.
-- **Empty folders.** Git cannot store an empty folder. The real empty `benchmarks` folder in a node folder (macbook-air and
-  quintus have one) is created by the tests that need it (TC-05).
+- **Empty folders.** Git cannot store an empty folder. The real empty `benchmarks` folder in a node folder (node-b and
+  node-c have one) is created by the tests that need it (TC-05).
 
 ## Rebuilding
 

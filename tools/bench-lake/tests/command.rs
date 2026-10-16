@@ -62,9 +62,9 @@ fn the_two_root_form_equals_the_state_dir_form() {
 fn copies_and_preferred() {
     let v = json_of(&run(&["copies", ID_Q36]));
     let nodes: Vec<&str> = v["copies"].as_array().unwrap().iter().map(|c| c["node"].as_str().unwrap()).collect();
-    assert_eq!(nodes, ["gruntus", "quintus", "tritus"]);
+    assert_eq!(nodes, ["node-a", "node-c", "node-d"]);
     assert_eq!(json_of(&run(&["copies", "combinations/none"]))["copies"], serde_json::json!([]));
-    assert_eq!(json_of(&run(&["preferred", ID_Q36]))["preferred"]["node"], "gruntus");
+    assert_eq!(json_of(&run(&["preferred", ID_Q36]))["preferred"]["node"], "node-a");
     let a = run(&["preferred", "combinations/none"]);
     assert_eq!(a.status.code(), Some(EXIT_OK));
     assert_eq!(json_of(&a)["absent"]["code"], "E-LAKE-NO-RUN");
@@ -73,18 +73,18 @@ fn copies_and_preferred() {
 #[test]
 fn tc86_payload_form_for_a_record_and_a_log() {
     let v = json_of(&run(&["record", ID_FRESH, "status"]));
-    let file = fs::read(fixture_state().join("collected/gruntus").join(ID_FRESH).join("run-status.json")).unwrap();
+    let file = fs::read(fixture_state().join("collected/node-a").join(ID_FRESH).join("run-status.json")).unwrap();
     assert_eq!(v["length"], file.len());
     assert_eq!(v["sha256"], bench_lake::sha256_hex(&file));
     assert_eq!(v["value"], serde_json::from_slice::<Value>(&file).unwrap());
-    assert_eq!((v["status"].as_str(), v["node"].as_str(), v["run"].as_str()), (Some("found"), Some("gruntus"), Some(ID_FRESH)));
+    assert_eq!((v["status"].as_str(), v["node"].as_str(), v["run"].as_str()), (Some("found"), Some("node-a"), Some(ID_FRESH)));
     // a text record carries its text
     let t = json_of(&run(&["record", ID_FRESH, "base-commit", "1"]));
     assert_eq!(t["value"], "30816ab716043c8a400ee0e43b0e7f8b3438a3ea");
     assert_eq!(t["length"], 40);
     // a log carries length, lines and hash of the decoded stream, and no value
     let l = json_of(&run(&["log", ID_FRESH, "1"]));
-    let raw = fs::read(fixture_state().join("collected/gruntus").join(ID_FRESH).join("stories/01/agent-events.jsonl")).unwrap();
+    let raw = fs::read(fixture_state().join("collected/node-a").join(ID_FRESH).join("stories/01/agent-events.jsonl")).unwrap();
     assert_eq!((l["form"].as_str(), l["lines"].as_u64(), l["length"].as_u64()), (Some("raw"), Some(20), Some(raw.len() as u64)));
     assert_eq!(l["sha256"], bench_lake::sha256_hex(&raw));
     assert!(l.get("value").is_none());
@@ -95,11 +95,11 @@ fn tc86_payload_form_for_a_record_and_a_log() {
 
 #[test]
 fn the_node_at_id_form_picks_a_copy() {
-    let spec = format!("quintus@{ID_Q36}");
-    assert_eq!(json_of(&run(&["record", &spec, "status"]))["node"], "quintus");
+    let spec = format!("node-c@{ID_Q36}");
+    assert_eq!(json_of(&run(&["record", &spec, "status"]))["node"], "node-c");
     let a = json_of(&run(&["record", &spec, "finalize"]));
     assert_eq!(a["absent"]["code"], "E-LAKE-NOT-COLLECTED");
-    assert_eq!(a["absent"]["node"], "quintus");
+    assert_eq!(a["absent"]["node"], "node-c");
     let n = json_of(&run(&["record", &format!("nonode@{ID_Q36}"), "status"]));
     assert_eq!(n["absent"]["code"], "E-LAKE-NO-RUN");
     assert_eq!(n["absent"]["node"], "nonode");
@@ -164,7 +164,7 @@ fn tc88_absence_is_an_answer_on_stdout_with_exit_0() {
 #[test]
 fn a_damaged_record_and_a_damaged_log_are_absences() {
     let (_s, state, _lake) = scratch_lake("cmd-damaged");
-    let run_dir = state.join("collected/gruntus").join(ID_Q36);
+    let run_dir = state.join("collected/node-a").join(ID_Q36);
     let whole = fs::read(run_dir.join("stories/01/agent-events.compact.jsonl.gz")).unwrap();
     fs::write(run_dir.join("stories/01/agent-events.compact.jsonl.gz"), &whole[..whole.len() / 2]).unwrap();
     fs::write(run_dir.join("run-status.json"), b"{\"cut\":").unwrap();

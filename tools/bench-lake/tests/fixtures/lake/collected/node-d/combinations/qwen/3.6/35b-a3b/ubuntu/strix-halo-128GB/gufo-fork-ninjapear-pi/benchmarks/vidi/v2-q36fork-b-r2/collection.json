@@ -1,0 +1,243 @@
+{
+  "node": "node-d",
+  "run": "combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2",
+  "job": null,
+  "run_status": {
+    "state": "finished",
+    "at": "2026-10-08T04:49:28Z"
+  },
+  "job_state": null,
+  "complete": true,
+  "first_collected_at": 1791399452,
+  "collected_at": 1792157056,
+  "settled_at": 1791435216,
+  "files": {
+    "egress.jsonl": {
+      "bytes": 112882,
+      "node_size": 112882,
+      "node_mtime": 1791431440.788,
+      "at_eof": true,
+      "pulled_at": 1791435216,
+      "refetches": 0,
+      "partial": null
+    },
+    "progress.json": {
+      "bytes": 177900,
+      "node_size": 177900,
+      "node_mtime": 1791434626.527,
+      "at_eof": true,
+      "pulled_at": 1791435216,
+      "refetches": 0,
+      "partial": null
+    },
+    "server.log": {
+      "bytes": 1818600,
+      "node_size": 1818600,
+      "node_mtime": 1791434973.482,
+      "at_eof": true,
+      "pulled_at": 1791435216,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/agent-events.jsonl": {
+      "bytes": 11611302,
+      "node_size": 11611302,
+      "node_mtime": 1791401881.547,
+      "at_eof": true,
+      "pulled_at": 1791401882,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/conditions.jsonl": {
+      "bytes": 25051,
+      "node_size": 25051,
+      "node_mtime": 1791401870.557,
+      "at_eof": true,
+      "pulled_at": 1791401882,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/agent-events.jsonl": {
+      "bytes": 7570954,
+      "node_size": 7570954,
+      "node_mtime": 1791403918.956,
+      "at_eof": true,
+      "pulled_at": 1791403925,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/conditions.jsonl": {
+      "bytes": 19915,
+      "node_size": 19915,
+      "node_mtime": 1791403910.652,
+      "at_eof": true,
+      "pulled_at": 1791403925,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/agent-events.jsonl": {
+      "bytes": 3209188,
+      "node_size": 3209188,
+      "node_mtime": 1791404824.285,
+      "at_eof": true,
+      "pulled_at": 1791404831,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/conditions.jsonl": {
+      "bytes": 7843,
+      "node_size": 7843,
+      "node_mtime": 1791404816.925,
+      "at_eof": true,
+      "pulled_at": 1791404831,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/agent-events.jsonl": {
+      "bytes": 9884233,
+      "node_size": 9884233,
+      "node_mtime": 1791411145.024,
+      "at_eof": true,
+      "pulled_at": 1791411411,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/conditions.jsonl": {
+      "bytes": 55863,
+      "node_size": 55863,
+      "node_mtime": 1791411128.5,
+      "at_eof": true,
+      "pulled_at": 1791411411,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/agent-events.jsonl": {
+      "bytes": 6952617,
+      "node_size": 6952617,
+      "node_mtime": 1791414582.065,
+      "at_eof": true,
+      "pulled_at": 1791414629,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/conditions.jsonl": {
+      "bytes": 33801,
+      "node_size": 33801,
+      "node_mtime": 1791414577.681,
+      "at_eof": true,
+      "pulled_at": 1791414629,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/agent-events.jsonl": {
+      "bytes": 7658380,
+      "node_size": 7658380,
+      "node_mtime": 1791418886.041,
+      "at_eof": true,
+      "pulled_at": 1791418930,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/conditions.jsonl": {
+      "bytes": 42233,
+      "node_size": 42233,
+      "node_mtime": 1791418862.482,
+      "at_eof": true,
+      "pulled_at": 1791418863,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/agent-events.jsonl": {
+      "bytes": 4890547,
+      "node_size": 4890547,
+      "node_mtime": 1791421536.961,
+      "at_eof": true,
+      "pulled_at": 1791421592,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/conditions.jsonl": {
+      "bytes": 25632,
+      "node_size": 25632,
+      "node_mtime": 1791421520.803,
+      "at_eof": true,
+      "pulled_at": 1791421532,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/agent-events.jsonl": {
+      "bytes": 5496361,
+      "node_size": 5496361,
+      "node_mtime": 1791424615.148,
+      "at_eof": true,
+      "pulled_at": 1791424637,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/conditions.jsonl": {
+      "bytes": 29884,
+      "node_size": 29884,
+      "node_mtime": 1791424597.601,
+      "at_eof": true,
+      "pulled_at": 1791424637,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/agent-events.jsonl": {
+      "bytes": 6917927,
+      "node_size": 6917927,
+      "node_mtime": 1791428019.678,
+      "at_eof": true,
+      "pulled_at": 1791435216,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/conditions.jsonl": {
+      "bytes": 33195,
+      "node_size": 33195,
+      "node_mtime": 1791428010.171,
+      "at_eof": true,
+      "pulled_at": 1791435216,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/agent-events.jsonl": {
+      "bytes": 7002760,
+      "node_size": 7002760,
+      "node_mtime": 1791431747.361,
+      "at_eof": true,
+      "pulled_at": 1791435216,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/conditions.jsonl": {
+      "bytes": 36217,
+      "node_size": 36217,
+      "node_mtime": 1791431721.517,
+      "at_eof": true,
+      "pulled_at": 1791435216,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/agent-events.jsonl": {
+      "bytes": 4904188,
+      "node_size": 4904188,
+      "node_mtime": 1791434528.774,
+      "at_eof": true,
+      "pulled_at": 1791435216,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/conditions.jsonl": {
+      "bytes": 26861,
+      "node_size": 26861,
+      "node_mtime": 1791434525.536,
+      "at_eof": true,
+      "pulled_at": 1791435216,
+      "refetches": 0,
+      "partial": null
+    }
+  },
+  "unlisted": 0,
+  "dbench_version": "0.1.0+cad9da4ad"
+}

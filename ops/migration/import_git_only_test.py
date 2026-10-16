@@ -16,8 +16,8 @@ import import_git_only as imp
 
 REF_RUN = "benchmarks/reference/vidi/opus-5.5/run-1"
 COMBO_RUN = "combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-01"
-NODE = "gruntus"
-OTHER_NODE = "quintus"
+NODE = "node-a"
+OTHER_NODE = "node-c"
 
 
 def git(repo: Path, *args: str) -> None:
