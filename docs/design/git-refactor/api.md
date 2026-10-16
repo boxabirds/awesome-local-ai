@@ -637,8 +637,10 @@ Open, for the owner, each with a recommendation:
    `known-runs.json` in the inputs folder (small list of ids). The alternative, `known_runs=None` (any run-shaped name
    counts), changes what the scan flags.
 6. **Flow counts.** `loadFlowCounts` reads the private repo at a version tag; the design says the harness writes
-   `flow-counts.json` into each run. Not verified that the file exists yet. If it does not, `sources::git` cannot be deleted
-   for that one caller.
+   `flow-counts.json` into each run. **Settled 16 Oct 2026 by reading the code:** that file exists nowhere in the repository.
+   `sources::git` stays marked whole (the wrapper goes), and `flowCountsAt` and `loadFlowCounts`, which read the private pack
+   repository at a version tag (a pack-source question that stays on git), get a small helper of their own with its own timeout;
+   the wrapper's tests move to it.
 7. **`Harness::Unreleased`** (a node running the checkout's own harness) has no stated future once a node has no checkout.
    Recommendation: remove it; development runs need an explicit data root.
 8. **Ids the looser collector rule accepts and the lake rule refuses.** A one-time check over the real lake before the
@@ -663,6 +665,16 @@ Not verified by the surveys (they said so, and I carry it forward): the harness 
 the lines read; the persisted `PullRecord` readers; `provenance.at_start`; whether `bench-lake workspace` yields exactly the
 commit the final score was taken on; the transfer size of a bundle; `lib/runtime/server-*.sh` as a source for the drift
 check once there is no checkout (the design's release file set does not list it).
+
+## 9.1 Statement-level marks (added 16 Oct 2026)
+
+The owner's reading of delete first (delete the statements that depend on the git access, not whole functions) is recorded in
+`ops/refactor/touched_set.toml`: 51 sites are whole, 56 have cut statements (242 in all, with the statements that use their
+results and the conditions that guard them) and 5 have nothing to cut. About 1,140 lines are deleted, not 3,230. Each entry's
+`cut_note` holds the reasons and the decisions taken by reading the code. Three entries carry questions only the owner can
+answer, the same as items 3 and 4 above. Code that depends on a deleted statement but is not itself a member (for example
+`run`, `run_record` and `inputs_for` in `inputs.rs`, which take the `Published` trait, and the gallery's `api_open`) is not
+marked: the deletion finds it, which is what delete first is for.
 
 ## 10. What this design does not do
 
