@@ -697,6 +697,176 @@ def is_stub(language: str, text: str, name: str) -> bool | None:
     return body is not None and bool(pattern.match(strip_comments(language, body)))
 
 
+# ---- cut statements: the unit of deletion is the code that depends on what is replaced (owner, 16 Oct 2026) --------------
+
+CUT_ID_PREFIX = "refactor-cut:"
+CUT_ID_CITED = re.compile(r"refactor-cut:(\S+?#\d+)")      # how a failing test's text cites the cut whose stand-in it hit
+KIND_WHOLE, KIND_CUT, KIND_NONE, KIND_UNDECIDED, KIND_CONFLICT = "whole", "cut", "none", "undecided", "conflict"
+DEFAULT_NTH = 1
+DEFAULT_LINES = 1
+SPAN_ROLES = ("uses", "guards")            # statements that stay and must be covered, around a cut
+COMMENT_STARTS = {"python": ("#",), "shell": ("#",), "rust": ("//", "/*", "* ", "*/"), "typescript": ("//", "/*", "* ", "*/")}
+DIFF_SNIPPET_LINES = 3                      # how many differing lines a collateral problem quotes
+
+
+class BaseUnreadable(Exception):
+    """The base revision of a file cannot be read (no such revision, no git): the tool cannot decide."""
+
+
+def entry_kind(e: dict) -> str:
+    """whole: the whole function is the cut. cut: statements are. none: `cut = []`, nothing in it needs cutting. undecided: neither key
+    is there (it is treated as whole, and only check-cuts --strict says so). conflict: `whole = true` together with a non-empty cut."""
+    whole, cut = bool(e.get("whole")), e.get("cut")
+    if whole and cut:
+        return KIND_CONFLICT
+    if whole:
+        return KIND_WHOLE
+    if "cut" in e:
+        return KIND_CUT if cut else KIND_NONE
+    return KIND_UNDECIDED
+
+
+def behaves_as(kind: str) -> str:
+    return KIND_WHOLE if kind == KIND_UNDECIDED else kind
+
+
+def entry_subject(e: dict) -> str:
+    return f"{e['file']}::{e['function']}"
+
+
+def cut_id(e: dict, n: int) -> str:
+    return f"{CUT_ID_PREFIX}{entry_subject(e)}#{n}"
+
+
+@dataclass
+class ResolvedCut:
+    n: int
+    id: str
+    span: tuple[int, int]                 # absolute 1-based file lines, inclusive
+    uses: list[tuple[int, int]]
+    guards: list[tuple[int, int]]
+
+
+def span_lines(span: tuple[int, int]) -> set[int]:
+    return set(range(span[0], span[1] + 1))
+
+
+def resolve_span(spec, file_lines: list[str], in_function: set[int]) -> tuple[tuple[int, int] | None, str, str]:
+    """(span, problem code, detail): the span an anchor names inside the function, or why it names none."""
+    if not isinstance(spec, dict) or not isinstance(spec.get("anchor"), str) or not spec["anchor"].strip():
+        return None, "E-CUT-ANCHOR-MISSING", "no anchor text"
+    nth, count = spec.get("nth"), spec.get("lines", DEFAULT_LINES)
+    if not isinstance(count, int) or isinstance(count, bool) or count < 1 or (nth is not None and (not isinstance(nth, int) or isinstance(nth, bool) or nth < 1)):
+        return None, "E-CUT-ANCHOR-MISSING", "`nth` and `lines` are whole numbers from 1"
+    anchor = spec["anchor"].strip()
+    found = [n for n in sorted(in_function) if n <= len(file_lines) and file_lines[n - 1].strip() == anchor]
+    if not found or (nth is not None and nth > len(found)):
+        return None, "E-CUT-ANCHOR-MISSING", f"{anchor!r} is not {'in the function' if not found else f'there {nth} times (found {len(found)})'}"
+    if len(found) > 1 and nth is None:
+        return None, "E-CUT-ANCHOR-AMBIGUOUS", f"{anchor!r} occurs {len(found)} times (lines {', '.join(map(str, found))}): give `nth`"
+    start = found[(nth or DEFAULT_NTH) - 1]
+    span = (start, start + count - 1)
+    if not span_lines(span) <= in_function:
+        return None, "E-CUT-OUT-OF-FUNCTION", f"{anchor!r} with lines = {count} (file lines {span[0]} to {span[1]}) runs past the function"
+    return span, "", ""
+
+
+def resolve_cuts(e: dict, text: str, in_function: set[int]) -> tuple[list[ResolvedCut], list[Problem]]:
+    """Every cut of an entry as file lines of `text`, and every problem found: anchors, why, overlaps. A cut with a problem is left out."""
+    problems: list[Problem] = []
+    file_lines = text.splitlines()
+    resolved: list[ResolvedCut] = []
+    for n, raw in enumerate(e.get("cut", []), start=1):
+        cid = cut_id(e, n)
+        if not isinstance(raw, dict):
+            problems.append(Problem("E-CUT-ANCHOR-MISSING", cid, "a cut is a table with an anchor"))
+            continue
+        broken = False
+        if not str(raw.get("why", "")).strip():
+            problems.append(Problem("E-CUT-NO-WHY", cid, "a cut says why it depends on the replaced code"))
+        span, code, detail = resolve_span(raw, file_lines, in_function)
+        if span is None:
+            problems.append(Problem(code, cid, detail))
+            broken = True
+        spans: dict[str, list[tuple[int, int]]] = {}
+        for role in SPAN_ROLES:
+            spans[role] = []
+            for i, spec in enumerate(raw.get(role, []), start=1):
+                found, code, detail = resolve_span(spec, file_lines, in_function)
+                if found is None:
+                    problems.append(Problem(code, cid, f"{role}[{i}]: {detail}"))
+                    broken = True
+                else:
+                    spans[role].append(found)
+        if not broken:
+            resolved.append(ResolvedCut(n, cid, span, spans["uses"], spans["guards"]))
+    for i, a in enumerate(resolved):
+        for b in resolved[i + 1:]:
+            if span_lines(a.span) & span_lines(b.span):
+                problems.append(Problem("E-CUT-OVERLAP", a.id, f"its span and the span of {b.id} share lines"))
+    for a in resolved:
+        for b in resolved:
+            for role in SPAN_ROLES:
+                if any(span_lines(a.span) & span_lines(s) for s in getattr(b, role)):
+                    problems.append(Problem("E-CUT-OVERLAP", min(a.id, b.id, key=lambda x: int(x.rsplit("#", 1)[1])),
+                                            f"the span of {a.id} and a {role[:-1]} of {b.id} share lines"))
+    return resolved, problems
+
+
+def working_tree_reader(root: Path) -> Callable[[str], str | None]:
+    return lambda file: (root / file).read_text() if (root / file).exists() else None
+
+
+def git_show_reader(root: Path, rev: str) -> Callable[[str], str | None]:
+    """The text of a file at a revision (`git show REV:FILE`). A revision or a repository that git cannot read is BaseUnreadable."""
+    def read(file: str) -> str | None:
+        try:
+            done = subprocess.run(["git", "-C", str(root), "show", f"{rev}:{file}"], capture_output=True, text=True)
+        except FileNotFoundError as exc:
+            raise BaseUnreadable("git is not installed") from exc
+        if done.returncode != EXIT_OK:
+            raise BaseUnreadable(f"git show {rev}:{file} failed: {done.stderr.strip().splitlines()[-1] if done.stderr.strip() else done.returncode}")
+        return done.stdout
+    return read
+
+
+def check_cuts(root: Path, strict: bool = False, base: Callable[[str], str | None] | None = None) -> Result:
+    """The cut / whole data of every touched-set entry is well formed: every anchor finds one statement inside the function, spans
+    do not overlap, every cut says why. The anchors are read from `base` (default: the working tree; give the revision the deletion
+    started from once the stand-ins are in). With strict, an entry that says neither `whole` nor `cut` is refused."""
+    result = Result()
+    read = base or working_tree_reader(root)
+    kinds: dict[str, str] = {}
+    undecided: list[str] = []
+    no_obligation: list[str] = []
+    try:
+        for e in read_toml(root / TOUCHED_FILE).get("entry", []):
+            subject, kind = entry_subject(e), entry_kind(e)
+            kinds[subject] = behaves_as(kind) if kind != KIND_CONFLICT else KIND_CONFLICT
+            if kind == KIND_CONFLICT:
+                result.fail("E-CUT-WHOLE-AND-CUT", subject, "`whole = true` and a non-empty `cut` together: choose one")
+            elif kind == KIND_UNDECIDED:
+                undecided.append(subject)
+                if strict:
+                    result.fail("E-CUT-UNDECIDED", subject, "says neither `whole = true` nor `cut = [...]`")
+            elif kind == KIND_NONE:
+                no_obligation.append(subject)
+            elif kind == KIND_CUT:
+                text = read(e["file"])
+                in_function = lines_in_text(e["language"], text, e["function"]) if text is not None else None
+                if in_function is None:
+                    result.fail("E-STALE-ENTRY", subject, "no such function in the file")
+                    continue
+                for p in resolve_cuts(e, text, in_function)[1]:
+                    result.fail(p.code, p.subject, p.detail)
+    except BaseUnreadable as exc:
+        result.error("E-BASE-UNREADABLE", "base", str(exc))
+    result.data = {"kinds": kinds, "undecided": undecided, "no_obligation": no_obligation}
+    write_report(root, "cuts", result)
+    return result
+
+
+
 def check_stubs(root: Path) -> Result:
     """Every function in the touched set has been replaced by hand with a stub of the exact form for its language."""
     result = Result()
@@ -1030,7 +1200,11 @@ def combine_lines(a: dict[str, FileLines], b: dict[str, FileLines]) -> dict[str,
 
 def function_lines(root: Path, language: str, file: str, function: str) -> set[int] | None:
     """The line numbers a touched function spans (a shell <script> is the whole file); None if the file has no such function."""
-    text = (root / file).read_text()
+    return lines_in_text(language, (root / file).read_text(), function)
+
+
+def lines_in_text(language: str, text: str, function: str) -> set[int] | None:
+    """function_lines for a source text that is not (or not yet) the file on disk, such as the base version of a file."""
     if function == SCRIPT_LEVEL:
         return set(range(1, len(text.splitlines()) + 1))
     if language == "python":
@@ -2048,7 +2222,7 @@ def audit_run(root: Path, number: int, grep=git_grep, snapshot=tree_snapshot) ->
 
 
 RECONCILING_COMMANDS = ("stage", "report-deletion", "check-stubs", "check-coverage")      # these read the stage, so they check it against the set first
-SCOPED_COMMANDS = ("check-stubs", "report-deletion", "check-coverage", "stage", "check-touched-set")    # the ones that act on the whole list
+SCOPED_COMMANDS = ("check-cuts", "check-stubs", "report-deletion", "check-coverage", "stage", "check-touched-set")    # the ones that act on the whole list
 
 
 def scope_line(root: Path) -> str:
@@ -2077,6 +2251,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.choices["audit-check"].add_argument("--require-final", action="store_true", help="exit 1 unless the latest pass is final")
     sub.add_parser("audit-run", help="run the queries of audit pass NN and write their hits to reports/audit-hits-NN.json").add_argument("number", type=int)
     sub.add_parser("guard-idle", help="exit 0 when no job is running on the node (from `dbench status --json NODE`), 1 naming the job and story, 2 when unknown").add_argument("node")
+    cuts = sub.add_parser("check-cuts", help="the cut / whole data of the whole touched set is well formed (anchors, spans, why)",
+                          description="the cut / whole data of the whole touched set is well formed (anchors, spans, why)")
+    cuts.add_argument("--strict", action="store_true", help="also refuse an entry that says neither `whole` nor `cut`")
+    cuts.add_argument("--base", metavar="REV", help="read the anchors from this revision of each file (default: the working tree)")
     sub.choices["check-coverage"].add_argument("--language", choices=LANGUAGES, action="append", help="measure only this language (repeatable)")
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("stage", help="print the epic's stage; with a stage name, move the whole touched set to it if its justifying check passes",
@@ -2122,6 +2300,8 @@ def main(argv: list[str] | None = None) -> int:
             result = epic.run_command(root, args)
         elif args.command == "check-matrix":
             result = check_matrix(root, args.use_case, lister)
+        elif args.command == "check-cuts":
+            result = check_cuts(root, strict=args.strict, base=git_show_reader(root, args.base) if args.base else None)
         elif args.command == "report-deletion":
             result = report_deletion(root, read_results(root))
         elif args.command == "audit-run":

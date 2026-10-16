@@ -3566,3 +3566,221 @@ def test_function_at_parses_a_file_once_for_many_hits_and_again_when_the_file_ch
     assert calls.count("functions_of") <= 1 and calls.count("python_spans") <= 1, calls
     write(tmp_path, "src/x.py", "def a():\n    return 1\n\n\ndef b():\n    return 2\n\n\ndef c():\n    return 3\n")
     assert R.function_at(tmp_path, "src/x.py", 9) == "c", "a changed file is read again, not answered from a stale cache"
+
+
+# ---- cut statements (16 Oct 2026): the unit of deletion is the code that depends on what is replaced ----------------------------
+# Step 1: reading and validating the `cut` / `whole` data of a touched-set entry (check-cuts).
+
+CUT_PY = (
+    "def publish(repo, run):\n"                                   # 1
+    "    path = run_path(run)\n"                                  # 2
+    "    result = subprocess.run(\n"                              # 3
+    "        [\"git\", \"add\", path],\n"                         # 4
+    "        check=False,\n"                                      # 5
+    "    )\n"                                                     # 6
+    "    if result.returncode != 0:\n"                            # 7
+    "        return None\n"                                       # 8
+    "    count = len(result.stdout)\n"                            # 9
+    "    return count\n"                                          # 10
+    "\n\n"
+    "def other(x):\n"                                             # 13
+    "    count = len(x)\n"                                        # 14
+    "    return count\n"                                          # 15
+)
+
+
+def cut_entry(function: str = "publish", body: str = "", language: str = "python", file: str = "src/p.py", head: str = "") -> str:
+    """A touched-set entry in TOML; `body` is the cut-related keys (whole = true, or [[entry.cut]] tables)."""
+    return f'[[entry]]\nlanguage = "{language}"\nfile = "{file}"\nfunction = "{function}"\nclasses = ["C"]\n{head}{body}\n'
+
+
+def cut_toml(anchor: str, why: str = "runs git", lines: int | None = None, nth: int | None = None, extra: str = "") -> str:
+    """One [[entry.cut]] table."""
+    keys = f'anchor = {json.dumps(anchor)}\nwhy = {json.dumps(why)}\n'
+    keys += f"lines = {lines}\n" if lines is not None else ""
+    keys += f"nth = {nth}\n" if nth is not None else ""
+    return f"[[entry.cut]]\n{keys}{extra}"
+
+
+def span_toml(kind: str, anchor: str, lines: int | None = None, nth: int | None = None) -> str:
+    keys = f"anchor = {json.dumps(anchor)}\n" + (f"lines = {lines}\n" if lines is not None else "") + (f"nth = {nth}\n" if nth is not None else "")
+    return f"[[entry.cut.{kind}]]\n{keys}"
+
+
+GIT_CUT = cut_toml("result = subprocess.run(", lines=4)
+USE_RESULT = span_toml("uses", "count = len(result.stdout)")
+GUARD_RESULT = span_toml("guards", "if result.returncode != 0:")
+
+
+def cuts_root(tmp_path: Path, body: str, source: str = CUT_PY, **kw) -> Path:
+    root = make_root(tmp_path, touched=cut_entry(body=body, **kw))
+    write(root, kw.get("file", "src/p.py"), source)
+    return root
+
+
+def cut_problems(result: R.Result) -> list[tuple[str, str]]:
+    return [(p.code, p.subject) for p in result.problems]
+
+
+def test_cuts_a_cut_with_a_use_and_a_guard_that_all_resolve_is_valid(tmp_path):
+    root = cuts_root(tmp_path, GIT_CUT + USE_RESULT + GUARD_RESULT)
+    result = R.check_cuts(root)
+    assert result.exit_code == R.EXIT_OK and result.problems == []
+    assert result.data["kinds"] == {"src/p.py::publish": "cut"}
+
+
+def test_cuts_a_missing_anchor_is_named_with_its_cut_id(tmp_path):
+    root = cuts_root(tmp_path, cut_toml("result = subprocess.popen("))
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-ANCHOR-MISSING", "refactor-cut:src/p.py::publish#1")]
+
+
+def test_cuts_an_anchor_that_is_in_another_function_is_missing(tmp_path):
+    root = cuts_root(tmp_path, cut_toml("count = len(x)"))               # only in `other`
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-ANCHOR-MISSING", "refactor-cut:src/p.py::publish#1")]
+
+
+def test_cuts_an_anchor_that_occurs_twice_needs_nth_and_nth_picks_one(tmp_path):
+    source = "def publish(a):\n    x = 1\n    y = 2\n    x = 1\n    return x\n"
+    ambiguous = cuts_root(tmp_path / "a", cut_toml("x = 1"), source)
+    assert cut_problems(R.check_cuts(ambiguous)) == [("E-CUT-ANCHOR-AMBIGUOUS", "refactor-cut:src/p.py::publish#1")]
+    second = cuts_root(tmp_path / "b", cut_toml("x = 1", nth=2), source)
+    assert R.check_cuts(second).exit_code == R.EXIT_OK
+    third = cuts_root(tmp_path / "c", cut_toml("x = 1", nth=3), source)
+    assert cut_problems(R.check_cuts(third)) == [("E-CUT-ANCHOR-MISSING", "refactor-cut:src/p.py::publish#1")]
+
+
+def test_cuts_an_anchor_is_compared_after_stripping_the_line(tmp_path):
+    assert R.check_cuts(cuts_root(tmp_path, cut_toml("return None"))).exit_code == R.EXIT_OK      # the file line has eight spaces
+
+
+def test_cuts_a_use_or_a_guard_anchor_that_is_missing_is_named_with_the_cuts_id(tmp_path):
+    root = cuts_root(tmp_path, GIT_CUT + span_toml("uses", "nowhere()") + span_toml("guards", "if nothing:"))
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-ANCHOR-MISSING", "refactor-cut:src/p.py::publish#1")] * 2
+
+
+def test_cuts_a_span_that_runs_past_the_function_is_out_of_it(tmp_path):
+    root = cuts_root(tmp_path, cut_toml("count = len(result.stdout)", lines=3))      # lines 9 to 11: 11 is blank, past the def's end
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-OUT-OF-FUNCTION", "refactor-cut:src/p.py::publish#1")]
+
+
+def test_cuts_a_span_that_runs_past_the_end_of_the_file_is_out_of_the_function(tmp_path):
+    root = cuts_root(tmp_path, cut_toml("count = len(x)", lines=9), function="other")
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-OUT-OF-FUNCTION", "refactor-cut:src/p.py::other#1")]
+
+
+def test_cuts_two_cuts_that_share_a_line_overlap(tmp_path):
+    root = cuts_root(tmp_path, GIT_CUT + cut_toml("check=False,"))
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-OVERLAP", "refactor-cut:src/p.py::publish#1")]
+
+
+def test_cuts_a_use_of_one_cut_inside_another_cuts_span_overlaps(tmp_path):
+    root = cuts_root(tmp_path, GIT_CUT + cut_toml("return count") + span_toml("uses", "check=False,", lines=2))      # lines 5 and 6: inside cut 1
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-OVERLAP", "refactor-cut:src/p.py::publish#1")]       # reported on the lowest cut involved
+
+
+def test_cuts_a_guard_inside_a_cuts_own_span_overlaps(tmp_path):
+    root = cuts_root(tmp_path, GIT_CUT + span_toml("guards", "check=False,"))
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-OVERLAP", "refactor-cut:src/p.py::publish#1")]
+
+
+def test_cuts_the_same_use_named_by_two_cuts_is_not_an_overlap(tmp_path):
+    root = cuts_root(tmp_path, GIT_CUT + USE_RESULT + cut_toml("path = run_path(run)") + USE_RESULT)
+    assert R.check_cuts(root).exit_code == R.EXIT_OK
+
+
+@pytest.mark.parametrize("why", ["", "   "])
+def test_cuts_an_empty_why_is_refused(tmp_path, why):
+    assert cut_problems(R.check_cuts(cuts_root(tmp_path, cut_toml("return None", why=why)))) == [("E-CUT-NO-WHY", "refactor-cut:src/p.py::publish#1")]
+
+
+def test_cuts_a_missing_why_is_refused(tmp_path):
+    root = cuts_root(tmp_path, '[[entry.cut]]\nanchor = "return None"\n')
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-NO-WHY", "refactor-cut:src/p.py::publish#1")]
+
+
+def test_cuts_whole_and_a_non_empty_cut_together_are_an_error(tmp_path):
+    root = cuts_root(tmp_path, GIT_CUT, head="whole = true\n")
+    assert cut_problems(R.check_cuts(root)) == [("E-CUT-WHOLE-AND-CUT", "src/p.py::publish")]
+
+
+def test_cuts_whole_with_an_empty_cut_list_is_whole(tmp_path):
+    root = cuts_root(tmp_path, "", head="whole = true\ncut = []\n")
+    result = R.check_cuts(root)
+    assert result.exit_code == R.EXIT_OK and result.data["kinds"] == {"src/p.py::publish": "whole"}
+
+
+def test_cuts_an_entry_with_neither_is_whole_and_only_strict_calls_it_undecided(tmp_path):
+    root = cuts_root(tmp_path, "")
+    loose = R.check_cuts(root)
+    assert loose.exit_code == R.EXIT_OK and loose.data["kinds"] == {"src/p.py::publish": "whole"} and loose.data["undecided"] == ["src/p.py::publish"]
+    strict = R.check_cuts(root, strict=True)
+    assert strict.exit_code == R.EXIT_FAIL and cut_problems(strict) == [("E-CUT-UNDECIDED", "src/p.py::publish")]
+
+
+def test_cuts_an_empty_cut_list_without_whole_has_no_obligation_and_is_reported_not_failed(tmp_path):
+    root = cuts_root(tmp_path, "", head="cut = []\n")
+    for strict in (False, True):
+        result = R.check_cuts(root, strict=strict)
+        assert result.exit_code == R.EXIT_OK
+        assert result.data["kinds"] == {"src/p.py::publish": "none"} and result.data["no_obligation"] == ["src/p.py::publish"]
+
+
+def test_cuts_a_listed_function_that_is_not_in_the_file_is_stale(tmp_path):
+    root = cuts_root(tmp_path, cut_toml("return None"), function="ghost")
+    assert cut_problems(R.check_cuts(root)) == [("E-STALE-ENTRY", "src/p.py::ghost")]
+
+
+RS_CUT = (
+    "pub fn pull(repo: &Path) -> bool {\n"                        # 1
+    "    let out = Command::new(\"git\")\n"                        # 2
+    "        .args([\"fetch\"])\n"                                 # 3
+    "        .status();\n"                                         # 4
+    "    if out.is_err() {\n"                                      # 5
+    "        return false;\n"                                      # 6
+    "    }\n"                                                      # 7
+    "    true\n"                                                   # 8
+    "}\n"                                                          # 9
+    "\n"
+    "pub fn other() -> bool {\n"                                   # 11
+    "    true\n"                                                   # 12
+    "}\n"
+)
+
+
+def test_cuts_a_rust_function_runs_from_its_fn_line_to_the_next_one(tmp_path):
+    ok = cuts_root(tmp_path / "a", cut_toml("let out = Command::new(\"git\")", lines=3) + span_toml("guards", "if out.is_err() {"),
+                   RS_CUT, language="rust", file="src/p.rs", function="pull")
+    assert R.check_cuts(ok).exit_code == R.EXIT_OK
+    past = cuts_root(tmp_path / "b", cut_toml("pub fn other() -> bool {"), RS_CUT, language="rust", file="src/p.rs", function="pull")
+    assert cut_problems(R.check_cuts(past)) == [("E-CUT-ANCHOR-MISSING", "refactor-cut:src/p.rs::pull#1")]
+
+
+def test_cuts_a_module_head_is_the_lines_outside_every_def(tmp_path):
+    source = "import os\nLIMIT = 3\n\n\ndef f():\n    return LIMIT\n"
+    root = cuts_root(tmp_path, cut_toml("LIMIT = 3"), source, function="<module>")
+    assert R.check_cuts(root).exit_code == R.EXIT_OK
+    inside = cuts_root(tmp_path / "x", cut_toml("return LIMIT"), source, function="<module>")
+    assert cut_problems(R.check_cuts(inside)) == [("E-CUT-ANCHOR-MISSING", "refactor-cut:src/p.py::<module>#1")]
+
+
+def test_cuts_a_shell_script_entry_is_the_whole_file(tmp_path):
+    source = "#!/usr/bin/env bash\nrun=\"$1\"\ngit add \"runs/$run\"\ngit push origin HEAD:main\n"
+    root = cuts_root(tmp_path, cut_toml("git add \"runs/$run\"") + cut_toml("git push origin HEAD:main"), source,
+                     language="shell", file="src/p.sh", function="<script>")
+    assert R.check_cuts(root).exit_code == R.EXIT_OK
+
+
+def test_cuts_the_report_is_written_and_the_cli_exit_codes_are_those_of_the_other_commands(tmp_path):
+    root = cuts_root(tmp_path, cut_toml("nowhere()"))
+    assert cli(root, "check-cuts") == R.EXIT_FAIL
+    report = json.loads((root / "ops/refactor/reports/cuts.json").read_text())
+    assert report["exit_code"] == R.EXIT_FAIL and report["problems"][0]["code"] == "E-CUT-ANCHOR-MISSING"
+    good = cuts_root(tmp_path / "good", cut_toml("return None"))
+    assert cli(good, "check-cuts") == R.EXIT_OK
+    loose = cuts_root(tmp_path / "loose", "")
+    assert cli(loose, "check-cuts") == R.EXIT_OK and cli(loose, "check-cuts", "--strict") == R.EXIT_FAIL
+
+
+def test_cuts_a_base_revision_that_cannot_be_read_is_undecided_not_a_pass(tmp_path):
+    root = cuts_root(tmp_path, cut_toml("return None"))
+    assert cli(root, "check-cuts", "--base", "no-such-rev") == R.EXIT_ERROR            # the root is no git repository
