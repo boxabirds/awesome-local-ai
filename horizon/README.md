@@ -11,6 +11,7 @@ we already know.
 | **candidate** | worth trying; no known blocker, not yet scheduled |
 | **gated** | worth trying once named checks pass (listed in the note) |
 | **blocked** | a known defect stops it; the note says what would unblock it |
+| **quarantined** | taken out of the benchmark suite by the owner until a named upstream issue is addressed, by a fix or a workaround; nothing is queued or run, and the note says what lifts it |
 | **queued** | agreed and waiting for a machine or setup step |
 | **adopted** | now a combination under `combinations/` (the note links it) |
 | **parked** | not now, by decision; the note says what would bring it back |
@@ -53,7 +54,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [Lithos Metal](lithos-metal.md) | candidate | M5 Max | Metal megakernels and DSpark speculative decoding for Apple silicon, Apache 2.0, v0.1.2 (5 Oct); Qwen3.8-27B and Qwen3.6-35B only, no Flash-Next; its speed figure is a projection, not end to end |
 | [NInfer (Swift 1.5)](ninfer.md) | queued | RTX 4090 (Windows) | Windows-only 4090 engine for Swift 1.5; waiting for the Windows setup |
 | [TensorFold](tensorfold.md) | parked | M5 Max | MLX/CUDA exact speculative decoding; a 47k-token window on 128 GB against the 128k minimum |
-| [MTPLX](mtplx.md) | queued | M5 Max | 2.12.1 closed our issue 567 (compaction 507s); 2.12.2 installed; five runs queued behind mlx-serve |
+| [MTPLX](mtplx.md) | **quarantined** | M5 Max | out of the benchmark suite from 16 Oct 2026 until MTPLX issue 605 (HTTP 500 on valid requests, 2.12.2) is fixed or worked around |
 | [Rapid-MLX](rapid-mlx.md) | gated | M5 Max | a third MLX server, built for reliable tool calling; supports Flash-Next, but its own docs say 192 GB is the practical tier, 128 GB "tight and not tested", and its speed claims are measured greedy |
 | [BeeLlama.cpp](beellama.md) | candidate | RTX 4090 (Ubuntu) | llama.cpp fork: KV cache in fewer bits for the same context; MTP/DFlash speculation |
 | [TurboQuant](turboquant.md) | candidate | RTX 4090 (Ubuntu) | llama.cpp fork: turbo KV cache (no re-quant) and Config I TQ4_1S weights (re-quant; merge with Unsloth Dynamic 3.0 to test) |

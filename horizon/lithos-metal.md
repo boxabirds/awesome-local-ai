@@ -5,8 +5,8 @@ repository metadata only. Its 36 open issues have not been read.
 **Kind:** a new engine on the Mac, serving Qwen3.8-27B and Qwen3.6-35B-A3B. It does not list Flash-Next, the model of our
 other Mac stacks, so a comparison would be on Qwen3.8-27B only.
 **Where it could run:** the M5 Max (128 GB). Compare with the Mac 27B stack we already have,
-[MTPLX](mtplx.md) with OpenCode on 64 GB (`qwen/3.8/27b/macos/64GB/mtplx-opencode`), and in principle with llama.cpp on
-Qwen3.8-27B.
+[MTPLX](mtplx.md) with OpenCode on 64 GB (`qwen/3.8/27b/macos/64GB/mtplx-opencode`), which is **quarantined from
+benchmarking** (16 Oct 2026, see its note), and in principle with llama.cpp on Qwen3.8-27B.
 
 ## What it is
 

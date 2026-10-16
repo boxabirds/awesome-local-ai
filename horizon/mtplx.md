@@ -1,6 +1,15 @@
 # MTPLX
 
-**Status:** back in the queue (3 Oct 2026). MTPLX 2.12.1 (2 Oct) closed issue 567, the compaction deadlock below:
+**Status:** **quarantined from benchmarking (16 Oct 2026), by the owner, until
+[MTPLX issue 605](https://github.com/youssofal/MTPLX/issues/605) is addressed, with either a fix or a workaround.** No
+MTPLX run is queued or started until then. The issue, filed by the owner on 8 Oct 2026 and still open on 16 Oct, is "HTTP 500
+on valid requests: `ValueError: QSA pooled hold N rows; resizing to M would cut them`" on MTPLX 2.12.2 with Qwen3.8-Flash-Next;
+the owner's comment on it today says they are pulling MTPLX from the benchmark suite until it is fixed. On 16 Oct no MTPLX job
+was queued or running on any node that answered (tritus did not answer); the five `v2-mtplx2122` runs on quintus show failed,
+and their reruns one done and four cancelled. Nothing below is changed: it is the history up to the quarantine.
+**What lifts it:** a MTPLX release that fixes issue 605, or a workaround, shown by a request that used to fail and now
+completes, and then the checks in "What would unblock it" below.
+**Status before the quarantine:** back in the queue (3 Oct 2026). MTPLX 2.12.1 (2 Oct) closed issue 567, the compaction deadlock below:
 idle conversations are released before anything is refused, and the author ran a real pi compaction of a 205k-token
 Flash-Next session on a 128 GB Mac with no refusal. 2.12.2 (3 Oct, 01:01 BST) fixes a 2.12.1 regression on small
 Macs. The owner asked for the latest version and a five-run series: 2.12.2 is installed on the M5 Max (`uv tool`,
@@ -43,5 +52,5 @@ The owner pinged Youssof (MTPLX's author) about the report; no reply yet as of 2
 thinks 2.12 broke a few things and that **2.14** will be worth looking out for (the owner's account of that
 conversation; 2.12.0 is the version these reports are on).
 
-**Last checked:** 29 Sep 2026 (installed version 2.12.0). **Recheck when:** MTPLX 2.14 is released (then run
+**Last checked:** 29 Sep 2026 (installed version 2.12.0); quarantine and issue 605 added 16 Oct 2026. **Recheck when:** issue 605 is closed or answered with a workaround, MTPLX 2.14 is released (then run
 the checks above on it), or Youssof replies; and once the issue draft is filed, when it closes.
