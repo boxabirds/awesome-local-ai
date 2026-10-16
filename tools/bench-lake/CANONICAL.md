@@ -1,8 +1,8 @@
 # Canonical output of the `bench-lake` command
 
-This file is the contract between the Rust command `bench-lake` (tools/bench-lake) and the Python module
-`lake_runs.py` (story 21). The two must print the same bytes for the same lake and question. A Python implementation can
-be written from this file alone. The worked examples in it are real output over the fixture lake
+This file is the contract between the Rust command `bench-lake` (tools/bench-lake, story 21) and the programs that call
+it. A Python tool runs the command as a subprocess and reads this JSON; there is no Python implementation (owner, 16 Oct
+2026: Python only when it is necessary). The worked examples in it are real output over the fixture lake
 `tools/bench-lake/tests/fixtures/lake` and are checked by a Rust test (`tests/canonical.rs`): an example that no longer
 matches the command fails that test.
 
