@@ -50,6 +50,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 
 | Note | Status | Machine | One line |
 |---|---|---|---|
+| [Lithos Metal](lithos-metal.md) | candidate (unchecked) | M5 Max | added by the owner as "something for Macs"; two searches found no project of that name, so nothing is known yet |
 | [NInfer (Swift 1.5)](ninfer.md) | queued | RTX 4090 (Windows) | Windows-only 4090 engine for Swift 1.5; waiting for the Windows setup |
 | [TensorFold](tensorfold.md) | parked | M5 Max | MLX/CUDA exact speculative decoding; a 47k-token window on 128 GB against the 128k minimum |
 | [MTPLX](mtplx.md) | queued | M5 Max | 2.12.1 closed our issue 567 (compaction 507s); 2.12.2 installed; five runs queued behind mlx-serve |
