@@ -51,6 +51,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 
 | Note | Status | Machine | One line |
 |---|---|---|---|
+| [Subagents and specialist LLMs](subagents-and-specialist-llms.md) | open question | Macs, RTX 4090 | can a very small model (Bonsai 2 at 2B, 4B, 9B; 1-bit Bonsai at 1.7B, 4B, 8B) do the simple agentic jobs a main agent hands off? No tool-calling figure found for any small size; the one Bonsai run we have is the 27B on a 16 GB Air |
 | [Lithos Metal](lithos-metal.md) | candidate | M5 Max | Metal megakernels and DSpark speculative decoding for Apple silicon, Apache 2.0, v0.1.2 (5 Oct); Qwen3.8-27B and Qwen3.6-35B only, no Flash-Next; its speed figure is a projection, not end to end |
 | [NInfer (Swift 1.5)](ninfer.md) | queued | RTX 4090 (Windows) | Windows-only 4090 engine for Swift 1.5; waiting for the Windows setup |
 | [TensorFold](tensorfold.md) | parked | M5 Max | MLX/CUDA exact speculative decoding; a 47k-token window on 128 GB against the 128k minimum |
