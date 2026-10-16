@@ -1,0 +1,49 @@
+[python]
+dir = "py"
+command = ["uv", "run", "--quiet", "--with", "pytest", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
+
+[rust]
+dir = "rs"
+command = ["cargo", "test", "--workspace", "--", "--list"]
+
+[typescript]
+dir = "ts"
+command = ["bun", "x", "vitest", "list", "--json"]
+
+[shell]
+glob = "tests/*-test.sh"
+
+[python.coverage]
+command = ["uv", "run", "--quiet", "--with", "pytest", "--with", "pytest-cov", "pytest", "-q", "-p", "no:cacheprovider",
+           "--cov=.", "--cov-branch", "--cov-report=lcov:{out}"]
+
+[rust.coverage]
+command = ["cargo", "+nightly", "llvm-cov", "--workspace", "--lcov", "--branch", "--output-path", "{out}"]
+
+[typescript.coverage]
+command = ["bun", "x", "vitest", "run", "--coverage.enabled", "--coverage.provider=v8", "--coverage.reporter=lcovonly",
+           "--coverage.reportsDirectory={outdir}"]
+file = "lcov.info"
+
+[shell.coverage]
+format = "kcov"
+
+[python.results]
+format = "junit"
+command = ["uv", "run", "--quiet", "--with", "pytest", "pytest", "-q", "-p", "no:cacheprovider", "-o", "junit_family=xunit1", "--junitxml={out}"]
+
+[rust.results]
+format = "cargo-json"
+command = ["cargo", "+nightly", "test", "--workspace", "--", "-Z", "unstable-options", "--format", "json"]
+
+[typescript.results]
+format = "vitest-json"
+command = ["bun", "x", "vitest", "run", "--reporter=json", "--outputFile={out}"]
+
+[shell.results]
+format = "shell-exit"
+
+[python.touch]
+command = ["uv", "run", "--quiet", "--with", "pytest", "--with", "pytest-cov", "pytest", "-q", "-p", "no:cacheprovider",
+           "--cov=.", "--cov-branch", "--cov-context=test", "--cov-report="]
+json_command = ["uv", "run", "--quiet", "--with", "coverage", "coverage", "json", "--show-contexts", "-o", "{out}"]

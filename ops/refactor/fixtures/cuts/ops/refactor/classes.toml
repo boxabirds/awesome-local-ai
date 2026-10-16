@@ -1,0 +1,23 @@
+# The mini project has no git in it, so its touched functions are named, not matched.
+[sources]
+python = ["py/cutpy/*.py"]
+rust = ["rs/cutrs/src/*.rs"]
+typescript = ["ts/src/core.ts"]
+shell = ["scripts/*.sh"]
+exclude = ["test_*.py", "conftest.py", "*.test.ts", "__init__.py"]
+
+[classes.A]
+patterns = []
+[classes.B]
+patterns = []
+[classes.C]
+patterns = []
+[classes.D]
+patterns = []
+[classes.E]
+patterns = []
+[classes.W]
+functions = []
+
+[named]
+C = ["py/cutpy/core.py::publish", "rs/cutrs/src/lib.rs::publish", "ts/src/core.ts::publish", "scripts/cutsh.sh::publish_run"]

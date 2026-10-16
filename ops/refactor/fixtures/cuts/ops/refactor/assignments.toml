@@ -1,0 +1,5 @@
+[assignments]
+U1 = ["python:py/test_core.py::test_publish_adds_a_run", "python:py/test_core.py::test_publish_amends_a_run", "python:py/test_core.py::test_publish_reports_a_failed_add", "python:py/test_core.py::test_publish_reports_a_failed_amend"]
+U2 = ["rust:rs/cutrs/src/lib.rs::tests::publish_adds_a_run", "rust:rs/cutrs/src/lib.rs::tests::publish_amends_a_run", "rust:rs/cutrs/src/lib.rs::tests::publish_reports_a_failed_add", "rust:rs/cutrs/src/lib.rs::tests::publish_reports_a_failed_amend"]
+U3 = ["typescript:ts/src/core.test.ts::publish adds a run", "typescript:ts/src/core.test.ts::publish amends a run", "typescript:ts/src/core.test.ts::publish reports a failed add", "typescript:ts/src/core.test.ts::publish reports a failed amend"]
+U4 = ["shell:tests/cutsh-test.sh"]

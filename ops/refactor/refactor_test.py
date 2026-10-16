@@ -4181,7 +4181,7 @@ def test_apply_cuts_without_dry_run_is_refused_and_with_it_prints_and_writes_not
 def test_del_the_result_readers_keep_the_failure_text_of_each_failing_test():
     texts: dict[str, str] = {}
     R.parse_junit("py", JUNIT, texts)
-    assert texts == {"python:py/test_core.py::test_a": "NotImplementedError: deleted trace", "python:py/test_core.py::test_c": "assert 1 == 2 trace"}
+    assert texts == {"python:py/test_core.py::test_a": "NotImplementedError: deleted", "python:py/test_core.py::test_c": "assert 1 == 2"}
     cargo: dict[str, str] = {}
     R.parse_cargo_json(CARGO_JSON, cargo)
     assert cargo == {"tests::a": "thread 'tests::a' panicked at src/lib.rs:4:5:\nnot yet implemented\n", "tests::c": "assertion failed: x"}
@@ -4193,6 +4193,22 @@ def test_del_the_result_readers_keep_the_failure_text_of_each_failing_test():
     R.parse_shell_results(SHELL_JSON, shell, codes_)
     assert codes_ == {"shell:tests/one-test.sh": 1, "shell:tests/two-test.sh": 0, "shell:tests/three-test.sh": 1}
     assert shell["shell:tests/one-test.sh"].endswith("actual:   exit 99") and "shell:tests/two-test.sh" not in shell
+
+
+def test_del_a_failure_cites_only_what_the_exception_said_not_the_source_listing_in_its_trace():
+    junit = ("<testsuites><testsuite><testcase classname=\"test_core\" name=\"test_a\" file=\"test_core.py\">"
+             "<failure message=\"NotImplementedError: refactor-cut:src/p.py::f#1\">    def f():\n"
+             "        raise NotImplementedError(&quot;refactor-cut:src/p.py::f#1&quot;)\n"
+             "        raise NotImplementedError(&quot;refactor-cut:src/p.py::f#2&quot;)</failure></testcase></testsuite></testsuites>")
+    texts: dict[str, str] = {}
+    outcomes, _ = R.parse_junit("py", junit, texts)
+    assert R.cuts_cited(R.Results(outcomes=outcomes, texts=texts)) == {"refactor-cut:src/p.py::f#1": {"python:py/test_core.py::test_a"}}
+    vitest = json.dumps({"testResults": [{"name": "/r/ts/a.test.ts", "assertionResults": [
+        {"ancestorTitles": [], "title": "t", "status": "failed",
+         "failureMessages": ["Error: not implemented: refactor-cut:ts/a.ts::g#1\n    at g (a.ts:3)\n  throw new Error(\"not implemented: refactor-cut:ts/a.ts::g#2\")"]}]}]})
+    found: dict[str, str] = {}
+    outcomes = R.parse_vitest_json(Path("/r"), vitest, found)
+    assert set(R.cuts_cited(R.Results(outcomes=outcomes, texts=found))) == {"refactor-cut:ts/a.ts::g#1"}
 
 
 def test_del_the_readers_work_as_before_without_a_text_collector():
@@ -4209,7 +4225,7 @@ def test_del_read_results_fills_the_texts_the_report_cites(tmp_path):
     write(root, "ops/refactor/reports/results-rust.jsonl", CARGO_JSON)
     write(root, "ops/refactor/reports/results-shell.json", SHELL_JSON)
     found = R.read_results(root)
-    assert "NotImplementedError: deleted" in found.texts["python:py/test_core.py::test_a"]
+    assert found.texts["python:py/test_core.py::test_a"] == "NotImplementedError: deleted"
     assert "not yet implemented" in found.rust_texts["tests::a"]
     assert found.exit_codes["shell:tests/one-test.sh"] == 1
 
@@ -4393,3 +4409,113 @@ def test_del_the_report_never_edits_production_code_with_cuts(tmp_path):
 
 def test_del_a_shell_test_that_ends_with_exit_99_failed_for_the_stand_in_whatever_it_printed():
     assert R.parse_shell_results(json.dumps({"tests/a-test.sh": {"code": 99, "output": ""}})) == {"shell:tests/a-test.sh": R.FAILED_STUB}
+
+
+# ---- integration: cut entries through the real tools on fixtures/cuts (one function per language with two cuts, a guard and a use) ----
+
+CUTS = Path(__file__).parent / "fixtures" / "cuts"
+CUT_CHECKED = ("python", "rust", "typescript")                       # the languages the coverage tools can measure on every machine (shell needs kcov, Linux only)
+CUT_FUNCTIONS = {"python": ("py/cutpy/core.py", "publish"), "rust": ("rs/cutrs/src/lib.rs", "publish"),
+                 "typescript": ("ts/src/core.ts", "publish"), "shell": ("scripts/cutsh.sh", "publish_run")}
+
+
+def fresh_cuts(tmp_path: Path) -> Path:
+    """A private copy of fixtures/cuts, committed in its own git repository (the base of a deletion is HEAD), sharing the installed
+    TypeScript dependencies."""
+    root = tmp_path / "cuts"
+    shutil.copytree(CUTS, root, ignore=MINI_IGNORED)
+    os.symlink(MINI_DEPS, root / "ts" / "node_modules")
+    (root / ".gitignore").write_text((root / ".gitignore").read_text() + "ts/node_modules\n")
+    write_stage(root, "Deleted")
+    for args in (("init", "-q"), ("add", "-A"), ("commit", "-q", "-m", "base")):
+        git_in(root, *args)
+    return root
+
+
+def delete_the_cuts(root: Path) -> None:
+    """The deletion a person makes by hand, produced by `apply-cuts --dry-run` (the tool itself never writes production code)."""
+    done = tool(root, "apply-cuts", "--dry-run")
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    printed = json.loads((root / "ops/refactor/reports/apply-cuts.json").read_text())["entries"]
+    for e in tomllib.loads((root / "ops/refactor/touched_set.toml").read_text())["entry"]:
+        text = (root / e["file"]).read_text()
+        in_function = sorted(R.lines_in_text(e["language"], text, e["function"]))
+        lines_ = text.splitlines()
+        new = lines_[: in_function[0] - 1] + printed[f"{e['file']}::{e['function']}"].splitlines() + lines_[in_function[-1]:]
+        (root / e["file"]).write_text("\n".join(new) + "\n")
+
+
+def test_cuts_fixture_the_entries_resolve_in_all_four_languages(tmp_path):
+    root = tmp_path / "c"
+    shutil.copytree(CUTS, root, ignore=MINI_IGNORED)
+    done = tool(root, "check-cuts", "--strict")
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    kinds = json.loads((root / "ops/refactor/reports/cuts.json").read_text())["kinds"]
+    assert kinds == {f"{file}::{function}": "cut" for file, function in CUT_FUNCTIONS.values()}
+
+
+def test_cuts_fixture_a_cut_entry_is_proved_by_lines_and_branches_of_the_cut_use_and_guard(coverage_tools, tmp_path):
+    root = fresh_cuts(tmp_path)
+    done = tool(root, "check-coverage", *[a for lang in CUT_CHECKED for a in ("--language", lang)])
+    report = json.loads((root / "ops/refactor/reports/coverage.json").read_text())
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    for language in CUT_CHECKED:
+        file, function = CUT_FUNCTIONS[language]
+        lines_n, lines_hit, branches_n, branches_hit = report["measured"][f"{file}::{function}"]
+        assert lines_n == lines_hit > 0 and branches_n == branches_hit > 0, (language, report["measured"])        # the guard's branches were counted
+        assert report["kinds"][f"{file}::{function}"] == "cut"
+
+
+def test_cuts_fixture_a_cut_no_test_reaches_is_short_of_coverage(coverage_tools, tmp_path):
+    root = fresh_cuts(tmp_path)
+    test = root / "py/test_core.py"
+    test.write_text(test.read_text().split("def test_publish_amends_a_run")[0] + "def test_publish_reports_a_failed_add():\n    assert publish(\"r\", \"\") == \"failed\"\n")
+    done = tool(root, "check-coverage", "--language", "python")
+    report = json.loads((root / "ops/refactor/reports/coverage.json").read_text())
+    assert done.returncode == R.EXIT_FAIL
+    assert [(p["code"], p["subject"]) for p in report["problems"]] == [("E-BELOW", "py/cutpy/core.py::publish")]
+    assert re.fullmatch(r"\d+ of \d+ lines \(line \d+\)", report["problems"][0]["detail"])
+
+
+def test_cuts_fixture_the_deletion_made_from_apply_cuts_is_accepted_and_every_cut_is_proved_by_a_failing_test(coverage_tools, tmp_path):
+    root = fresh_cuts(tmp_path)
+    assert tool(root, "check-stubs").returncode == R.EXIT_FAIL                 # nothing deleted yet: the cuts are still in place
+    delete_the_cuts(root)
+    stubs = tool(root, "check-stubs", "--base", "HEAD")
+    assert stubs.returncode == R.EXIT_OK, stubs.stdout + stubs.stderr
+    ran = tool(root, "run-suites")
+    assert ran.returncode == R.EXIT_OK, ran.stdout + ran.stderr
+    done = tool(root, "report-deletion")
+    report = json.loads((root / "ops/refactor/reports/deletion.json").read_text())
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    expected = {f"refactor-cut:{CUT_FUNCTIONS[lang][0]}::publish#{n}" for lang in CUT_CHECKED for n in (1, 2)}
+    assert set(report["cuts_cited"]) == expected
+    assert (root / "ops/refactor/reports/results-shell.json").exists()                               # the shell cuts were proved by exit 99, not by an id
+
+
+def test_cuts_fixture_a_cut_that_no_failing_test_cites_is_a_coverage_gap(coverage_tools, tmp_path):
+    root = fresh_cuts(tmp_path)
+    delete_the_cuts(root)
+    test = root / "py/test_core.py"
+    text = test.read_text()
+    for name, call in (("amends_a_run", 'publish("r", "x", amend=True) == "ok:r/x"'), ("reports_a_failed_amend", 'publish("r", "", amend=True) == "failed"')):
+        text = text.replace(f"def test_publish_{name}():\n    assert {call}\n", "")      # no test reaches the amend branch any more
+    assert "amend=True" not in text
+    test.write_text(text)
+    assert tool(root, "run-suites").returncode == R.EXIT_OK
+    done = tool(root, "report-deletion")
+    report = json.loads((root / "ops/refactor/reports/deletion.json").read_text())
+    assert done.returncode == R.EXIT_FAIL
+    assert [(p["code"], p["subject"]) for p in report["problems"] if p["code"] != "E-RESULTS-MISSING"] == [
+        ("E-CUT-NO-TEST-FAILED", "refactor-cut:py/cutpy/core.py::publish#2")]
+
+
+def test_cuts_fixture_a_deletion_that_also_touches_the_guard_is_collateral(coverage_tools, tmp_path):
+    root = fresh_cuts(tmp_path)
+    delete_the_cuts(root)
+    core = root / "py/cutpy/core.py"
+    core.write_text(core.read_text().replace("if done != 0:", "if done:"))
+    done = tool(root, "check-stubs")
+    report = json.loads((root / "ops/refactor/reports/stubs.json").read_text())
+    assert done.returncode == R.EXIT_FAIL
+    assert [(p["code"], p["subject"]) for p in report["problems"]] == [("E-CUT-COLLATERAL", "py/cutpy/core.py::publish")]

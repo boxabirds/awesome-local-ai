@@ -1207,7 +1207,7 @@ def parse_junit(folder: str, xml_text: str, texts: dict[str, str] | None = None)
         test_id = qualified("python", "::".join([posixpath.normpath(f"{folder}/{file}"), *classes, case.get("name", "")]))
         outcomes[test_id] = PASSED if failure is None else classify_failure("python", text)
         if failure is not None and texts is not None:
-            texts[test_id] = text
+            texts[test_id] = failure.get("message", "")       # the exception's own words: the trace lists the source, with every stand-in in it
     return outcomes, file_failures
 
 
@@ -1237,7 +1237,7 @@ def parse_vitest_json(root: Path, text: str, texts: dict[str, str] | None = None
             test_id = qualified("typescript", f"{rel}::{title}")
             outcomes[test_id] = classify_failure("typescript", " ".join(test["failureMessages"])) if failed else PASSED
             if failed and texts is not None:
-                texts[test_id] = " ".join(test["failureMessages"])
+                texts[test_id] = "\n".join(m.split("\n", 1)[0] for m in test["failureMessages"])      # the first line of each: the rest is a stack
     return outcomes
 
 

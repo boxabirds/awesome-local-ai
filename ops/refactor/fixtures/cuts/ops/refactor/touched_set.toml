@@ -1,0 +1,86 @@
+# The cuts project: in each language one function with two cuts (the two version-control calls, one per branch), the guard that decides
+# what a failure does, and the statement that uses the result. Everything else in the function stays.
+
+[[entry]]
+language = "python"
+file = "py/cutpy/core.py"
+function = "publish"
+classes = ["C"]
+[[entry.cut]]
+anchor = 'done = vcs(["add", path])'
+why = "runs the version-control add"
+[[entry.cut.uses]]
+anchor = 'return f"ok:{path}"'
+[[entry.cut.guards]]
+anchor = "if done != 0:"
+[[entry.cut]]
+anchor = 'done = vcs(["amend", path])'
+why = "runs the version-control amend"
+[[entry.cut.uses]]
+anchor = 'return f"ok:{path}"'
+[[entry.cut.guards]]
+anchor = "if done != 0:"
+
+[[entry]]
+language = "rust"
+file = "rs/cutrs/src/lib.rs"
+function = "publish"
+classes = ["C"]
+[[entry.cut]]
+anchor = 'done = run_git(&["add", path]);'
+why = "runs the version-control add"
+[[entry.cut.uses]]
+anchor = 'format!("ok:{path}")'
+[[entry.cut.guards]]
+anchor = "if done != 0 {"
+[[entry.cut]]
+anchor = 'done = run_git(&["amend", path]);'
+why = "runs the version-control amend"
+[[entry.cut.uses]]
+anchor = 'format!("ok:{path}")'
+[[entry.cut.guards]]
+anchor = "if done != 0 {"
+
+[[entry]]
+language = "typescript"
+file = "ts/src/core.ts"
+function = "publish"
+classes = ["C"]
+[[entry.cut]]
+anchor = 'done = vcs(["add", path])'
+why = "runs the version-control add"
+[[entry.cut.uses]]
+anchor = "return `ok:${path}`"
+[[entry.cut.guards]]
+anchor = "if (done !== 0) {"
+[[entry.cut]]
+anchor = 'done = vcs(["amend", path])'
+why = "runs the version-control amend"
+[[entry.cut.uses]]
+anchor = "return `ok:${path}`"
+[[entry.cut.guards]]
+anchor = "if (done !== 0) {"
+
+[[entry]]
+language = "shell"
+file = "scripts/cutsh.sh"
+function = "publish_run"
+classes = ["C"]
+[[entry.cut]]
+anchor = 'vcs add "$path"'
+lines = 2
+why = "runs the version-control add and takes its status"
+[[entry.cut.uses]]
+anchor = 'echo "ok:$path"'
+[[entry.cut.guards]]
+anchor = "if [[ $done -ne 0 ]]; then"
+lines = 4
+[[entry.cut]]
+anchor = 'vcs amend "$path"'
+lines = 2
+why = "runs the version-control amend and takes its status"
+[[entry.cut.uses]]
+anchor = 'echo "ok:$path"'
+[[entry.cut.guards]]
+anchor = "if [[ $done -ne 0 ]]; then"
+lines = 4
