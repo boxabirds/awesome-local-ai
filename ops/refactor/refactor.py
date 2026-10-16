@@ -1273,9 +1273,18 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
     result = Result()
     specs = read_toml(root / RUNNERS_FILE)
     touched: dict[str, list[dict]] = {}
+    kinds: dict[str, str] = {}                  # whole, cut, none or conflict, by "file::function" (an entry that says neither is whole)
+    no_obligation: list[str] = []               # `cut = []`: nothing in the function needs cutting, so nothing is owed
     for e in read_toml(root / TOUCHED_FILE).get("entry", []):
         if languages is None or e["language"] in languages:
-            touched.setdefault(e["language"], []).append(e)
+            subject, kind = entry_subject(e), entry_kind(e)
+            kinds[subject] = behaves_as(kind)
+            if kind == KIND_CONFLICT:
+                result.fail("E-CUT-WHOLE-AND-CUT", subject, "`whole = true` and a non-empty `cut` together: choose one")
+            elif kind == KIND_NONE:
+                no_obligation.append(subject)
+            else:
+                touched.setdefault(e["language"], []).append(e)
     not_measured: dict[str, str] = {}
     measured_counts: dict[str, list[int]] = {}
     excused: dict[str, dict] = {}
@@ -1318,16 +1327,25 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
             if data is None or span is None:
                 result.fail("E-FILE-UNMEASURED", subject, f"{language}: the coverage tool reported nothing for this {'file' if data is None else 'function'}")
                 continue
-            executable = sorted(n for n in span if n in data.lines)
+            obligation = span                       # a whole entry owes every line of the function ...
+            if kinds[subject] == KIND_CUT:          # ... a cut entry owes the cut, the statements that use its result, and its guards
+                cuts, cut_problems = resolve_cuts(e, (root / e["file"]).read_text(), span)
+                if cut_problems:
+                    for p in cut_problems:
+                        result.fail(p.code, p.subject, p.detail)
+                    continue
+                obligation = set().union(*(span_lines(s) for c in cuts for s in [c.span, *c.uses, *c.guards]))
+            executable = sorted(n for n in obligation if n in data.lines)
             if not executable:
                 if e["function"] == MODULE_LEVEL:      # a head of constants and imports has no line a coverage tool measures; the functions that read it are what the tests exercise
                     constants_only.append(subject)
                     continue
-                result.fail("E-FILE-UNMEASURED", subject, f"{language}: no measurable line in this function")
+                owed = "function" if obligation is span else "function's cut, use and guard lines"
+                result.fail("E-FILE-UNMEASURED", subject, f"{language}: no measurable line in this {owed}")
                 continue
             unrun = [n for n in executable if data.lines[n] == 0]
-            spans_seen.setdefault(e["file"], set()).update(span)
-            named = {n: row["reason"] for row in blind.get(e["file"], []) for n in row.get("lines", []) if n in span}
+            spans_seen.setdefault(e["file"], set()).update(obligation)
+            named = {n: row["reason"] for row in blind.get(e["file"], []) for n in row.get("lines", []) if n in obligation}
             for n in sorted(named):
                 if n not in data.lines:
                     result.fail("E-BLIND-STALE", f"{e['file']}:{n}", "not a line the coverage tool measures: remove it from the table")
@@ -1338,7 +1356,7 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
                 excused[subject] = {"lines": skipped, "reason": "; ".join(sorted({named[n] for n in skipped}))}
             lines_missing = [n for n in unrun if n not in named]
             lines_n, lines_hit = len(executable), len(executable) - len(lines_missing)
-            inside = [b for b in data.branches if b[0] in span]
+            inside = [b for b in data.branches if b[0] in obligation]
             branches_missing = [b for b in inside if not b[2]]
             branches_n = len(inside)
             branches_hit = branches_n - len(branches_missing)
@@ -1355,7 +1373,8 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
         for n in sorted({n for row in rows for n in row.get("lines", [])} - spans_seen.get(file, set())):
             if file in spans_seen:
                 result.fail("E-BLIND-STALE", f"{file}:{n}", "not a line of any touched function in this file: remove it from the table")
-    result.data = {"not_measured": not_measured, "measured": measured_counts, "excused": excused, "constants_only": constants_only}
+    result.data = {"not_measured": not_measured, "measured": measured_counts, "excused": excused, "constants_only": constants_only,
+                   "kinds": kinds, "no_obligation": no_obligation}
     write_report(root, "coverage", result)
     return result
 

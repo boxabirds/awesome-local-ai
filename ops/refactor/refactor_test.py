@@ -3784,3 +3784,105 @@ def test_cuts_the_report_is_written_and_the_cli_exit_codes_are_those_of_the_othe
 def test_cuts_a_base_revision_that_cannot_be_read_is_undecided_not_a_pass(tmp_path):
     root = cuts_root(tmp_path, cut_toml("return None"))
     assert cli(root, "check-cuts", "--base", "no-such-rev") == R.EXIT_ERROR            # the root is no git repository
+
+
+# Step 2: check-coverage proves the cut statements, the statements that use their results, and the guards, not the whole function.
+
+CUT_ALL = GIT_CUT + USE_RESULT + GUARD_RESULT                  # lines 3 to 6 (cut), 9 (use), 7 (guard); 2, 8 and 10 are outside the obligation
+CUT_HIT = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1, 14: 0, 15: 0}           # line 8 (`return None`) never runs
+CUT_BRANCHES = [(7, "0:4", True), (7, "0:5", True)]
+
+
+def cut_coverage(tmp_path: Path, body: str, hits: dict, branches=(), source: str = CUT_PY, head: str = "", **kw) -> R.Result:
+    return coverage_result(tmp_path, cut_entry(body=body, head=head, **kw), {kw.get("file", "src/p.py"): source},
+                           python={"src/p.py": lines(hits, branches)})
+
+
+def test_cov_a_cut_entry_owes_only_its_cut_use_and_guard_lines(tmp_path):
+    result = cut_coverage(tmp_path, CUT_ALL, CUT_HIT, CUT_BRANCHES)
+    assert result.exit_code == R.EXIT_OK and result.problems == []                    # line 8 and the rest of the function are not owed
+    assert result.data["measured"] == {"src/p.py::publish": [6, 6, 2, 2]}              # 3, 4, 5, 6, 7 and 9
+    assert result.data["kinds"] == {"src/p.py::publish": "cut"}
+
+
+def test_cov_an_unrun_use_line_fails_naming_the_function_and_the_line(tmp_path):
+    result = cut_coverage(tmp_path, CUT_ALL, CUT_HIT | {9: 0}, CUT_BRANCHES)
+    assert [(p.code, p.subject, p.detail) for p in result.problems] == [("E-BELOW", "src/p.py::publish", "5 of 6 lines (line 9)")]
+
+
+def test_cov_an_unrun_line_of_the_cut_itself_fails(tmp_path):
+    result = cut_coverage(tmp_path, CUT_ALL, CUT_HIT | {4: 0}, CUT_BRANCHES)
+    assert [(p.code, p.detail) for p in result.problems] == [("E-BELOW", "5 of 6 lines (line 4)")]
+
+
+def test_cov_a_guard_must_be_covered_both_ways(tmp_path):
+    result = cut_coverage(tmp_path, CUT_ALL, CUT_HIT, [(7, "0:4", True), (7, "0:5", False)])
+    assert [(p.code, p.detail) for p in result.problems] == [("E-BELOW", "1 of 2 branches (7->5)")]
+
+
+def test_cov_a_branch_on_a_line_outside_the_obligation_is_not_counted(tmp_path):
+    result = cut_coverage(tmp_path, CUT_ALL, CUT_HIT, CUT_BRANCHES + [(8, "0:9", False)])
+    assert result.exit_code == R.EXIT_OK
+
+
+def test_cov_an_unrun_line_outside_the_obligation_does_not_matter_even_when_a_whole_entry_would_fail_on_it(tmp_path):
+    whole = cut_coverage(tmp_path / "w", "", CUT_HIT, CUT_BRANCHES, head="whole = true\n")
+    assert [(p.code, p.detail) for p in whole.problems] == [("E-BELOW", "9 of 10 lines (line 8)")]      # the old behaviour, unchanged
+    assert whole.data["kinds"] == {"src/p.py::publish": "whole"} and whole.data["measured"] == {"src/p.py::publish": [10, 9, 2, 2]}
+    assert cut_coverage(tmp_path / "c", CUT_ALL, CUT_HIT, CUT_BRANCHES).exit_code == R.EXIT_OK
+
+
+def test_cov_an_entry_with_neither_key_is_measured_as_a_whole_function(tmp_path):
+    result = cut_coverage(tmp_path, "", CUT_HIT, CUT_BRANCHES)
+    assert [(p.code, p.detail) for p in result.problems] == [("E-BELOW", "9 of 10 lines (line 8)")]
+    assert result.data["kinds"] == {"src/p.py::publish": "whole"}
+
+
+def test_cov_a_cut_entry_whose_obligation_has_no_measured_line_is_unmeasured(tmp_path):
+    result = cut_coverage(tmp_path, CUT_ALL, {1: 1, 2: 1, 8: 0})
+    assert [(p.code, p.subject) for p in result.problems] == [("E-FILE-UNMEASURED", "src/p.py::publish")]
+
+
+def test_cov_an_empty_cut_list_is_no_obligation_and_its_language_is_not_even_run(tmp_path):
+    result = coverage_result(tmp_path, cut_entry(head="cut = []\n"), {"src/p.py": CUT_PY})            # no python key: a call would KeyError
+    assert result.exit_code == R.EXIT_OK and result.problems == []
+    assert result.data["kinds"] == {"src/p.py::publish": "none"} and result.data["no_obligation"] == ["src/p.py::publish"]
+    assert result.data["measured"] == {}
+
+
+def test_cov_a_cut_that_does_not_resolve_is_reported_with_its_check_cuts_code_and_not_measured(tmp_path):
+    result = cut_coverage(tmp_path, cut_toml("nowhere()"), CUT_HIT)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-ANCHOR-MISSING", "refactor-cut:src/p.py::publish#1")]
+    assert result.data["measured"] == {}
+
+
+def test_cov_whole_and_cut_together_are_refused(tmp_path):
+    result = cut_coverage(tmp_path, GIT_CUT, CUT_HIT, head="whole = true\n")
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-WHOLE-AND-CUT", "src/p.py::publish")]
+
+
+def test_cov_the_reviewed_blind_table_applies_to_the_obligation_lines_of_a_cut_entry(tmp_path):
+    root = make_root(tmp_path, touched=cut_entry(body=CUT_ALL))
+    write(root, "src/p.py", CUT_PY)
+    write(root, "ops/refactor/runners.toml", '[python.coverage]\ncommand = []\n[[python.coverage.blind]]\nfile = "src/p.py"\nlines = [9]\nreason = "runs in a thread"\n')
+    result = R.check_coverage(root, canned(python={"src/p.py": lines(CUT_HIT | {9: 0}, CUT_BRANCHES)}))
+    assert result.exit_code == R.EXIT_OK
+    assert result.data["excused"] == {"src/p.py::publish": {"lines": [9], "reason": "runs in a thread"}}
+
+
+def test_cov_a_module_head_cut_of_constants_is_reported_not_failed(tmp_path):
+    source = "LIMIT = 3\n\n\ndef f():\n    return LIMIT\n"
+    result = coverage_result(tmp_path, cut_entry(function="<module>", body=cut_toml("LIMIT = 3")), {"src/p.py": source},
+                             python={"src/p.py": lines({5: 1})})
+    assert result.exit_code == R.EXIT_OK and result.data["constants_only"] == ["src/p.py::<module>"]
+
+
+def test_cov_a_rust_cut_entry_owes_its_lines_and_the_branches_on_them(tmp_path):
+    body = cut_toml("let out = Command::new(\"git\")", lines=3) + span_toml("guards", "if out.is_err() {")
+    hits = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 0, 8: 1, 12: 0}
+    good = coverage_result(tmp_path / "a", cut_entry("pull", body, "rust", "src/p.rs"), {"src/p.rs": RS_CUT},
+                           rust={"src/p.rs": lines(hits, [(5, "0:0", True), (5, "0:1", True)])})
+    assert good.exit_code == R.EXIT_OK and good.data["measured"] == {"src/p.rs::pull": [4, 4, 2, 2]}
+    bad = coverage_result(tmp_path / "b", cut_entry("pull", body, "rust", "src/p.rs"), {"src/p.rs": RS_CUT},
+                          rust={"src/p.rs": lines(hits, [(5, "0:0", True), (5, "0:1", False)])})
+    assert [(p.code, p.detail) for p in bad.problems] == [("E-BELOW", "1 of 2 branches (5->1)")]
