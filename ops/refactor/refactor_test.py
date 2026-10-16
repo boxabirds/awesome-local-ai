@@ -2088,6 +2088,11 @@ def test_function_lines_are_the_def_through_its_last_line_for_functions_methods_
     assert R.python_function_lines(PY_SOURCE, "ghost") is None
 
 
+def test_the_module_level_of_a_python_file_is_every_line_outside_a_def():
+    source = "import os\nLIMIT = 3\n\n\ndef f():\n    return LIMIT\n\n\nclass C:\n    KIND = 1\n\n    def m(self):\n        return 2\n\n\nprint(os)\n"
+    assert R.python_function_lines(source, "<module>") == {1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 15, 16}
+
+
 def test_only_the_run_phase_of_a_test_counts_as_touching_a_function():
     contexts = {"2": ["", "test_a.py::t1|setup", "test_a.py::t1|teardown", "test_a.py::t1|run", "test_a.py::p[a-1]|run"], "7": ["test_b.py::t2|run"]}
     assert R.tests_touching(contexts, {1, 2, 3}) == {"python:test_a.py::t1", "python:test_a.py::p[a-1]"}

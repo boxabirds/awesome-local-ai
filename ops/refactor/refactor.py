@@ -1233,6 +1233,12 @@ RUST_SKIP_STEMS = {"main", "lib", "mod"}
 def python_function_lines(text: str, name: str) -> set[int] | None:
     """Lines from the def line through its last line, named as the scan names it (class prefixes only; a nested def
     keeps its plain name); None if absent."""
+    if name == MODULE_LEVEL:         # every line outside a def: the top-level code, as the scan attributes it
+        tree = ast.parse(text)
+        in_defs = {n for d in ast.walk(tree) if isinstance(d, (ast.FunctionDef, ast.AsyncFunctionDef))
+                   for n in range(d.lineno, d.end_lineno + 1)}
+        return set(range(1, len(text.splitlines()) + 1)) - in_defs
+
     def walk(node: ast.AST, prefix: str) -> set[int] | None:
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
