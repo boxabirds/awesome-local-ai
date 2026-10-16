@@ -18,36 +18,61 @@ language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "_merged_tree"
 classes = ["B"]
+cut_note = "Whole: three-way merge of git trees in a throw-away index so concurrent pushes of run data can land; only caller is replay_onto_remote; deleted (design 5, site 36)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "_private_commit"
 classes = ["C"]
+cut_note = "Whole: builds a commit in the private git repo holding a run's held-out files (hash-object, update-index, write-tree, commit-tree); the lake holds them now; deleted (design site 37)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "_rebase_in_progress"
 classes = ["C"]
+cut_note = "Whole: asks git whether a rebase is half done in the results checkout; exists only to serve the git record path; deleted (design site 38)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "combination_label"
 classes = ["A"]
+cut_note = "Whole: label from the run path minus REPO_ROOT/combinations or benchmarks/reference; only callers build commit messages (drive.main, finalize.rec, record_event); deleted, any other use takes Id.stack (design site 39)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "main"
 classes = ["A", "C"]
+cut_note = "Mixed. Cut only the checkout-location, cross-run-by-path and record parts: --run-dir stays (path given by the job), --from-run path becomes --inputs, work dir from the run id, known_good.from_run stored as an id, baselines from the inputs folder, the whole --record block deleted. The workspace git calls in main (rev-parse HEAD, rev-list, add -A, commit in ws) are class W and stay. UNSURE: harness_provenance(CODE_ROOT) (line 'harness = harness_provenance(CODE_ROOT)') may be git based on the harness checkout; provenance.at_start was not read; not cut. UNSURE: 'outcome = ...' feeds only the commit message; left uncut. rec['record'] fields (credentials_redacted, pushed) are read by the benchmarker and monitor; their new source is an open decision."
+cut = [
+  { anchor = "ap.add_argument(\"--from-run\", type=Path,", lines = 4, why = "A partial rerun is named by a path in the checkout (results_root/<id>); becomes the job's --inputs folder (design 4.9 Inputs, site 40).", uses = [{ anchor = "if a.from_story is not None:", lines = 1 }] },
+  { anchor = "ap.add_argument(\"--record\", action=\"store_true\",", lines = 2, why = "The per-story git commit and push flag; deleted with the record step (site 40, 26)." },
+  { anchor = "kg = known_good_base(a.from_run.resolve(), stories[0][\"id\"]) if a.from_run else None", lines = 1, why = "Dry run reads another run's bundle and metrics.json through a checkout path; reads them from the inputs folder instead.", uses = [{ anchor = "print(f\"partial rerun's base: {kg['from_run']} at {kg['commit'][:12]}, \"", lines = 2 }, { anchor = "print(render_prompt(stories[0], story_title(stories[0]), kg[\"processed\"] if kg else [], scope))", lines = 1 }], guards = [{ anchor = "if kg:", lines = 1 }, { anchor = "if a.dry_run:", lines = 1 }] },
+  { anchor = "if sandbox.mode() == sandbox.PERMISSIVE and a.record:", lines = 3, why = "Refuses --record under the permissive sandbox; --record goes. The no-sandbox rule moves to the export step." },
+  { anchor = "work = work_dir_for(run)", lines = 1, why = "Work dir id derived from the run's path minus the checkout (drive.work_dir_name); becomes Id.long_name/work_id of the run id, byte exact.", uses = [{ anchor = "link_work_dir(run, work)", lines = 1 }, { anchor = "view = sandbox.view_root(work)", lines = 1 }, { anchor = "ws = work / WORKSPACE_DIR", lines = 1 }] },
+  { anchor = "known_good = known_good_base(a.from_run.resolve(), stories[0][\"id\"]) if a.from_run else None", lines = 1, why = "Reads another run's workspace.bundle and metrics.json through a checkout path; becomes a read of the files in the job's inputs folder.", uses = [{ anchor = "setup_workspace_from(ws, known_good, SPEC)", lines = 1 }, { anchor = "ref = known_good[\"from_run\"]", lines = 1 }, { anchor = "metrics.setdefault(\"processed\", known_good[\"processed\"])", lines = 1 }, { anchor = "if known_good and not (run / history.BASE_DIR / \"accept.json\").exists():", lines = 1 }], guards = [{ anchor = "if known_good:", nth = 1, lines = 1 }, { anchor = "if known_good:", nth = 2, lines = 1 }] },
+  { anchor = "metrics.setdefault(\"known_good\", {\"from_run\": str(ref.relative_to(REPO_ROOT)) if ref.is_relative_to(REPO_ROOT) else str(ref),", lines = 8, why = "known_good.from_run is stored as a path relative to the checkout; stored as a run id instead (design 4.9). The rest of the dict (commit, story, spec_commit via ws git) stays and is re-written around it.", guards = [{ anchor = "if known_good:", nth = 2, lines = 1 }] },
+  { anchor = "live = {\"id\": sid, \"title\": title, \"status\": \"running\", \"started_at\": time.time(), \"tasks\": [],", lines = 2, why = "Contains progress.baselines(REPO_ROOT, sid, run), which scans every other run under the checkout; becomes a read of baselines.json from the inputs folder.", uses = [{ anchor = "\"partial_base\": partial_base, \"tasks\": table, \"baselines\": live[\"baselines\"]}", lines = 1 }, { anchor = "health = derived(\"verdict\", lambda: progress.base_health(rec[\"gate\"], table, own, live[\"baselines\"]), {", lines = 1 }] },
+  { anchor = "label = combination_label(run)", lines = 1, why = "Label for the commit message only; deleted with combination_label." },
+  { anchor = "rec[\"record\"] = derived(\"record\", lambda: record_story(", lines = 3, why = "Commits and pushes the story's run directory; deleted. The file preparation record_story did without git is kept by a plain step (design 4.11 part 1).", guards = [{ anchor = "if a.record:", nth = 1, lines = 1 }] },
+  { anchor = "r = rec[\"record\"]", lines = 1, why = "Reads the record result of the deleted commit and push.", guards = [{ anchor = "if a.record:", nth = 2, lines = 1 }, { anchor = "if a.record or STORY_FAULTS:", lines = 1 }] },
+  { anchor = "print(f\"[story {sid}] recorded: commit {r.get('commit', '-')} pushed={r['pushed']}\"", lines = 4, why = "Prints commit/pushed/unpushed/checkout_behind of the deleted push.", guards = [{ anchor = "if a.record:", nth = 2, lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "push_with_rebase"
 classes = ["C"]
+cut_note = "Whole: git push of the results checkout HEAD to origin, with replay on top when the remote moved; deleted for run data (design site 41). Its one non-benchmark caller, ops/monitor/triage.py:110 (pushes a document), needs a plain git push, not this function."
+whole = true
 
 [[entry]]
 language = "python"
@@ -55,42 +80,91 @@ file = "benchmarks/spec-bench/harness/drive.py"
 function = "record_private"
 classes = ["B", "C", "D"]
 move = "deleted: nothing is recorded into git any more (design B, drive.py)"
+cut_note = "Whole: copies a run's held-out files into the private repo's working copy (path = run minus checkout) and pushes a commit to its main; the collector carries them into the lake; deleted (design site 42)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "record_refusal"
 classes = ["C"]
+cut_note = "Mixed. Cut the git and checkout-location refusals (off-limits checkout, run inside the results root, root is the top of a git checkout). The permissive-sandbox refusal (elif _ran_without_sandbox) is NOT cut: it moves to the export step (design site 43). The 'if why:' print stays as a guard."
+cut = [
+  { anchor = "if any(root == p or p in root.parents for p in roots.off_limits()):", lines = 2, why = "Refuses a checkout named off limits (NO_RECORD_ENV); nothing is committed in a checkout any more." },
+  { anchor = "elif where == root or root not in where.parents:", lines = 2, why = "Run must be inside the results root (run id = path minus checkout); the data root is never a checkout and ids are not paths." },
+  { anchor = "top = (subprocess.run([*git, \"rev-parse\", \"--show-toplevel\"], cwd=root, capture_output=True, text=True)", lines = 2, why = "Runs git to find the checkout top of the results root.", guards = [{ anchor = "else:", lines = 1 }] },
+  { anchor = "if top is None or top.returncode != 0 or Path(top.stdout.strip()).resolve() != root:", lines = 2, why = "Refuses a root that is not the top of a git checkout; the harness refuses a data root inside a checkout instead (design 4.2 Root.resolve).", guards = [{ anchor = "elif _ran_without_sandbox(run):", lines = 2 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "record_story"
 classes = ["C", "E"]
+cut_note = "Mixed. Cut every git call (HEAD, read-tree, add, commit, reset, rev-parse, push), the .gitignore write, the checkout-relative rel and the private-repo copy. Kept and re-homed without git: heldout.make_public, make_publishable, local_names, the credential redaction and checks (now on the export copy, design 4.11), refuse(), the PUBLISH_REFUSED unlink. UNSURE: 'out: dict = {\"committed\": False, \"pushed\": False}' and the returned committed/pushed/commit fields are metrics.json fields read by the monitor; not cut."
+cut = [
+  { anchor = "git = git or [\"git\"]", lines = 1, why = "Selects the git command for every call below." },
+  { anchor = "refused = record_refusal(repo_root, run, git)", lines = 1, why = "Asks whether this checkout may be recorded in; the git parts of the refusal are deleted, the sandbox rule moves to export.", uses = [{ anchor = "return {**out, \"error\": f\"not recorded: {refused}\"}", lines = 1 }], guards = [{ anchor = "if refused:", lines = 1 }] },
+  { anchor = "if _rebase_in_progress(repo_root, git):", lines = 4, why = "Aborts a rebase left in the results checkout by a killed harness; no checkout, no rebase." },
+  { anchor = "(run / \".gitignore\").write_text(RUN_GITIGNORE)", lines = 1, why = "Writes a .gitignore into the run so git ignores private and lake-only files; no git, no ignore file." },
+  { anchor = "rel = str(run.resolve().relative_to(repo_root.resolve()))", lines = 1, why = "The run id taken as its path minus the checkout; the run id is given (Root.id_of).", uses = [{ anchor = "add = subprocess.run([*git, \"add\", \"--\", rel], cwd=repo_root, capture_output=True, text=True, env=env)", lines = 1 }] },
+  { anchor = "out[\"over_size_limit\"] = [f for f in too_big if not publicise.is_private(", lines = 2, why = "Classifies oversize files by their checkout-relative path; classification is by (run id, relative path) in the export gate." },
+  { anchor = "private = heldout.private_repo() if private is None else private", lines = 1, why = "Locates the private repo beside the results root for the archive; the archive is the lake (fingerprints come from Paths.private_repo).", uses = [{ anchor = "problems += heldout.staged_problems(repo_root, rel, git, heldout.fingerprints(private), env, names)", lines = 1 }] },
+  { anchor = "out[\"private\"] = record_private(repo_root, run, message, private, git)", lines = 1, why = "Copies and pushes held-out detail to the private repo; the collector carries it into the lake." },
+  { anchor = "with tempfile.TemporaryDirectory(prefix=\"record-index-\") as tmp:", lines = 1, why = "Opens the temporary git index the commit is built in; no index, no with-block (its body is re-indented)." },
+  { anchor = "env = {**os.environ, \"GIT_INDEX_FILE\": str(Path(tmp) / \"index\")}", lines = 1, why = "Points git at the temporary index." },
+  { anchor = "if subprocess.run([*git, \"rev-parse\", \"-q\", \"--verify\", \"HEAD\"], cwd=repo_root, capture_output=True).returncode == 0:", lines = 2, why = "Seeds the temporary index from HEAD of the results checkout." },
+  { anchor = "untracked = untrack_private(repo_root, rel, git, env)", lines = 1, why = "Drops private and lake-only files an older harness committed from the index; nothing is tracked.", uses = [{ anchor = "lake_only = [p for p in untracked if publicise.is_lake_only(p)]", lines = 1 }] },
+  { anchor = "lake_only = [p for p in untracked if publicise.is_lake_only(p)]", lines = 1, why = "Splits the untracked list by the lake-only rule, which exists because git does not hold those files." },
+  { anchor = "if len(untracked) > len(lake_only):", lines = 2, why = "Records untracked_private for the deleted untrack step." },
+  { anchor = "if lake_only:", lines = 2, why = "Records untracked_lake_only for the deleted untrack step." },
+  { anchor = "add = subprocess.run([*git, \"add\", \"--\", rel], cwd=repo_root, capture_output=True, text=True, env=env)", lines = 1, why = "Stages the run's directory in the temporary index; the export copies the files instead.", uses = [{ anchor = "return {**out, \"error\": add.stderr[-500:]}", lines = 1 }], guards = [{ anchor = "if add.returncode != 0:", lines = 1 }] },
+  { anchor = "redacted, unscanned = heldout.redact_staged(repo_root, rel, git, env)", lines = 1, why = "Credential scan over the files staged in the index; becomes the redaction of the run's files / export copy (design 4.11), same call shape without git.", uses = [{ anchor = "out[\"credentials_redacted\"] = {\"count\": len(redacted), \"names\": sorted(set(redacted))}", lines = 1 }, { anchor = "problems += unscanned", lines = 1 }], guards = [{ anchor = "if redacted:", lines = 1 }] },
+  { anchor = "problems += heldout.staged_problems(repo_root, rel, git, heldout.fingerprints(private), env, names)", lines = 1, why = "Leak, private-path and machine-name check of the staged bytes; becomes the Export check on the copy.", uses = [{ anchor = "return {**out, **refuse(run, problems, names)}", lines = 1 }], guards = [{ anchor = "if problems:", lines = 1 }] },
+  { anchor = "problems += heldout.message_problems(message, names, COMMIT_MESSAGE)", lines = 1, why = "Checks the commit message for machine names; there is no commit message." },
+  { anchor = "commit = subprocess.run([*git, \"commit\", \"-q\", \"-m\", message + COMMIT_TRAILER], cwd=repo_root,", lines = 2, why = "git commit of the run directory.", uses = [{ anchor = "return {**out, \"error\": (commit.stdout + commit.stderr)[-500:]}", lines = 1 }], guards = [{ anchor = "if commit.returncode != 0:", lines = 1 }] },
+  { anchor = "subprocess.run([*git, \"reset\", \"-q\", \"--\", rel], cwd=repo_root, capture_output=True)", lines = 1, why = "Catches the checkout's own index up with the commit." },
+  { anchor = "out[\"committed\"] = True", lines = 1, why = "Marks the git commit as made." },
+  { anchor = "out[\"commit\"] = subprocess.run([*git, \"rev-parse\", \"--short\", \"HEAD\"], cwd=repo_root,", lines = 2, why = "Reads the new commit's short id from git." },
+  { anchor = "return {**out, **push_with_rebase(repo_root, git)}", lines = 1, why = "Pushes the commit; the push is deleted." },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "replay_onto_remote"
 classes = ["C"]
+cut_note = "Whole: fetches the remote's branch and re-creates our unpushed commits on top of it with git plumbing (fetch, rev-list, commit-tree, read-tree, update-ref); deleted (design site 45)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "setup_workspace_from"
 classes = ["C"]
+cut_note = "Nothing to cut: every git call is on the agent's own workspace (clone of the bundle, symbolic-ref, reset, remote remove, for-each-ref, update-ref, reflog, gc, add, commit; class W, stays). The bundle path arrives in base['bundle'], which known_good_base (another list) now takes from the inputs folder, so this function needs no change."
+cut = [
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "untrack_private"
 classes = ["B"]
+cut_note = "Whole: git ls-files and git rm --cached on the run's path to clean history an older harness committed; deleted (design site 48). Only caller was record_story."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "work_dir_name"
 classes = ["A"]
+cut_note = "Identity from the checkout: the run id is derived as the path below REPO_ROOT/combinations (leading 'combinations' dropped) or below REPO_ROOT (reference runs keep 'benchmarks/reference/'). Becomes Id.long_name(id), byte exact, golden-tested (design site 49). The three path derivations are cut; the join stays."
+cut = [
+  { anchor = "rel = run.resolve().relative_to(REPO_ROOT / \"combinations\")", lines = 1, why = "Combination run: the name is the path below combinations/ in the checkout; becomes Id.long_name of the run id.", uses = [{ anchor = "return \"__\".join(rel.parts)", lines = 1 }], guards = [{ anchor = "try:", nth = 1, lines = 1 }, { anchor = "except ValueError:", nth = 1, lines = 1 }] },
+  { anchor = "rel = run.resolve().relative_to(REPO_ROOT)", lines = 1, why = "Reference run: the name is the whole repo-relative path (benchmarks/reference/...); becomes Id.long_name of the reference id.", uses = [{ anchor = "return \"__\".join(rel.parts)", lines = 1 }], guards = [{ anchor = "try:  # anywhere else in the repo (reference stacks): named by its full repo path", lines = 1 }, { anchor = "except ValueError:", nth = 2, lines = 1 }] },
+  { anchor = "rel = Path(run.resolve().name)", lines = 1, why = "Last resort for a run outside the checkout (named by its last component); the id grammar refuses such a path.", uses = [{ anchor = "return \"__\".join(rel.parts)", lines = 1 }], guards = [{ anchor = "except ValueError:", nth = 2, lines = 1 }] },
+]
 
 [[excluded]]
 language = "python"
@@ -109,6 +183,8 @@ language = "python"
 file = "benchmarks/spec-bench/harness/finalize.py"
 function = "rec"
 classes = ["C"]
+cut_note = "Whole: the closure inside _recorder that calls drive.record_story (commit and push) and drive.combination_label, then reports 'not pushed'; deleted, and finalize()'s record parameter goes (design site 51)."
+whole = true
 
 [[excluded]]
 language = "python"
@@ -122,6 +198,8 @@ file = "benchmarks/spec-bench/harness/heldout.py"
 function = "copy_private"
 classes = ["D"]
 move = "deleted: held-out detail stays in the run dir and is collected into the lake (design D)"
+cut_note = "Whole: copies a run's private files to <private>/runs/<run path minus repo_root>/ for the private git repo; the collector's delta does the same into the lake; deleted (design site 56)."
+whole = true
 
 [[entry]]
 language = "python"
@@ -129,18 +207,28 @@ file = "benchmarks/spec-bench/harness/heldout.py"
 function = "private_copy"
 classes = ["D", "E"]
 move = "deleted: the private copy goes with copy_private (design D)"
+cut_note = "Whole: the path where the private repo keeps a run's held-out files, built from repo_of (path inside a checkout); deleted as a fallback. Held-out reads become Read / path (the lake holds one folder per run) (design site 57). find, read_json, accept_or_summary and result_dirs call it and must be re-covered."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/heldout.py"
 function = "private_repo"
 classes = ["E"]
+cut_note = "Whole: one-line location choice; the default is packdir.private_checkout(), 'beside the results root', which stops being true when the results root becomes the data root; becomes Paths.private_repo (design site 59). The PRIVATE_ENV override is part of the same statement."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/heldout.py"
 function = "redact_staged"
 classes = ["C"]
+cut_note = "The credential redaction rule stays (moves to the export copy); the git index parts are cut: the staged-file listing, the path joined to the checkout root, the re-stage with git add."
+cut = [
+  { anchor = "listed = subprocess.run([*git, \"diff\", \"--cached\", \"--name-only\", \"-z\", \"--diff-filter=ACMRT\", \"--\", rel],", lines = 2, why = "Lists the files staged in the git index; becomes the file list of the export set / run.", uses = [{ anchor = "for path in filter(None, listed.stdout.decode().split(\"\\0\")):", lines = 1 }], guards = [{ anchor = "if listed.returncode != 0:", lines = 1 }] },
+  { anchor = "names = credentials.redact_file(repo_root / path)", lines = 1, why = "Locates the file by joining the checkout root to the staged path; becomes the file in the run or the export copy.", uses = [{ anchor = "found += names", lines = 1 }, { anchor = "changed.append(path)", lines = 1 }], guards = [{ anchor = "if names:", lines = 1 }, { anchor = "if pub.is_private(path):", lines = 1 }] },
+  { anchor = "add = subprocess.run([*git, \"add\", \"--\", *changed], cwd=repo_root, capture_output=True, text=True, env=env)", lines = 1, why = "Re-stages the redacted files with git add; nothing is staged.", uses = [{ anchor = "return found, [failed(\"a file redacted by the credential scan could not be staged again\")]", lines = 1 }], guards = [{ anchor = "if changed:", lines = 1 }, { anchor = "if add.returncode != 0:", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
@@ -148,12 +236,19 @@ file = "benchmarks/spec-bench/harness/heldout.py"
 function = "repo_of"
 classes = ["C", "D"]
 move = "deleted: the private repository is no longer a record target (design D)"
+cut_note = "Whole: walks up for a .git to turn a directory into its checkout-relative path (its run id); identity is the run id now, and the data root is never a repository; deleted (design site 61)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/heldout.py"
 function = "staged_problems"
 classes = ["B"]
+cut_note = "The leak, private-path and machine-name rules stay (they move to the Export check on the copy being written); the git index reads are cut: the staged listing and the staged blob."
+cut = [
+  { anchor = "listed = subprocess.run([*git, \"diff\", \"--cached\", \"--name-only\", \"-z\", \"--diff-filter=ACMRT\", \"--\", rel],", lines = 2, why = "Lists the staged files under the run from the git index; becomes the list of files in the export set.", uses = [{ anchor = "for path in filter(None, listed.stdout.decode().split(\"\\0\")):", lines = 1 }], guards = [{ anchor = "if listed.returncode != 0:", lines = 1 }] },
+  { anchor = "blob = subprocess.run([*git, \"show\", f\":{path}\"], cwd=repo_root, capture_output=True, env=env)", lines = 1, why = "Reads the staged bytes with git show; becomes a read of the copy being written (check after copy).", uses = [{ anchor = "text = _text(path, blob.stdout)", lines = 1 }], guards = [{ anchor = "if blob.returncode != 0:", lines = 1 }, { anchor = "if pub.is_private(path):", lines = 1 }, { anchor = "if pub.is_own_work(path):", lines = 1 }] },
+]
 
 [[excluded]]
 language = "python"
@@ -166,6 +261,8 @@ language = "python"
 file = "benchmarks/spec-bench/harness/judge.py"
 function = "work_dir_name"
 classes = ["A"]
+cut_note = "Second copy of the long-name rule (record path minus combinations/), no caller outside its test; deleted with its test (Id.long_name replaces it)."
+whole = true
 
 [[excluded]]
 language = "python"
@@ -178,12 +275,27 @@ language = "python"
 file = "benchmarks/spec-bench/harness/judge_collect.py"
 function = "load_results"
 classes = ["B"]
+cut_note = "The --dir branch (plain folder) stays. Cuts: the private repo location and every git call (fetch, ls-tree, show) on its origin/main; becomes Gradings.results."
+cut = [
+  { anchor = "private = packdir.private_root(packdir.resolve())", lines = 1, why = "private pack repo beside the checkout; the package results come from Gradings.results instead", guards = [{ anchor = "if not private:", lines = 1 }, { anchor = "if directory:", lines = 1 }] },
+  { anchor = "subprocess.run([\"git\", \"-C\", str(private), \"fetch\", \"-q\", \"origin\"], check=True)", lines = 1, why = "git fetch of the private repo; deleted" },
+  { anchor = "prefix = f\"gradings/{name}/results/{judge}\"", lines = 1, why = "tree path inside the git repo; becomes the package and judge arguments of Gradings.results", uses = [{ anchor = "raise SystemExit(f\"no {prefix} on the private repo's origin/main (run judge-submit.sh first)\")", lines = 1 }] },
+  { anchor = "listing = subprocess.run([\"git\", \"-C\", str(private), \"ls-tree\", \"--name-only\", f\"origin/main:{prefix}\"],", lines = 2, why = "git ls-tree of the result folder at origin/main; becomes the file list of Gradings.results", uses = [{ anchor = "for f in listing.stdout.split():", lines = 1 }], guards = [{ anchor = "if listing.returncode != 0:", lines = 1 }] },
+  { anchor = "text = subprocess.run([\"git\", \"-C\", str(private), \"show\", f\"origin/main:{prefix}/{f}\"],", lines = 2, why = "git show of each result file; becomes the contents returned by Gradings.results", uses = [{ anchor = "files[\"transcript\" if f.startswith(\"transcript\") else f] = text", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/logscan.py"
 function = "known_runs"
 classes = ["B"]
+cut_note = "Cuts: the checkout root, the walk of combinations/, and the glob of benchmarks/reference; becomes the known-runs.json input. The work-root part (this machine's work folders) stays. The repo_root parameter goes."
+cut = [
+  { anchor = "root = Path(repo_root or REPO_ROOT)", lines = 1, why = "checkout root of the whole fleet's runs; the known run names come from the inputs folder (known-runs.json)", uses = [{ anchor = "return frozenset(names)", lines = 1 }] },
+  { anchor = "for top, dirs, _ in os.walk(root / \"combinations\"):", lines = 7, why = "walks combinations/ in the checkout for benchmarks/<pack>/<run> folders and derives work names from the paths; becomes known-runs.json" },
+  { anchor = "ref = root / RUN_MARK / \"reference\"", lines = 1, why = "benchmarks/reference folder in the checkout", guards = [{ anchor = "if ref.is_dir():", lines = 1 }] },
+  { anchor = "names |= {_run_name(run, root) for run in ref.glob(\"*/*/*\") if run.is_dir() and run.name not in PRUNE_DIRS", lines = 2, why = "globs reference runs and derives work names from checkout paths; becomes known-runs.json" },
+]
 
 [[excluded]]
 language = "python"
@@ -196,6 +308,8 @@ language = "python"
 file = "benchmarks/spec-bench/harness/progress.py"
 function = "baselines"
 classes = ["B"]
+cut_note = "Whole job is to glob the checkout for every other run's metrics.json / accept.json and derive labels from path depth; becomes a read of baselines.json from the job's inputs folder."
+whole = true
 
 [[excluded]]
 language = "python"
@@ -208,6 +322,9 @@ language = "python"
 file = "benchmarks/spec-bench/harness/publicise.py"
 function = "over_limit"
 classes = ["B"]
+cut_note = "Nothing to cut: git ls-files of the systems repository's tracked benchmark files to check size limits (TRACKED-FILE-GUARD, stays; used by tests/privacy-test.sh). After the history rewrite it returns an empty list and stays as the guard that none come back (design site 68, section 5). It reads no run data through git on a node."
+cut = [
+]
 
 [[excluded]]
 language = "python"
@@ -220,6 +337,12 @@ language = "python"
 file = "benchmarks/spec-bench/harness/record_event.py"
 function = "record"
 classes = ["C"]
+cut_note = "The run-status.json write stays. Cuts: the commit message built from the checkout path (combination_label) with its pack name, and the record_story commit and push."
+cut = [
+  { anchor = "pack_name = os.environ.get(\"SPEC_BENCH_PACK_NAME\", \"vidi\")", lines = 1, why = "pack name read only to build the commit message; deleted with it" },
+  { anchor = "message = f\"{pack_name} {drive.combination_label(run)} {run.name}: run {state}\" + (f\": {reason}\" if reason else \"\")", lines = 1, why = "commit message with the combination as path minus checkout; deleted", uses = [{ anchor = "return drive.record_story(repo_root, run, message)", lines = 1 }] },
+  { anchor = "return drive.record_story(repo_root, run, message)", lines = 1, why = "commits and pushes the run dir; deleted, the collector carries the status file to the lake" },
+]
 
 [[excluded]]
 language = "python"
@@ -250,12 +373,20 @@ language = "python"
 file = "ops/monitor/monitor.py"
 function = "collect_repo"
 classes = ["B"]
+cut_note = "MIXED: the commit watch (git log, owner, commit_detections) and the harness import check (git archive, uv run) are source-repo git and are NOT cut. Only the run-data part is cut: which runs changed, and the three record reads. After the cut `files` (git diff --name-only) is used only by the harness check. The head cursor st[head] is shared by the source watch and the run watch; the run watch needs its own cursor from the new API (first sight raises nothing, same cursor raises nothing). UNSURE: whether the head/prev cursor lines stay (they still serve the source watch) - not cut."
+cut = [
+  { anchor = "for d in sorted({run_dir_of(f) for f in files} - {None}):", lines = 1, why = "Chooses the changed runs by grouping git-diff file paths with run_dir_of; becomes the new WHAT-CHANGED call that returns run ids since a stored cursor.", guards = [{ anchor = "if not prev or prev == head:", lines = 1 }, { anchor = "if rc != 0:", lines = 1 }] },
+  { anchor = "metrics = git_json(f\"{d}/metrics.json\")", lines = 1, why = "Reads metrics.json of a run through git show on origin/main; becomes read of the record metrics by run id.", uses = [{ anchor = "if metrics is None:", lines = 1 }], guards = [{ anchor = "if metrics is None:", lines = 1 }] },
+  { anchor = "dets += record_detections(d, metrics, git_json(f\"{d}/finalize.json\"), git_json(f\"{d}/run-status.json\") or {})", lines = 1, why = "Reads finalize.json and run-status.json through git show; becomes two record reads by run id (absent gives None / empty dict)." },
+]
 
 [[entry]]
 language = "python"
 file = "ops/monitor/monitor.py"
 function = "git_json"
 classes = ["B"]
+cut_note = "Whole job is git show origin/main:<path> of one run file; replaced by a record read taking (run id, record name)."
+whole = true
 
 [[excluded]]
 language = "python"
@@ -280,30 +411,48 @@ language = "rust"
 file = "tools/dbench/src/collect.rs"
 function = "is_run_dir"
 classes = ["B"]
+cut_note = "Whole job: join the checkout root to a repo-relative run id and stat run.json. Becomes Root.exists against the data root."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/collect.rs"
 function = "list_runs"
 classes = ["B"]
+cut_note = "Whole job: find run ids by walking combinations/ under the checkout (config.sh marker) and RUN_BASE folders under the checkout. Becomes Root.list_local."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/collect.rs"
 function = "rel_of"
 classes = ["B"]
+cut_note = "Whole job: the id is the path minus the checkout root. Becomes Root.id_of."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/collector.rs"
 function = "archived_runs"
 classes = ["B", "C"]
+cut_note = "Builds a Published source (TreeSource or GitSource at origin/main) and lists archived.json markers. Becomes Archive.archived read from the lake, read before the pull. The lenient behaviour on a read failure (print, return empty) must be kept in the replacement."
+cut = [
+  { anchor = "let Some(repo) = cfg.repo.as_ref() else { return BTreeSet::new() };", lines = 1, why = "Takes the checkout (no repo means no archived list). The lake needs no repo; the gate goes." },
+  { anchor = "let published: Box<dyn crate::ingest::inputs::Published> = if cfg.worktree {", lines = 5, why = "Chooses a worktree tree source or git at origin/main. Becomes Archive over the lake." },
+  { anchor = "published.archived().unwrap_or_else(|e| {", lines = 4, why = "Reads archived.json markers through git ls-tree (or the tree walk), with failure handled as none known. Becomes Archive.archived(lake) with the same lenient failure." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/collector.rs"
 function = "pass"
 classes = ["B"]
+cut_note = "The pull loop and the ingest trigger (changed) stay. Cut: the checkout/worktree captures and the git source with its fetch. Signature parameter fetch and Config.repo/worktree are not statements and go with the cuts. UNSURE: the gate on cfg.repo is listed as a guard because it must be re-gated on no_ingest alone; the archived_runs(cfg) call stays but loses its repo argument."
+cut = [
+  { anchor = "let repo = repo.clone();", lines = 1, why = "Moves the checkout into the blocking task for the git source. Gone: ingest reads the lake only." },
+  { anchor = "let worktree = cfg.worktree;", lines = 1, why = "Captures the worktree mode flag choosing tree or git. Gone." },
+  { anchor = "let published: Box<dyn crate::ingest::inputs::Published> = if worktree {", lines = 9, why = "Builds the TreeSource or GitSource at origin/main and runs git fetch on a fetch pass. Becomes the lake reader; no fetch.", uses = [{ anchor = "crate::ingest::inputs::run(&mut db, published.as_ref(), &store, &Default::default(), now as f64)", lines = 1 }, { anchor = "let archived = archived_runs(cfg);", lines = 1 }, { anchor = "let futs = names.iter().map(|n| collect_node(ctx, n, lake, &cfg.runs, &archived, cadence, now));", lines = 1 }], guards = [{ anchor = "if changed || fetch {", lines = 1 }, { anchor = "if let Some(repo) = cfg.repo.as_ref().filter(|_| !cfg.no_ingest) {", lines = 1 }] },
+]
 
 [[excluded]]
 language = "rust"
@@ -322,36 +471,60 @@ language = "rust"
 file = "tools/dbench/src/ingest/inputs.rs"
 function = "candidates"
 classes = ["A"]
+cut_note = "Story candidates from compact logs in the published git tree plus raw logs in the lake. Cuts the published-tree reads and the rename check that reads the published tree. The lake loop (read_dir of stories/, EVENTS_FILE check) stays. UNSURE: the long if-continue guard is not cut but contains the under_published_root term (a RUN-KIND test) that must be replaced inside it."
+cut = [
+  { anchor = "let archived = published.archived()?;", lines = 1, why = "Archived runs through the Published trait (git ls-tree). Becomes Archive.archived over the lake.", uses = [{ anchor = "let is_archived = |story: &str| super::split_story_rel(story).is_some_and(|(run, _)| archived.contains(run));", lines = 1 }] },
+  { anchor = "for path in published.paths()?.keys() {", lines = 8, why = "Walks every path in the published git tree, skipping rescore and archived, to find compact logs. Becomes Log.stories over List." },
+  { anchor = "let published_paths = published.paths()?;", lines = 1, why = "Second read of the whole published path listing, kept for the rename check. Gone with the published tree." },
+  { anchor = "let renamed = |run: &str| -> String {", lines = 4, why = "Decides the -opencode to -pi rename by whether the published tree holds records under the old name. Becomes Id.renamed with the lake-side restated rule.", uses = [{ anchor = "let published_name = format!(\"{}/{STORIES_DIR}/{name}\", renamed(run));", lines = 1 }, { anchor = "out.insert(if out.contains(&published_name) { published_name } else { rel });", lines = 1 }], guards = [{ anchor = "if !under_published_root(run) || run.contains(RESCORE_DIR) || archived.contains(run) || archived.contains(&renamed(run)) {", lines = 3 }] },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/mod.rs"
 function = "cmd_ingest"
 classes = ["C"]
+cut_note = "The rebuild, summary and warehouse logic stay. Cut is the choice of git or tree source with the fetch, from --repo/--rev/--worktree/--no-fetch. The IngestArgs fields (repo, rev, worktree, no_fetch) are in cli.rs, not this function."
+cut = [
+  { anchor = "let published: Box<dyn inputs::Published> = if args.worktree {", lines = 9, why = "Builds TreeSource over --repo or GitSource at --rev, and git fetch unless --no-fetch. Becomes the lake reader from --lake only.", uses = [{ anchor = "let summary = inputs::run(&mut db, published.as_ref(), &args.store, &sel, now)?;", lines = 1 }] },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/job.rs"
 function = "harness_args"
 classes = ["B"]
+cut_note = "The argv builder stays. Cuts are --from-run as a path joined to the checkout (becomes --inputs <dir>) and --record (deleted)."
+cut = [
+  { anchor = "if let Some(from_run) = &spec.from_run {", lines = 4, why = "Passes --from-run as results_root joined to the run id, a path in the shared checkout. Becomes --inputs pointing at the per-job inputs folder filled by Inputs." },
+  { anchor = "if spec.record {", lines = 3, why = "Passes --record so the harness commits and pushes records. Deleted." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/job.rs"
 function = "reference_run_problem"
 classes = ["B"]
+cut_note = "Whole job: stats the referenced run folder, bundle and metrics under the node's checkout (canonicalised). Becomes the Inputs prepare check on the lake."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/progress.rs"
 function = "resolve_run_dir"
 classes = ["B"]
+cut_note = "Reads install.env for COMBINATION (stays, errors preserved). Cut is the choice of folder: repo joined to RUN_BASE and run id, or run_dir under the checkout. Becomes Root.for_job."
+cut = [
+  { anchor = "let dir = match env.get(\"RUN_BASE\").filter(|b| !b.is_empty()) {", lines = 4, why = "Builds the run folder from the checkout root: repo/RUN_BASE/run_id or repo/combinations/.../run_id. Becomes Root.for_job(data_root, ...).", uses = [{ anchor = "Ok((combination, dir))", lines = 1 }], guards = [{ anchor = "let Some(env) = read_install_env(share_dir, &spec.install_id) else {", lines = 6 }, { anchor = "let Some(combination) = env.get(\"COMBINATION\").cloned() else {", lines = 3 }] },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/progress.rs"
 function = "run_dir"
 classes = ["B"]
+cut_note = "Whole job: joins the checkout, combinations/, the combination, benchmarks/, the pack name and the run id. Becomes Root.place."
+whole = true
 
 [[excluded]]
 language = "rust"
@@ -364,78 +537,155 @@ language = "rust"
 file = "tools/dbench/src/runner.rs"
 function = "git_pull"
 classes = ["B"]
+cut_note = "Whole job: git -C repo pull --ff-only with timeout, logging and PullRecord. Deleted: system inputs arrive with the release. UNSURE: PullRecord / last_pull in job state (not in this function)."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/runner.rs"
 function = "run_one"
 classes = ["B"]
+cut_note = "Process supervision stays. choose_harness (release tag from origin/main) is source-code git and is NOT cut. Cuts: the pull, the reference check against the checkout, the results/code root choice from the checkout, the argv and cwd and env using the checkout, and the progress read from the checkout after exit. UNSURE: the .current_dir(&st.cfg.repo) line is cut as part of the whole cmd.args chain (9 lines), the smallest complete statement; for Harness::Unreleased the checkout is also the code root."
+cut = [
+  { anchor = "git_pull(st, id).await;", lines = 1, why = "git pull --ff-only before the job. Deleted.", guards = [{ anchor = "if st.cfg.pull {", lines = 3 }] },
+  { anchor = "if let Some(problem) = spec.from_run.as_deref().and_then(|r| reference_run_problem(&st.cfg.repo, r)) {", lines = 4, why = "Checks the referenced run exists under the checkout. Becomes the Inputs prepare step against the lake." },
+  { anchor = "let (code_root, results_root) = match &chosen {", lines = 4, why = "Results root is the checkout (release) or the checkout is also the code root (unreleased). Becomes results root = data root, code root = release directory.", uses = [{ anchor = "let Some(entry) = resolve_entry(&code_root, &spec.pack) else {", lines = 4 }], guards = [{ anchor = "let chosen = match choose_harness(st, id).await {", lines = 7 }] },
+  { anchor = "let args = harness_args(&entry, &spec, &st.cfg.repo);", lines = 1, why = "Passes the checkout as the results root for --from-run. Becomes the per-job inputs folder.", uses = [{ anchor = "let shown: Vec<String> = args", lines = 4 }] },
+  { anchor = "cmd.args(&args)", lines = 9, why = "Starts the harness with the checkout as cwd (.current_dir(&st.cfg.repo)). Becomes cwd = a folder that is not a git checkout." },
+  { anchor = "if let Some(root) = results_root {", lines = 3, why = "Sets the results-root environment variable to the checkout. Becomes always the data root." },
+  { anchor = "&progress::compute(&st.cfg.repo, &st.cfg.share_dir, &spec, &st.log_path(id)).stories,", lines = 1, why = "Reads progress after exit from the run folder under the checkout (an argument of the FailureMark statement, not a statement of its own). Becomes progress from the data root." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/server.rs"
 function = "job_run_rel"
 classes = ["B"]
+cut_note = "Whole job: the id of a job's run as its run folder minus the checkout root. Becomes Root.for_job."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/vidi-gallery/src/main.rs"
 function = "main"
 classes = ["E"]
+cut_note = "Cuts are the statements that take the checkout root and derive everything else from it (private repo sibling, version tag, review list from the checkout). UNSURE: the App literal line repo: repo.clone(), builds: ... carries the checkout path in field repo (one big line, not cut; field goes with the data-root change). UNSURE: the home().join(.vidi-bench/keys) location is in api_open, not here. The pack dir (stories, acceptance) and recordings are held-out locations from private_repo and are cut."
+cut = [
+  { anchor = "let repo = cli", lines = 4, why = "Chooses the checkout root (--repo or CARGO_MANIFEST_DIR/../..) as the base of all data; becomes the --data-root and --pack-dir options.", uses = [{ anchor = "println!(\"vidi-gallery: http://{addr}/  (repo {})\", repo.display());", lines = 1 }] },
+  { anchor = "let family = runs::family(&private_version(&private_repo(&repo)));", lines = 1, why = "Pack version family from the nearest git tag of the private checkout (git describe); becomes the pack version read from the pack dir / release." },
+  { anchor = "let mut review_builds = reviewable(&repo, &family);", lines = 1, why = "Lists reviewable runs by walking the checkout; becomes the LIST-RUNS call for the pack.", uses = [{ anchor = "shuffle(&mut review_builds);", lines = 1 }], guards = [{ anchor = "if blind {", lines = 1 }] },
+  { anchor = "let reviews = reviews::Store::new(private_repo(&repo).join(\"analysis/story-reviews.csv\"));", lines = 1, why = "Locates the reviews file inside the private checkout sibling; becomes a configured held-out path." },
+  { anchor = "let pack = private_repo(&repo).join(\"packs/vidi\");", lines = 1, why = "Locates the pack folder inside the private checkout sibling; becomes the --pack-dir option.", uses = [{ anchor = "let stories = stories::load_for_review(&pack, \"canvas\");", lines = 1 }, { anchor = "let acceptance = pack.join(\"acceptance\");", lines = 1 }] },
+  { anchor = "let recordings = private_repo(&repo).join(\"state/recordings\");", lines = 1, why = "Locates recordings inside the private checkout sibling; becomes a configured held-out path." },
+  { anchor = "let rec_secret = record::secret(&private_repo(&repo).join(\"state/recording-secret\"))?;", lines = 1, why = "Locates the recording secret inside the private checkout sibling; becomes a configured held-out path." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/vidi-gallery/src/main.rs"
 function = "private_repo"
 classes = ["E"]
+cut_note = "Whole job is choosing the private repository as a sibling folder of the public checkout (location that exists only because the repo is a git checkout); becomes configuration paths."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/vidi-gallery/src/runs.rs"
 function = "discover"
 classes = ["C"]
+cut_note = "Whole job is walking the checkout (combinations/... and benchmarks/reference/vidi) and turning the path under it into setup and run; the is-a-run test requires workspace/ which the lake does not hold. Becomes the LIST-RUNS call for the pack. Range ends before fn name; helpers name, subdirs, run_dirs, walk are other entries."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/vidi-gallery/src/runs.rs"
 function = "private_of"
 classes = ["E"]
+cut_note = "Whole job is choosing the private repository as a sibling of the checkout; duplicate of main.rs private_repo; becomes configuration."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/vidi-gallery/src/runs.rs"
 function = "run_or_private"
 classes = ["C"]
+cut_note = "Whole job is the location choice: run folder, else the private repo copy at private/runs/<run path relative to the checkout>; in the lake held-out detail is in the run, so it becomes one record read. PRIVATE_RUNS const sits in the previous function range."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/vidi-gallery/src/sync.rs"
 function = "sync_repo"
 classes = ["B"]
+cut_note = "Whole job is git pull --ff-only of the gallery checkout; the design deletes sync.rs with its tests."
+whole = true
 
 [[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/fetch-work.sh"
 function = "<script>"
 classes = ["A"]
+cut_note = "Cuts the two python snippets that build the run path as drive.REPO_ROOT / run id to get the work names; the rsync and the workspace git log stay (agent's own repo)."
+cut = [
+  { anchor = "read -r NAME LOCAL < <(cd \"$HARNESS\" && uv run --quiet python -c \"", lines = 4, why = "run path = REPO_ROOT / RUN, then work_dir_name and work_dir_for; becomes Id.long_name / work_id from the run id", uses = [{ anchor = "[[ -e \"$LOCAL\" ]] && { echo \"$LOCAL already exists here; not overwriting\" >&2; exit 1; }", lines = 1 }, { anchor = "mkdir -p \"$LOCAL\"", lines = 1 }, { anchor = "rsync -a --exclude node_modules --exclude dist --exclude .wrangler \"$HOST:.vidi-bench/work/$NAME/\" \"$LOCAL/\"", lines = 1 }] },
+  { anchor = "(cd \"$HARNESS\" && uv run --quiet python -c \"", lines = 4, why = "same REPO_ROOT / RUN path built again to call link_work_dir; becomes link_work_dir over Id.work_id of the run id" },
+]
 
 [[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/judge-setup.sh"
 function = "<script>"
 classes = ["B", "E"]
+cut_note = "Cuts: --ref (no equivalent), private repo found beside the checkout, the judging/ location inside it, git fetch / cat-file / info-exclude / archive of gradings/<name>, and the kickoff and echo lines that name the checkout path or run git. Package comes from Gradings.get into a state folder. The sed that prints the usage and the port constants stay."
+cut = [
+  { anchor = "REF=origin/main", lines = 1, why = "git ref the package is read from; --ref has no equivalent", uses = [{ anchor = "--ref) REF=\"$2\"; shift 2 ;;", lines = 1 }], guards = [{ anchor = "while [[ $# -gt 0 ]]; do", lines = 1 }, { anchor = "case \"$1\" in", lines = 1 }] },
+  { anchor = "PRIVATE=\"$(cd \"$HARNESS\" && python3 -c 'import packdir; from pathlib import Path; r = packdir.private_root(packdir.resolve()); print(r or \"\")')\"", lines = 1, why = "private pack repo located beside the checkout; becomes Paths.private_repo / state_dir", guards = [{ anchor = "[[ -n \"$PRIVATE\" ]] || { echo \"no private pack repo next to this one (awesome-local-ai-bench-private); ask the owner for access\" >&2; exit 1; }", lines = 1 }] },
+  { anchor = "DEST=\"$PRIVATE/judging/$NAME\"", lines = 1, why = "package destination inside the private repo (git-ignored folder); becomes a folder under Paths.state_dir", uses = [{ anchor = "mkdir -p \"$DEST\"", lines = 1 }, { anchor = "[[ -f \"$DEST/GRADING.md\" ]] || { echo \"extraction failed: no GRADING.md in $DEST\" >&2; exit 1; }", lines = 1 }], guards = [{ anchor = "[[ -e \"$DEST\" ]] && { echo \"$DEST already exists; the judge's work may be in it. Move it aside first.\" >&2; exit 1; }", lines = 1 }] },
+  { anchor = "git -C \"$PRIVATE\" fetch -q origin", lines = 1, why = "git fetch of the private repo; deleted, Gradings.get reads the lake" },
+  { anchor = "git -C \"$PRIVATE\" cat-file -e \"$REF:gradings/$NAME\" 2>/dev/null || { echo \"no gradings/$NAME at $REF\" >&2; exit 1; }", lines = 1, why = "checks the package exists in git at REF; becomes the distinct no-such-package answer of Gradings.get" },
+  { anchor = "EXCLUDE=\"$(git -C \"$PRIVATE\" rev-parse --path-format=absolute --git-path info/exclude)\"", lines = 1, why = "finds the repo's git exclude file; deleted with the git-ignored judging/ folder" },
+  { anchor = "grep -qx '/judging/' \"$EXCLUDE\" 2>/dev/null || echo '/judging/' >> \"$EXCLUDE\"", lines = 1, why = "edits the private repo's info/exclude; deleted" },
+  { anchor = "git -C \"$PRIVATE\" archive \"$REF\" \"gradings/$NAME\" | tar -x -C \"$DEST\" --strip-components=2", lines = 1, why = "git archive of the package from origin/main; becomes Gradings.get(package, dest)" },
+  { anchor = "cat > \"$PRIVATE/judging/$NAME.kickoff.md\" <<EOF", lines = 7, why = "kickoff file written inside the private repo; becomes a file under Paths.state_dir", uses = [{ anchor = "sed 's/^/     /' \"$PRIVATE/judging/$NAME.kickoff.md\"", lines = 1 }] },
+  { anchor = "echo \"  brief:        $(grep -c '' \"$DEST/GRADING.md\") lines, from $REF ($(git -C \"$PRIVATE\" rev-parse --short \"$REF\"))\"", lines = 1, why = "prints the git ref and runs git rev-parse in the private repo; becomes lines count only" },
+  { anchor = "echo \"2. Give it this message ($PRIVATE/judging/$NAME.kickoff.md):\"", lines = 1, why = "names the kickoff path inside the private repo; becomes the state_dir path" },
+  { anchor = "sed 's/^/     /' \"$PRIVATE/judging/$NAME.kickoff.md\"", lines = 1, why = "reads the kickoff from the private repo path; becomes the state_dir path" },
+]
 
 [[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/judge-submit.sh"
 function = "<script>"
 classes = ["B"]
+cut_note = "Cuts: private repo location, the judging/ source folder inside it, the temp git worktree of origin/main with its cleanup trap, fetch, destination inside the worktree, add / commit / push. The copy of the four files and the transcript stays and feeds Gradings.put. The refusal of a repeated label (line with 'already exists on origin/main') is UNSURE: owner decision open (refuse or version), left as a guard."
+cut = [
+  { anchor = "PRIVATE=\"$(cd \"$HARNESS\" && python3 -c 'import packdir; from pathlib import Path; r = packdir.private_root(packdir.resolve()); print(r or \"\")')\"", lines = 1, why = "private pack repo located beside the checkout; becomes Paths.state_dir for the judging folder", guards = [{ anchor = "[[ -n \"$PRIVATE\" ]] || { echo \"no private pack repo next to this one\" >&2; exit 1; }", lines = 1 }] },
+  { anchor = "SRC=\"$PRIVATE/judging/$NAME\"", lines = 1, why = "judge output folder inside the private repo; becomes a folder under Paths.state_dir", uses = [{ anchor = "missing=(); for f in \"${OUTPUTS[@]}\"; do [[ -s \"$SRC/$f\" ]] || missing+=(\"$f\"); done", lines = 1 }, { anchor = "for f in \"${OUTPUTS[@]}\"; do cp \"$SRC/$f\" \"$DEST/$f\"; done", lines = 1 }] },
+  { anchor = "trap 'git -C \"$PRIVATE\" worktree remove --force \"$TMP/wt\" 2>/dev/null || true; rm -rf \"$TMP\"' EXIT", lines = 1, why = "cleanup of the git worktree; becomes plain removal of the temp folder" },
+  { anchor = "git -C \"$PRIVATE\" fetch -q origin", lines = 1, why = "git fetch of the private repo; deleted" },
+  { anchor = "git -C \"$PRIVATE\" worktree add -q --detach \"$TMP/wt\" origin/main", lines = 1, why = "temporary worktree of origin/main to write results into; becomes Gradings.put(package, judge, files)" },
+  { anchor = "DEST=\"$TMP/wt/gradings/$NAME/results/$JUDGE\"", lines = 1, why = "destination inside the worktree; becomes a staging folder for the files handed to Gradings.put", uses = [{ anchor = "mkdir -p \"$DEST\"", lines = 1 }, { anchor = "cp \"$TRANSCRIPT\" \"$DEST/transcript$ext\"", lines = 1 }, { anchor = "echo \"pushed gradings/$NAME/results/$JUDGE ($(ls \"$DEST\" | tr '\\n' ' '))\"", lines = 1 }], guards = [{ anchor = "[[ -e \"$DEST\" ]] && { echo \"gradings/$NAME/results/$JUDGE already exists on origin/main; pick another label\" >&2; exit 1; }", lines = 1 }, { anchor = "if [[ -n \"$TRANSCRIPT\" ]]; then", lines = 1 }] },
+  { anchor = "git -C \"$TMP/wt\" add \"gradings/$NAME/results/$JUDGE\"", lines = 1, why = "git add in the worktree; deleted" },
+  { anchor = "git -C \"$TMP/wt\" commit -q -m \"gradings/$NAME: results from $JUDGE\"", lines = 1, why = "git commit of the results; deleted" },
+  { anchor = "git -C \"$TMP/wt\" push -q origin HEAD:main", lines = 1, why = "git push to the private repo's main; becomes Gradings.put" },
+]
 
 [[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/setup-node.sh"
 function = "<script>"
 classes = ["E"]
+cut_note = "Cuts: the checkout root (system files come from the release), bench.json reads under it, the push-access and git-identity checks, the private pack location beside the checkout, install-stack.sh and stack.env read from the checkout. The private pack clone at a tag (lines 97-107) stays and is a use of PACK_ROOT. UNSURE and not cut: PACK default 'benchmarks/vidi' and ACC from packdir.py."
+cut = [
+  { anchor = "REPO_ROOT=\"$(cd \"$HARNESS/../../..\" && pwd)\"", lines = 1, why = "the checkout root; system files (bench.json, stack.env, install-stack.sh) come from the release (Paths.release_dir)", uses = [{ anchor = "PACK_ROOT=\"$(dirname \"$REPO_ROOT\")/$PRIVATE_REPO_NAME\"", lines = 1 }] },
+  { anchor = "[[ -n \"$PACK_REF\" ]] || PACK_REF=\"$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get(\"pack_ref\", \"\"))' \\", lines = 2, why = "reads bench.json under the checkout; becomes the release's pack_public bench.json", uses = [{ anchor = "if [[ -z \"$PACK_REF\" ]]; then", lines = 1 }] },
+  { anchor = "for tool in $(python3 -c 'import json, sys; print(\" \".join(json.load(open(sys.argv[1])).get(\"tools\", [])))' \\", lines = 4, why = "reads bench.json tools under the checkout; becomes the release's pack_public bench.json" },
+  { anchor = "if git -C \"$REPO_ROOT\" ls-remote --exit-code origin HEAD >/dev/null 2>&1; then ok \"public repo reachable (records are pushed here)\"", lines = 2, why = "checks push access to the public repo; nothing is pushed by a node, deleted" },
+  { anchor = "if [[ -n \"$(git -C \"$REPO_ROOT\" config user.email)\" && -n \"$(git -C \"$REPO_ROOT\" config user.name)\" ]]; then", lines = 3, why = "checks a git identity because every story was a commit; deleted" },
+  { anchor = "PACK_ROOT=\"$(dirname \"$REPO_ROOT\")/$PRIVATE_REPO_NAME\"", lines = 1, why = "private pack repo beside the checkout; becomes Paths.private_repo", uses = [{ anchor = "git -C \"$PACK_ROOT\" fetch -q --tags origin 2>/dev/null", lines = 1 }], guards = [{ anchor = "elif [[ ! -d \"$PACK_ROOT/.git\" ]]; then", lines = 1 }, { anchor = "if [[ -n \"$PACK_REF\" && -d \"$PACK_ROOT/.git\" ]]; then", lines = 1 }] },
+  { anchor = "\"$REPO_ROOT/benchmarks/reference/install-stack.sh\" \"$STACK\" | sed 's/^/  /'", lines = 1, why = "install-stack.sh run from the checkout; becomes the release's system file", guards = [{ anchor = "if [[ -n \"$STACK\" ]]; then", lines = 1 }] },
+  { anchor = "CLIENT=\"$(sed -n 's/^CLIENT=\"\\(.*\\)\".*/\\1/p' \"$REPO_ROOT/$STACK/stack.env\")\"", lines = 1, why = "stack.env read from the checkout; becomes the release's system file", uses = [{ anchor = "need \"$CLIENT\" \"see the stack's README\"", lines = 1 }] },
+]
 
 [[excluded]]
 language = "typescript"
@@ -448,6 +698,8 @@ language = "typescript"
 file = "tools/benchmarker/server/domain.ts"
 function = "findRuns"
 classes = ["A"]
+cut_note = "Whole job is working out runs, ids and rescore facts from a git ls-tree listing by regex on checkout-relative paths (combinations/..., benchmarks/reference/...); becomes the LIST-RUNS call. Its range also holds the section comment after it. RUN_RE and the other constants above it belong to the previous function range."
+whole = true
 
 [[excluded]]
 language = "typescript"
@@ -460,354 +712,630 @@ language = "typescript"
 file = "tools/benchmarker/server/sources.ts"
 function = "git"
 classes = ["B"]
+cut_note = "The single git entry (git -C repo args); no run-data caller is left once loadRuns and flow counts are replaced. Range is the function plus the doc comment of readBlobs. Exported and imported by main.ts and sources.test.ts. UNSURE: flowCountsAt and loadFlowCounts (not in this list) still call it for the private repo until flow-counts.json replaces them."
+whole = true
 
 [[entry]]
 language = "typescript"
 file = "tools/benchmarker/server/sources.ts"
 function = "loadRuns"
 classes = ["B"]
+cut_note = "Every statement that fetches, lists, or reads through git, or builds a checkout-relative path to read, is cut. The range ends before loadJobs and holds the doc comment of loadJobs. Pure assembly (storyEntry, scores, normaliseByStory) stays. The final return is cut as a whole (3 lines) because its stories and runNotes reads go through the git blob map; its non-git fields (host, packVersion, state) are rebuilt around the new reads."
+cut = [
+  { anchor = "await git(repo, \"fetch\", \"-q\", \"origin\", BRANCH);", lines = 1, why = "git fetch of origin main to refresh the checkout; becomes nothing (the lake read sees new runs) or a refresh report." },
+  { anchor = "const paths = (await git(repo, \"ls-tree\", \"-r\", \"--name-only\", REF, \"--\", ...RUN_ROOTS)).split(\"\\n\").filter(Boolean);", lines = 1, why = "Lists every file of every run with git ls-tree; becomes the LIST-RUNS call." },
+  { anchor = "const runs = findRuns(paths);", lines = 1, why = "Derives runs from the git path listing; becomes the run list returned by the new API.", uses = [{ anchor = "const packs = [...new Set(runs.map((r) => r.pack))].sort();", lines = 1 }] },
+  { anchor = "const wanted = runs.flatMap((r) => [", lines = 5, why = "Builds the checkout-relative file paths (dir/run.json, run-status.json, metrics.json, finalize.json, rescore files, benchmarks/pack/bench.json) to read; becomes (run id, record name) pairs for one batch read." },
+  { anchor = "const blobs = await readBlobs(repo, wanted);", lines = 1, why = "Reads all those files from git in one cat-file batch; becomes the batch record read (missing omitted).", uses = [{ anchor = "const records = runs.map((r): RunRecord => {", lines = 1 }] },
+  { anchor = "const rescoredStories = runs.flatMap((r) => {", lines = 4, why = "Second dependent read: selects per-story rescore summary paths from the git path listing by prefix and suffix; becomes a list of that suite's rescored story summaries through the API." },
+  { anchor = "if (rescoredStories.length) for (const [path, text] of await readBlobs(repo, rescoredStories)) blobs.set(path, text);", lines = 1, why = "Second git batch read merged into the blob map; becomes the second API read." },
+  { anchor = "const suites = Object.fromEntries(packs.map((p) => [p, json<{ pack_ref?: string }>(blobs.get(`benchmarks/${p}/bench.json`))?.pack_ref ?? \"\"]));", lines = 1, why = "Reads each pack bench.json from the checkout at the fetched revision; becomes the suite-info read (pack_ref from the release / pack dir).", uses = [{ anchor = "return { records, suites };", lines = 1 }] },
+  { anchor = "const meta = json<{ pack_version?: string; host?: string }>(blobs.get(`${r.dir}/run.json`)) ?? {};", lines = 1, why = "Reads run.json of the run from the git blob map by checkout path; becomes record read run-description.", uses = [{ anchor = "return { ...r, rescored, rescoreFaults, host: meta.host ?? \"\", packVersion: meta.pack_version ?? \"\", state: status.state ?? \"\", stateAt: status.at ?? \"\",", lines = 3 }] },
+  { anchor = "const status = json<{ state?: string; at?: string }>(blobs.get(`${r.dir}/run-status.json`)) ?? {};", lines = 1, why = "Reads run-status.json from the git blob map by checkout path; becomes record read run-status.", uses = [{ anchor = "const score = finalScore(rs, status.state ?? \"\", lastStory);", lines = 1 }] },
+  { anchor = "const metrics = json<{ stories?: Record<string, RawStory> | RawStory[]; known_good?: unknown }>(blobs.get(`${r.dir}/metrics.json`));", lines = 1, why = "Reads metrics.json from the git blob map by checkout path; becomes record read metrics (absent gives empty stories).", uses = [{ anchor = "const raw = metrics?.stories ?? {};", lines = 1 }] },
+  { anchor = "const rs = json<RawRescore>(blobs.get(`${r.dir}/rescore/${v}/rescore.json`));", lines = 1, why = "Reads a rescore.json from the git blob map by checkout path; becomes record read rescore by (run id, version).", uses = [{ anchor = "const score = finalScore(rs, status.state ?? \"\", lastStory);", lines = 1 }, { anchor = "const fault = rescoreFault(rs);", lines = 1 }], guards = [{ anchor = "for (const v of r.rescores) {", lines = 1 }] },
+  { anchor = "const finalize = runFinalize(blobs, r.dir);", lines = 1, why = "Reads finalize.json from the git blob map by checkout path; becomes record read finalize.", uses = [{ anchor = "const scoringSuite = builtUnderEarlierSuite(finalize);", lines = 1 }] },
+  { anchor = "const acc = rescoredStory(blobs, r.dir, v, id);", lines = 1, why = "Reads the last rescored story summary (accept-summary else accept) from the git blob map; becomes record read rescored-story.", uses = [{ anchor = "if (acc?.by_story) rescored[v] = { after: id, byStory: normaliseByStory(acc.by_story) };", lines = 1 }], guards = [{ anchor = "for (const [v, id] of Object.entries(r.rescoreLast)) {", lines = 1 }] },
+  { anchor = "return { ...r, rescored, rescoreFaults, host: meta.host ?? \"\", packVersion: meta.pack_version ?? \"\", state: status.state ?? \"\", stateAt: status.at ?? \"\",", lines = 3, why = "Assembles the record; its stories line reads accept-summary.json under the scoring suite by checkout path and runNotes(blobs, r.dir) reads run.json and interventions.md from the git blob map; both become API record reads." },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/annotate.py"
 function = "build_attempt"
 classes = []
+cut_note = "Cuts: the held-out/events lookup through the checkout-relative run dir, the events and gate reads by path, the attempt id as path minus checkout, and stack_of(run, repo). The signature loses repo. Everything else builds the record from values."
+cut = [
+  { anchor = "accept_path, events_path = heldout.find(run, f\"stories/{sid}/accept.json\"), sdir / EVENTS", lines = 1, why = "held-out accept.json found by heldout.find (run folder else private repo copy) and events path under the checkout run dir; becomes Read.read_best accept and Log.log_bytes", uses = [{ anchor = "accept = json.loads(accept_path.read_text())", lines = 1 }], guards = [{ anchor = "if accept_path is None or not events_path.exists():", lines = 1 }] },
+  { anchor = "with gzip.open(events_path, \"rt\", errors=\"replace\") as f:", lines = 2, why = "opens the event log at a path in the checkout; becomes Log.log_bytes (gzip stream from bytes)", uses = [{ anchor = "\"claims\": (claims.final_message(lines) or \"\")[:CLAIM_CHARS],", lines = 1 }, { anchor = "\"timeline\": timeline(lines),", lines = 1 }] },
+  { anchor = "gate = json.loads((sdir / \"gate.json\").read_text())", lines = 1, why = "reads the story's gate.json from the checkout folder; becomes a Read of the story record, with a distinct missing answer", uses = [{ anchor = "\"self_check_green\": gate.get(\"all_green\"),", lines = 1 }], guards = [{ anchor = "if (sdir / \"gate.json\").exists():", lines = 1 }] },
+  { anchor = "\"id\": f\"{run.relative_to(repo).as_posix()}#{sid}\",", lines = 1, why = "attempt id is the run id taken as path minus checkout; becomes Id.story_ref" },
+  { anchor = "\"stack\": stack_of(run, repo),", lines = 1, why = "stack label from path minus checkout; becomes Id.stack of the run id" },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/annotate.py"
 function = "load_attempts"
 classes = []
+cut_note = "Cuts: run listing by glob, the mtime fingerprint of local files, the reads of metrics.json / workspace-git-log.txt / stories/ folder by path, and the two prints that show the run as path minus checkout. The cache, ordering and write stay. The call to build_attempt changes signature (listed as a use, UNSURE whether it counts as a cut)."
+cut = [
+  { anchor = "runs = run_dirs(repo)", lines = 1, why = "lists runs through run_dirs(checkout); becomes List (pack vidi, preferred) plus read_many of metrics", uses = [{ anchor = "for run in runs:", lines = 1 }] },
+  { anchor = "fp = fingerprint(runs)", lines = 1, why = "cache key from mtimes of files in the checkout; becomes Changes.digest", uses = [{ anchor = "if data.get(\"fingerprint\") == fp:", lines = 1 }, { anchor = "cache.write_text(json.dumps({\"fingerprint\": fp, \"attempts\": attempts}))", lines = 1 }], guards = [{ anchor = "if cache.exists() and not rebuild:", lines = 1 }] },
+  { anchor = "metrics = json.loads((run / \"metrics.json\").read_text())", lines = 1, why = "reads metrics.json from the run folder in the checkout; becomes Read / read_many of the metrics record", uses = [{ anchor = "a = build_attempt(run, repo, sdir, metrics, log)", lines = 1 }] },
+  { anchor = "log = (run / \"workspace-git-log.txt\").read_text() if (run / \"workspace-git-log.txt\").exists() else \"\"", lines = 1, why = "reads the record file by path; becomes Read of workspace-git-log (a run record, not a git command)" },
+  { anchor = "if not (run / \"stories\").is_dir():", lines = 3, why = "decides by a folder in the checkout whether a run has per-story records, and prints the run as path minus checkout; becomes a Read/List answer for stories and Id for the label", uses = [{ anchor = "continue", nth = 1, lines = 1 }] },
+  { anchor = "for sdir in sorted(p for p in (run / \"stories\").iterdir() if p.is_dir()):", lines = 1, why = "enumerates story folders of the run in the checkout; becomes the stories listed by the API", uses = [{ anchor = "if a:", lines = 1 }, { anchor = "attempts.append(a)", lines = 1 }] },
+  { anchor = "print(f\"  {run.relative_to(repo)}: {sum(1 for a in attempts if a['id'].startswith(run.relative_to(repo).as_posix()))} attempts\")", lines = 1, why = "run name and id prefix as path minus checkout; becomes Id of the run" },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/annotate.py"
 function = "main"
 classes = []
+cut_note = "Cuts: the private checkout as the place of state and labels, and the REPO passed to load_attempts. Labels commit stays the owner's act."
+cut = [
+  { anchor = "private = packdir.private_checkout()", lines = 1, why = "private repo found beside the checkout; becomes Paths.private_repo / Paths.state_dir", uses = [{ anchor = "print(f\"{len(attempts)} attempts; labels in {labels_path}\\nopen {url}  (Ctrl-C to stop)\")", lines = 1 }], guards = [{ anchor = "if not private.is_dir():", lines = 2 }] },
+  { anchor = "attempts = load_attempts(REPO, private / \"state\" / \"annotate\" / \"attempts.json\", a.rebuild)", lines = 1, why = "passes the checkout and a cache path inside the private repo; becomes load_attempts over List/Read with the cache under Paths.state_dir" },
+  { anchor = "labels_path = private / \"analysis\" / \"labels.csv\"", lines = 1, why = "labels file path inside the private repo working tree (committed there); becomes a path under Paths.state_dir", uses = [{ anchor = "server = http.server.ThreadingHTTPServer((\"127.0.0.1\", a.port), make_handler(attempts, labels_path))", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/annotate.py"
 function = "run_dirs"
 classes = []
+cut_note = "Cuts the two globs of the checkout; the known_good filter and sort stay."
+cut = [
+  { anchor = "found = [p.parent for p in repo.glob(\"combinations/**/benchmarks/vidi/*/metrics.json\")]", lines = 1, why = "finds combination runs by globbing the checkout; becomes List (pack vidi, kind combination, preferred)", uses = [{ anchor = "return sorted(r for r in set(found) if not _known_good(r))", lines = 1 }] },
+  { anchor = "found += [p.parent for p in repo.glob(\"benchmarks/reference/vidi/*/*/metrics.json\")]", lines = 1, why = "finds reference runs by globbing benchmarks/reference in the checkout; becomes List (kind reference)" },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/annotate.py"
 function = "stack_of"
 classes = []
+cut_note = "Whole job is the run id as path minus checkout and the grammar of combinations/ and benchmarks/reference/ paths; becomes Id.stack."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/drive.py"
 function = "run"
 classes = []
+cut_note = "ONLY the 2-line closure 'def run(*args, env=None, input=None)' nested inside replay_onto_remote (about line 635), which runs git <args> with cwd=repo_root. The file has other, unrelated methods named run; those are NOT marked. Deleted with replay_onto_remote (design site 46)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/finalize.py"
 function = "ensure_bundle"
 classes = []
+cut_note = "Nothing to cut: the only git call (bundle() -> git -C <workspace> bundle create --all) is on the agent's own workspace (class W, stays); work_dir.txt is a node-local file. It writes workspace.bundle into the run dir, which is why it was flagged; no run data is read through git and no checkout location is chosen."
+cut = [
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/finalize_pending.py"
 function = "default_root"
 classes = []
+cut_note = "Whole: returns roots.RESULTS_ROOT, the results-root checkout; becomes Root.resolve() (data root from configuration, reported at call time not import time) (design site 52)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/finalize_pending.py"
 function = "pack_of"
 classes = []
+cut_note = "Cut only the fallback that reads the pack from the run's place in the checkout tree (parents[1] / parents[2] == 'reference'); becomes Id.pack(id). The run.json read stays (a local file)."
+cut = [
+  { anchor = "return run.parents[1].name if run.parents[2].name == \"reference\" else run.parent.name", lines = 1, why = "Pack taken from folder depth in the checkout layout; becomes Id.pack of the run id.", guards = [{ anchor = "if named:", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/finalize_pending.py"
 function = "run_dirs"
 classes = []
+cut_note = "Whole: walks root/combinations for 'benchmarks' folders and globs root/benchmarks/reference/*/*/* to list runs, i.e. it exists to find runs by the checkout layout; becomes Root.list_local(include_reference, require_marker=false) (design site 54)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/grading_package.py"
 function = "main"
 classes = []
+cut_note = "Mixed. Cut the output and key locations that sit in the private repo / public repo / bench home and the git check-ignore guard; output goes under the data root (gradings/<pack>/<package>/package/), key under keys/<pack>/ (Paths, design site 55). copy_build's git archive and git log run on the supplied working copy (class W) and stay (copy_build is not in this list). UNSURE: ap.add_argument('--build', ...) and the line 'ws, claims, accept = (Path(p).expanduser() for p in spec.split(\":\"))' take operator-typed paths; the design says run inputs come via Workspace and Read, but where the claims folder comes from is not visible in this file; not cut. UNSURE: 'pack = packdir.resolve()' only calls packdir.resolve, which is itself a cut site; not cut here."
+cut = [
+  { anchor = "ap.add_argument(\"--out\", type=Path, help=\"default: <private repo>/gradings/<name>\")", lines = 1, why = "Default output is inside the private repo (a git checkout); becomes a location under the data root." },
+  { anchor = "ap.add_argument(\"--key\", type=Path, help=\"default: ~/.vidi-bench/keys/<name>.json\")", lines = 1, why = "Default key location is chosen with the repo layout in mind; becomes keys/<pack>/ from Paths." },
+  { anchor = "private = packdir.private_root(pack)", lines = 1, why = "Finds the private repo checkout that holds the pack so the output can go inside it and the key can be tested against its git ignore.", uses = [{ anchor = "problem = key_location_problem(key_path, out, private)", lines = 1 }] },
+  { anchor = "out = (a.out or ((private or packdir.public_dir()) / \"gradings\" / a.name)).expanduser().resolve()", lines = 1, why = "Output location is a folder of the private repo, or of the public repo for an in-repo pack (a tracked tree); becomes data_root/gradings/<pack>/<name>/package.", uses = [{ anchor = "if out.exists():", lines = 1 }, { anchor = "out.mkdir(parents=True)", lines = 1 }, { anchor = "shutil.copy(pack / \"GRADING.md\", out / \"GRADING.md\")", lines = 1 }] },
+  { anchor = "key_path = (a.key or hostenv.bench_home() / \"keys\" / f\"{a.name}.json\").expanduser().resolve()", lines = 1, why = "Key location becomes keys/<pack>/<name>.json from Paths.state_dir.", uses = [{ anchor = "key_path.parent.mkdir(parents=True, exist_ok=True)", lines = 1 }] },
+  { anchor = "problem = key_location_problem(key_path, out, private)", lines = 1, why = "Runs git check-ignore on the private repo to see whether the key could be committed; the data root is never a repository, so the test goes.", uses = [{ anchor = "raise SystemExit(problem)", lines = 1 }], guards = [{ anchor = "if problem:", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/heldout.py"
 function = "private_files"
 classes = []
+cut_note = "The classification input is built from the run's path minus repo_root (the run id as a path); the file walk and the is_private test stay as the classifier of the Export gate, keyed by (run id, relative path) (design site 58)."
+cut = [
+  { anchor = "base = run.resolve().relative_to(repo_root.resolve()).as_posix()", lines = 1, why = "Run id taken as path minus checkout; is_private only applies some rules to paths starting with combinations/ or benchmarks/reference/, so the classifier is given the run id." },
+  { anchor = "return sorted(f.relative_to(run).as_posix() for f in _walk(run)", lines = 2, why = "Builds each tested path as <base>/<file> from the checkout-relative base; rebuilt from the run id." },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/history.py"
 function = "policy_link"
 classes = []
+cut_note = "Whole job is a relative path from the run folder to the policy in the results-root checkout; becomes Paths.policy_url."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/import_run.py"
 function = "main"
 classes = []
+cut_note = "Cut the run-dir location (a path joined to the checkout root) and the work dir derived from the path; becomes Root.place(id) and Id.long_name/work_id. It runs no git command itself. copy_workspace copies the subagents' workspace with its .git (class W) and is not in this function. Open question (not a cut): whether the imported reference run is created on a node or the host."
+cut = [
+  { anchor = "ap.add_argument(\"--run-dir\", type=Path, required=True)", lines = 1, why = "The run is named by a path (benchmarks/reference/... relative to the checkout); becomes a run id." },
+  { anchor = "run = (drive.REPO_ROOT / a.run_dir).resolve() if not a.run_dir.is_absolute() else a.run_dir", lines = 1, why = "Joins the checkout root to the relative run dir; becomes Root.place(root, id).", uses = [{ anchor = "sub_path = run / \"metrics.json\"", lines = 1 }, { anchor = "shutil.copy(sub_path, run / \"metrics.subagent.json\")", lines = 1 }, { anchor = "(run / \"work_dir.txt\").write_text(str(work))", lines = 1 }] },
+  { anchor = "work = drive.work_dir_for(run)", lines = 1, why = "Work dir id derived from the run's path in the checkout (drive.work_dir_name); becomes Id.work_id(Id.long_name(id)).", uses = [{ anchor = "copy_workspace(ws, work / \"workspace\")", lines = 1 }, { anchor = "(run / \"work_dir.txt\").write_text(str(work))", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/judge.py"
 function = "main"
 classes = []
+cut_note = "Cuts: --build takes a record path in the checkout (becomes a run id), the private checkout / state folder and its git check-ignore guard, REPO / record, and every read of a run's final result, workspace, claims and git log through that path. The package build, npm ci, running the judge and judge_collect stay. packdir.resolve() / 'acceptance' (the private pack's suite) is UNSURE: Paths.pack_private, not cut."
+cut = [
+  { anchor = "ap.add_argument(\"--build\", action=\"append\", required=True, help=\"label=<run record dir in this repo>, exactly two\")", lines = 1, why = "argument is a run record folder in the checkout; becomes label=<run id>" },
+  { anchor = "private = packdir.private_checkout()", lines = 1, why = "private repo beside the checkout as place of state and keys; becomes Paths.state_dir", uses = [{ anchor = "state = private / \"state\"", lines = 1 }] },
+  { anchor = "state = private / \"state\"", lines = 1, why = "state folder inside the private repo; becomes Paths.state_dir", uses = [{ anchor = "job = state / \"judging\" / a.name", lines = 1 }, { anchor = "key = state / \"keys\" / f\"{a.name}.json\"", lines = 1 }] },
+  { anchor = "if subprocess.run([\"git\", \"-C\", str(private), \"check-ignore\", \"-q\", str(state / \"x\")]).returncode != 0:", lines = 2, why = "git check-ignore guard that state/ is ignored by the private repo; deleted with the checkout" },
+  { anchor = "rec = REPO / record", lines = 1, why = "run record folder = checkout joined to the path; becomes the run id passed to Read / Workspace", uses = [{ anchor = "record = rest", lines = 1 }] },
+  { anchor = "fault = scorer_fault(last_accept(rec))", lines = 1, why = "final held-out result found by heldout.find in the record folder; becomes Read.read_best final-accept", uses = [{ anchor = "raise SystemExit(f\"{label}: {last_accept(rec)} is a scorer fault, not a result \"", lines = 2 }], guards = [{ anchor = "if fault:", lines = 1 }] },
+  { anchor = "record_workspace(rec, ws)", lines = 1, why = "copies the record folder's workspace/ and checks workspace-git-log.txt; becomes Workspace final (scored commit check inside)", uses = [{ anchor = "specs.append(f\"{label}={ws}:{claims_dir}:{last_accept(rec)}\")", lines = 1 }] },
+  { anchor = "print(f\"{label}: claims for stories {' '.join(record_claims(rec, claims_dir))}\")", lines = 1, why = "claims written from the record folder's stories/ event logs; becomes Read / Log of the run" },
+  { anchor = "specs.append(f\"{label}={ws}:{claims_dir}:{last_accept(rec)}\")", lines = 1, why = "passes the final accept path found in the checkout; becomes Read.read_best final-accept written to a local file" },
+  { anchor = "records = {b.partition(\"=\")[0]: REPO / b.partition(\"=\")[2] for b in a.build}", lines = 1, why = "label to record folder in the checkout; becomes label to run id", uses = [{ anchor = "for letter, label in json.loads(key.read_text()).items():", lines = 1 }] },
+  { anchor = "log = (records[label] / \"workspace-git-log.txt\").read_text()", lines = 1, why = "reads workspace-git-log.txt from the record folder; becomes Read of workspace-git-log", uses = [{ anchor = "(package / f\"build-{letter}\" / \"commits.txt\").write_text(grading_package.scrub(commits_oldest_first(log)))", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/logscan.py"
 function = "own_workspace_for"
 classes = []
+cut_note = "Only the fallback return is a cut: the name from the run path minus the checkout. The work_dir.txt read stays."
+cut = [
+  { anchor = "return f\"~/{Context.bench_home}/work/{_run_name(Path(run_dir).resolve(), REPO_ROOT.resolve())}\"", lines = 1, why = "long work name from the path relative to the checkout; becomes Id.long_name of the run id", guards = [{ anchor = "if wd.is_file() and wd.read_text().strip():", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/machine_names.py"
 function = "tracked"
 classes = []
+cut_note = "git ls-files of the systems repo (source code), not run data: stays unchanged (design: GIT). Nothing to cut."
+cut = [
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/packdir.py"
 function = "part"
 classes = []
+cut_note = "Cut the location of the private pack part 'beside the results root'; becomes Paths.pack_public / pack_private (design site 64). The call to resolve(pack) is a pass-along to another cut site and stays."
+cut = [
+  { anchor = "private = private_checkout() / PRIVATE_PACKS / name(pack) / name_", lines = 1, why = "Private part of the pack found next to the results-root checkout; becomes Paths.pack_private(name).", uses = [{ anchor = "return private if private.exists() else own", lines = 1 }], guards = [{ anchor = "if own.exists():", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/packdir.py"
 function = "private_checkout"
 classes = []
+cut_note = "Whole: 'return REPO_ROOT.parent / PRIVATE_REPO', the private repo location derived from where the results-root checkout is; becomes Paths.private_repo (design site 65)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/packdir.py"
 function = "resolve"
 classes = []
+cut_note = "Cut the two location choices that exist because of the checkout: the private checkout beside the root and the pack under the results root (public_dir joins REPO_ROOT). The environment-variable lookup stays. Becomes Paths (public part from the release, private part at its tag) (design site 66)."
+cut = [
+  { anchor = "private = private_checkout() / PRIVATE_PACKS / n", lines = 1, why = "Private pack directory beside the results-root checkout; becomes Paths.pack_private(name).", uses = [{ anchor = "return private", lines = 1 }], guards = [{ anchor = "if (private / \"spec\").is_dir():", lines = 1 }] },
+  { anchor = "return public_dir(pack)", lines = 1, why = "Public pack directory joined to the results-root checkout (REPO_ROOT / benchmarks / <name>); becomes Paths.pack_public(name) from the release." },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/publicise.py"
 function = "lake_only_lines"
 classes = []
+cut_note = "Whole: the .gitignore lines for files the lake keeps and git does not; no git, no ignore file; deleted (design site 67). is_lake_only and the import-time RUN_GITIGNORE in drive.py go with it."
+whole = true
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/report.py"
 function = "summary"
 classes = []
+cut_note = "The report text is built from the run's own files. Cut: the statement whose first line takes the combination name from folder depth (run.parent.parent.parent.name) and embeds history.render_per_story(run) (policy link by folder depth, via history.policy_link). history.render(run) (line with lines += history.render) reads workspace-git-log.txt, a record file, not a git command: kept, UNSURE only if that log is not available in the new run folder."
+cut = [
+  { anchor = "lines = [f\"# Vidi run \u2014 {meta.get('combination', run.parent.parent.parent.name)}\", \"\",", lines = 8, why = "combination name fallback from folder depth; becomes the combination from run.json or Id.stack; the policy link inside render_per_story becomes Paths.policy_url", uses = [{ anchor = "lines += [\"\", history.render(run).rstrip()]", lines = 1 }] },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/roots.py"
 function = "<module>"
 classes = []
+cut_note = "Cuts: NO_RECORD_ENV and off_limits (nothing to guard once nothing is committed), and RESULTS_ROOT evaluated at import (Root.resolve fails at call time). harness_commit's git rev-parse of the code checkout stays (KEEP-GIT). ENV = SPEC_BENCH_RESULTS_ROOT (the data-root setting name) is UNSURE: it may stay as the setting's name, not cut. | outside the tool's span, not cut: def off_limits(environ: dict | None = None) -> list[Path]:"
+cut = [
+  { anchor = "NO_RECORD_ENV = \"SPEC_BENCH_NO_RECORD_IN\"", lines = 1, why = "names checkouts no record may be committed in; nothing is committed any more" },
+  { anchor = "RESULTS_ROOT = results_root()", lines = 1, why = "results root (a checkout) resolved at import; becomes Root.resolve called when needed" },
+]
 
 [[entry]]
 language = "python"
 file = "benchmarks/spec-bench/harness/roots.py"
 function = "results_root"
 classes = []
+cut_note = "Only the checkout fallback is a cut; the variable, the directory test and the release-with-no-variable stop stay. The new rule (never a git checkout or inside one) is added code."
+cut = [
+  { anchor = "return CODE_ROOT", lines = 1, why = "falls back to the code root when it is a checkout; Root.resolve has no fallback", guards = [{ anchor = "if not given:", lines = 1 }, { anchor = "if found:", lines = 1 }] },
+]
 
 [[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/run.sh"
 function = "<script>"
 classes = []
+cut_note = "Cuts: results root from roots.py, --from-run and --record options, the combination folder / config.sh / run dir joined to the results root (including the reference RUN_BASE rewrite), installed_config_drift against the checkout, the permissive-sandbox rule tied to --record, run.json known_good_from as path minus RESULTS_ROOT, record_event calls, and the --record flag passed to finalize and the sweeps. The function record_event itself (line with the definition) belongs to the site run.sh::record_event. UNSURE and not cut: PACK default 'benchmarks/vidi', ACCEPTANCE and PACK_DIR from packdir.py, PACK_VERSION from pack-version.sh (pack location / tag, Paths)."
+cut = [
+  { anchor = "RESULTS_ROOT=\"$(python3 \"$HARNESS/roots.py\" results)\" || exit 1", lines = 1, why = "results root (a checkout); becomes Root.resolve (data root)", uses = [{ anchor = "mkdir -p \"$RUN_DIR\"", lines = 1 }] },
+  { anchor = "--from-run) FROM_RUN=\"$(cd \"$2\" && pwd)\"; shift 2 ;;", lines = 1, why = "other run given as a directory in the checkout; becomes --inputs DIR", guards = [{ anchor = "while [[ $# -gt 0 ]]; do", lines = 1 }, { anchor = "case \"$1\" in", lines = 1 }] },
+  { anchor = "--record) RECORD=1; shift ;;", lines = 1, why = "--record (commit and push after each story) is deleted" },
+  { anchor = "COMBO_DIR=\"$RESULTS_ROOT/combinations/$COMBINATION\"", lines = 1, why = "combination folder joined to the checkout; the run folder comes from Root.place and system files from the release", uses = [{ anchor = "CONFIG=\"$COMBO_DIR/config.sh\"", lines = 1 }] },
+  { anchor = "CONFIG=\"$COMBO_DIR/config.sh\"", lines = 1, why = "config.sh read from the checkout; becomes the release's system files (Paths)", uses = [{ anchor = "CONTEXT_LIMIT=\"$(cfg CONTEXT_LIMIT \"$CONFIG\")\"; OUTPUT_LIMIT=\"$(cfg OUTPUT_LIMIT \"$CONFIG\")\"", lines = 1 }] },
+  { anchor = "[[ -n \"$RUN_BASE\" ]] && CONFIG=\"$RESULTS_ROOT/$(sed -n 's/^CONFIG_FILE=\"\\(.*\\)\"/\\1/p' \"$ENV_FILE\")\"", lines = 1, why = "a reference stack's config file under the checkout; becomes the release's system files (Paths)", uses = [{ anchor = "RUN_BASE=\"$(sed -n 's/^RUN_BASE=\"\\(.*\\)\"/\\1/p' \"$ENV_FILE\")\"", lines = 1 }] },
+  { anchor = "installed_config_drift \"$INSTALL_ID\" \"$BACKEND\" \"$COMBO_DIR\" \"$RESULTS_ROOT\" >&2 || exit 1", lines = 1, why = "compares the installed config with the one in the checkout; the comparison source becomes the release's system files" },
+  { anchor = "RUN_DIR=\"$COMBO_DIR/benchmarks/$SPEC_BENCH_PACK_NAME/$RUN_ID\"", lines = 1, why = "run folder = checkout / combination / benchmarks / pack / run id; becomes Root.place of the run id" },
+  { anchor = "[[ \"$RUN_BASE\" == benchmarks/reference/*/* ]] && RUN_BASE=\"benchmarks/reference/$SPEC_BENCH_PACK_NAME/${RUN_BASE##*/}\"", lines = 1, why = "reference run base under benchmarks/reference in the checkout; becomes the Id grammar for reference runs" },
+  { anchor = "[[ -n \"$RUN_BASE\" ]] && RUN_DIR=\"$RESULTS_ROOT/$RUN_BASE/$RUN_ID\"", lines = 1, why = "reference run folder joined to the checkout; becomes Root.place", uses = [{ anchor = "echo \"run dir: $RUN_DIR\"", lines = 1 }, { anchor = "(cd \"$HARNESS\" && uv run --quiet machine_fit.py \"$RUN_DIR\") || exit $?", lines = 1 }] },
+  { anchor = "if [[ -n \"$STOPPED\" ]]; then record_event stopped \"$why\"; elif [[ $rc -ne 0 ]]; then record_event failed \"$why\"; fi", lines = 1, why = "pushes a stopped / failed run event; the status file is written without a push (record_event is deleted)", guards = [{ anchor = "if [[ -z \"$FINISHED\" ]]; then", lines = 1 }] },
+  { anchor = "if [[ \"${SPEC_BENCH_SANDBOX:-enforced}\" == permissive && -n \"$RECORD\" ]]; then", lines = 3, why = "ties the no-sandbox rule to --record; the rule moves to Export" },
+  { anchor = "(cd \"$HARNESS\" && uv run --quiet finalize_pending.py --exclude \"$RUN_DIR\" ${RECORD:+--record} 2>&1) || true", lines = 1, why = "sweep passes --record (finalize_pending's record parameter goes)" },
+  { anchor = "\"pack\": \"$SPEC_BENCH_PACK_NAME\", \"scope\": \"${SCOPE:-${EPIC:+epic:$EPIC}}\", \"metered\": $METER, \"reasoning_effort\": \"$EFFORT_RECORDED\", \"client_thinking\": \"${CLIENT_THINKING:-}\", \"known_good_from\": \"${FROM_RUN#\"$RESULTS_ROOT\"/}\", \"context_limit\": $CONTEXT_LIMIT,", lines = 1, why = "line of the run.json heredoc (statement starts at the cat > run.json line, 9 lines): known_good_from is the run id taken as path minus the results root; becomes a run id from the inputs folder" },
+  { anchor = "record_event started \"harness $HARNESS_COMMIT${HARNESS_RELEASE:+ ($HARNESS_RELEASE)}, client $CLIENT_NAME, model $MODEL_ID\"", lines = 1, why = "commit and push of the started event; the status write stays without a push" },
+  { anchor = "uv run --quiet drive.py --run-dir \"$RUN_DIR\" --base-url \"$AGENT_URL\" --client \"$CLIENT_NAME\" \\", lines = 9, why = "passes --record and --from-run to the driver; becomes --inputs DIR and no --record" },
+  { anchor = "uv run --quiet finalize.py \"$RUN_DIR\" --pack \"$PACK\" ${RECORD:+--record} || true", lines = 1, why = "finalize passes --record (its record parameter goes)" },
+  { anchor = "record_event finished", lines = 1, why = "commit and push of the finished event; the status write stays without a push" },
+  { anchor = "uv run --quiet finalize_pending.py --exclude \"$RUN_DIR\" ${RECORD:+--record} 2>&1 || true", lines = 1, why = "sweep passes --record" },
+]
 
 [[entry]]
 language = "shell"
 file = "benchmarks/spec-bench/harness/run.sh"
 function = "record_event"
 classes = []
+cut_note = "Function exists only to run record_event.py (commit and push) when --record; deleted (the status write is not conditional on it)."
+whole = true
 
 [[entry]]
 language = "python"
 file = "ops/monitor/monitor.py"
 function = "run_dir_of"
 classes = []
+cut_note = "Whole job is taking the run directory (checkout-relative combinations/... or benchmarks/reference/... path) out of a git-diff file path; disappears if the change feed returns run ids, else becomes the shared RunId parser."
+whole = true
 
 [[entry]]
 language = "python"
 file = "ops/monitor/triage.py"
 function = "<module>"
 classes = []
+cut_note = "Only the allow-list line that lets the headless agent run git fetch and git show to read run records is cut; git log and git diff on the systems repo are KEEP-GIT and sit on the same line, so the replacement must re-add them. The prompt file triage-prompt.md (not Python) also tells the agent to git show origin/main:<path>; it must change with this cut. UNSURE: REPO = HERE.parents[1] and TRACKING locate a document inside the checkout (not run data) - not cut. commit_and_push is outside this module head and outside the list."
+cut = [
+  { anchor = "\"Bash(git fetch -q origin main)\", \"Bash(git show *)\", \"Bash(git log *)\", \"Bash(git diff *)\",", lines = 1, why = "Grants the agent git fetch and git show to read run records from origin/main; becomes one allow-listed read-only run-record command (the bench-lake read), keeping git log and git diff for the source repo." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/anthropic-token-counter/src/corpus.rs"
 function = "build"
 classes = []
+cut_note = "Cuts the run-data half: the git listing and the compact-log reading from the checkout. The source-code half (kind_of_path pick, repo.join(&rel) read of source files) stays on a code listing; the paths line is cut because one list feeds both halves and must be split. UNSURE: whether the source half keeps a git ls-files (KEEP-GIT) or a directory walk."
+cut = [
+  { anchor = "let paths: Vec<String> = tracked(repo)?.into_iter().filter(|p| !excluded(p) && !skip_prefixes.iter().any(|s| p.starts_with(s.as_str()))).collect();", lines = 1, why = "git ls-files of the whole repo is the only list; run logs found as tracked files. Becomes a code-file listing (source half, unchanged) plus List runs and Log.stories from the lake (log half).", uses = [{ anchor = "for p in &paths {", lines = 1 }] },
+  { anchor = "let logs: Vec<(String, String)> = paths.iter().filter(|p| p.ends_with(LOG_SUFFIX)).map(|p| (p.clone(), p.clone())).collect();", lines = 1, why = "Finds compact logs as tracked paths ending in the log suffix, named by checkout-relative path. Becomes the lake's story logs, named (run id, story), stable name for the hash pick.", uses = [{ anchor = "for rel in pick(logs, plan.logs) {", lines = 1 }] },
+  { anchor = "let Ok(text) = read_gz(&repo.join(&rel)) else { continue };", lines = 1, why = "Reads a compact log from the checkout by joining the checkout root to the tracked path. Becomes Log.log_bytes for (run id, story); a missing log stays a skip.", uses = [{ anchor = "for (n, line) in text.lines().enumerate() {", lines = 1 }] },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/anthropic-token-counter/src/corpus.rs"
 function = "tracked"
 classes = []
+cut_note = "Whole body is git ls-files -z on the repo. Survey: the source-code half keeps a git listing (KEEP-GIT), the run-log half leaves; the function is removed or reduced to the source half. UNSURE: the unit test pinning the message 'git ls-files failed' (tests module) goes or stays with the source half."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/anthropic-token-counter/src/main.rs"
 function = "<module>"
 classes = []
+cut_note = "Module head and the Corpus command: the held-out story is a checkout path prefix, and --repo is the checkout whose tracked files and logs are read. The build_corpus fn (line 189) and the story command are not cut. | use outside the tool's span, not recorded: skip_prefix.push(HELD_OUT_STORY.to_string()); | use outside the tool's span, not recorded: build_corpus(&repo, &out, corpus::Plan { files_per_kind, chunks_per_file, logs,  | guard outside the tool's span, not recorded: Command::Corpus { repo, out, files_per_kind, chunks_per_file, logs, strings_per_"
+cut = [
+  { anchor = "const HELD_OUT_STORY: &str = \"benchmarks/reference/vidi/opus-5.5/v2-r1/stories/04/\";", lines = 1, why = "A run id plus story written as a git-tree path prefix. Becomes (run id, story number) addressed through Id." },
+  { anchor = "repo: PathBuf,", lines = 1, why = "The corpus command takes a checkout. Becomes --lake beside --repo (repo stays only for the source-code half)." },
+]
 
 [[entry]]
 language = "typescript"
 file = "tools/benchmarker/server/main.ts"
 function = "<module>"
 classes = []
+cut_note = "Module head only (up to function buildId). The wiring that runs git remote get-url, builds privateRepo and starts refreshRepo is inside the loadFixture range (not in this list). UNSURE: the line const src: Sources = {... web: null ...} initialises web, fetchError and fetchedAt in one statement - not cut, edit by hand with the web field. UNSURE: FETCH_EVERY_MS (poll cadence) stays unless the refresh becomes incremental."
+cut = [
+  { anchor = "import { BRANCH, git, loadFlowCounts, loadJobs, loadRuns } from \"./sources.ts\";", lines = 1, why = "Imports the git wrapper and the branch name; both go (the git wrapper is deleted, the branch has no replacement). loadRuns and loadFlowCounts stay but change source." },
+  { anchor = "repo: { type: \"string\", default: resolve(HERE, \"../../..\") },", lines = 1, why = "The --repo option takes the checkout root as the place the runs are; becomes the data-root / lake-roots option." },
+  { anchor = "private: { type: \"string\" },", lines = 1, why = "The --private option places the held-out repo beside the checkout (default join(repo, ../awesome-local-ai-bench-private)); becomes the pack-dir option for suite facts." },
+  { anchor = "web: string | null;", lines = 1, why = "The GitHub link base derived from git remote get-url origin; the design deletes the GitHub links, so the field goes." },
+]
 
 [[entry]]
 language = "typescript"
 file = "tools/benchmarker/server/sources.ts"
 function = "<module>"
 classes = []
+cut_note = "Module head (lines 1-14). The git revision and the checkout folders that hold runs are cut. UNSURE: the import on line 5 names findRuns (replaced) and line 2 imports spawn (only readBlobs uses it) - import lists not cut. UNSURE: MAX_BUFFER is shared with loadJobs (dbench) so stays. RESCORE_STORY_FILES, STORY_DIR_DIGITS and the path builders rescoreStoryPaths, runNotePaths, finalizePath are record names built as checkout-relative paths from dir; they are other entries (or in readBlobs range) and not in this list. Record names and fallbacks move into the library record table."
+cut = [
+  { anchor = "export const REF = \"origin/main\";", lines = 1, why = "The git revision every record is read at; the lake has no revision." },
+  { anchor = "export const BRANCH = \"main\";", lines = 1, why = "The git branch fetched and shown in links; no replacement." },
+  { anchor = "const RUN_ROOTS = [\"combinations\", \"benchmarks/reference\"];", lines = 1, why = "The top-level checkout folders that hold runs, listed with git ls-tree; replaced by the lake / reference roots of the new list call." },
+  { anchor = "const GIT_TIMEOUT_MS = 120_000;", lines = 1, why = "Timeout of the git wrapper only." },
+]
 
 [[entry]]
 language = "typescript"
 file = "tools/benchmarker/server/sources.ts"
 function = "readBlobs"
 classes = []
+cut_note = "Cut is the whole Promise statement (git cat-file --batch with REF:path), lines 22-45. Not marked whole because the function range also holds the unrelated constants STORY_DIR_DIGITS and RESCORE_STORY_FILES (record names, used by rescoreStoryPaths), which must stay. Replaced by a batch read of (run id, name) pairs with missing omitted and no silent truncation."
+cut = [
+  { anchor = "return new Promise((resolve, reject) => {", lines = 24, why = "Spawns git cat-file --batch, writes origin/main:<path> per path, parses the framed output; becomes the API batch record read." },
+]
 
 [[entry]]
 language = "typescript"
 file = "tools/benchmarker/src/components/LinksCell.tsx"
 function = "LinksCell"
 classes = []
+cut_note = "Whole component renders GitHub links (web/tree/branch/dir and web/blob/branch/dir/summary.md) to the run folder; the design deletes the GitHub links. If a summary view is wanted it needs a file-serving read."
+whole = true
 
 [[entry]]
 language = "typescript"
 file = "tools/benchmarker/src/components/run/RunHeader.tsx"
 function = "LeadScore"
 classes = []
+cut_note = "Only the link line is cut; the score display stays. Without a link the number renders as plain text (the existing n branch)."
+cut = [
+  { anchor = "const link = state.web && run.dir && rec ? `${state.web}/blob/${state.branch}/${run.dir}/rescore/${rec.version}/per-story.md` : null;", lines = 1, why = "Builds a GitHub URL to the per-story.md file from state.web, state.branch and the run dir (checkout path); deleted, or becomes an in-app per-story view.", uses = [{ anchor = "<span className=\"lead-n\">{link ? <a className=\"record-link\" href={link} target=\"_blank\" rel=\"noopener\" data-tip={`${lead.passed} of ${lead.total} held-out tests pass \u00b7 per-story results`}>{n}</a> : n}</span>", lines = 1 }] },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/analytics/mod.rs"
 function = "purge_references"
 classes = []
+cut_note = "No git. The cut is the SQL text that recognises a reference run by the path text benchmarks/reference/ in rel (the id taken as the git-tree path). The stack-name half (stack like reference/%) is not a location and is left. Design: deleted if reference runs load as designed (D11), else Id.kind. UNSURE whether the whole function should be marked whole because D11 deletes it."
+cut = [
+  { anchor = "let like = \"rel in (select rel from analytics_story where stack like ?1) or rel like '%benchmarks/reference/%'\";", lines = 1, why = "Recognises a reference story run by the substring benchmarks/reference/ of its rel, which exists only because the id is the git-tree path. Becomes Id.kind on the id, or nothing if D11 removes the purge.", uses = [{ anchor = "store.conn.execute(&format!(\"delete from {t} where {like}\"), params![format!(\"{REFERENCE_STACK_PREFIX}%\")])?;", lines = 1 }], guards = [{ anchor = "for t in REL_TABLES {", lines = 1 }] },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/collect.rs"
 function = "runs_under"
 classes = []
+cut_note = "Whole job: list pack and run folders under a combination's benchmarks/ folder and map each to an id by rel_of. Folded into Root.list_local."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/collect.rs"
 function = "walk_combinations"
 classes = []
+cut_note = "Whole job: recursive search under combinations/ for config.sh to find where runs live. Folded into Root.list_local (grammar, not config.sh)."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/collector.rs"
 function = "<module>"
 classes = []
+cut_note = "Constants that define a run path as a git-tree path (combinations/.../benchmarks/<pack>/<run>, benchmarks/reference/...) and the import of the reference prefix. All replaced by the shared Id grammar. The header comment (lake layout) is documentation, not cut."
+cut = [
+  { anchor = "use crate::ingest::db::REFERENCE_RUN_PREFIX;", lines = 1, why = "Imports the git-tree reference prefix benchmarks/reference/. Becomes Id.kind." },
+  { anchor = "const REFERENCE_SEGMENTS: usize = 3;", lines = 1, why = "Segment count after benchmarks/reference/ in a git-tree path. Becomes Id.parse." },
+  { anchor = "const BENCHMARKS_FROM_END: usize = 3;", lines = 1, why = "Position of the benchmarks segment from the end of a checkout-relative path. Becomes Id.parse." },
+  { anchor = "const MIN_COMBINATION_RUN_SEGMENTS: usize = 5;", lines = 1, why = "Minimum depth of a combinations/... checkout path. Becomes Id.parse." },
+  { anchor = "const COMBINATIONS_TOP: &str = \"combinations\";", lines = 1, why = "The top folder of runs in the checkout. Becomes Id.parse." },
+  { anchor = "const BENCHMARKS_SEGMENT: &str = \"benchmarks\";", lines = 1, why = "The benchmarks folder name in the checkout layout. Becomes Id.parse." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/collector.rs"
 function = "classes_for"
 classes = []
+cut_note = "Policy (reference runs take records only) stays; the cut is the test by the git-tree text prefix benchmarks/reference/."
+cut = [
+  { anchor = "if run.starts_with(REFERENCE_RUN_PREFIX) {", lines = 5, why = "Decides kind by the id's text prefix. Becomes a match on Id.kind." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/collector.rs"
 function = "is_run_path"
 classes = []
+cut_note = "Whole job: validates that a string is a git-tree run path (combinations/.../benchmarks/<pack>/<run> or benchmarks/reference/...). Becomes Id.parse."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/db.rs"
 function = "<module>"
 classes = []
+cut_note = "Only the run-prefix constant is a git-tree location. UNSURE: REFERENCE_STACK_PREFIX (reference/) is a stack name derived from the id grammar, not a location; not cut. purge_reference (lines 157-171, not in the list) uses both and is deleted with analytics::purge_references under D11."
+cut = [
+  { anchor = "pub const REFERENCE_RUN_PREFIX: &str = \"benchmarks/reference/\";", lines = 1, why = "Recognises a reference run by the git-tree path prefix, pasted into SQL like filters. Becomes Id.kind." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/inputs.rs"
 function = "<module>"
 classes = []
+cut_note = "Cuts the constants and types that make the published side a git tree: roots, the rename rule, the Published trait and the two source structs. The impl blocks are covered by the per-function sites (git, fetch, ids, read, archived). UNSURE, not cut: RESCORE_DIR (a run-internal folder name, not a location choice), ARCHIVED_MARKER (marker stays in the lake design), fn marked, fn walk, fn stamp_of, the describe methods and the lake_runs/find_lake_runs functions (not on the list); the module doc comment still describes git. | outside the tool's span, not cut: const ARCHIVE_ROOTS: [&str; 2] = [\"combinations\", \"benchmarks/reference\"]; | outside the tool's span, not cut: pub trait Published { | outside the tool's span, not cut: pub struct GitSource { | outside the tool's span, not cut: pub struct TreeSource {"
+cut = [
+  { anchor = "const RENAMED_FROM: &str = \"-opencode/\";", lines = 1, why = "Half of the id rename rule written against checkout paths. Becomes Id.renamed." },
+  { anchor = "const RENAMED_TO: &str = \"-pi/\";", lines = 1, why = "Other half of the rename rule. Becomes Id.renamed." },
+  { anchor = "const PUBLISHED_ROOTS: [&str; 1] = [\"combinations\"];", lines = 1, why = "The git-tree root read for published records. Becomes the lake's roots from List." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/inputs.rs"
 function = "archived"
 classes = []
+cut_note = "Three definitions: trait method Published::archived, GitSource::archived (git ls-tree over ARCHIVE_ROOTS) and TreeSource::archived (tree walk over ARCHIVE_ROOTS). Whole job is listing archived.json markers from the git tree or checkout. Becomes Archive.archived."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/inputs.rs"
 function = "fetch"
 classes = []
+cut_note = "GitSource::fetch: git fetch --quiet origin main. Deleted: the lake is current by construction."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/inputs.rs"
 function = "git"
 classes = []
+cut_note = "GitSource::git: runs git -C repo with args. Deleted with its callers."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/inputs.rs"
 function = "ids"
 classes = []
+cut_note = "GitSource::ids: git ls-tree of every file under combinations with its blob id as the content identity. Becomes Changes.manifest / digest."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/inputs.rs"
 function = "read"
 classes = []
+cut_note = "Three definitions: trait method Published::read, GitSource::read (git cat-file blob) and TreeSource::read (file under a checkout root). Becomes Read.read / read_many."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/inputs.rs"
 function = "under_published_root"
 classes = []
+cut_note = "Whole job: tests whether a run id starts with the git-tree root combinations/. Becomes Id.kind (and a flag of the reader for reference runs, D11)."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/ingest/mod.rs"
 function = "run_parts"
 classes = []
+cut_note = "Whole job: parses a git-tree run path (combinations/.../benchmarks/<pack>/<run> or benchmarks/reference/...) into parts. Becomes Id.parse."
+whole = true
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/progress.rs"
 function = "<module>"
 classes = []
+cut_note = "Layout constants of a checkout used to place runs. UNSURE: COMBINATIONS_DIR also names where definitions live (repo_combination, a system input that stays); the placement role is the cut, the definition role keeps a constant of the same value. COMBINATION_CONFIG (config.sh) and the file-name constants stay."
+cut = [
+  { anchor = "pub const COMBINATIONS_DIR: &str = \"combinations\";", lines = 1, why = "Where the checkout keeps combinations, used to place runs (run_dir, walk_combinations). Placement moves to Root.place." },
+  { anchor = "pub const BENCHMARKS_DIR: &str = \"benchmarks\";", lines = 1, why = "Run folder under a combination in the checkout layout. Placement moves to Root.place." },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/server.rs"
 function = "manifest_of"
 classes = []
+cut_note = "Listing of the run's files and run-status stays. Cut is only the folder choice."
+cut = [
+  { anchor = "let dir = st.cfg.repo.join(&run);", lines = 1, why = "Finds the run folder by joining the run id to the checkout. Becomes Root.place(data_root, id).", uses = [{ anchor = "let listing = collect::manifest_listing(&dir, &st.cfg.bench_home);", lines = 1 }, { anchor = "run_status: collect::run_status(&dir),", lines = 1 }] },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/dbench/src/server.rs"
 function = "named_run"
 classes = []
+cut_note = "The malformed-id check (400) stays. Cut is the existence test through the checkout. Both error classes must be kept."
+cut = [
+  { anchor = "match collect::is_run_dir(&st.cfg.repo, run) {", lines = 4, why = "Stats run.json under the checkout. Becomes Root.exists with the two error classes.", guards = [{ anchor = "if !crate::ids::valid_run_dir(run) {", lines = 6 }] },
+]
 
 [[entry]]
 language = "shell"
 file = "tools/tensorfold-check/run-checks.sh"
 function = "<script>"
 classes = []
+cut_note = "Only the default agent log is a run record read through the checkout path: DEFAULT_LOG and its use as LOG. It becomes Log.log_bytes --to FILE (or --log as today). The CFG line (combinations/<combo>/config.sh joined to REPO_ROOT) is a source-tree system file, not run data: UNSURE, not cut."
+cut = [
+  { anchor = "DEFAULT_LOG=\"combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/stories/10/agent-events.compact.jsonl.gz\"", lines = 1, why = "a run's event log named as a path inside the checkout; becomes Log.log_bytes of that run and story to a file" },
+  { anchor = "EVEN_IF_BUSY=0; PREPARE_ONLY=0; PORT=\"$DEFAULT_PORT\"; LOG=\"$REPO_ROOT/$DEFAULT_LOG\"", lines = 1, why = "line also sets other options; the LOG part joins the default log to the checkout and is replaced", uses = [{ anchor = "node \"$HERE/capture_pi_requests.mjs\" --log \"$LOG\" --out \"$RUN_DIR/bodies\" --model \"$MODEL_ALIAS_DEFAULT\" \\", lines = 2 }, { anchor = "echo \"pi $(pi --version 2>/dev/null | head -1) renders the session in ${LOG#\"$REPO_ROOT\"/}\"", lines = 1 }], guards = [{ anchor = "[[ -f \"$LOG\" ]] || { echo \"no agent log at $LOG\" >&2; return \"$EXIT_ERROR\"; }", lines = 1 }] },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/vidi-gallery/src/main.rs"
 function = "rescan"
 classes = []
+cut_note = "Cuts are the git pull of the checkout and the walk of the checkout for reviewable runs. The loop, sleep, newly_reviewable merge and prepare_all stay."
+cut = [
+  { anchor = "let pulled = repo.clone();", lines = 1, why = "A copy of the checkout path kept only for the pull." },
+  { anchor = "if let Ok(Err(e)) = tokio::task::spawn_blocking(move || sync::sync_repo(&pulled)).await {", lines = 3, why = "git pull --ff-only of the checkout via sync_repo; deleted (the design deletes sync.rs)." },
+  { anchor = "let Ok(now) = tokio::task::spawn_blocking(move || reviewable(&repo, &family)).await else { continue };", lines = 1, why = "Lists reviewable runs from the checkout; becomes the LIST-RUNS call for the pack.", uses = [{ anchor = "let added = newly_reviewable(&list, now);", lines = 1 }], guards = [{ anchor = "if !added.is_empty() {", lines = 1 }] },
+]
 
 [[entry]]
 language = "rust"
 file = "tools/vidi-gallery/src/main.rs"
 function = "story_checkout"
 classes = []
+cut_note = "Cuts are the bundle location (a path inside the checkout) and the git clone / checkout of that bundle; becomes the lake workspace operation (run, story, dest). The cache reuse check and the no-recorded-commit error stay."
+cut = [
+  { anchor = "let bundle = run.path.join(\"workspace.bundle\");", lines = 1, why = "Locates the bundle as a file in the checkout run folder; becomes the lake workspace call that finds the bundle itself.", uses = [{ anchor = "anyhow::bail!(\"could not check out {commit} from {}\", bundle.display());", lines = 1 }] },
+  { anchor = "let ok = tokio::process::Command::new(\"git\")", lines = 6, why = "git clone --no-checkout of the bundle then git checkout of the story commit; becomes the workspace operation with its distinct errors (no commit, no bundle, commit not in bundle, destination not empty).", uses = [{ anchor = "anyhow::bail!(\"could not check out {commit} from {}\", bundle.display());", lines = 1 }], guards = [{ anchor = "if !ok {", lines = 1 }, { anchor = "if dir.join(\".git\").is_dir() {", lines = 1 }] },
+]
 
 [[excluded]]
 language = "python"
