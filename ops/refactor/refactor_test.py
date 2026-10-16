@@ -3673,9 +3673,32 @@ def test_cuts_two_cuts_that_share_a_line_overlap(tmp_path):
     assert cut_problems(R.check_cuts(root)) == [("E-CUT-OVERLAP", "refactor-cut:src/p.py::publish#1")]
 
 
-def test_cuts_a_use_of_one_cut_inside_another_cuts_span_overlaps(tmp_path):
-    root = cuts_root(tmp_path, GIT_CUT + cut_toml("return count") + span_toml("uses", "check=False,", lines=2))      # lines 5 and 6: inside cut 1
-    assert cut_problems(R.check_cuts(root)) == [("E-CUT-OVERLAP", "refactor-cut:src/p.py::publish#1")]       # reported on the lowest cut involved
+def test_cuts_a_use_of_one_cut_may_lie_inside_a_different_cuts_span_a_chain(tmp_path):
+    source = "def publish(repo):\n    a = gitty1(repo)\n    b = gitty2(a)\n    return b\n"
+    chain = cut_toml("a = gitty1(repo)") + span_toml("uses", "b = gitty2(a)") + cut_toml("b = gitty2(a)") + span_toml("uses", "return b")
+    result = R.check_cuts(cuts_root(tmp_path, chain, source))
+    assert result.exit_code == R.EXIT_OK and result.problems == []
+
+
+def test_cuts_a_guard_of_one_cut_may_lie_inside_a_different_cuts_span(tmp_path):
+    source = "def publish(repo):\n    a = gitty1(repo)\n    if a:\n        b = gitty2(a)\n    return a\n"
+    body = cut_toml("a = gitty1(repo)") + span_toml("guards", "if a:", lines=2) + cut_toml("b = gitty2(a)")
+    assert R.check_cuts(cuts_root(tmp_path, body, source)).exit_code == R.EXIT_OK
+
+
+def test_cuts_a_use_inside_the_cuts_own_span_still_overlaps(tmp_path):
+    source = "def publish(repo):\n    a = gitty1(repo)\n    b = gitty2(a)\n    return b\n"
+    body = cut_toml("a = gitty1(repo)", lines=2) + span_toml("uses", "b = gitty2(a)")
+    assert cut_problems(R.check_cuts(cuts_root(tmp_path, body, source))) == [("E-CUT-OVERLAP", "refactor-cut:src/p.py::publish#1")]
+
+
+def test_cuts_a_chain_keeps_the_coverage_obligation_as_the_union_of_the_lines(tmp_path):
+    source = "def publish(repo):\n    a = gitty1(repo)\n    b = gitty2(a)\n    return b\n"
+    chain = cut_toml("a = gitty1(repo)") + span_toml("uses", "b = gitty2(a)") + cut_toml("b = gitty2(a)") + span_toml("uses", "return b")
+    result = coverage_result(tmp_path, cut_entry(body=chain), {"src/p.py": source}, python={"src/p.py": lines({1: 1, 2: 1, 3: 1, 4: 1})})
+    assert result.exit_code == R.EXIT_OK and result.data["measured"] == {"src/p.py::publish": [3, 3, 0, 0]}
+    short = coverage_result(tmp_path / "s", cut_entry(body=chain), {"src/p.py": source}, python={"src/p.py": lines({1: 1, 2: 1, 3: 1, 4: 0})})
+    assert short.problems[0].detail == "2 of 3 lines (line 4)"
 
 
 def test_cuts_a_guard_inside_a_cuts_own_span_overlaps(tmp_path):

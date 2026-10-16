@@ -808,12 +808,10 @@ def resolve_cuts(e: dict, text: str, in_function: set[int]) -> tuple[list[Resolv
         for b in resolved[i + 1:]:
             if span_lines(a.span) & span_lines(b.span):
                 problems.append(Problem("E-CUT-OVERLAP", a.id, f"its span and the span of {b.id} share lines"))
-    for a in resolved:
-        for b in resolved:
-            for role in SPAN_ROLES:
-                if any(span_lines(a.span) & span_lines(s) for s in getattr(b, role)):
-                    problems.append(Problem("E-CUT-OVERLAP", min(a.id, b.id, key=lambda x: int(x.rsplit("#", 1)[1])),
-                                            f"the span of {a.id} and a {role[:-1]} of {b.id} share lines"))
+    for a in resolved:                       # a use or guard may lie in a DIFFERENT cut's span (a chain: one cut's result is the next cut's input)
+        for role in SPAN_ROLES:
+            if any(span_lines(a.span) & span_lines(s) for s in getattr(a, role)):
+                problems.append(Problem("E-CUT-OVERLAP", a.id, f"its span and one of its own {role} share lines"))
     return resolved, problems
 
 
