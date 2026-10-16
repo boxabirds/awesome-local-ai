@@ -261,4 +261,127 @@ mod tests {
         assert_eq!(id_of("abc"), id_of("abc"));
         assert_ne!(id_of("abc"), id_of("abd"));
     }
+
+    // ---- the corpus of a real git repository ----
+
+    const ALL: Plan = Plan { files_per_kind: 100, chunks_per_file: 100, logs: 100, strings_per_kind: 100 };
+    /// Lines of prose in a fixture file: enough characters to be a chunk of its own.
+    const FIXTURE_LINES: usize = 12;
+    const GIT_IDENTITY: [&str; 4] = ["-c", "user.name=t", "-c", "user.email=t@example.invalid"];
+
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!("token-counter-corpus-{tag}-{}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn git(dir: &Path, args: &[&str]) {
+        let out = std::process::Command::new("git").arg("-C").arg(dir).args(GIT_IDENTITY).args(args).output().unwrap();
+        assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    }
+
+    fn prose(tag: &str) -> String {
+        (0..FIXTURE_LINES).map(|i| format!("{tag} line {i}: the quick brown fox jumps over the lazy dog again and again\n")).collect()
+    }
+
+    fn write(dir: &Path, rel: &str, bytes: &[u8]) {
+        let path = dir.join(rel);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, bytes).unwrap();
+    }
+
+    fn gz(text: &str) -> Vec<u8> {
+        use std::io::Write;
+        let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        enc.write_all(text.as_bytes()).unwrap();
+        enc.finish().unwrap()
+    }
+
+    #[test]
+    fn the_tracked_files_are_the_ones_git_lists_and_a_directory_that_is_not_a_repository_is_an_error() {
+        let dir = scratch("tracked");
+        git(&dir, &["init", "-q"]);
+        write(&dir, "a/one.md", b"x");
+        write(&dir, "two.txt", b"y");
+        write(&dir, "untracked.md", b"z");
+        git(&dir, &["add", "a/one.md", "two.txt"]);
+        let mut files = tracked(&dir).unwrap();
+        files.sort();
+        assert_eq!(files, vec!["a/one.md".to_string(), "two.txt".to_string()]);
+        let outside = scratch("tracked-outside");
+        assert_eq!(tracked(&outside).unwrap_err().to_string(), "git ls-files failed");
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn a_repository_gives_one_sample_per_chunk_of_each_readable_file_and_per_long_log_string_without_repeats() {
+        let dir = scratch("build");
+        git(&dir, &["init", "-q"]);
+        write(&dir, "README.md", prose("readme").as_bytes());
+        write(&dir, "src/lib.rs", prose("rust").as_bytes());
+        // The same text under another name is one sample.
+        write(&dir, "copy/README.md", prose("readme").as_bytes());
+        // Left out: held-out material, a skipped prefix, an unknown extension.
+        write(&dir, "acceptance/story.md", prose("heldout").as_bytes());
+        write(&dir, "skipped/notes.md", prose("skipped").as_bytes());
+        write(&dir, "image.png", b"not text");
+        // Tracked but not samples: too big, not UTF-8, removed from the working copy.
+        write(&dir, "big.md", &vec![b'a'; MAX_FILE_BYTES as usize + 1]);
+        write(&dir, "binary.md", &[0xff, 0xfe, 0xfd]);
+        write(&dir, "gone.md", prose("gone").as_bytes());
+        // Logs: one with long strings, a short one, a line that is not JSON; and a log that is not gzip.
+        let long = "z".repeat(MIN_STRING_CHARS + MIN_CHARS);
+        let log = format!(
+            "{}\nnot json\n{}\n",
+            serde_json::json!({"message": {"content": [{"type": "thinking", "thinking": long.clone()}, {"type": "text", "text": "short"}]}}),
+            serde_json::json!({"result": long.clone()})
+        );
+        write(&dir, "combinations/x/stories/01/agent-events.compact.jsonl.gz", &gz(&log));
+        write(&dir, "combinations/x/stories/02/agent-events.compact.jsonl.gz", b"not gzip");
+        git(&dir, &["add", "."]);
+        std::fs::remove_file(dir.join("gone.md")).unwrap();
+
+        let samples = build(&dir, ALL, &["skipped/".to_string()]).unwrap();
+        let got: Vec<(&str, &str)> = samples.iter().map(|s| (s.kind.as_str(), s.source.as_str())).collect();
+        // The copy of README.md has the same text as README.md and is dropped, whichever is met second.
+        assert_eq!(got.iter().filter(|(k, _)| *k == "markdown").count(), 1, "{got:?}");
+        assert!(got.iter().any(|(k, s)| *k == "rust" && *s == "src/lib.rs"), "{got:?}");
+        // The thinking string and the result string have the same text, so one of them is dropped as a repeat.
+        let logs: Vec<&&str> = got.iter().filter(|(k, _)| k.starts_with("log:")).map(|(k, _)| k).collect();
+        assert_eq!(logs.len(), 1, "{got:?}");
+        for left_out in ["acceptance", "skipped", "image.png", "big.md", "binary.md", "gone.md", "stories/02"] {
+            assert!(!got.iter().any(|(_, s)| s.contains(left_out)), "{left_out} should not be a sample: {got:?}");
+        }
+        assert!(samples.iter().all(|s| s.text.chars().count() >= MIN_CHARS));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn long_strings_of_different_kinds_in_one_log_are_each_a_sample_and_the_plan_limits_them() {
+        let dir = scratch("kinds");
+        git(&dir, &["init", "-q"]);
+        let thinking = "t".repeat(MIN_STRING_CHARS);
+        let result = "r".repeat(MIN_STRING_CHARS);
+        let log = format!("{}\n", serde_json::json!({"thinking": thinking, "result": result}));
+        write(&dir, "combinations/x/stories/01/agent-events.compact.jsonl.gz", &gz(&log));
+        git(&dir, &["add", "."]);
+        let samples = build(&dir, ALL, &[]).unwrap();
+        let mut kinds: Vec<&str> = samples.iter().map(|s| s.kind.as_str()).collect();
+        kinds.sort();
+        assert_eq!(kinds, vec!["log:result", "log:thinking"]);
+        let none = build(&dir, Plan { logs: 0, ..ALL }, &[]).unwrap();
+        assert!(none.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_directory_that_is_not_a_repository_has_no_corpus() {
+        let dir = scratch("not-a-repo");
+        assert!(build(&dir, ALL, &[]).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
