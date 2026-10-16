@@ -151,6 +151,13 @@ sleep 1
 echo "[story 1] Leaky story — agent starting"
 "#;
 
+/// Leaves a child in the harness's own process group (no setsid) and exits, so the group is still alive when the harness is gone.
+const GROUP_LEAK_BODY: &str = r#"sleep 300 &
+echo "group-child-pid: $!"
+echo "[story 1] Group leaky story — agent starting"
+exit 0
+"#;
+
 /// Runs story 3 of 4 and writes the harness's progress.json, then waits (to be cancelled).
 const PROGRESS_BODY: &str = r#"echo 3 > "$RUN_DIR/current_story"
 cat > "$RUN_DIR/progress.json" <<'EOF'
@@ -227,6 +234,7 @@ fn setup() -> Env {
         ("progresspack", PROGRESS_BODY),
         ("leakpack", &format!("{LEAK_BODY}exit 0\n")),
         ("leakwaitpack", &format!("{LEAK_BODY}sleep 300 &\nwait\n")),
+        ("groupleakpack", GROUP_LEAK_BODY),
         ("growpack", &GROW_BODY.replace("GROW_LINES", &GROW_LINES.to_string())),
     ] {
         let dir = repo.join(pack).join("harness");
@@ -1191,6 +1199,21 @@ async fn leftovers_are_stopped_when_the_harness_exits() {
 #[tokio::test(flavor = "multi_thread")]
 async fn leftovers_are_stopped_when_the_job_is_cancelled() {
     leftovers_are_stopped("leakwaitpack", true).await;
+}
+
+/// A child left in the harness's own process group, not in a session of its own, is stopped when the harness exits,
+/// and the log says so.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_child_left_in_the_harness_group_is_stopped_when_the_harness_exits() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("gleak", &spec("groupleakpack", "run-gleak")).await.0, 201);
+    srv.wait_status("gleak", "done").await;
+    let log = srv.log("gleak").await;
+    let child_pid = logged_pid(&log, "group-child-pid: ");
+    assert!(log.contains("harness exited 0; stopping processes left in its group"), "{log}");
+    wait_until("the group's child is gone", || !pid_alive(child_pid)).await;
+    drop(env.root);
 }
 
 /// The status view carries every story from the harness's progress.json, and
