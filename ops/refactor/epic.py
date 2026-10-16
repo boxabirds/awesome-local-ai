@@ -664,8 +664,85 @@ def epic_finish(root: Path, git: GitRunner = run_git, results: R.Results | None 
     return result
 
 
+# ======================================================================================================================
+# epic-search
+# ======================================================================================================================
+
+def read_lines(root: Path, name: str) -> list[str] | None:
+    """The lines of a tracked file; None when it is binary."""
+    raw = (root / name).read_bytes()
+    if b"\0" in raw[:BINARY_PROBE_BYTES]:
+        return None
+    return raw.decode("utf-8", errors="replace").splitlines()
+
+
 def epic_search(root: Path, files: Callable[[Path], list[str]] = git_tracked_files) -> Result:
-    raise NotImplementedError("skeleton")
+    """Run the audit's recorded queries over the tracked files: every hit must be covered by an exclusion that has a reason."""
+    result = Result()
+    queries_path, exclusions_path = root / QUERIES_FILE, root / EXCLUSIONS_FILE
+    if not queries_path.exists():
+        result.error("E-AUDIT-QUERIES-MISSING", QUERIES_FILE.as_posix(), "the audit's queries are not saved where epic-search reads them")
+        R.write_report(root, "epic-search", result)
+        return result
+    queries = R.read_toml(queries_path).get("query", [])
+    exclusions = R.read_toml(exclusions_path).get("exclusion", []) if exclusions_path.exists() else []
+    try:
+        tracked = [f for f in files(root) if not f.startswith(AUDIT_PREFIX)]
+    except RuntimeError as exc:
+        result.error("E-GIT-FAILED", "ls-files", str(exc))
+        R.write_report(root, "epic-search", result)
+        return result
+    compiled, matched_files = {}, {}
+    for q in queries:
+        try:
+            compiled[q["id"]] = re.compile(q["pattern"])
+        except re.error as exc:
+            result.fail("E-QUERY-INVALID", q["id"], f"{q['pattern']!r}: {exc}")
+            continue
+        matched_files[q["id"]] = [f for f in tracked if pathspecs_match(f, q.get("paths", []))]
+        if not matched_files[q["id"]]:
+            result.fail("E-QUERY-NO-FILES", q["id"], "its paths match no tracked file, so it searches nothing")
+    cache: dict[str, list[str] | None] = {}
+    hits: dict[str, list[tuple[str, int, str]]] = {q["id"]: [] for q in queries}
+    for q in queries:
+        for name in matched_files.get(q["id"], []):
+            if name not in cache:
+                cache[name] = read_lines(root, name)
+            for number, line in enumerate(cache[name] or [], start=1):
+                if compiled[q["id"]].search(line):
+                    hits[q["id"]].append((name, number, line))
+    usable = [x for x in exclusions if str(x.get("reason", "")).strip()]
+    for x in exclusions:
+        if x not in usable:
+            result.fail("E-EXCLUSION-NO-REASON", f"{x.get('query', '?')} {x.get('file', '?')}", "an exclusion needs a reason")
+    used: dict[int, int] = {}
+    open_hits: dict[str, list[dict]] = {q["id"]: [] for q in queries}
+    language_of = {q["id"]: q.get("language", "") for q in queries}
+    for qid, found in hits.items():
+        for name, number, line in found:
+            cover = next((i for i, x in enumerate(usable) if x.get("query") == qid and glob_matches(name, x.get("file", ""))
+                          and re.search(x.get("line_pattern", ""), line)), None)
+            if cover is None:
+                open_hits[qid].append({"file": name, "line": number})
+                result.fail("E-HIT", f"{name}:{number}", f"{qid} {language_of[qid]}: {line.strip()[:MAX_LINE_CHARS]}")
+            else:
+                used[cover] = used.get(cover, 0) + 1
+    if not any(p.code in ("E-QUERY-INVALID", "E-QUERY-NO-FILES") for p in result.problems):
+        for i, x in enumerate(usable):
+            if i not in used:
+                result.fail("E-EXCLUSION-STALE", f"{x.get('query', '?')} {x.get('file', '?')}", "the exclusion matches no hit, so it could hide a future one")
+    searched = sorted({f for names in matched_files.values() for f in names})
+    result.data = {
+        "hits": open_hits,
+        "exclusions_applied": [{**usable[i], "hits": n} for i, n in sorted(used.items())],
+        "tracked_files": len(tracked),
+        "files_searched": len(searched),
+        "skipped_binary": [f for f in searched if cache.get(f, []) is None],
+        "inputs_sha256": {"queries": hashlib.sha256(queries_path.read_bytes()).hexdigest(),
+                          "exclusions": hashlib.sha256(exclusions_path.read_bytes()).hexdigest() if exclusions_path.exists() else None},
+    }
+    R.write_report(root, "epic-search", result)
+    return result
 
 
 # ======================================================================================================================

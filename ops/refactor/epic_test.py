@@ -1131,7 +1131,7 @@ def search_root(tmp_path: Path, files: dict[str, str] | None = None, queries: st
 
 
 def every_file(root: Path) -> list[str]:
-    return sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+    return sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file() and "/reports/" not in p.as_posix())      # git ignores reports
 
 
 def search(root: Path) -> R.Result:
@@ -1212,7 +1212,8 @@ def test_tc92_the_report_holds_the_hash_of_both_input_files(tmp_path):
     audit = root / "ops/refactor/audit"
     assert report["inputs_sha256"] == {"queries": hashlib.sha256((audit / "queries.toml").read_bytes()).hexdigest(),
                                        "exclusions": hashlib.sha256((audit / "exclusions.toml").read_bytes()).hexdigest()}
-    assert report["files_searched"] == len(every_file(root)) - 2                       # the audit folder itself is not searched
+    assert report["tracked_files"] == len(every_file(root)) - 2                         # the audit folder itself is not searched
+    assert 0 < report["files_searched"] <= report["tracked_files"]                       # a file no query's paths reach is not searched
 
 
 def test_tc93_hits_on_the_first_and_the_last_line_are_both_found(tmp_path):
@@ -1278,7 +1279,7 @@ def test_tc91_an_untracked_file_is_not_searched_and_the_count_says_so(tmp_path, 
     write(root, "py/minipy/untracked.py", "git ls-tree -r HEAD\n")
     done = tool(root, tool_env, "epic-search")
     assert done.returncode == R.EXIT_OK
-    assert read_report(root, "epic-search")["files_searched"] == tracked - 2             # tracked files outside the audit folder
+    assert read_report(root, "epic-search")["tracked_files"] == tracked - 2              # tracked files outside the audit folder
 
 
 # ======================================================================================================================
