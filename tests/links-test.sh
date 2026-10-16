@@ -5,6 +5,8 @@
 # chain is wrong more often than it is right, and a link that escapes the
 # repo root looks fine on GitHub until someone clicks it.
 # A run's workspace/ is the agent's own work, mirrored without its spec/: its links aren't ours to hold.
+# The refactor audit's pass files (ops/refactor/audit/) quote git-grep patterns as table cells, and `[[:space:]]+(init\|commit)` reads as a
+# link. The queries are rerun word for word by `audit-check`, so the text can't be changed to avoid it; the folder holds no links.
 #
 # A file git ignores is not published: a link to one works on the machine that has the file and is
 # dead for everyone else (and in CI), so it fails here too. A Markdown file that is itself ignored
@@ -23,7 +25,7 @@ ignored_of() { git check-ignore --stdin 2>/dev/null || true; }   # paths on stdi
 listed_in() { grep -qxF -- "$1" "$2"; }                          # path, list file
 
 find . -name '*.md' -not -path './.git/*' -not -path './demos/*' -not -path '*/node_modules/*' \
-  -not -path '*/benchmarks/*/workspace/*' | LC_ALL=C sort > "$SCRATCH/md"
+  -not -path '*/benchmarks/*/workspace/*' -not -path './ops/refactor/audit/*' | LC_ALL=C sort > "$SCRATCH/md"
 ignored_of < "$SCRATCH/md" > "$SCRATCH/md-ignored"
 LC_ALL=C comm -23 "$SCRATCH/md" "$SCRATCH/md-ignored" > "$SCRATCH/md-checked"   # both in the sort's byte order
 
