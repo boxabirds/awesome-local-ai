@@ -61,6 +61,11 @@ forward. Moving to `Proved` again records the new proof.
 | `fates [--render PATH]` | every old test has one fate; every contract area has a new test seen failing; renders the table |
 | `guard-idle NODE` | no job is running on the node (`dbench status --json NODE`) |
 | `stage [TO]` | print the stage, or move to `TO` |
+| `epic-entry` | story 20: the touched set equals the audit, every touched function is at 100% of lines and branches, the stage is Proved; every failed condition in one report; writes reports only |
+| `epic-worktree create\|status\|sync\|can-push [--path P] [--base REF]` | the one detached working copy (default `.claude/worktrees/epic-delete`, based on `origin/main`): `sync` rebases onto `origin/main` and aborts on an overlap; `can-push` checks the stage, the stand-ins, the last suite report and `origin/main`. It never creates a branch and never sends anything to a remote |
+| `epic-groups propose [--toml]\|check\|connect NAME\|status` | the component groups of `groups.toml`: `check` makes the grouping complete and exclusive, `connect` runs the suites and reports one group (a stand-in left, a red test, an earlier group out of order, a regression) |
+| `epic-finish` | every group green, `reports/release-check.json` passed on this commit, then the existing stage move to Reimplemented |
+| `epic-search` | repeats the queries of `audit/queries.toml` over the tracked files; every hit must be covered by an exclusion with a reason in `audit/exclusions.toml` |
 
 ## Files
 
@@ -76,6 +81,8 @@ forward. Moving to `Proved` again records the new proof.
 | `stage.toml` | the current stage and every move |
 | `fixtures/mini/` | a real tiny project (Python, Rust, TypeScript, shell) the tool's process-level tests run on |
 | `fixtures/real/` | pinned excerpts of real files, for the classifier test |
+| `groups.toml` | the epic's component groups: name, order, patterns of the sites' files, the protecting tests of each group (story 20) |
+| `epic.py`, `epic_test.py`, `fixtures/epic/` | the five epic commands, their tests, and the miniature project's overlay (groups, contracts, fates, audit) |
 
 ## For the scripts of stories 2 and 12
 

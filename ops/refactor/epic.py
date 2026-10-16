@@ -115,12 +115,18 @@ def glob_matches(path: str, pattern: str) -> bool:
     return glob_regex(pattern).fullmatch(path) is not None
 
 
+def wildcard_matches(path: str, pattern: str) -> bool:
+    """A plain git pathspec's wildcards: `*` and `?` also cross folder separators (only `:(glob)` keeps a star inside one folder)."""
+    regex = "".join(".*" if c == "*" else "." if c == "?" else re.escape(c) for c in pattern)
+    return re.fullmatch(regex, path) is not None
+
+
 def spec_matches(path: str, spec: str) -> bool:
     """One positive pathspec: a file, a folder (everything under it) or a glob."""
     if spec.startswith(GLOB_SPEC):
         return glob_matches(path, spec[len(GLOB_SPEC):])
     folder = spec.rstrip("/")
-    return path == folder or path.startswith(folder + "/") or glob_matches(path, spec)
+    return path == folder or path.startswith(folder + "/") or wildcard_matches(path, spec)
 
 
 def pathspecs_match(path: str, specs: list[str]) -> bool:

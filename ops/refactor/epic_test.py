@@ -1240,6 +1240,17 @@ def test_tc96_the_same_inputs_give_the_same_report_bytes(tmp_path):
     assert (root / "ops/refactor/reports/epic-search.json").read_bytes() == first
 
 
+def test_pathspecs_follow_gits_rules_for_the_audits_paths_column():
+    """The audit's Paths column holds git pathspecs: a folder, `:(glob)` (a star stays inside one folder) and `:(exclude)`; a plain
+    pathspec's star crosses folders, so `:(exclude)*.md` leaves out every Markdown file at any depth."""
+    specs = ["benchmarks/spec-bench", "tools", ":(glob)*.sh", ":(exclude)ops/refactor", ":(exclude)*.md"]
+    assert E.pathspecs_match("tools/dbench/src/x.rs", specs)
+    assert E.pathspecs_match("setup-node.sh", specs) and not E.pathspecs_match("tools/x/run.sh", [":(glob)*.sh"])
+    assert not E.pathspecs_match("tools/dbench/README.md", specs)                       # a plain star crosses folders
+    assert not E.pathspecs_match("benchmarks/spec-bench/docs/deep/notes.md", specs)
+    assert E.pathspecs_match("combinations/a/b.rs", ["tools"]) is False
+
+
 # ---- integration: a real git tree --------------------------------------------------------------------------------------
 
 def committed(root: Path) -> None:
