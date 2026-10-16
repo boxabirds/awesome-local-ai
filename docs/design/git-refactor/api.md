@@ -58,6 +58,33 @@ a second implementation. So:
   process, with a batch mode (operation 4) so it is one process for thousands of files, as `git cat-file --batch` is today.
 - Shell scripts call the command.
 
+### 2.1 Which Python code that is
+
+Of the 112 sites, 54 are Python, in the harness (`benchmarks/spec-bench/harness/`) and the monitor (`ops/monitor/`). Seven
+more are shell scripts. The benchmarker is TypeScript (8 sites), dbench, the gallery and the token counter are Rust (43), so
+they link the library or run the command. Sorting the 54 Python sites by what they do after the migration (my classification
+from the table in section 6):
+
+| What the site does after | Sites | Which |
+|---|---|---|
+| Nothing: deleted | 15 | the commit, push and rebase chain in `drive.py`; `record_event.record`; `finalize.rec`; `heldout.copy_private` and `repo_of`; `publicise.lake_only_lines`; `judge.work_dir_name` |
+| Stays on git, no call | 4 | `drive.setup_workspace_from`, `finalize.ensure_bundle`, `machine_names.tracked`, `publicise.over_limit` |
+| Names a run or finds a location (`Id`, `Root`, `Paths`) | 18 | `drive.work_dir_name` and `drive.main`; `finalize_pending` (3); `logscan.own_workspace_for`; `history.policy_link`; `report.summary`; `roots` (2); `packdir` (3); `heldout.private_repo`; `annotate.stack_of` and `annotate.main`; `import_run.main`; `grading_package.main` |
+| Reads the lake (`List`, `Read`, `Workspace`, `Gradings`) | 10 | `annotate` (3); `heldout.private_copy`; `judge.main`; `judge_collect.load_results`; `monitor` (3); `triage` (the agent's allow-list) |
+| The export gate (`Export`) | 5 | `record_story`, `record_refusal`, `private_files`, `redact_staged`, `staged_problems` |
+| Reads a file the host delivered, no call | 2 | `progress.baselines`, `logscan.known_runs` |
+
+So the existing Python that *runs the command* is 28 sites at most (the 18 naming sites and the 10 lake reads), plus the
+export gate, whose language is a separate question (section 9, item 15). Two consequences:
+
+- **A process per call is wrong for the naming sites.** `roots.RESULTS_ROOT` is evaluated when the module loads and
+  `packdir` is used at import time, so each would start a process on import; `annotate.stack_of` runs once per run, thousands
+  of times. The rule is: resolve `Paths` once, at start, with one call that returns every key as JSON and keep it in the
+  module; and every `Id` call has a batch form (`bench-lake id parse --batch`, ids on standard input, one JSON line each).
+  That keeps one implementation without a process per call.
+- **The surveys counted the harness as existing Python.** Edits inside it stay Python, as the policy says. Only the new
+  library is Rust.
+
 ## 3. Rules that cut across the operations
 
 These came out of the surveys as requirements that several sites share. Each is stated once here and referred to below.
@@ -625,6 +652,12 @@ Open, for the owner, each with a recommendation:
 13. **The URL revision of the policy link** (`main` or a harness tag): a link to `main` can drift from the policy a run was
     scored under. Recommendation: the harness tag recorded in `run.json`.
 14. **Name of the crate** (`bench-lake` is narrow once `Id`, `Root` and `Inputs` live in it). Not urgent.
+15. **What language is `Export`?** Its rules today are existing Python (`publicise.is_private`, `size_limit`, the
+    `heldout` checks, `credentials.redact_file`). After the commit step goes they are used only by the export. The Python
+    policy says a fix inside existing Python stays Python and that a new tool is Rust, but a rewrite of existing code is "a
+    separate decision". Two honest options: keep the gate in Python and add only the copy-and-check driver (no second
+    implementation, no rewrite), or rewrite the rules in Rust (a rewrite of tested code for no change in behaviour).
+    Recommendation: keep the rules in Python for now; revisit when the export is built.
 
 Not verified by the surveys (they said so, and I carry it forward): the harness side of `--from-run` and `--record` beyond
 the lines read; the persisted `PullRecord` readers; `provenance.at_start`; whether `bench-lake workspace` yields exactly the
