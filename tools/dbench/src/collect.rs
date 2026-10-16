@@ -912,6 +912,49 @@ mod tests {
     }
 
     #[test]
+    fn run_listing_ignores_files_among_the_packs_and_among_the_combination_directories() {
+        let root = temp_dir("runs-files");
+        let repo = root.join("repo");
+        let share = root.join("share");
+        let comb = repo.join("combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi");
+        std::fs::create_dir_all(comb.join("benchmarks/vidi/v2-r1")).unwrap();
+        std::fs::write(comb.join(COMBINATION_CONFIG), "INSTALL_ID=\"x\"\n").unwrap();
+        std::fs::write(comb.join("benchmarks/vidi/v2-r1").join(RUN_MARKER), "{}").unwrap();
+        // A file where a pack directory would be, and a file among the directories that lead to the combination.
+        std::fs::write(comb.join("benchmarks/NOTES.txt"), "x").unwrap();
+        std::fs::write(repo.join("combinations/qwen/README.md"), "x").unwrap();
+        assert_eq!(
+            list_runs(&repo, &share),
+            ["combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1"]
+        );
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn run_listing_does_not_look_deeper_than_the_deepest_combination_and_a_combination_without_benchmarks_has_no_runs() {
+        let root = temp_dir("runs-depth");
+        let repo = root.join("repo");
+        let share = root.join("share");
+        // A combination at the deepest level that is looked at is found; one below a directory at the limit is not.
+        let chain = |top: &str, levels: usize| (0..levels).fold(repo.join(COMBINATIONS_DIR).join(top), |dir, level| dir.join(format!("d{level}")));
+        let inside = chain("near", MAX_COMBINATION_DEPTH - 2);
+        let outside = chain("far", MAX_COMBINATION_DEPTH - 1).join("combo");
+        for comb in [&inside, &outside] {
+            std::fs::create_dir_all(comb.join("benchmarks/vidi/r1")).unwrap();
+            std::fs::write(comb.join(COMBINATION_CONFIG), "INSTALL_ID=\"x\"\n").unwrap();
+            std::fs::write(comb.join("benchmarks/vidi/r1").join(RUN_MARKER), "{}").unwrap();
+        }
+        // A combination that has never been benchmarked: its config, no benchmarks directory.
+        let bare = repo.join("combinations/bare");
+        std::fs::create_dir_all(&bare).unwrap();
+        std::fs::write(bare.join(COMBINATION_CONFIG), "INSTALL_ID=\"y\"\n").unwrap();
+        let listed = list_runs(&repo, &share);
+        let rel = |dir: &Path| format!("{}/benchmarks/vidi/r1", dir.strip_prefix(&repo).unwrap().display());
+        assert_eq!(listed, [rel(&inside)]);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
     fn run_status_is_lenient() {
         let root = temp_dir("status");
         assert!(run_status(&root).is_none());
