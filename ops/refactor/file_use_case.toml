@@ -39,6 +39,11 @@
 "benchmarks/spec-bench/harness/test_mark_not_comparable.py" = "U10"
 # U14 the release gate
 "benchmarks/spec-bench/harness/test_replay_real_logs.py" = "U14"
+"benchmarks/spec-bench/harness/test_finalize_pending.py" = "U10"   # finalize: the pending re-score write (16 Oct 2026)
+"benchmarks/spec-bench/harness/test_pack.py" = "U1"   # pack loading: where a story's held-out suite is read when a story is recorded (16 Oct 2026)
+"benchmarks/spec-bench/harness/test_packdir.py" = "U1"   # pack folders and the private checkout the record path resolves (16 Oct 2026)
+"benchmarks/spec-bench/harness/test_machine_names.py" = "U14"   # the machine-name scan of tracked files runs in the release gate (16 Oct 2026)
+"benchmarks/spec-bench/harness/test_annotate.py" = "U9"   # annotate reads attempts and leaves out known-good runs: reading other runs (16 Oct 2026)
 
 [rust]
 # A key is a file, or file::module for the unit tests inside src/lib.rs and src/main.rs (the longest key wins).
@@ -59,6 +64,10 @@
 "tools/dbench/tests/server.rs" = "U2"
 "tools/vidi-gallery/src/main.rs" = "U6"
 "tools/vidi-gallery/tests/gallery.rs" = "U6"
+"tools/dbench/tests/collector_lake.rs" = "U3"   # the collector fills the lake (16 Oct 2026)
+"tools/dbench/tests/lake_full_record.rs" = "U3"   # the collector pulls the full record into the lake (16 Oct 2026)
+"tools/dbench/tests/allow_list.rs" = "U2"   # the node's served and left-out names (16 Oct 2026)
+"tools/anthropic-token-counter/src/main.rs" = "U4"   # the token counter's corpus is an analytics reader of run logs (16 Oct 2026)
 
 [typescript]
 # U5 the benchmarker shows state: its server tests and every end-to-end spec
@@ -95,3 +104,10 @@
 "tests/judge-submit-test.sh" = "U8"
 "tests/setup-node-test.sh" = "U13"
 "tests/fetch-work-test.sh" = "U1"
+"tests/gufo-test.sh" = "U1"   # run.sh launch of a stack: the harness run that records stories (16 Oct 2026)
+"tests/gufo-fork-test.sh" = "U1"   # same (16 Oct 2026)
+"tests/run-args-test.sh" = "U1"   # run.sh arguments (16 Oct 2026)
+"tests/run-context-test.sh" = "U1"   # run.sh context (16 Oct 2026)
+"tests/stale-install-test.sh" = "U1"   # run.sh refusing a stale install (16 Oct 2026)
+"tests/strata-test.sh" = "U1"   # same family as gufo-test.sh (16 Oct 2026)
+"tests/syntax-test.sh" = "U14"   # syntax check of every script: the release gate (16 Oct 2026)
