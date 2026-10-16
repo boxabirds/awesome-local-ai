@@ -9,6 +9,7 @@ variable set, and print what the modules hold.
 """
 import json
 import os
+import runpy
 import shutil
 import stat
 import subprocess
@@ -434,3 +435,31 @@ def test_a_release_with_no_results_root_does_not_fall_back_to_itself(tmp_path):
     release = make_release(tmp_path)
     r = probe("import drive", None, tmp_path, harness=release / "benchmarks/spec-bench/harness")
     assert r.returncode != 0 and roots.ENV in r.stderr and TAG in r.stderr
+
+
+def test_a_results_root_that_is_not_a_directory_is_refused_in_process(tmp_path):
+    nowhere = tmp_path / "nowhere"
+    with pytest.raises(SystemExit) as e:
+        roots.results_root({roots.ENV: str(nowhere)})
+    assert str(e.value) == f"${roots.ENV} is {nowhere}, which is not a directory: results have nowhere to go"
+    here = tmp_path / "results"
+    here.mkdir()
+    assert roots.results_root({roots.ENV: str(here)}) == here.resolve()
+
+
+def test_a_release_with_no_results_root_is_refused_in_process_naming_its_tag(tmp_path, monkeypatch):
+    release = tmp_path / "rel"
+    release.mkdir()
+    (release / roots.RELEASE_FILE).write_text(release_manifest())
+    # results_root() looks at the code root it was loaded with; point that default at the release
+    monkeypatch.setattr(roots.release, "__defaults__", (release,))
+    with pytest.raises(SystemExit) as e:
+        roots.results_root({})
+    assert str(e.value).startswith(f"this is harness release {TAG}, which keeps no results of its own: set ${roots.ENV} ")
+    assert roots.results_root({roots.ENV: str(tmp_path)}) == tmp_path.resolve()  # the variable makes it fine
+
+
+def test_run_as_a_script_it_answers_the_question_it_is_given(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["roots.py", "code"])
+    runpy.run_path(str(HARNESS / "roots.py"), run_name="__main__")
+    assert capsys.readouterr().out == f"{roots.CODE_ROOT}\n"
