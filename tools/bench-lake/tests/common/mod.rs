@@ -192,8 +192,12 @@ pub fn not_run(tc: &str, why: &str) {
 /// Makes `dst` a copy of `src` compressed by the file system (APFS), if the system can. Returns false if it cannot or
 /// if the copy is not marked compressed (a file that does not shrink is stored plain).
 pub fn fs_compressed_copy(src: &Path, dst: &Path) -> bool {
-    let ok = Command::new("ditto").arg("--hfsCompression").arg(src).arg(dst).status().map(|s| s.success()).unwrap_or(false);
-    if !ok {
+    // ditto skips names it takes for compressed types (a `.gz` name), so the copy is made under a plain name and renamed.
+    let mut plain = dst.as_os_str().to_owned();
+    plain.push(".plain-name");
+    let plain = PathBuf::from(plain);
+    let ok = Command::new("ditto").arg("--hfsCompression").arg(src).arg(&plain).status().map(|s| s.success()).unwrap_or(false);
+    if !ok || fs::rename(&plain, dst).is_err() {
         return false;
     }
     let out = Command::new("ls").arg("-lO").arg(dst).output().unwrap();
