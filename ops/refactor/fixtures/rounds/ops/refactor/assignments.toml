@@ -1,0 +1,4 @@
+[assignments]
+U1 = ["python:py/test_core.py::test_publish_all_records_a_run", "python:py/test_core.py::test_publish_all_reports_a_failure"]
+U2 = ["rust:rs/roundrs/src/lib.rs::tests::publish_all_records_a_run", "rust:rs/roundrs/src/lib.rs::tests::publish_all_reports_a_failure"]
+U3 = ["typescript:ts/src/core.test.ts::publish_all records a run", "typescript:ts/src/core.test.ts::publish_all reports a failure"]

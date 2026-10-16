@@ -1,0 +1,61 @@
+# The rounds project: in three languages one function whose two cuts follow each other on one path.
+
+[[entry]]
+language = "python"
+file = "py/cutpy/core.py"
+function = "publish_all"
+classes = ["C"]
+[[entry.cut]]
+anchor = 'first = vcs(["add", path])'
+why = "runs the version-control add"
+[[entry.cut.uses]]
+anchor = 'return f"ok:{path}"'
+[[entry.cut.guards]]
+anchor = 'if first + second != 0:'
+[[entry.cut]]
+anchor = 'second = vcs(["commit", path])'
+why = "runs the version-control commit"
+[[entry.cut.uses]]
+anchor = 'return f"ok:{path}"'
+[[entry.cut.guards]]
+anchor = 'if first + second != 0:'
+
+[[entry]]
+language = "rust"
+file = "rs/roundrs/src/lib.rs"
+function = "publish_all"
+classes = ["C"]
+[[entry.cut]]
+anchor = 'first = run_git(&["add", path]);'
+why = "runs the version-control add"
+[[entry.cut.uses]]
+anchor = 'format!("ok:{path}")'
+[[entry.cut.guards]]
+anchor = 'if first + second != 0 {'
+[[entry.cut]]
+anchor = 'second = run_git(&["commit", path]);'
+why = "runs the version-control commit"
+[[entry.cut.uses]]
+anchor = 'format!("ok:{path}")'
+[[entry.cut.guards]]
+anchor = 'if first + second != 0 {'
+
+[[entry]]
+language = "typescript"
+file = "ts/src/core.ts"
+function = "publish_all"
+classes = ["C"]
+[[entry.cut]]
+anchor = 'const first = vcs(["add", path])'
+why = "runs the version-control add"
+[[entry.cut.uses]]
+anchor = 'return `ok:${path}`'
+[[entry.cut.guards]]
+anchor = 'if (first + second !== 0) {'
+[[entry.cut]]
+anchor = 'const second = vcs(["commit", path])'
+why = "runs the version-control commit"
+[[entry.cut.uses]]
+anchor = 'return `ok:${path}`'
+[[entry.cut.guards]]
+anchor = 'if (first + second !== 0) {'

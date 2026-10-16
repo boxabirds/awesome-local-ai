@@ -4663,3 +4663,82 @@ def test_rounds_the_command_line_takes_round_and_pending(tmp_path, capsys):
     capsys.readouterr()
     assert cli(root, "apply-cuts", "--dry-run", "--pending") == R.EXIT_OK
     assert STAND2 in capsys.readouterr().out
+
+
+# ---- integration: rounds through the real runners on fixtures/rounds (two cuts in a row on one path, in each of three languages) -----
+
+ROUNDS = Path(__file__).parent / "fixtures" / "rounds"
+ROUND_FILES = {"python": "py/cutpy/core.py", "rust": "rs/roundrs/src/lib.rs", "typescript": "ts/src/core.ts"}
+
+
+def fresh_rounds(tmp_path: Path) -> Path:
+    root = tmp_path / "rounds"
+    shutil.copytree(ROUNDS, root, ignore=MINI_IGNORED)
+    os.symlink(MINI_DEPS, root / "ts" / "node_modules")
+    (root / ".gitignore").write_text((root / ".gitignore").read_text() + "ts/node_modules\n")
+    write_stage(root, "Deleted")
+    for args in (("init", "-q"), ("add", "-A"), ("commit", "-q", "-m", "base")):
+        git_in(root, *args)
+    return root
+
+
+def delete_the_cuts(root: Path, *extra: str) -> None:       # noqa: F811  (the same helper, now taking --pending)
+    """The deletion a person makes by hand, produced by `apply-cuts --dry-run` (the tool itself never writes production code)."""
+    done = tool(root, "apply-cuts", "--dry-run", *extra)
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+    printed = json.loads((root / "ops/refactor/reports/apply-cuts.json").read_text())["entries"]
+    for e in tomllib.loads((root / "ops/refactor/touched_set.toml").read_text())["entry"]:
+        text = (root / e["file"]).read_text()
+        in_function = sorted(R.lines_in_text(e["language"], text, e["function"]))
+        lines_ = text.splitlines()
+        new = lines_[: in_function[0] - 1] + printed[f"{e['file']}::{e['function']}"].splitlines() + lines_[in_function[-1]:]
+        (root / e["file"]).write_text("\n".join(new) + "\n")
+
+
+def round_report(root: Path, n: int) -> tuple[subprocess.CompletedProcess, dict]:
+    assert tool(root, "run-suites").returncode == R.EXIT_OK
+    done = tool(root, "report-deletion", "--round", str(n))
+    return done, json.loads((root / "ops/refactor/reports/deletion.json").read_text())
+
+
+def test_rounds_fixture_the_entries_resolve(tmp_path):
+    root = tmp_path / "r"
+    shutil.copytree(ROUNDS, root, ignore=MINI_IGNORED)
+    done = tool(root, "check-cuts", "--strict")
+    assert done.returncode == R.EXIT_OK, done.stdout + done.stderr
+
+
+def test_rounds_fixture_round_1_cites_the_first_cut_of_each_language_and_round_2_the_second(coverage_tools, tmp_path):
+    root = fresh_rounds(tmp_path)
+    delete_the_cuts(root)
+    assert tool(root, "check-stubs").returncode == R.EXIT_OK
+    done, report = round_report(root, 1)
+    firsts = {f"refactor-cut:{ROUND_FILES[lang]}::publish_all#1" for lang in ROUND_FILES}
+    seconds = {f"refactor-cut:{ROUND_FILES[lang]}::publish_all#2" for lang in ROUND_FILES}
+    assert done.returncode == R.EXIT_FAIL, done.stdout
+    assert {(p["code"], p["subject"]) for p in report["problems"]} == {("E-CUT-PENDING", s) for s in seconds}
+    assert set(report["cuts_cited"]) == firsts and set(report["pending"]) == seconds
+    # round 2: only the pending cuts are replaced; the cited ones are back at their base text
+    assert tool(root, "check-stubs", "--pending").returncode == R.EXIT_FAIL                      # the tree is still the round 1 tree
+    delete_the_cuts(root, "--pending")
+    for lang, file in ROUND_FILES.items():
+        assert "#1" not in (root / file).read_text() and "#2" in (root / file).read_text(), lang
+    pending_stubs = tool(root, "check-stubs", "--pending")
+    assert pending_stubs.returncode == R.EXIT_OK, pending_stubs.stdout + pending_stubs.stderr
+    done, report = round_report(root, 2)
+    assert done.returncode == R.EXIT_OK, done.stdout
+    assert set(report["cuts_cited"]) == seconds and report["pending"] == []
+    state = json.loads((root / "ops/refactor/reports/cut-rounds.json").read_text())
+    assert state["round"] == 2 and {k: v["round"] for k, v in state["cuts"].items()} == {**{f: 1 for f in firsts}, **{s: 2 for s in seconds}}
+    delete_the_cuts(root, "--pending")                                                              # nothing pending: every function is back at its base text
+    assert subprocess.run(["git", "-C", str(root), "diff", "--quiet", "--", *ROUND_FILES.values()]).returncode == 0
+
+
+def test_rounds_fixture_without_rounds_the_second_cut_is_a_coverage_gap(coverage_tools, tmp_path):
+    root = fresh_rounds(tmp_path)
+    delete_the_cuts(root)
+    assert tool(root, "run-suites").returncode == R.EXIT_OK
+    done = tool(root, "report-deletion")
+    report = json.loads((root / "ops/refactor/reports/deletion.json").read_text())
+    assert done.returncode == R.EXIT_FAIL
+    assert {(p["code"], p["subject"]) for p in report["problems"]} == {("E-CUT-NO-TEST-FAILED", f"refactor-cut:{f}::publish_all#2") for f in ROUND_FILES.values()}
