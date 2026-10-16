@@ -999,7 +999,7 @@ def first_difference(expected: list[str], current: list[str]) -> str:
     return "the line counts differ"
 
 
-def check_cut_entry(root: Path, e: dict, read_base: Callable[[str], str | None], result: Result) -> None:
+def check_cut_entry(root: Path, e: dict, read_base: Callable[[str], str | None], result: Result, pending: set[str] | None = None) -> None:
     """One cut entry: the current function is the BASE function with each cut replaced by one stand-in, and nothing else changed."""
     subject, language = entry_subject(e), e["language"]
     current_text = (root / e["file"]).read_text() if (root / e["file"]).exists() else None
@@ -1027,7 +1027,7 @@ def check_cut_entry(root: Path, e: dict, read_base: Callable[[str], str | None],
     if current_lines is None:
         result.fail("E-STALE-ENTRY", subject, "no such function in the file")
         return
-    items = deleted_items(language, base_text, base_lines, cuts)
+    items = deleted_items(language, base_text, base_lines, [c for c in cuts if pending is None or c.id in pending])      # a cited cut is back at its base text
     file_lines = current_text.splitlines()
     current = [m for m in (meaningful(language, file_lines[n - 1]) for n in sorted(current_lines)) if m is not None]
     matched = match_deleted(language, items, current)
@@ -1039,7 +1039,7 @@ def check_cut_entry(root: Path, e: dict, read_base: Callable[[str], str | None],
         result.fail(p.code, p.subject, p.detail)
 
 
-def apply_cuts(root: Path, base: Callable[[str], str | None] | None = None) -> Result:
+def apply_cuts(root: Path, base: Callable[[str], str | None] | None = None, pending: set[str] | None = None) -> Result:
     """Dry run only: for each entry with cuts, the BASE function with a stand-in in place of each cut. Never writes anything but its
     report; the deletion itself is made by hand in the working tree."""
     result = Result()
@@ -1060,7 +1060,7 @@ def apply_cuts(root: Path, base: Callable[[str], str | None] | None = None) -> R
             if not problems:
                 printed[subject] = "".join(
                     f"{i.indent}{stand_in_text(e['language'], e['function'], i.cut.id)}\n" if isinstance(i, StandIn) else f"{i}\n"
-                    for i in deleted_items(e["language"], text, in_function, cuts))
+                    for i in deleted_items(e["language"], text, in_function, [c for c in cuts if pending is None or c.id in pending]))
     except BaseUnreadable as exc:
         result.error("E-BASE-UNREADABLE", "base", str(exc))
     result.data = {"entries": printed}
@@ -1068,10 +1068,11 @@ def apply_cuts(root: Path, base: Callable[[str], str | None] | None = None) -> R
     return result
 
 
-def check_stubs(root: Path, base: Callable[[str], str | None] | None = None) -> Result:
+def check_stubs(root: Path, base: Callable[[str], str | None] | None = None, pending: set[str] | None = None) -> Result:
     """Every function in the touched set has been replaced by hand with a stub of the exact form for its language; for an entry with
     cuts, only each cut has been replaced, by the stand-in of its language. `base` reads a file as it was before the deletion
-    (default: `git show HEAD:FILE`; the working tree holds the deletion, uncommitted)."""
+    (default: `git show HEAD:FILE`; the working tree holds the deletion, uncommitted). With `pending` (a set of cut ids), only those cuts must be
+    replaced; every other cut must be at its base text (a later round of a deletion whose earlier cuts have been cited)."""
     result = Result()
     read = base or git_show_reader(root, DEFAULT_BASE_REV)
     try:
@@ -1081,7 +1082,7 @@ def check_stubs(root: Path, base: Callable[[str], str | None] | None = None) -> 
             if kind == KIND_CONFLICT:
                 result.fail("E-CUT-WHOLE-AND-CUT", subject, "`whole = true` and a non-empty `cut` together: choose one")
             elif kind == KIND_CUT:
-                check_cut_entry(root, e, read, result)
+                check_cut_entry(root, e, read, result, pending)
             elif kind == KIND_NONE:
                 continue
             else:
@@ -1108,20 +1109,60 @@ def cuts_cited(results: Results) -> dict[str, set[str]]:
     return cited
 
 
-def shell_cut_failed(root: Path, e: dict, results: Results) -> bool:
-    """A shell stand-in cannot carry its id, so a shell cut is proved by a test script that names the cut's script and ended with exit 99."""
+def shell_cut_tests(root: Path, e: dict, results: Results) -> list[str]:
+    """A shell stand-in cannot carry its id, so a shell cut entry is proved, as a unit, by the test scripts that name its script and ended
+    with exit 99 (all of its pending cuts are cited together: which stand-in ended the script cannot be told)."""
     scripts = {t.split(":", 1)[1] for t in results.exit_codes}
     named = shell_touching(root, [e], scripts)
-    return any(results.exit_codes.get(f"shell:{t}") == SHELL_STUB_CODE for t in named)
+    return sorted(f"shell:{t}" for t in named if results.exit_codes.get(f"shell:{t}") == SHELL_STUB_CODE)
+
+
+def write_cut_rounds(root: Path, round_: int, earlier: dict, newly: dict[str, list[str]]) -> None:
+    cuts = dict(earlier) | {cid: {"tests": tests, "round": round_} for cid, tests in newly.items()}
+    path = root / CUT_ROUNDS_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"round": round_, "cuts": cuts}, indent=JSON_INDENT, sort_keys=True) + "\n")
 
 
 def assigned_tests(root: Path) -> set[str]:
     return {t for tests in read_toml(root / ASSIGNMENTS_FILE).get("assignments", {}).values() for t in tests}
 
 
-def report_deletion(root: Path, results: Results, base: Callable[[str], str | None] | None = None) -> Result:
-    """Against the stubs every assigned test must fail for the stub's reason, and every test outside the set must not fail."""
-    stubs = check_stubs(root, base)
+CUT_ROUNDS_FILE = REPORTS_DIR / "cut-rounds.json"
+
+
+def read_cut_rounds(root: Path) -> dict:
+    """{"round": N, "cuts": {cut id: {"tests": [...], "round": k}}}: the cuts cited so far by `report-deletion --round`. Absent: nothing cited."""
+    path = root / CUT_ROUNDS_FILE
+    try:
+        state = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {"round": 0, "cuts": {}}
+    return {"round": int(state.get("round", 0)), "cuts": dict(state.get("cuts", {}))}
+
+
+def declared_cut_ids(root: Path) -> list[str]:
+    return [cut_id(e, n) for e in read_toml(root / TOUCHED_FILE).get("entry", []) if entry_kind(e) == KIND_CUT for n in range(1, len(e["cut"]) + 1)]
+
+
+def pending_cuts(root: Path) -> set[str]:
+    """Every cut not yet cited by a failing test in an earlier round."""
+    return set(declared_cut_ids(root)) - set(read_cut_rounds(root)["cuts"])
+
+
+def report_deletion(root: Path, results: Results, base: Callable[[str], str | None] | None = None, round_: int | None = None) -> Result:
+    """Against the stubs every assigned test must fail for the stub's reason, and every test outside the set must not fail. With cuts,
+    each cut must be cited by a failing test. With `round_` the cuts are proved over several rounds: round 1 has every cut replaced, a
+    later round has only the cuts not yet cited replaced (state in reports/cut-rounds.json); the process ends when none is pending."""
+    state = read_cut_rounds(root)
+    if round_ is not None and round_ != 1 and state["round"] != round_ - 1:
+        order = Result()
+        order.fail("E-ROUND-ORDER", f"round {round_}", f"the last recorded round is {state['round']}: rounds run in order, from 1")
+        write_report(root, "deletion", order)
+        return order
+    cited_before = set(state["cuts"]) if round_ not in (None, 1) else set()
+    pending = (set(declared_cut_ids(root)) - cited_before) if round_ is not None else None
+    stubs = check_stubs(root, base, pending)
     if stubs.exit_code != EXIT_OK:
         write_report(root, "deletion", stubs)
         return stubs
@@ -1151,24 +1192,44 @@ def report_deletion(root: Path, results: Results, base: Callable[[str], str | No
             result.fail("E-OUTSIDE-FAILED", test, "a test outside the touched set failed: the partition is not MECE")
     if passed_assigned and read_stage(root) == "Deleted":
         record_move(root, "Deleted", "Proved", ALLOWED_MOVES[BACK_EDGE])
+    newly: dict[str, list[str]] = {}
     if cut_entries:
         cited_by = cuts_cited(results)
+        unresolved: list[tuple[str, bool]] = []                   # (subject, a shell entry)
         for e in cut_entries:
-            if e["language"] in results.missing:
+            mine = [cut_id(e, n) for n in range(1, len(e["cut"]) + 1) if pending is None or cut_id(e, n) in pending]
+            if not mine or e["language"] in results.missing:
                 continue
             if e["language"] == "shell":
-                if not shell_cut_failed(root, e, results):
-                    result.fail("E-CUT-NO-TEST-FAILED", entry_subject(e), f"no failing shell test that names the script ended with exit {SHELL_STUB_CODE}: the cut is not covered")
+                tests = shell_cut_tests(root, e, results)
+                if tests:
+                    newly.update({i: tests for i in mine})
+                else:
+                    unresolved.append((entry_subject(e), True))
                 continue
-            for n in range(1, len(e["cut"]) + 1):
-                if cut_id(e, n) not in cited_by:
-                    result.fail("E-CUT-NO-TEST-FAILED", cut_id(e, n), "no failing test cites this cut: it is a coverage gap, go back to proving coverage")
+            for i in mine:
+                if i in cited_by:
+                    newly[i] = sorted(cited_by[i])
+                else:
+                    unresolved.append((i, False))
+        for subject, is_shell in unresolved:
+            if round_ is not None and newly:
+                result.fail("E-CUT-PENDING", subject, f"not cited yet: replace only the pending cuts (apply-cuts --pending) and run round {round_ + 1}")
+            elif is_shell:
+                result.fail("E-CUT-NO-TEST-FAILED", subject, f"no failing shell test that names the script ended with exit {SHELL_STUB_CODE}: the cut is not covered")
+            else:
+                result.fail("E-CUT-NO-TEST-FAILED", subject, "no failing test cites this cut: it is a coverage gap, go back to proving coverage")
+        if round_ is not None and newly:
+            write_cut_rounds(root, round_, state["cuts"] if round_ != 1 else {}, newly)
     if result.exit_code == EXIT_OK:
         failed = [t for t in sorted(assigned) if results.outcome_of(t) != PASSED] if cut_entries else sorted(assigned)
         result.data = {"assigned_failed": failed}
-        if cut_entries:
-            declared = {cut_id(e, n) for e in cut_entries if e["language"] != "shell" for n in range(1, len(e["cut"]) + 1)}
-            result.data["cuts_cited"] = {cid: sorted(tests) for cid, tests in cuts_cited(results).items() if cid in declared}
+    if cut_entries:
+        shell_ids = {cut_id(e, n) for e in cut_entries if e["language"] == "shell" for n in range(1, len(e["cut"]) + 1)}
+        result.data["cuts_cited"] = {cid: tests for cid, tests in newly.items() if cid not in shell_ids}
+        if round_ is not None:
+            left = (pending or set()) - set(newly)
+            result.data.update({"round": round_, "pending": sorted(left)})
     write_report(root, "deletion", result)
     return result
 
@@ -2542,9 +2603,12 @@ def main(argv: list[str] | None = None) -> int:
     cuts.add_argument("--strict", action="store_true", help="also refuse an entry that says neither `whole` nor `cut`")
     cuts.add_argument("--base", metavar="REV", help="read the anchors from this revision of each file (default: the working tree)")
     sub.choices["check-stubs"].add_argument("--base", metavar="REV", help=f"the revision the deletion started from (default: {DEFAULT_BASE_REV})")
+    sub.choices["report-deletion"].add_argument("--round", type=int, metavar="N", help="prove the cuts over rounds: round 1 has every cut replaced, round N the cuts not yet cited")
+    sub.choices["check-stubs"].add_argument("--pending", action="store_true", help="only the cuts not yet cited (reports/cut-rounds.json) must be replaced; the others at their base text")
     sub.choices["report-deletion"].add_argument("--base", metavar="REV", help=f"the revision the deletion started from (default: {DEFAULT_BASE_REV})")
     apply = sub.add_parser("apply-cuts", help="print each cut entry's function with a stand-in in place of every cut (never writes production code)",
                            description="print each cut entry's function with a stand-in in place of every cut (never writes production code)")
+    apply.add_argument("--pending", action="store_true", help="stand-ins only for the cuts not yet cited (reports/cut-rounds.json)")
     apply.add_argument("--dry-run", action="store_true", help="required: the deleted form is only ever printed")
     apply.add_argument("--base", metavar="REV", help=f"the revision the cuts are read from (default: {DEFAULT_BASE_REV})")
     sub.choices["check-coverage"].add_argument("--language", choices=LANGUAGES, action="append", help="measure only this language (repeatable)")
@@ -2561,7 +2625,7 @@ def main(argv: list[str] | None = None) -> int:
     simple = {
         "check-register": lambda: check_register(root, lister),
         "check-touched-set": lambda: check_touched(root),
-        "check-stubs": lambda: check_stubs(root, base_reader),
+        "check-stubs": lambda: check_stubs(root, base_reader, pending_cuts(root) if args.pending else None),
         "fates": lambda: merged(check_fates(root), check_contracts(root, read_results(root))),
         "check-coverage": lambda: check_coverage(root, languages=set(args.language) if args.language else None),
         "audit-check": lambda: check_audit(root, require_final=args.require_final),
@@ -2599,11 +2663,11 @@ def main(argv: list[str] | None = None) -> int:
             if not args.dry_run:
                 print("apply-cuts: only --dry-run is supported; the deletion is made by hand in the working tree")
                 return EXIT_ERROR
-            result = apply_cuts(root, base_reader)
+            result = apply_cuts(root, base_reader, pending_cuts(root) if args.pending else None)
             for subject, text in result.data["entries"].items():
                 print(f"--- {subject}\n{text}", end="")
         elif args.command == "report-deletion":
-            result = report_deletion(root, read_results(root), base_reader)
+            result = report_deletion(root, read_results(root), base_reader, args.round)
         elif args.command == "audit-run":
             result = audit_run(root, args.number)
         elif args.command == "guard-idle":

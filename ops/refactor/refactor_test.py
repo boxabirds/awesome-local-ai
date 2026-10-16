@@ -4542,3 +4542,124 @@ def test_cuts_fixture_a_deletion_that_also_touches_the_guard_is_collateral(cover
     report = json.loads((root / "ops/refactor/reports/stubs.json").read_text())
     assert done.returncode == R.EXIT_FAIL
     assert [(p["code"], p["subject"]) for p in report["problems"]] == [("E-CUT-COLLATERAL", "py/cutpy/core.py::publish")]
+
+
+# ---- rounds: cuts that follow each other on a path are proved one round at a time -------------------------------------------------
+# Round 1 applies every cut; the first stand-in a test reaches raises, so only that cut is cited. The cited cuts go back to their base text,
+# and the next round runs against a tree in which only the still-pending cuts are replaced.
+
+TWO1 = "refactor-cut:src/p.py::publish#1"
+TWO2 = "refactor-cut:src/p.py::publish#2"
+STAND1 = f'raise NotImplementedError("{TWO1}")'
+STAND2 = f'raise NotImplementedError("{TWO2}")'
+BASE_TWO = lambda f: PY_TWO      # noqa: E731
+ROUND1_TREE = two_cut_text(STAND1, STAND2)
+ROUND2_TREE = two_cut_text("a = fetch(repo)", STAND2)
+ROUNDS_FILE = "ops/refactor/reports/cut-rounds.json"
+
+
+def rounds_root(tmp_path: Path, tree: str = ROUND1_TREE) -> Path:
+    return cut_deletion_root(tmp_path, body=TWO_CUTS, current=tree)
+
+
+def round_state(root: Path) -> dict:
+    return json.loads((root / ROUNDS_FILE).read_text())
+
+
+def test_rounds_round_1_cites_the_first_cut_and_leaves_the_second_pending(tmp_path):
+    root = rounds_root(tmp_path)
+    result = R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB, CUT_TEST_2: R.FAILED_STUB}, {CUT_TEST: cited(1), CUT_TEST_2: cited(1)}), BASE_TWO, round_=1)
+    assert result.exit_code == R.EXIT_FAIL
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-PENDING", TWO2)]
+    assert result.data["pending"] == [TWO2] and result.data["round"] == 1
+    assert round_state(root) == {"round": 1, "cuts": {TWO1: {"tests": [CUT_TEST, CUT_TEST_2], "round": 1}}}
+
+
+def test_rounds_round_2_cites_the_second_cut_and_the_process_ends_with_exit_0(tmp_path):
+    root = rounds_root(tmp_path)
+    R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB}, {CUT_TEST: cited(1)}), BASE_TWO, round_=1)
+    (root / "src/p.py").write_text(ROUND2_TREE)
+    result = R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB, CUT_TEST_2: R.PASSED}, {CUT_TEST: cited(2)}), BASE_TWO, round_=2)
+    assert result.exit_code == R.EXIT_OK and result.problems == [] and result.data["pending"] == []
+    assert round_state(root) == {"round": 2, "cuts": {TWO1: {"tests": [CUT_TEST], "round": 1}, TWO2: {"tests": [CUT_TEST], "round": 2}}}
+
+
+def test_rounds_a_round_that_cites_nothing_new_leaves_the_pending_cuts_as_coverage_gaps(tmp_path):
+    root = rounds_root(tmp_path)
+    R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB}, {CUT_TEST: cited(1)}), BASE_TWO, round_=1)
+    (root / "src/p.py").write_text(ROUND2_TREE)
+    result = R.report_deletion(root, cut_results({CUT_TEST: R.PASSED, CUT_TEST_2: R.PASSED}), BASE_TWO, round_=2)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-NO-TEST-FAILED", TWO2)]
+    assert result.exit_code == R.EXIT_FAIL and list(round_state(root)["cuts"]) == [TWO1]
+
+
+def test_rounds_a_round_out_of_order_is_refused(tmp_path):
+    root = rounds_root(tmp_path, ROUND2_TREE)
+    assert [p.code for p in R.report_deletion(root, cut_results({}), BASE_TWO, round_=2).problems] == ["E-ROUND-ORDER"]          # no round 1 yet
+    R.report_deletion(rounds_root(tmp_path / "b"), cut_results({CUT_TEST: R.FAILED_STUB}, {CUT_TEST: cited(1)}), BASE_TWO, round_=1)
+    again = rounds_root(tmp_path / "c")
+    write(again, ROUNDS_FILE, json.dumps({"round": 1, "cuts": {TWO1: {"tests": [CUT_TEST], "round": 1}}}))
+    assert [p.code for p in R.report_deletion(again, cut_results({}), BASE_TWO, round_=3).problems] == ["E-ROUND-ORDER"]
+
+
+def test_rounds_round_1_starts_from_nothing_whatever_an_earlier_run_left(tmp_path):
+    root = rounds_root(tmp_path)
+    write(root, ROUNDS_FILE, json.dumps({"round": 5, "cuts": {TWO1: {"tests": ["x"], "round": 5}, TWO2: {"tests": ["x"], "round": 5}}}))
+    R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB}, {CUT_TEST: cited(1)}), BASE_TWO, round_=1)
+    assert list(round_state(root)["cuts"]) == [TWO1]
+
+
+def test_rounds_round_2_against_a_tree_that_still_has_the_cited_cuts_stand_in_is_collateral(tmp_path):
+    root = rounds_root(tmp_path)
+    R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB}, {CUT_TEST: cited(1)}), BASE_TWO, round_=1)
+    result = R.report_deletion(root, cut_results({}), BASE_TWO, round_=2)                   # the tree is still the round 1 tree
+    assert [p.code for p in result.problems] == ["E-CUT-COLLATERAL"]
+    assert list(round_state(root)["cuts"]) == [TWO1]                                         # nothing was recorded from an invalid tree
+
+
+def test_rounds_without_a_round_number_the_behaviour_is_the_single_run_one_and_no_state_is_written(tmp_path):
+    root = rounds_root(tmp_path)
+    result = R.report_deletion(root, cut_results({CUT_TEST: R.FAILED_STUB, CUT_TEST_2: R.PASSED}, {CUT_TEST: cited(1)}), BASE_TWO)
+    assert [(p.code, p.subject) for p in result.problems] == [("E-CUT-NO-TEST-FAILED", TWO2)]
+    assert not (root / ROUNDS_FILE).exists()
+
+
+def test_rounds_check_stubs_pending_accepts_the_tree_where_only_the_pending_cuts_are_replaced(tmp_path):
+    root = rounds_root(tmp_path, ROUND2_TREE)
+    write(root, ROUNDS_FILE, json.dumps({"round": 1, "cuts": {TWO1: {"tests": [CUT_TEST], "round": 1}}}))
+    assert R.check_stubs(root, BASE_TWO, pending=R.pending_cuts(root)).exit_code == R.EXIT_OK
+    assert stub_problems(R.check_stubs(root, BASE_TWO)) == [("E-CUT-NOT-REPLACED", TWO1)]               # without --pending every cut must be replaced
+    write(root, "src/p.py", ROUND1_TREE)
+    assert stub_problems(R.check_stubs(root, BASE_TWO, pending=R.pending_cuts(root))) == [("E-CUT-COLLATERAL", "src/p.py::publish")]
+
+
+def test_rounds_apply_cuts_pending_prints_stand_ins_only_for_the_cuts_not_yet_cited(tmp_path):
+    root = rounds_root(tmp_path)
+    assert apply_text(R.apply_cuts(root, BASE_TWO, pending=R.pending_cuts(root)))["src/p.py::publish"] == two_cut_text(STAND1, STAND2) + ""    # no state: all pending
+    write(root, ROUNDS_FILE, json.dumps({"round": 1, "cuts": {TWO1: {"tests": [CUT_TEST], "round": 1}}}))
+    assert apply_text(R.apply_cuts(root, BASE_TWO, pending=R.pending_cuts(root)))["src/p.py::publish"] == ROUND2_TREE
+    write(root, ROUNDS_FILE, json.dumps({"round": 2, "cuts": {TWO1: {"tests": [], "round": 1}, TWO2: {"tests": [], "round": 2}}}))
+    assert apply_text(R.apply_cuts(root, BASE_TWO, pending=R.pending_cuts(root)))["src/p.py::publish"] == PY_TWO       # all cited: the base text
+
+
+def test_rounds_a_shell_entry_is_cited_as_a_unit_by_exit_99(tmp_path):
+    root = shell_cut_root(tmp_path)
+    base = lambda f: SH_FN      # noqa: E731
+    result = R.report_deletion(root, R.Results(outcomes={SH_TEST: R.FAILED_STUB}, exit_codes={SH_TEST: 99}), base, round_=1)
+    assert result.exit_code == R.EXIT_OK
+    assert set(round_state(root)["cuts"]) == {"refactor-cut:src/p.sh::sync#1", "refactor-cut:src/p.sh::sync#2"}
+
+
+def test_rounds_the_command_line_takes_round_and_pending(tmp_path, capsys):
+    root = rounds_root(tmp_path)
+    git_in(root, "init", "-q")
+    write(root, "src/p.py", PY_TWO)
+    git_in(root, "add", "src/p.py", "ops/refactor/touched_set.toml")
+    git_in(root, "commit", "-q", "-m", "base")
+    write(root, "src/p.py", ROUND1_TREE)
+    write(root, ROUNDS_FILE, json.dumps({"round": 1, "cuts": {TWO1: {"tests": [CUT_TEST], "round": 1}}}))
+    write(root, "src/p.py", ROUND2_TREE)
+    assert cli(root, "check-stubs", "--pending") == R.EXIT_OK and cli(root, "check-stubs") == R.EXIT_FAIL
+    capsys.readouterr()
+    assert cli(root, "apply-cuts", "--dry-run", "--pending") == R.EXIT_OK
+    assert STAND2 in capsys.readouterr().out
