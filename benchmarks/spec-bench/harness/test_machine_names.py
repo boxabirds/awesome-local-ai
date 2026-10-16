@@ -196,6 +196,24 @@ def test_D4_a_name_found_only_in_another_case_is_reported(tmp_path):
     assert mn.tracked(r, NAMES) == {"a.json": ["boxwood"]}
 
 
+def test_D9_with_no_names_to_look_for_nothing_is_reported_and_git_is_not_asked(tmp_path):
+    assert mn.tracked(tmp_path / "not-a-repo", set()) == {}
+
+
+def test_D10_a_tracked_file_deleted_in_the_working_tree_is_skipped(tmp_path):
+    r = repo(tmp_path, {"gone.md": "boxwood", "kept.md": "boxwood"})
+    (r / "gone.md").unlink()
+    assert mn.tracked(r, NAMES) == {"kept.md": ["boxwood"]}
+
+
+def test_D11_a_binary_file_is_checked_by_its_name_only(tmp_path):
+    r = repo(tmp_path, {})
+    (r / "boxwood-shot.png").write_bytes(b"\x89PNG\0boxwood")
+    (r / "plain-shot.png").write_bytes(b"\x89PNG\0boxwood")
+    subprocess.run([*G, "add", "-A"], cwd=r, check=True)
+    assert mn.tracked(r, NAMES) == {"boxwood-shot.png": ["boxwood"]}
+
+
 def cli(tmp_path: Path, r: Path, nodes: Path) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, str(Path(mn.__file__)), "tracked", str(r)], capture_output=True, text=True,
                           env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path), mn.NODES_ENV: str(nodes)})
