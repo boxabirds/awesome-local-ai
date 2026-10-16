@@ -203,12 +203,175 @@ def epic_entry(root: Path, runner: R.CoverageRunner = R.run_coverage) -> Result:
     return result
 
 
+# ======================================================================================================================
+# epic-worktree
+# ======================================================================================================================
+
 def cap_files(names: list[str]) -> tuple[list[str], int]:
-    raise NotImplementedError("skeleton")
+    """The first MAX_LISTED_FILES names, and how many there are in all."""
+    return names[:MAX_LISTED_FILES], len(names)
+
+
+def is_working_copy(git: GitRunner, copy: Path) -> bool:
+    if not copy.is_dir():
+        return False
+    top = git(copy, ["rev-parse", "--show-toplevel"])
+    return top.code == 0 and Path(top.out.strip()).resolve() == copy.resolve()
+
+
+def recorded_path(root: Path) -> Path | None:
+    path = root / R.REPORTS_DIR / "epic-worktree.json"
+    if not path.exists():
+        return None
+    try:
+        return Path(json.loads(path.read_text())["path"])
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+
+
+def check_copy(result: Result, git: GitRunner, copy: Path) -> bool:
+    """The folder is a working copy and is detached; on a branch it is refused by name."""
+    if not is_working_copy(git, copy):
+        result.fail("E-WT-MISSING", str(copy), "the folder is not a working copy")
+        return False
+    branch = git(copy, ["symbolic-ref", "-q", "--short", "HEAD"])
+    if branch.code == 0:
+        result.fail("E-NOT-DETACHED", str(copy), f"the working copy is on the branch {branch.out.strip()}")
+        return False
+    return True
+
+
+def ahead_behind(git: GitRunner, copy: Path, base: str) -> tuple[int, int] | None:
+    counted = git(copy, ["rev-list", "--left-right", "--count", f"HEAD...{base}"])
+    if counted.code != 0:
+        return None
+    ahead, behind = counted.out.split()
+    return int(ahead), int(behind)
+
+
+def fetch(result: Result, git: GitRunner, where: Path) -> bool:
+    done = git(where, ["fetch", REMOTE_NAME])
+    if done.code != 0:
+        result.error("E-FETCH-FAILED", REMOTE_NAME, done.err.strip())
+        return False
+    return True
+
+
+def commit_of(git: GitRunner, where: Path, ref: str = "HEAD") -> str | None:
+    done = git(where, ["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"])
+    return done.out.strip() if done.code == 0 else None
+
+
+def worktree_create(result: Result, root: Path, copy: Path, base: str, git: GitRunner) -> None:
+    if copy.exists():
+        result.fail("E-WT-EXISTS", str(copy), "the folder exists; nothing is changed in it")
+        return
+    if not fetch(result, git, root):
+        return
+    commit = commit_of(git, root, base)
+    if commit is None:
+        result.fail("E-WT-BASE-UNKNOWN", base, "not a known reference")
+        return
+    copy.parent.mkdir(parents=True, exist_ok=True)
+    added = git(root, ["worktree", "add", "--detach", str(copy), commit])
+    if added.code != 0:
+        result.error("E-WT-CREATE-FAILED", str(copy), added.err.strip())
+        return
+    result.data["base_commit"] = commit
+
+
+def worktree_status(result: Result, copy: Path, base: str, git: GitRunner) -> None:
+    if not check_copy(result, git, copy):
+        return
+    counts = ahead_behind(git, copy, base)
+    if counts is None:
+        result.fail("E-WT-BASE-UNKNOWN", base, "not a known reference in the working copy")
+        return
+    changed = git(copy, ["status", "--porcelain", "--untracked-files=no"]).out.strip()
+    result.data.update({"detached": True, "ahead": counts[0], "behind": counts[1], "dirty": bool(changed)})
+
+
+def worktree_sync(result: Result, copy: Path, base: str, git: GitRunner) -> None:
+    if not check_copy(result, git, copy):
+        return
+    if git(copy, ["status", "--porcelain", "--untracked-files=no"]).out.strip():
+        result.fail("E-WT-DIRTY", str(copy), "tracked files are changed, so a rebase would lose work: commit or discard them first")
+        return
+    if not fetch(result, git, copy):
+        return
+    incoming = [n for n in git(copy, ["diff", "--name-only", f"HEAD...{base}"]).out.splitlines() if n]
+    listed, total = cap_files(incoming)
+    result.data.update({"files_in": listed, "files_in_count": total, "head_before": commit_of(git, copy)})
+    rebased = git(copy, ["rebase", base])
+    if rebased.code != 0:
+        conflicting = [n for n in git(copy, ["diff", "--name-only", "--diff-filter=U"]).out.splitlines() if n]
+        git(copy, ["rebase", "--abort"])
+        result.data.update({"files_in": [], "files_in_count": 0})
+        for name in conflicting or [str(copy)]:
+            result.fail("E-WT-REBASE-CONFLICT", name, "the rebase met an overlap and was aborted; the head is as before" if conflicting else rebased.err.strip())
+
+
+def worktree_gate(result: Result, copy: Path, base: str, git: GitRunner) -> None:
+    """Whether the copy may go to the shared main line. Every condition is checked, so one report lists what is missing."""
+    if not check_copy(result, git, copy):
+        return
+    stage = read_stage_or_none(copy, result)
+    if stage is not None and stage not in GATE_STAGES:
+        result.fail("E-PUSH-NOT-REIMPLEMENTED", R.STAGE_FILE.as_posix(), f"the stage is {stage}; it must be {' or '.join(GATE_STAGES)}")
+    for e in R.read_toml(copy / R.TOUCHED_FILE).get("entry", []):
+        if site_still_stub(copy, e):
+            result.fail("E-STUB-REMAINS", f"{e['file']}::{e['function']}", "the function is still a stand-in")
+    found = read_results_safe(copy)
+    for language in sorted(found.missing):
+        result.fail("E-NOT-GREEN", language, "no result file: an unknown is not green")
+    outcomes = all_outcomes(found)
+    bad = sorted(t for t, o in outcomes.items() if o != R.PASSED) + sorted(found.file_failures)
+    for test in bad[:MAX_NAMED_TESTS]:
+        result.fail("E-NOT-GREEN", test, "this test does not pass")
+    if len(bad) > MAX_NAMED_TESTS:
+        result.fail("E-NOT-GREEN", "suite", f"and {len(bad) - MAX_NAMED_TESTS} more failing")
+    if not outcomes and not found.missing:
+        result.fail("E-NOT-GREEN", "suite", "the last suite report holds no test result: an unknown is not green")
+    if fetch(result, git, copy):
+        counts = ahead_behind(git, copy, base)
+        if counts is None:
+            result.fail("E-WT-BASE-UNKNOWN", base, "not a known reference in the working copy")
+        elif counts[1] > 0:
+            result.fail("E-BEHIND-MAIN", base, f"the working copy lacks {counts[1]} commit(s) of {base}: sync first")
+
+
+def site_still_stub(root: Path, entry: dict) -> bool:
+    """Whether a touched function is a hand-written stand-in (the stub detector of check-stubs); a function that is gone is not one."""
+    path = root / entry["file"]
+    try:
+        return path.exists() and R.is_stub(entry["language"], path.read_text(), entry["function"]) is True
+    except (SyntaxError, UnicodeDecodeError):
+        return False         # code that does not parse is not a stand-in; its tests are red, which is reported where it matters
 
 
 def epic_worktree(root: Path, action: str, path: Path | None, base: str, git: GitRunner = run_git) -> Result:
-    raise NotImplementedError("skeleton")
+    """create, status, sync and can-push for the one detached working copy. Nothing here creates a branch or sends anything out."""
+    result = Result()
+    chosen = path or recorded_path(root) or DEFAULT_WORKTREE
+    copy = chosen if chosen.is_absolute() else root / chosen
+    try:
+        if action == "create":
+            worktree_create(result, root, copy, base, git)
+        elif action == "status":
+            worktree_status(result, copy, base, git)
+        elif action == "sync":
+            worktree_sync(result, copy, base, git)
+        elif action == "can-push":
+            worktree_gate(result, copy, base, git)
+        else:
+            result.fail("E-WT-ACTION", action, f"actions: {', '.join(WORKTREE_ACTIONS)}")
+        result.data["path"] = str(copy)
+        if is_working_copy(git, copy):
+            result.data["head"] = commit_of(git, copy)
+    except FileNotFoundError as exc:
+        result.error("E-TOOL-MISSING", "git", f"cannot run {exc.filename or 'git'}")
+    R.write_report(root, "epic-worktree", result)
+    return result
 
 
 @dataclass
