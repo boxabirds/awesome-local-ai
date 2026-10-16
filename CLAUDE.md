@@ -76,6 +76,19 @@ Why: the owner works on main only. During the 30 September 2026 history rewrite 
 
 Unless there's good reason, use Rust as the language to build. It's more efficient, tractable, provably eliminates entire classes of bugs, and runs faster. Only when compile times or tech stacks become a problem should other languages be considered.
 
+### Python only when it is necessary
+
+Do not write new Python. It is allowed only where it is **necessary**:
+
+- the change is inside an existing Python program that cannot be avoided (a bug fix, a test or a small edit in the harness's or the tools' own Python modules stays in Python; this rule does not order a rewrite of the existing code, which is a separate decision), or
+- there is no Rust way to do the job (a needed library or a tool that only exists in Python).
+
+Convenience is not necessity. A new module, a new tool or a new library is Rust. A Python program that needs something Rust code knows runs the Rust command and reads its output (JSON); it does not get a second implementation of the same behaviour. Two implementations of one behaviour are never built, because they drift and then need a test suite just to stay equal.
+
+Agents and subagents follow the same rule. A brief that asks for Python states why it is necessary; if it cannot, the work is Rust.
+
+Why: the owner, 16 Oct 2026: "Python only when necessary. it's a resource hungry language that is easy to make mistakes in. Its NOT a good agentic language." The case that prompted it: the shared lake reader (story 21) was designed as a Rust crate plus a Python mirror because some callers are Python. The Python mirror was built (281 tests, a 50-check agreement test, a 2 MB reference file), and building it found three behaviours where it differed from the Rust crate. The owner dropped it the same day; the Python callers run the `bench-lake` command.
+
 ## Refactor DELETE FIRST
 
 Refactoring breaks things easily, so all refactoring in this repository follows three steps, in order:
