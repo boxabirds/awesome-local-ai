@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import difflib
 import fnmatch
 import functools
 import hashlib
@@ -867,17 +868,230 @@ def check_cuts(root: Path, strict: bool = False, base: Callable[[str], str | Non
 
 
 
-def check_stubs(root: Path) -> Result:
-    """Every function in the touched set has been replaced by hand with a stub of the exact form for its language."""
+DEFAULT_BASE_REV = "HEAD"                   # the revision a deletion started from: the working tree holds the deletion, uncommitted
+STAND_IN_FORMS = {                          # the stand-in of a cut, by language; %s is the cut's id
+    "python": 'raise NotImplementedError("%s")',
+    "rust": 'unimplemented!("%s");',
+    "typescript": 'throw new Error("not implemented: %s");',
+}
+
+
+def stand_in_text(language: str, function: str, cid: str) -> str:
+    if language == "shell":
+        return f"exit {SHELL_STUB_CODE}" if function == SCRIPT_LEVEL else f"return {SHELL_STUB_CODE}"       # a shell stand-in cannot carry the id
+    return STAND_IN_FORMS[language] % cid
+
+
+def stand_in_pattern(language: str, function: str, cid: str) -> re.Pattern:
+    """What a line must be (stripped) to be the stand-in of one cut: the form of its language, carrying the cut's id."""
+    esc = re.escape(cid)
+    if language == "shell":
+        return re.compile(rf"^{'exit' if function == SCRIPT_LEVEL else 'return'}\s+{SHELL_STUB_CODE}\s*;?$")
+    return re.compile({
+        "python": rf"""^raise NotImplementedError\((["']){esc}\1\)$""",
+        "rust": rf"""^(?:unimplemented|todo)!\("{esc}"\);?$""",
+        "typescript": rf"""^throw new Error\((["'`])not implemented: {esc}\1\);?$""",
+    }[language])
+
+
+def meaningful(language: str, line: str) -> str | None:
+    """The line as compared when a function is matched with its base: None for a blank line or a comment."""
+    stripped = line.strip()
+    if not stripped or stripped.startswith(COMMENT_STARTS[language]) or stripped == "*":
+        return None
+    return line.rstrip()
+
+
+@dataclass
+class StandIn:
+    cut: ResolvedCut
+    indent: str                            # the indentation of the cut's first line, which its stand-in takes
+    text: list[str]                        # the cut's own lines, as compared (to tell "still there" from "replaced by something else")
+
+
+def deleted_items(language: str, text: str, in_function: set[int], cuts: list[ResolvedCut]) -> list[str | StandIn]:
+    """The function's lines in order, each cut's span replaced by one StandIn."""
+    file_lines = text.splitlines()
+    starts = {c.span[0]: c for c in cuts}
+    skipped = set().union(*(span_lines(c.span) for c in cuts)) if cuts else set()
+    items: list[str | StandIn] = []
+    for n in sorted(in_function):
+        if n in starts:
+            first = file_lines[n - 1]
+            own = [m for m in (meaningful(language, file_lines[k - 1]) for k in sorted(span_lines(starts[n].span))) if m is not None]
+            items.append(StandIn(starts[n], first[: len(first) - len(first.lstrip())], own))
+        elif n not in skipped:
+            items.append(file_lines[n - 1])
+    return items
+
+
+def match_deleted(language: str, items: list[str | StandIn], current: list[str]) -> list[tuple[list[StandIn], list[str]]] | None:
+    """Match the current function (as meaningful lines) with the base-with-stand-ins: the kept lines exactly, and in place of each
+    run of stand-ins whatever lies between the kept lines around it. [(the run, the lines found there)] in order, or None when the
+    kept lines do not line up, that is when the function differs from its base outside the cuts."""
+    tokens: list[tuple[str, list]] = []
+    for item in items:
+        if isinstance(item, StandIn):
+            if tokens and tokens[-1][0] == "stand":
+                tokens[-1][1].append(item)
+            else:
+                tokens.append(("stand", [item]))
+        else:
+            line = meaningful(language, item)
+            if line is not None:
+                if tokens and tokens[-1][0] == "keep":
+                    tokens[-1][1].append(line)
+                else:
+                    tokens.append(("keep", [line]))
+    memo: dict[tuple[int, int], list[tuple[list[StandIn], list[str]]] | None] = {}
+
+    def solve(ti: int, pos: int) -> list[tuple[list[StandIn], list[str]]] | None:
+        if (ti, pos) in memo:
+            return memo[(ti, pos)]
+        found: list[tuple[list[StandIn], list[str]]] | None = None
+        if ti == len(tokens):
+            found = [] if pos == len(current) else None
+        elif tokens[ti][0] == "keep":
+            kept = tokens[ti][1]
+            found = solve(ti + 1, pos + len(kept)) if current[pos:pos + len(kept)] == kept else None
+        else:
+            run = tokens[ti][1]
+            following = tokens[ti + 1][1] if ti + 1 < len(tokens) else None      # a run is followed by kept lines, or ends the function
+            ends = [len(current)] if following is None else [k for k in range(pos, len(current) + 1) if current[k:k + len(following)] == following]
+            for k in sorted(ends, key=lambda k: (abs(k - pos - len(run)), k)):     # a region of the expected length first
+                rest = solve(ti + 1, k)
+                if rest is not None:
+                    found = [(run, current[pos:k]), *rest]
+                    break
+        memo[(ti, pos)] = found
+        return found
+
+    return solve(0, 0)
+
+
+def stand_in_problems(e: dict, matched: list[tuple[list[StandIn], list[str]]]) -> list[Problem]:
+    """E-CUT-NOT-REPLACED where a cut's own text is still there, E-CUT-STAND-IN-WRONG where what stands in its place is not its
+    stand-in (nothing, another form, another id, a wrong indentation, or a second one)."""
+    problems: list[Problem] = []
+    for run, found in matched:
+        exact = len(found) == len(run)
+        for i, stand in enumerate(run):
+            cid = stand.cut.id
+            line = found[i] if exact else None
+            ok = line is not None and line[: len(stand.indent)] == stand.indent and not line[len(stand.indent):][:1].isspace() \
+                and bool(stand_in_pattern(e["language"], e["function"], cid).match(line.strip()))
+            if ok:
+                continue
+            if stand.text and stand.text[0] in found:
+                problems.append(Problem("E-CUT-NOT-REPLACED", cid, "the cut's own statements are still in the function"))
+            else:
+                expected = stand.indent + stand_in_text(e["language"], e["function"], cid)
+                problems.append(Problem("E-CUT-STAND-IN-WRONG", cid, f"expected exactly one statement here: {expected.strip()!r}"))
+    return problems
+
+
+def first_difference(expected: list[str], current: list[str]) -> str:
+    """A short quote of where two lists of lines first differ, for the collateral problem."""
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, expected, current, autojunk=False).get_opcodes():
+        if tag != "equal":
+            return f"expected {expected[i1:i2][:DIFF_SNIPPET_LINES]!r}, found {current[j1:j2][:DIFF_SNIPPET_LINES]!r}"
+    return "the line counts differ"
+
+
+def check_cut_entry(root: Path, e: dict, read_base: Callable[[str], str | None], result: Result) -> None:
+    """One cut entry: the current function is the BASE function with each cut replaced by one stand-in, and nothing else changed."""
+    subject, language = entry_subject(e), e["language"]
+    current_text = (root / e["file"]).read_text() if (root / e["file"]).exists() else None
+    base_text = read_base(e["file"])
+    if current_text is None or base_text is None:
+        result.fail("E-STALE-ENTRY", subject, "no such file" + ("" if base_text is not None else " in the base revision"))
+        return
+    try:
+        base_lines = lines_in_text(language, base_text, e["function"])
+    except SyntaxError as exc:
+        raise BaseUnreadable(f"{e['file']} does not parse in the base revision: {exc.msg}") from exc
+    if base_lines is None:
+        result.fail("E-STALE-ENTRY", subject, "no such function in the base revision")
+        return
+    cuts, problems = resolve_cuts(e, base_text, base_lines)
+    if problems:
+        for p in problems:
+            result.fail(p.code, p.subject, p.detail)
+        return
+    try:
+        current_lines = lines_in_text(language, current_text, e["function"])
+    except SyntaxError as exc:
+        result.fail("E-CUT-COLLATERAL", subject, f"the file does not parse: {exc.msg}")
+        return
+    if current_lines is None:
+        result.fail("E-STALE-ENTRY", subject, "no such function in the file")
+        return
+    items = deleted_items(language, base_text, base_lines, cuts)
+    file_lines = current_text.splitlines()
+    current = [m for m in (meaningful(language, file_lines[n - 1]) for n in sorted(current_lines)) if m is not None]
+    matched = match_deleted(language, items, current)
+    if matched is None:
+        expected = [m for m in (meaningful(language, i.indent + stand_in_text(language, e["function"], i.cut.id) if isinstance(i, StandIn) else i) for i in items) if m is not None]
+        result.fail("E-CUT-COLLATERAL", subject, f"differs from the base version outside the cut spans: {first_difference(expected, current)}")
+        return
+    for p in stand_in_problems(e, matched):
+        result.fail(p.code, p.subject, p.detail)
+
+
+def apply_cuts(root: Path, base: Callable[[str], str | None] | None = None) -> Result:
+    """Dry run only: for each entry with cuts, the BASE function with a stand-in in place of each cut. Never writes anything but its
+    report; the deletion itself is made by hand in the working tree."""
     result = Result()
-    for e in read_toml(root / TOUCHED_FILE).get("entry", []):
-        subject = f"{e['file']}::{e['function']}"
-        path = root / e["file"]
-        verdict = is_stub(e["language"], path.read_text(), e["function"]) if path.exists() else None
-        if verdict is None:
-            result.fail("E-STALE-ENTRY", subject, "no such function in the file")
-        elif not verdict:
-            result.fail("E-NOT-STUB", subject, "the body is not exactly a stub")
+    read = base or git_show_reader(root, DEFAULT_BASE_REV)
+    printed: dict[str, str] = {}
+    try:
+        for e in read_toml(root / TOUCHED_FILE).get("entry", []):
+            if entry_kind(e) != KIND_CUT:
+                continue
+            subject, text = entry_subject(e), read(e["file"])
+            in_function = lines_in_text(e["language"], text, e["function"]) if text is not None else None
+            if in_function is None:
+                result.fail("E-STALE-ENTRY", subject, "no such function in the base revision")
+                continue
+            cuts, problems = resolve_cuts(e, text, in_function)
+            for p in problems:
+                result.fail(p.code, p.subject, p.detail)
+            if not problems:
+                printed[subject] = "".join(
+                    f"{i.indent}{stand_in_text(e['language'], e['function'], i.cut.id)}\n" if isinstance(i, StandIn) else f"{i}\n"
+                    for i in deleted_items(e["language"], text, in_function, cuts))
+    except BaseUnreadable as exc:
+        result.error("E-BASE-UNREADABLE", "base", str(exc))
+    result.data = {"entries": printed}
+    write_report(root, "apply-cuts", result)
+    return result
+
+
+def check_stubs(root: Path, base: Callable[[str], str | None] | None = None) -> Result:
+    """Every function in the touched set has been replaced by hand with a stub of the exact form for its language; for an entry with
+    cuts, only each cut has been replaced, by the stand-in of its language. `base` reads a file as it was before the deletion
+    (default: `git show HEAD:FILE`; the working tree holds the deletion, uncommitted)."""
+    result = Result()
+    read = base or git_show_reader(root, DEFAULT_BASE_REV)
+    try:
+        for e in read_toml(root / TOUCHED_FILE).get("entry", []):
+            subject = entry_subject(e)
+            kind = entry_kind(e)
+            if kind == KIND_CONFLICT:
+                result.fail("E-CUT-WHOLE-AND-CUT", subject, "`whole = true` and a non-empty `cut` together: choose one")
+            elif kind == KIND_CUT:
+                check_cut_entry(root, e, read, result)
+            elif kind == KIND_NONE:
+                continue
+            else:
+                path = root / e["file"]
+                verdict = is_stub(e["language"], path.read_text(), e["function"]) if path.exists() else None
+                if verdict is None:
+                    result.fail("E-STALE-ENTRY", subject, "no such function in the file")
+                elif not verdict:
+                    result.fail("E-NOT-STUB", subject, "the body is not exactly a stub")
+    except BaseUnreadable as exc:
+        result.error("E-BASE-UNREADABLE", "base", str(exc))
     write_report(root, "stubs", result)
     return result
 
@@ -886,9 +1100,9 @@ def assigned_tests(root: Path) -> set[str]:
     return {t for tests in read_toml(root / ASSIGNMENTS_FILE).get("assignments", {}).values() for t in tests}
 
 
-def report_deletion(root: Path, results: Results) -> Result:
+def report_deletion(root: Path, results: Results, base: Callable[[str], str | None] | None = None) -> Result:
     """Against the stubs every assigned test must fail for the stub's reason, and every test outside the set must not fail."""
-    stubs = check_stubs(root)
+    stubs = check_stubs(root, base)
     if stubs.exit_code != EXIT_OK:
         write_report(root, "deletion", stubs)
         return stubs
@@ -2241,7 +2455,7 @@ def audit_run(root: Path, number: int, grep=git_grep, snapshot=tree_snapshot) ->
 
 
 RECONCILING_COMMANDS = ("stage", "report-deletion", "check-stubs", "check-coverage")      # these read the stage, so they check it against the set first
-SCOPED_COMMANDS = ("check-cuts", "check-stubs", "report-deletion", "check-coverage", "stage", "check-touched-set")    # the ones that act on the whole list
+SCOPED_COMMANDS = ("check-cuts", "apply-cuts", "check-stubs", "report-deletion", "check-coverage", "stage", "check-touched-set")    # the ones that act on the whole list
 
 
 def scope_line(root: Path) -> str:
@@ -2274,6 +2488,12 @@ def main(argv: list[str] | None = None) -> int:
                           description="the cut / whole data of the whole touched set is well formed (anchors, spans, why)")
     cuts.add_argument("--strict", action="store_true", help="also refuse an entry that says neither `whole` nor `cut`")
     cuts.add_argument("--base", metavar="REV", help="read the anchors from this revision of each file (default: the working tree)")
+    sub.choices["check-stubs"].add_argument("--base", metavar="REV", help=f"the revision the deletion started from (default: {DEFAULT_BASE_REV})")
+    sub.choices["report-deletion"].add_argument("--base", metavar="REV", help=f"the revision the deletion started from (default: {DEFAULT_BASE_REV})")
+    apply = sub.add_parser("apply-cuts", help="print each cut entry's function with a stand-in in place of every cut (never writes production code)",
+                           description="print each cut entry's function with a stand-in in place of every cut (never writes production code)")
+    apply.add_argument("--dry-run", action="store_true", help="required: the deleted form is only ever printed")
+    apply.add_argument("--base", metavar="REV", help=f"the revision the cuts are read from (default: {DEFAULT_BASE_REV})")
     sub.choices["check-coverage"].add_argument("--language", choices=LANGUAGES, action="append", help="measure only this language (repeatable)")
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("stage", help="print the epic's stage; with a stage name, move the whole touched set to it if its justifying check passes",
@@ -2284,10 +2504,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     root = args.root
     lister = Universe()
+    base_reader = git_show_reader(root, args.base) if getattr(args, "base", None) else None
     simple = {
         "check-register": lambda: check_register(root, lister),
         "check-touched-set": lambda: check_touched(root),
-        "check-stubs": lambda: check_stubs(root),
+        "check-stubs": lambda: check_stubs(root, base_reader),
         "fates": lambda: merged(check_fates(root), check_contracts(root, read_results(root))),
         "check-coverage": lambda: check_coverage(root, languages=set(args.language) if args.language else None),
         "audit-check": lambda: check_audit(root, require_final=args.require_final),
@@ -2320,9 +2541,16 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "check-matrix":
             result = check_matrix(root, args.use_case, lister)
         elif args.command == "check-cuts":
-            result = check_cuts(root, strict=args.strict, base=git_show_reader(root, args.base) if args.base else None)
+            result = check_cuts(root, strict=args.strict, base=base_reader)
+        elif args.command == "apply-cuts":
+            if not args.dry_run:
+                print("apply-cuts: only --dry-run is supported; the deletion is made by hand in the working tree")
+                return EXIT_ERROR
+            result = apply_cuts(root, base_reader)
+            for subject, text in result.data["entries"].items():
+                print(f"--- {subject}\n{text}", end="")
         elif args.command == "report-deletion":
-            result = report_deletion(root, read_results(root))
+            result = report_deletion(root, read_results(root), base_reader)
         elif args.command == "audit-run":
             result = audit_run(root, args.number)
         elif args.command == "guard-idle":

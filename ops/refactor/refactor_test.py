@@ -3886,3 +3886,291 @@ def test_cov_a_rust_cut_entry_owes_its_lines_and_the_branches_on_them(tmp_path):
     bad = coverage_result(tmp_path / "b", cut_entry("pull", body, "rust", "src/p.rs"), {"src/p.rs": RS_CUT},
                           rust={"src/p.rs": lines(hits, [(5, "0:0", True), (5, "0:1", False)])})
     assert [(p.code, p.detail) for p in bad.problems] == [("E-BELOW", "1 of 2 branches (5->1)")]
+
+
+# Step 3: check-stubs compares a cut entry with the BASE version of the function, each cut span replaced by one stand-in;
+# apply-cuts --dry-run prints that form.
+
+PY_ID1 = "refactor-cut:src/p.py::publish#1"
+PY_DELETED = CUT_PY.replace(
+    "    result = subprocess.run(\n        [\"git\", \"add\", path],\n        check=False,\n    )\n",
+    f"    raise NotImplementedError(\"{PY_ID1}\")\n")
+GUARDED = GIT_CUT + USE_RESULT + GUARD_RESULT
+
+
+def stubs_of(tmp_path: Path, body: str, base_source: str, current: str, head: str = "", **kw) -> R.Result:
+    root = cuts_root(tmp_path, body, current, head=head, **kw)
+    return R.check_stubs(root, base=lambda file: base_source if file == kw.get("file", "src/p.py") else None)
+
+
+def stub_problems(result: R.Result) -> list[tuple[str, str]]:
+    return [(p.code, p.subject) for p in result.problems]
+
+
+def test_stubs_a_cut_replaced_by_exactly_one_stand_in_passes_when_everything_else_is_the_base(tmp_path):
+    result = stubs_of(tmp_path, GUARDED, CUT_PY, PY_DELETED)
+    assert result.exit_code == R.EXIT_OK and result.problems == []
+
+
+def test_stubs_blank_lines_and_comments_are_ignored_on_both_sides(tmp_path):
+    current = PY_DELETED.replace("    path = run_path(run)\n", "\n    # kept for the new design\n    path = run_path(run)\n\n")
+    assert R.check_stubs(cuts_root(tmp_path, GUARDED, current), base=lambda f: CUT_PY.replace("    count =", "    # the count\n    count =")).exit_code == R.EXIT_OK
+
+
+def test_stubs_a_cut_still_in_place_is_not_replaced(tmp_path):
+    assert stub_problems(stubs_of(tmp_path, GUARDED, CUT_PY, CUT_PY)) == [("E-CUT-NOT-REPLACED", PY_ID1)]
+
+
+def test_stubs_a_stand_in_added_beside_the_cuts_own_statements_is_not_a_replacement(tmp_path):
+    base = "def f(x):\n    a = load(x)\n    b = a + 1\n    use(b)\n"
+    current = "def f(x):\n    raise NotImplementedError(\"refactor-cut:src/p.py::f#1\")\n    a = load(x)\n    use(b)\n"
+    assert stub_problems(stubs_of(tmp_path, cut_toml("a = load(x)", lines=2), base, current, function="f")) == [("E-CUT-NOT-REPLACED", "refactor-cut:src/p.py::f#1")]
+
+
+@pytest.mark.parametrize("stand_in", [
+    "    pass\n",                                                                    # not a stand-in at all
+    "    raise NotImplementedError(\"deleted\")\n",                                   # a stand-in without the cut's id
+    "    raise NotImplementedError(\"refactor-cut:src/p.py::publish#2\")\n",          # another cut's id
+    f"    raise ValueError(\"{PY_ID1}\")\n",                                           # wrong exception
+    "",                                                                              # no stand-in: the cut was just removed
+])
+def test_stubs_a_replacement_that_is_not_the_cuts_stand_in_is_wrong(tmp_path, stand_in):
+    current = CUT_PY.replace("    result = subprocess.run(\n        [\"git\", \"add\", path],\n        check=False,\n    )\n", stand_in)
+    assert stub_problems(stubs_of(tmp_path, GUARDED, CUT_PY, current)) == [("E-CUT-STAND-IN-WRONG", PY_ID1)]
+
+
+def test_stubs_two_stand_ins_for_one_cut_are_wrong(tmp_path):
+    current = PY_DELETED.replace(f"    raise NotImplementedError(\"{PY_ID1}\")\n", f"    raise NotImplementedError(\"{PY_ID1}\")\n    raise NotImplementedError(\"{PY_ID1}\")\n")
+    assert stub_problems(stubs_of(tmp_path, GUARDED, CUT_PY, current)) == [("E-CUT-STAND-IN-WRONG", PY_ID1)]
+
+
+@pytest.mark.parametrize("old,new", [
+    ("    count = len(result.stdout)\n", "    count = 0\n"),                         # a use changed
+    ("    if result.returncode != 0:\n", "    if result.returncode:\n"),             # a guard changed
+    ("        return None\n", ""),                                                  # a statement removed
+    ("    return count\n", "    log(count)\n    return count\n"),                    # a statement added
+    ("    path = run_path(run)\n", "    path = run_path(repo)\n"),                  # a statement outside every span
+])
+def test_stubs_a_difference_from_the_base_outside_the_cut_spans_is_collateral(tmp_path, old, new):
+    current = PY_DELETED.replace(old, new)
+    assert current != PY_DELETED
+    result = stubs_of(tmp_path, GUARDED, CUT_PY, current)
+    assert stub_problems(result) == [("E-CUT-COLLATERAL", "src/p.py::publish")]
+
+
+def test_stubs_a_change_in_another_function_of_the_file_is_not_this_functions_business(tmp_path):
+    assert stubs_of(tmp_path, GUARDED, CUT_PY, PY_DELETED.replace("    count = len(x)\n", "    count = 7\n")).exit_code == R.EXIT_OK
+
+
+PY_TWO = ("def publish(repo, run):\n    a = fetch(repo)\n    b = push(repo)\n    keep(a, b)\n    return a\n")
+TWO_CUTS = cut_toml("a = fetch(repo)") + cut_toml("b = push(repo)")
+
+
+def two_cut_text(first: str, second: str) -> str:
+    return f"def publish(repo, run):\n    {first}\n    {second}\n    keep(a, b)\n    return a\n"
+
+
+def test_stubs_two_adjacent_cuts_have_a_stand_in_each_in_order(tmp_path):
+    one = "raise NotImplementedError(\"refactor-cut:src/p.py::publish#1\")"
+    two = "raise NotImplementedError(\"refactor-cut:src/p.py::publish#2\")"
+    assert stubs_of(tmp_path / "ok", TWO_CUTS, PY_TWO, two_cut_text(one, two)).exit_code == R.EXIT_OK
+    swapped = stubs_of(tmp_path / "swapped", TWO_CUTS, PY_TWO, two_cut_text(two, one))
+    assert stub_problems(swapped) == [("E-CUT-STAND-IN-WRONG", "refactor-cut:src/p.py::publish#1"), ("E-CUT-STAND-IN-WRONG", "refactor-cut:src/p.py::publish#2")]
+    first_only = stubs_of(tmp_path / "half", TWO_CUTS, PY_TWO, two_cut_text(one, "b = push(repo)"))
+    assert stub_problems(first_only) == [("E-CUT-NOT-REPLACED", "refactor-cut:src/p.py::publish#2")]
+
+
+def test_stubs_a_cut_at_the_end_of_a_function_and_one_at_the_start(tmp_path):
+    base = "def f(x):\n    a = load(x)\n    use(a)\n    save(a)\n"
+    body = cut_toml("a = load(x)") + cut_toml("save(a)")
+    current = ("def f(x):\n    raise NotImplementedError(\"refactor-cut:src/p.py::f#1\")\n    use(a)\n"
+               "    raise NotImplementedError(\"refactor-cut:src/p.py::f#2\")\n")
+    assert stubs_of(tmp_path, body, base, current, function="f").exit_code == R.EXIT_OK
+
+
+def test_stubs_the_anchors_are_read_from_the_base_so_a_deleted_tree_still_resolves(tmp_path):
+    result = stubs_of(tmp_path, cut_toml("result = subprocess.popen("), CUT_PY, PY_DELETED)
+    assert stub_problems(result) == [("E-CUT-ANCHOR-MISSING", PY_ID1)]
+
+
+def test_stubs_a_function_gone_from_the_file_or_from_the_base_is_stale(tmp_path):
+    assert stub_problems(stubs_of(tmp_path / "a", GUARDED, CUT_PY, "def other():\n    return 1\n")) == [("E-STALE-ENTRY", "src/p.py::publish")]
+    assert stub_problems(stubs_of(tmp_path / "b", GUARDED, "def other():\n    return 1\n", PY_DELETED)) == [("E-STALE-ENTRY", "src/p.py::publish")]
+
+
+def test_stubs_a_file_missing_from_the_base_is_stale(tmp_path):
+    root = cuts_root(tmp_path, GUARDED, PY_DELETED)
+    assert stub_problems(R.check_stubs(root, base=lambda file: None)) == [("E-STALE-ENTRY", "src/p.py::publish")]
+
+
+def test_stubs_whole_entries_keep_the_old_rule_beside_cut_entries(tmp_path):
+    touched = (cut_entry(body=GUARDED) + entry("python", "src/w.py", "gone", '"B"', "whole = true\n"))
+    root = make_root(tmp_path, touched=touched)
+    write(root, "src/p.py", PY_DELETED)
+    write(root, "src/w.py", "def gone():\n    raise NotImplementedError(\"deleted\")\n")
+    assert R.check_stubs(root, base=lambda f: CUT_PY).exit_code == R.EXIT_OK
+    write(root, "src/w.py", "def gone():\n    return 1\n")
+    assert stub_problems(R.check_stubs(root, base=lambda f: CUT_PY)) == [("E-NOT-STUB", "src/w.py::gone")]
+
+
+def test_stubs_an_entry_that_says_neither_is_still_a_whole_stub_check(tmp_path):
+    root = make_root(tmp_path, touched=cut_entry(body=""))
+    write(root, "src/p.py", "def publish(repo, run):\n    raise NotImplementedError()\n")
+    assert R.check_stubs(root).exit_code == R.EXIT_OK
+
+
+def test_stubs_an_entry_with_an_empty_cut_list_owes_no_stand_in(tmp_path):
+    root = make_root(tmp_path, touched=cut_entry(head="cut = []\n"))
+    write(root, "src/p.py", CUT_PY)
+    assert R.check_stubs(root, base=lambda f: CUT_PY).exit_code == R.EXIT_OK
+
+
+def test_stubs_whole_and_cut_together_are_refused(tmp_path):
+    result = stubs_of(tmp_path, GIT_CUT, CUT_PY, PY_DELETED, head="whole = true\n")
+    assert stub_problems(result) == [("E-CUT-WHOLE-AND-CUT", "src/p.py::publish")]
+
+
+def test_stubs_a_current_file_that_does_not_parse_is_collateral_not_a_traceback(tmp_path):
+    result = stubs_of(tmp_path, GUARDED, CUT_PY, PY_DELETED + "def broken(:\n")
+    assert stub_problems(result) == [("E-CUT-COLLATERAL", "src/p.py::publish")]
+
+
+RS_ID = "refactor-cut:src/p.rs::pull#1"
+RS_BODY = cut_toml("let out = Command::new(\"git\")", lines=3) + span_toml("guards", "if out.is_err() {")
+
+
+def rs_deleted(stand_in: str) -> str:
+    return RS_CUT.replace("    let out = Command::new(\"git\")\n        .args([\"fetch\"])\n        .status();\n", f"    {stand_in}\n")
+
+
+@pytest.mark.parametrize("stand_in", [f'unimplemented!("{RS_ID}");', f'todo!("{RS_ID}");', f'todo!("{RS_ID}")'])
+def test_stubs_rust_stand_ins_carry_the_id(tmp_path, stand_in):
+    assert stubs_of(tmp_path, RS_BODY, RS_CUT, rs_deleted(stand_in), language="rust", file="src/p.rs", function="pull").exit_code == R.EXIT_OK
+
+
+@pytest.mark.parametrize("stand_in", ["todo!();", 'unimplemented!("deleted");', f'panic!("{RS_ID}");', f'    unimplemented!("{RS_ID}");'])      # the last: wrong indentation
+def test_stubs_a_rust_stand_in_without_the_id_or_of_another_form_is_wrong(tmp_path, stand_in):
+    result = stubs_of(tmp_path, RS_BODY, RS_CUT, rs_deleted(stand_in), language="rust", file="src/p.rs", function="pull")
+    assert stub_problems(result) == [("E-CUT-STAND-IN-WRONG", RS_ID)]
+
+
+TS_CUT = ('export function load(rev: string): string {\n'                     # 1
+          '  const out = spawn("git", ["show", rev])\n'                        # 2
+          '  if (out.status !== 0) {\n'                                         # 3
+          '    return ""\n'                                                     # 4
+          '  }\n'                                                               # 5
+          '  return out.stdout.trim()\n'                                        # 6
+          '}\n')
+TS_ID = "refactor-cut:src/p.ts::load#1"
+TS_BODY = cut_toml('const out = spawn("git", ["show", rev])') + span_toml("guards", "if (out.status !== 0) {") + span_toml("uses", "return out.stdout.trim()")
+
+
+def ts_deleted(stand_in: str) -> str:
+    return TS_CUT.replace('  const out = spawn("git", ["show", rev])\n', f"  {stand_in}\n")
+
+
+def test_stubs_typescript_stand_in_carries_the_id(tmp_path):
+    ok = stubs_of(tmp_path / "a", TS_BODY, TS_CUT, ts_deleted(f'throw new Error("not implemented: {TS_ID}");'), language="typescript", file="src/p.ts", function="load")
+    assert ok.exit_code == R.EXIT_OK
+    bad = stubs_of(tmp_path / "b", TS_BODY, TS_CUT, ts_deleted('throw new Error("deleted");'), language="typescript", file="src/p.ts", function="load")
+    assert stub_problems(bad) == [("E-CUT-STAND-IN-WRONG", TS_ID)]
+    missing = stubs_of(tmp_path / "c", TS_BODY, TS_CUT, TS_CUT, language="typescript", file="src/p.ts", function="load")
+    assert stub_problems(missing) == [("E-CUT-NOT-REPLACED", TS_ID)]
+
+
+SH_FN = 'sync() {\n  local run="$1"\n  git add "runs/$run"\n  git commit -m "run $run"\n  echo "done $run"\n}\n'
+SH_BODY = cut_toml('git add "runs/$run"') + cut_toml('git commit -m "run $run"')
+
+
+def test_stubs_a_shell_function_cut_is_replaced_by_return_99_each(tmp_path):
+    ok = SH_FN.replace('  git add "runs/$run"\n  git commit -m "run $run"\n', "  return 99\n  return 99\n")
+    assert stubs_of(tmp_path / "a", SH_BODY, SH_FN, ok, language="shell", file="src/p.sh", function="sync").exit_code == R.EXIT_OK
+    wrong = SH_FN.replace('  git add "runs/$run"\n  git commit -m "run $run"\n', "  return 98\n  return 99\n")
+    result = stubs_of(tmp_path / "b", SH_BODY, SH_FN, wrong, language="shell", file="src/p.sh", function="sync")
+    assert stub_problems(result) == [("E-CUT-STAND-IN-WRONG", "refactor-cut:src/p.sh::sync#1")]
+
+
+SH_SCRIPT = '#!/usr/bin/env bash\nrun="$1"\ngit add "runs/$run"\necho done\n'
+
+
+def test_stubs_a_cut_at_script_level_is_exit_99(tmp_path):
+    body = cut_toml('git add "runs/$run"')
+    kw = dict(language="shell", file="src/p.sh", function="<script>")
+    ok = stubs_of(tmp_path / "a", body, SH_SCRIPT, SH_SCRIPT.replace('git add "runs/$run"', "exit 99"), **kw)
+    assert ok.exit_code == R.EXIT_OK
+    wrong = stubs_of(tmp_path / "b", body, SH_SCRIPT, SH_SCRIPT.replace('git add "runs/$run"', "return 99"), **kw)
+    assert stub_problems(wrong) == [("E-CUT-STAND-IN-WRONG", "refactor-cut:src/p.sh::<script>#1")]
+
+
+def test_stubs_a_base_that_cannot_be_read_is_undecided(tmp_path):
+    root = cuts_root(tmp_path, GUARDED, PY_DELETED)           # no git repository here
+    result = R.check_stubs(root)
+    assert result.exit_code == R.EXIT_ERROR and [p.code for p in result.problems] == ["E-BASE-UNREADABLE"]
+
+
+GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com",
+           "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+
+
+def git_in(root: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True, env={**os.environ, **GIT_ENV})
+
+
+def test_stubs_the_base_is_head_by_default_and_the_deletion_is_uncommitted_in_the_working_tree(tmp_path):
+    root = cuts_root(tmp_path, GUARDED, CUT_PY)
+    git_in(root, "init", "-q")
+    git_in(root, "add", "src/p.py", "ops/refactor/touched_set.toml")
+    git_in(root, "commit", "-q", "-m", "base")
+    assert stub_problems(R.check_stubs(root)) == [("E-CUT-NOT-REPLACED", PY_ID1)]                 # nothing deleted yet
+    (root / "src/p.py").write_text(PY_DELETED)
+    assert R.check_stubs(root).exit_code == R.EXIT_OK
+    assert cli(root, "check-stubs") == R.EXIT_OK and cli(root, "check-stubs", "--base", "HEAD") == R.EXIT_OK
+    assert cli(root, "check-stubs", "--base", "no-such-rev") == R.EXIT_ERROR
+
+
+def apply_text(result: R.Result) -> dict[str, str]:
+    return result.data["entries"]
+
+
+def test_apply_cuts_prints_the_function_with_a_stand_in_for_each_cut(tmp_path):
+    root = cuts_root(tmp_path, GUARDED, CUT_PY)
+    result = R.apply_cuts(root, base=lambda f: CUT_PY)
+    assert result.exit_code == R.EXIT_OK
+    expected = PY_DELETED.split("\n\n\n")[0] + "\n"
+    assert apply_text(result) == {"src/p.py::publish": expected}
+
+
+def test_apply_cuts_output_is_what_check_stubs_accepts_in_every_language(tmp_path):
+    cases = [("python", "src/p.py", "publish", GUARDED, CUT_PY), ("rust", "src/p.rs", "pull", RS_BODY, RS_CUT),
+             ("typescript", "src/p.ts", "load", TS_BODY, TS_CUT), ("shell", "src/p.sh", "sync", SH_BODY, SH_FN)]
+    for i, (language, file, function, body, source) in enumerate(cases):
+        root = cuts_root(tmp_path / str(i), body, source, language=language, file=file, function=function)
+        text = apply_text(R.apply_cuts(root, base=lambda f: source))[f"{file}::{function}"]
+        # the function's own lines in the file are replaced by the printed text; the rest of the file is untouched
+        in_function = sorted(R.lines_in_text(language, source, function))
+        lines_ = source.splitlines()
+        deleted = lines_[: in_function[0] - 1] + text.splitlines() + lines_[in_function[-1]:]
+        (root / file).write_text("\n".join(deleted) + "\n")
+        assert R.check_stubs(root, base=lambda f: source).exit_code == R.EXIT_OK, (language, text)
+
+
+def test_apply_cuts_skips_whole_and_empty_entries_and_reports_a_bad_cut(tmp_path):
+    root = make_root(tmp_path, touched=cut_entry(body=GUARDED) + entry("python", "src/w.py", "gone", '"B"', "whole = true\n")
+                     + entry("python", "src/n.py", "none", '"B"', "cut = []\n"))
+    write(root, "src/p.py", CUT_PY)
+    assert list(apply_text(R.apply_cuts(root, base=lambda f: CUT_PY))) == ["src/p.py::publish"]
+    bad = cuts_root(tmp_path / "bad", cut_toml("nowhere()"))
+    assert [p.code for p in R.apply_cuts(bad, base=lambda f: CUT_PY).problems] == ["E-CUT-ANCHOR-MISSING"]
+
+
+def test_apply_cuts_without_dry_run_is_refused_and_with_it_prints_and_writes_nothing(tmp_path, capsys):
+    root = cuts_root(tmp_path, GUARDED, CUT_PY)
+    git_in(root, "init", "-q")
+    git_in(root, "add", "src/p.py", "ops/refactor/touched_set.toml")
+    git_in(root, "commit", "-q", "-m", "base")
+    before = (root / "src/p.py").read_bytes()
+    assert cli(root, "apply-cuts") == R.EXIT_ERROR
+    assert cli(root, "apply-cuts", "--dry-run") == R.EXIT_OK
+    out = capsys.readouterr().out
+    assert f'raise NotImplementedError("{PY_ID1}")' in out and "src/p.py::publish" in out
+    assert (root / "src/p.py").read_bytes() == before
