@@ -80,11 +80,14 @@ def det(kind: str, id_: str, detail: str, machine: str = "", urgent: bool = Fals
     return {"id": id_, "kind": kind, "machine": machine, "urgent": urgent, "detail": detail, **more}
 
 
-def machine_labels(nodes: dict) -> dict[str, str]:
-    """node name -> its hardware, as the records name a machine."""
-    out = {}
+def machine_labels(nodes: dict, known: dict[str, str] | None = None) -> dict[str, str]:
+    """node name -> its hardware, as the records name a machine. A node that does not answer reports no hardware, so it
+    keeps the label it was last seen with (`known`); only a node never seen gets the bare os/arch placeholder."""
+    out = dict(known or {})
     for name, v in (nodes or {}).items():
         n = (v or {}).get("node") or {}
+        if not n and name in out:
+            continue
         gpus = n.get("gpus") or []
         label = (gpus[0].get("name") if gpus else "") or n.get("cpu_brand") or f"{n.get('os', 'machine')}/{n.get('arch', '')}"
         out[name] = label
@@ -572,7 +575,7 @@ def tick(now: float, dry_run: bool = False) -> dict:
         status, nodes = json.loads(out), json.loads(out2)
     except ValueError:
         dets.append(det("dbench_error", f"dbench_error:{int(now // 3600)}", (err or out)[:200]))
-    labels = machine_labels(nodes)
+    labels = st["labels"] = machine_labels(nodes, st.get("labels"))
     if status:
         nd, st["nodes"] = node_detections(status, nodes, st.get("nodes") or {}, now)
         dets += nd

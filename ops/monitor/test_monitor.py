@@ -124,6 +124,49 @@ def test_an_unreachable_machine_is_urgent_after_15_minutes():
     assert [d["urgent"] for d in dets if d["kind"] == "machine_unreachable_15m"] == [True]
 
 
+def run_ticks(tmp_path, monkeypatch, snapshots):
+    """One tick per (status, nodes) snapshot, 10 minutes apart, with everything outside the nodes faked and the log in tmp_path.
+    Returns the records logged by each tick."""
+    ops = tmp_path / "ops"
+    monkeypatch.setattr(monitor, "REPO", tmp_path)
+    monkeypatch.setattr(monitor, "OPS", ops)
+    monkeypatch.setattr(monitor, "LOG", ops / "monitor-log.jsonl")
+    monkeypatch.setattr(monitor, "STATUS", ops / "monitor-status.json")
+    monkeypatch.setattr(monitor, "STATE_DIR", ops / "monitor-state")
+    monkeypatch.setattr(monitor, "STATE", ops / "monitor-state" / "detector.json")
+    monkeypatch.setattr(monitor, "TRIAGE_STATE", ops / "monitor-state" / "triage.json")
+    monkeypatch.setattr(monitor, "fetch_json", lambda path: {"faults": []} if path == "/api/faults" else {})
+    monkeypatch.setattr(monitor, "collect_repo", lambda st, dets: None)
+    monkeypatch.setattr(monitor, "collect_memory", lambda status, nodes, now: None)
+    monkeypatch.setattr(monitor, "read_backup_status", lambda: None)
+    monkeypatch.setattr(monitor, "macos_notify", lambda message: None)
+    current = {}
+
+    def fake_sh(cmd, timeout=90, cwd=None):
+        return 0, json.dumps(current["status"] if cmd[-1] == "status" else current["nodes"]), ""
+    monkeypatch.setattr(monitor, "sh", fake_sh)
+    logged = []
+    for i, (status, nodes) in enumerate(snapshots):
+        current.update(status=status, nodes=nodes)
+        before = (monitor.LOG.read_text().splitlines() if monitor.LOG.exists() else [])
+        monitor.tick(NOW + i * 10 * MIN)
+        logged.append([json.loads(l) for l in monitor.LOG.read_text().splitlines()[len(before):]])
+    return logged
+
+
+def test_an_unreachable_machine_is_logged_under_the_hardware_it_was_last_seen_with_not_a_placeholder(tmp_path, monkeypatch):
+    status, nodes = load("status.json"), load("nodes.json")
+    down_status, down_nodes = copy.deepcopy(status), copy.deepcopy(nodes)
+    # what dbench really answers for a node that does not answer: a status, an error and no hardware
+    down_nodes["node-d"] = {"status": "unreachable", "error": "operation timed out"}
+    down_status["node-d"] = {"error": "operation timed out"}
+    first, second, third = run_ticks(tmp_path, monkeypatch, [(status, nodes), (status, nodes), (down_status, down_nodes)])
+    unreachable = [r for r in third if r["kind"] == "machine_unreachable"]
+    assert len(unreachable) == 1
+    assert "RYZEN AI MAX+ 395" in unreachable[0]["machine"], f"logged as {unreachable[0]['machine']!r}"
+    assert "node-d" not in json.dumps(unreachable[0])
+
+
 # ---- jobs: failed, restarted ---------------------------------------------------------------------------------------
 
 def test_a_job_that_fails_or_restarts_is_detected():
