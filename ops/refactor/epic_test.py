@@ -1083,6 +1083,8 @@ def finish_base(mini_deps, tool_env, tmp_path_factory):
 def finish_copy(finish_base: Path, tmp_path: Path) -> Path:
     root = tmp_path / "mini"
     shutil.copytree(finish_base, root, symlinks=True, ignore=COPY_IGNORED)
+    for report in (root / "ops/refactor/reports").glob("results-*"):         # the TypeScript runner names its test files by absolute path
+        report.write_text(report.read_text().replace(str(finish_base), str(root)))
     return root
 
 

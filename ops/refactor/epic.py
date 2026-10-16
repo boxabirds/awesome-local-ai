@@ -600,8 +600,68 @@ def epic_groups(root: Path, action: str, name: str | None, results: R.Results) -
     return result
 
 
+# ======================================================================================================================
+# epic-finish
+# ======================================================================================================================
+
+def check_release_report(root: Path, git: GitRunner, result: Result) -> None:
+    """The release check's saved result: passed on every check, none skipped, and made on the commit the working copy is at."""
+    path = root / RELEASE_CHECK_FILE
+    if not path.exists():
+        result.fail("E-FINISH-RELEASE-CHECK-MISSING", RELEASE_CHECK_FILE.as_posix(), "no release check report for this commit")
+        return
+    try:
+        report = json.loads(path.read_text())
+        checks, commit = list(report["checks"]), str(report["commit"]).lower()
+    except (json.JSONDecodeError, KeyError, TypeError):
+        result.fail("E-FINISH-RELEASE-CHECK-MISSING", RELEASE_CHECK_FILE.as_posix(), "the report cannot be read")
+        return
+    if not checks:
+        result.fail("E-FINISH-RELEASE-CHECK-RED", "checks", "the report lists no check, so nothing passed")
+    for check in checks:
+        if check.get("outcome") != RELEASE_PASSED:
+            result.fail("E-FINISH-RELEASE-CHECK-RED", str(check.get("name", "?")), f"outcome: {check.get('outcome')} (a skipped check counts as red)")
+    head = git(root, ["rev-parse", "HEAD"])
+    if head.code != 0:
+        result.error("E-GIT-FAILED", "rev-parse HEAD", head.err.strip())
+        return
+    current = head.out.strip().lower()
+    same = len(commit) >= MIN_COMMIT_CHARS and (current.startswith(commit) or commit.startswith(current))
+    if not same:
+        result.fail("E-FINISH-RELEASE-CHECK-STALE", RELEASE_CHECK_FILE.as_posix(), f"the report is for {commit or '?'}, the working copy is at {current}")
+
+
 def epic_finish(root: Path, git: GitRunner = run_git, results: R.Results | None = None) -> Result:
-    raise NotImplementedError("skeleton")
+    """Reimplemented only when every group is green, the release check passed on this commit and the stage command's own justification
+    (the whole suite green) holds."""
+    result = Result()
+    moved = R.reconcile_stage(root)
+    if moved.exit_code != EXIT_OK:
+        R.write_report(root, "epic-finish", moved)
+        return moved
+    if not (root / GROUPS_FILE).exists():
+        result.error("E-GROUPS-MISSING", GROUPS_FILE.as_posix(), "no groups file")
+        R.write_report(root, "epic-finish", result)
+        return result
+    found = results if results is not None else read_results_safe(root)
+    groups = load_groups(root)
+    for p in check_groups(root, groups, found).problems:
+        result.fail(p.code, p.subject, p.detail)
+    for language in sorted(found.missing):
+        result.error("E-RESULTS-MISSING", language, "no readable result file: run the suites first")
+    if result.exit_code == EXIT_OK:
+        for g in groups:
+            state = group_state(root, g, found)
+            if state.state not in CLOSED_STATES:
+                result.fail("E-FINISH-GROUP-OPEN", g.name, f"the group is {state.state}")
+        check_release_report(root, git, result)
+    if result.exit_code == EXIT_OK:
+        done = R.move_stage(root, FINISH_TO, R.default_justifiers(lambda _root: {}))
+        result.problems += done.problems
+        result.exit_code = max(result.exit_code, done.exit_code)
+        result.data = done.data
+    R.write_report(root, "epic-finish", result)
+    return result
 
 
 def epic_search(root: Path, files: Callable[[Path], list[str]] = git_tracked_files) -> Result:
