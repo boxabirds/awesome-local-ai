@@ -1,0 +1,20 @@
+[package]
+name = "bench-lake"
+version = "0.1.0"
+edition = "2021"
+description = "Read-only library and command that read benchmark runs from the lake (story 21)."
+publish = false
+
+[lib]
+name = "bench_lake"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bench-lake"
+path = "src/main.rs"
+
+[dependencies]
+# float_roundtrip: a number is read as the double that was written; the canonical output prints it back (CANONICAL.md).
+serde_json = { version = "1", features = ["float_roundtrip"] }
+flate2 = "1"
+sha2 = "0.10"
