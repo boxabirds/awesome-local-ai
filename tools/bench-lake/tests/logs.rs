@@ -251,15 +251,15 @@ fn tc44_lines_on_a_large_log_use_memory_of_one_line() {
         let l = item.unwrap();
         assert_eq!(l.len() + 1, line.len());
         n += 1;
-        if n % RSS_SAMPLE_EVERY_LINES == 0 {
+        if n.is_multiple_of(RSS_SAMPLE_EVERY_LINES) {
             peak = peak.max(rss_kib());
         }
     }
     assert_eq!(n, count);
-    assert!(peak - before < RSS_GROWTH_LIMIT_KIB, "resident memory grew by {} KiB reading {} MiB", peak - before, BIG_LOG_BYTES / MIB);
+    assert!(peak.saturating_sub(before) < RSS_GROWTH_LIMIT_KIB, "resident memory grew by {} KiB reading {} MiB", peak.saturating_sub(before), BIG_LOG_BYTES / MIB);
     let d = log.digest().unwrap();
     assert_eq!(d.lines as usize, count);
-    assert!(rss_kib() - before < RSS_GROWTH_LIMIT_KIB);
+    assert!(rss_kib().saturating_sub(before) < RSS_GROWTH_LIMIT_KIB);
 }
 
 #[test]

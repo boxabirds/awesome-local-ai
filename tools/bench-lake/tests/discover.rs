@@ -107,7 +107,7 @@ fn tc06_file_and_symlink_where_folders_belong() {
     write(&state.join("collected/zz-file"), b"x");
     symlink(state.join("collected/gruntus"), state.join("collected/zz-link")).unwrap();
     // A link at run depth that points to a run.
-    let pack = state.join(NODE_PATH.replace("collected/gruntus", "collected/gruntus"));
+    let pack = state.join(NODE_PATH);
     symlink(pack.join("v2-fresh-r1"), pack.join("v2-link")).unwrap();
     // A file and a link inside a node folder.
     write(&state.join("collected/tritus/readme.txt"), b"x");
@@ -341,7 +341,7 @@ fn tc15_preferred_against_the_hosts_lake() {
                 .map(|it| it.flatten().any(|e| e.path().join("agent-events.jsonl").is_file()))
                 .unwrap_or(false)
         };
-        if copies.iter().any(|r| holds_raw(&r)) {
+        if copies.iter().any(&holds_raw) {
             let p = lake.preferred(&d, id).unwrap();
             assert!(holds_raw(&p), "preferred copy of {id} does not hold the raw logs");
             checked += 1;

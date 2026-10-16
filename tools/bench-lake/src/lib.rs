@@ -5,6 +5,10 @@
 //! Every function answers with a value or an `Absent`/`Refused`; none stops the program (decision 7 of the design).
 //! The exact output of the command is in CANONICAL.md.
 
+// An absence is the library's answer, not a rare fault: the design's signatures return it by value (128 bytes), and
+// nothing here is on a hot path.
+#![allow(clippy::result_large_err)]
+
 pub mod absent;
 pub mod bundle;
 pub mod cli;

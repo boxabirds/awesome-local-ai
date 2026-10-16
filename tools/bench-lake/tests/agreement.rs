@@ -13,7 +13,6 @@ use std::process::Command;
 
 const HOST_ENV: &str = "BENCH_LAKE_HOST_STATE";
 const HOST_REPO_ENV: &str = "BENCH_LAKE_HOST_REPO";
-const MIN_FILES_COMPARED: usize = 50;
 
 fn walk(dir: &Path, base: &Path, out: &mut Vec<String>) {
     for e in fs::read_dir(dir).unwrap().flatten() {
@@ -100,9 +99,10 @@ fn differences(report: &Value) -> Vec<(String, String, String)> {
 fn tc97_a_library_equals_a_direct_read() {
     let lake = fixture_lake();
     let d = lake.discover();
-    let mut compared = 0;
+    let (mut compared, mut skipped, mut total) = (0, 0, 0);
     for run in &d.runs {
         for rel in files_of(&run.dir) {
+            total += 1;
             let direct = fs::read(run.dir.join(&rel)).unwrap();
             if let Some(record) = Record::from_relative_path(&rel) {
                 assert_eq!(lake.bytes(run, &record).unwrap(), direct, "{} {rel}", run.label);
@@ -118,15 +118,23 @@ fn tc97_a_library_equals_a_direct_read() {
                     GzDecoder::new(&direct[..]).read_to_end(&mut decoded).unwrap();
                     let has_raw = run.dir.join(format!("stories/{story:02}/agent-events.jsonl")).is_file();
                     let log = lake.log(run, story).unwrap();
-                    if !has_raw {
+                    if has_raw {
+                        assert_eq!(log.form(), bench_lake::Form::Raw);
+                        skipped += 1; // the raw log is returned instead of this one
+                    } else {
                         assert_eq!(log.bytes().unwrap(), decoded);
                         compared += 1;
                     }
                 }
+            } else {
+                assert_eq!(rel.rsplit('/').next().unwrap(), "workspace.bundle", "{rel} is neither a record nor a log");
+                skipped += 1;
             }
         }
     }
-    assert!(compared >= MIN_FILES_COMPARED, "{compared}");
+    // every file of every run is accounted for: compared, or a bundle, or a compact log shadowed by a raw one
+    assert_eq!(compared + skipped, total);
+    assert!(compared > skipped);
 }
 
 #[test]

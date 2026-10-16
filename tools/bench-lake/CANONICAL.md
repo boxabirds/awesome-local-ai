@@ -49,7 +49,7 @@ Record names and the file each names (relative to the run folder). `S` is a stor
 | `gate` | S | `stories/S/gate.json` | json |
 
 A story argument must match `^-?[0-9]+$` (it is read as a decimal integer, leading zeros allowed, and printed back
-without them). A story outside 0 to 999 is the absence `E-LAKE-BAD-NAME`. A version is 1 to 64 characters of
+without them). A token too large for a signed 64-bit integer is clamped to 9223372036854775807 or -9223372036854775808 (and is then `E-LAKE-BAD-NAME` like any story outside 0 to 999, with the clamped number in the item text). A story outside 0 to 999 is the absence `E-LAKE-BAD-NAME`. A version is 1 to 64 characters of
 `[A-Za-z0-9._-]`, not only dots; anything else (including the empty string) is `E-LAKE-BAD-NAME`. A version token is
 never otherwise interpreted. Names that begin with a dot are never records (a file being transferred is never returned).
 
@@ -339,3 +339,22 @@ $ bench-lake <LAKE> complete benchmarks/reference/todoodle/opus-5.5/run-1
 
 59a592fca04af9fe2c8b667b3a784298795ccde9
 
+### compare-git (not a question about one run)
+
+    bench-lake <STATE_DIR> compare-git <REPO> [--rev REV] [--report PATH]
+
+Compares the library with the files (A) and with the blobs of revision `REV` (default `origin/main`) of the repository
+`REPO` (B), for the preferred copy of every run id the repository tracks (a path `<id>` with files under it). Only
+records are compared in B (a file the library can name as a record; no logs); in A also the logs. The output is one
+document, also written to `PATH` when given:
+
+    {"defects":[{"detail":D,"file":F,"run":ID}],"differences":[{"file":F,"kind":K,"lake_complete":true|false|null,"node":N,"run":ID}],"not_compared":[ID],"rev":REV,"runs_compared":N}
+
+`kind` is `differs` (both have the file, bytes differ), `lake-absent` (only the repository has it) or
+`repository-absent` (only the lake has it). `lake_complete` is the note's flag, `null` when the run has no usable note.
+`not_compared` lists the run ids the repository does not track. `defects` are differences between the library and a
+direct read of the same file: a defect of the library, never of the data. Exit codes: 0 when it ran and found no defect,
+1 when it ran and found a defect, 3 when it could not look (the repository or the revision cannot be read, the lake has a
+missing root, or no run of the lake is tracked in the repository): nothing is printed on standard output, one line
+`bench-lake: not run: <reason>` is printed on standard error, and no report is written. A comparison that could not
+look is never a pass.

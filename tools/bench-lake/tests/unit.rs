@@ -56,7 +56,7 @@ fn tc14_ranking_order() {
     let complete_many_early = note("c", true, true, 100, Some(1.0));
     let complete_many_late = note("d", true, true, 100, Some(2.0));
     let no_note = note("e", false, false, 0, None);
-    let mut all = vec![&incomplete_many, &complete_few, &complete_many_early, &complete_many_late, &no_note];
+    let mut all = [&incomplete_many, &complete_few, &complete_many_early, &complete_many_late, &no_note];
     all.sort_by(|a, b| compare_copies(b, a)); // best first
     let order: Vec<&str> = all.iter().map(|n| n.node.as_str()).collect();
     assert_eq!(order, ["d", "c", "b", "a", "e"]);
