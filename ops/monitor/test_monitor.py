@@ -668,3 +668,18 @@ def test_commit_and_push_commits_only_the_tracking_file_and_reports_the_push(tmp
     assert git(repo, "log", "--format=%s", "-1").strip() == "ops: anomaly tracking: unattended triage of the monitor's new detections"
     assert git(repo, "show", "--name-only", "--format=", "HEAD").split() == ["ops/anomaly-tracking.md"]
     assert git(repo, "diff", "--cached", "--name-only").split() == ["other.txt"]
+
+
+def test_run_as_a_script_it_exits_with_the_triage_status_and_keeps_its_state_beside_itself(tmp_path, monkeypatch, capsys):
+    """The script is run under __main__ from a copy of the tree in tmp_path (its __file__), so the state and lock it writes
+    are tmp_path's; the code run is triage.py's own, compiled from its path."""
+    here = tmp_path / "ops" / "monitor"
+    here.mkdir(parents=True)
+    source = Path(triage.__file__)
+    monkeypatch.setattr(sys, "argv", ["triage.py", "--no-push"])
+    with pytest.raises(SystemExit) as stop:
+        exec(compile(source.read_text(), str(source), "exec"), {"__name__": "__main__", "__file__": str(here / "triage.py")})
+    assert stop.value.code == 0
+    assert capsys.readouterr().out == "nothing new\n"  # no log, so nothing to hand to Claude
+    state = json.loads((tmp_path / "ops" / "monitor-state" / "triage.json").read_text())
+    assert state["outcome"] == "ok" and state["message"] == "nothing new" and state["triaged_through"] == 0
