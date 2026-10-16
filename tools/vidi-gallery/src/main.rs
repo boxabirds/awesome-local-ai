@@ -1145,6 +1145,197 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    // ---------- the story review's checkouts, from a run's git bundle ----------
+
+    /// A repository with two commits on main, bundled the way the harness keeps a run's code: (bundle path, first commit, second commit).
+    fn bundled(dir: &std::path::Path) -> (PathBuf, String, String) {
+        let src = dir.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        git(&src, &["init", "-q"]);
+        let commit = |file: &str| {
+            std::fs::write(src.join(file), file).unwrap();
+            git(&src, &["add", "."]);
+            git(&src, &["commit", "-q", "-m", file]);
+            let out = std::process::Command::new("git").arg("-C").arg(&src).args(["rev-parse", "HEAD"]).output().unwrap();
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        };
+        let first = commit("one.txt");
+        let second = commit("two.txt");
+        let bundle = dir.join("workspace.bundle");
+        git(&src, &["bundle", "create", bundle.to_str().unwrap(), "main"]);
+        (bundle, first, second)
+    }
+
+    #[tokio::test]
+    async fn a_story_is_checked_out_at_its_recorded_commit_from_the_runs_bundle_and_reused_once_it_exists() {
+        let dir = scratch("checkout");
+        let (bundle, first, second) = bundled(&dir);
+        let run = runs::Run {
+            slug: "setup__run-1".into(),
+            path: bundle.parent().unwrap().to_path_buf(),
+            story_commits: [(1, first), (2, second)].into(),
+            ..Default::default()
+        };
+        let cache = dir.join("cache");
+        let one = story_checkout(&cache, &run, 1).await.unwrap();
+        assert_eq!(one, cache.join(builds::CHECKOUTS).join(story_slug(&run, 1)));
+        assert!(one.join("one.txt").is_file() && !one.join("two.txt").exists(), "story 1 is the build as it was after its commit");
+        let two = story_checkout(&cache, &run, 2).await.unwrap();
+        assert!(two.join("two.txt").is_file());
+        // A checkout that exists is returned as it is, whatever has happened to the bundle since.
+        std::fs::remove_file(&bundle).unwrap();
+        std::fs::write(one.join("marker"), "kept").unwrap();
+        assert_eq!(story_checkout(&cache, &run, 1).await.unwrap(), one);
+        assert!(one.join("marker").is_file(), "an existing checkout is not made again");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn a_story_with_no_recorded_commit_a_missing_bundle_or_a_commit_the_bundle_lacks_is_an_error_and_leaves_no_checkout() {
+        let dir = scratch("checkout-fails");
+        let (bundle, first, _) = bundled(&dir);
+        let run = runs::Run {
+            slug: "setup__run-2".into(),
+            path: dir.clone(),
+            story_commits: [(1, first), (3, "0123456789abcdef0123456789abcdef01234567".to_string())].into(),
+            ..Default::default()
+        };
+        let cache = dir.join("cache");
+        let missing = story_checkout(&cache, &run, 2).await.unwrap_err().to_string();
+        assert_eq!(missing, "no recorded commit for story 2");
+        // The commit is recorded but the bundle does not hold it: the clone works, the checkout does not.
+        let lacks = story_checkout(&cache, &run, 3).await.unwrap_err().to_string();
+        assert!(lacks.starts_with("could not check out 0123456789abcdef0123456789abcdef01234567 from "), "{lacks}");
+        assert!(!cache.join(builds::CHECKOUTS).join(story_slug(&run, 3)).exists());
+        // No bundle at all: the clone itself fails.
+        std::fs::remove_file(&bundle).unwrap();
+        let gone = story_checkout(&cache, &run, 1).await.unwrap_err().to_string();
+        assert!(gone.starts_with("could not check out "), "{gone}");
+        assert!(!cache.join(builds::CHECKOUTS).join(story_slug(&run, 1)).exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ---------- the rescan: sync with origin, then add the runs that have become reviewable ----------
+
+    /// Real time given to a pass of the loop to finish when nothing is there to tell that it has: a pass reads a few small files.
+    const PASS_SETTLE: std::time::Duration = std::time::Duration::from_millis(1500);
+    const REAL_POLL: std::time::Duration = std::time::Duration::from_millis(20);
+
+    /// An origin, the gallery's clone of it and a clone that plays the benchmark machine.
+    struct Machines {
+        root: PathBuf,
+    }
+    impl Machines {
+        fn new(tag: &str) -> Machines {
+            let root = scratch(tag);
+            std::fs::create_dir_all(root.join("origin.git")).unwrap();
+            git(&root.join("origin.git"), &["init", "-q", "--bare"]);
+            git(&root, &["clone", "-q", "origin.git", "bench"]);
+            // The scope the runs were made in: one story.
+            let scope = root.join("bench/benchmarks/vidi/scope");
+            std::fs::create_dir_all(&scope).unwrap();
+            std::fs::write(scope.join("canvas.json"), r#"{"stories": [1]}"#).unwrap();
+            git(&root.join("bench"), &["add", "."]);
+            git(&root.join("bench"), &["commit", "-q", "-m", "scope"]);
+            git(&root.join("bench"), &["push", "-q", "origin", "HEAD:main"]);
+            git(&root, &["clone", "-q", "origin.git", "gallery"]);
+            Machines { root }
+        }
+        fn gallery(&self) -> PathBuf {
+            self.root.join("gallery")
+        }
+        /// Pushes a finished, scored run with its code bundle: everything `is_reviewable` asks for.
+        fn push_reviewable_run(&self, name: &str) {
+            let bench = self.root.join("bench");
+            let run = bench.join("combinations/q/w/benchmarks/vidi").join(name);
+            std::fs::create_dir_all(run.join("workspace")).unwrap();
+            std::fs::write(run.join("workspace/index.ts"), "x").unwrap();
+            std::fs::write(run.join("workspace.bundle"), "bundle").unwrap();
+            std::fs::write(run.join("metrics.json"), r#"{"scope": "canvas", "stories": {"1": {"finished": 1.0}}}"#).unwrap();
+            std::fs::write(run.join("run.json"), r#"{"pack_version": "vidi-v2.0-pre1"}"#).unwrap();
+            std::fs::write(run.join("run-status.json"), r#"{"state": "finished"}"#).unwrap();
+            std::fs::write(run.join("accept-final-summary.json"), r#"{"passed": 3, "total": 4}"#).unwrap();
+            git(&bench, &["add", "."]);
+            git(&bench, &["commit", "-q", "-m", name]);
+            git(&bench, &["push", "-q", "origin", "HEAD:main"]);
+        }
+    }
+    impl Drop for Machines {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    /// An app whose repo is `repo`, with no stories to prepare and no build under review yet.
+    fn rescanned_app(repo: &std::path::Path) -> Arc<App> {
+        let mut f = fixture();
+        let app = Arc::get_mut(&mut f.app).unwrap();
+        app.repo = repo.to_path_buf();
+        app.stories = Vec::new();
+        app.review_builds = std::sync::RwLock::new(Vec::new());
+        f.app.clone()
+    }
+
+    fn slugs(app: &App) -> Vec<String> {
+        app.review_builds.read().unwrap().iter().map(|r| r.slug.clone()).collect()
+    }
+
+    /// Runs one more pass of the loop: moves the paused clock past the pause between passes, then gives the pass (which runs git
+    /// on a blocking thread, in real time) PASS_SETTLE to finish.
+    async fn one_pass() {
+        // Let the loop reach its sleep first, so that the clock moves a timer that exists.
+        tokio::task::yield_now().await;
+        tokio::time::advance(RESCAN_EVERY).await;
+        let start = std::time::Instant::now();
+        while start.elapsed() < PASS_SETTLE {
+            tokio::task::yield_now().await;
+            std::thread::sleep(REAL_POLL);
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_rescan_pulls_what_the_machines_pushed_and_adds_each_run_that_became_reviewable_once_in_order() {
+        let machines = Machines::new("rescan");
+        let app = rescanned_app(&machines.gallery());
+        let task = tokio::spawn(rescan(app.clone()));
+        // Nothing reviewable yet: a pass changes nothing.
+        one_pass().await;
+        assert!(slugs(&app).is_empty());
+        machines.push_reviewable_run("v2-r1");
+        one_pass().await;
+        assert_eq!(slugs(&app), ["q_w_v2-r1"], "the pass pulled the run and added it");
+        // A second run is added after the first; the first is not added again.
+        machines.push_reviewable_run("v2-r2");
+        one_pass().await;
+        assert_eq!(slugs(&app), ["q_w_v2-r1", "q_w_v2-r2"]);
+        one_pass().await;
+        assert_eq!(slugs(&app).len(), 2, "a run already under review is not added again");
+        task.abort();
+        assert!(machines.gallery().join("combinations/q/w/benchmarks/vidi/v2-r2/metrics.json").is_file());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_checkout_that_cannot_be_synced_is_reported_and_the_rescan_carries_on() {
+        // Not a repository: the pull fails every pass. A run already there is still found by the scan that follows.
+        let machines = Machines::new("rescan-nosync");
+        machines.push_reviewable_run("v2-r1");
+        let plain = machines.root.join("plain");
+        std::fs::create_dir_all(plain.join("combinations/q/w/benchmarks/vidi")).unwrap();
+        let copy = |from: &std::path::Path, to: &std::path::Path| {
+            let ok = std::process::Command::new("cp").arg("-R").arg(from).arg(to).status().unwrap().success();
+            assert!(ok);
+        };
+        copy(&machines.root.join("bench/combinations/q/w/benchmarks/vidi/v2-r1"), &plain.join("combinations/q/w/benchmarks/vidi"));
+        copy(&machines.root.join("bench/benchmarks"), &plain);
+        let app = rescanned_app(&plain);
+        let task = tokio::spawn(rescan(app.clone()));
+        one_pass().await;
+        assert_eq!(slugs(&app), ["q_w_v2-r1"]);
+        one_pass().await;
+        assert_eq!(slugs(&app).len(), 1);
+        task.abort();
+    }
+
     // ---------- a build whose preparation failed is not recorded ----------
 
     #[tokio::test]

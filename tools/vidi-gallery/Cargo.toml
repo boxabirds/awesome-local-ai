@@ -22,3 +22,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "io-util", "time", "sync", "net", "signal"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+# The rescan loop sleeps a minute between passes; a test moves a paused clock instead of waiting.
+tokio = { version = "1", features = ["test-util"] }
