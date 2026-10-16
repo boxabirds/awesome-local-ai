@@ -2472,6 +2472,15 @@ def test_the_tool_s_own_help_prints_and_lists_every_command_instead_of_crashing(
     for command in SCOPED_COMMANDS:
         assert command in out, f"{command} is missing from the tool's own help"
     assert "100% of lines and branches" in out
+    assert "%%" not in out
+
+
+def test_the_help_of_the_coverage_command_prints_a_single_percent_sign(capsys):
+    with pytest.raises(SystemExit):
+        R.main(["check-coverage", "--help"])
+    out = " ".join(capsys.readouterr().out.split())
+    assert "100% of lines and branches" in out
+    assert "%%" not in out
 
 
 def test_tc103_the_readme_says_the_stage_and_the_checks_act_on_the_whole_epic_and_uses_none_of_the_banned_phrases():

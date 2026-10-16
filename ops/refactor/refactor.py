@@ -2061,12 +2061,12 @@ def main(argv: list[str] | None = None) -> int:
                        ("check-touched-set", "the committed whole touched set equals the scan"),
                        ("check-stubs", "every function in the whole touched set is a stub"),
                        ("fates", "every old test has one fate, every contract area a new test seen red; --render PATH writes the table"),
-                       ("check-coverage", "run each language's suite under coverage: 100%% of lines and branches of every file in the whole touched set"),
+                       ("check-coverage", "run each language's suite under coverage: 100% of lines and branches of every file in the whole touched set"),
                        ("report-deletion", "every assigned test failed against the stubs of the whole touched set, read from the files run-suites wrote"),
                        ("run-suites", "run each language's suite with result output on (failing tests are data, not an error)"),
                        ("audit-check", "every audit pass is well formed, gives the hits its recorded queries give, and marks its new hits correctly"),
                        ("measure-touch", "run the Python suite under coverage, a context per test, to learn which tests touch the touched set")):
-        sub.add_parser(name, help=text, description=text)
+        sub.add_parser(name, help=text.replace("%", "%%"), description=text)       # help is %-formatted by argparse, a description is not
     build = sub.add_parser("build-touched-set", help="print the touched set the scan derives (never writes touched_set.toml)")
     build.add_argument("--propose", action="store_true", help="required: the proposal is only ever printed")
     sub.choices["fates"].add_argument("--render", help="write the fates table (Markdown) to this path")
