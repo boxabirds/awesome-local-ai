@@ -1,0 +1,4 @@
+{"install_id": "claude-code-opus-5-5", "combination": "reference/opus-5.5", "model_id": "claude-opus-5-5",
+ "pack": "todoodle", "scope": "", "metered": 0, "reasoning_effort": "client default", "context_limit": 0,
+ "output_limit": 0, "backend_version": "", "mtplx_memory_limit_bytes": "", "compact_at": "client default", "client": "claude", "client_version": "2.1.283 (Claude Code)", "backend": "anthropic", "host": "Apple M2 16GB",
+ "harness_commit": "deb0861", "pack_version": "deb0861", "started_at": "2026-09-26T18:40:18Z"}

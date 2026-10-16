@@ -1,0 +1,2817 @@
+{
+  "node": "macbook-air",
+  "run": "benchmarks/reference/vidi/sonnet-5.5/v2-r1",
+  "job": "vidi-v2-sonnet-c-r1",
+  "run_status": {
+    "state": "finished",
+    "at": "2026-10-01T06:28:53Z"
+  },
+  "job_state": "done",
+  "complete": true,
+  "first_collected_at": 1792040675,
+  "collected_at": 1792158296,
+  "settled_at": 1792040989,
+  "files": {
+    "finalize.json": {
+      "bytes": 553,
+      "node_size": 553,
+      "node_mtime": 1790836117.624,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "heldout-detail.json": {
+      "bytes": 12701,
+      "node_size": 12701,
+      "node_mtime": 1790836016.704,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "metrics.json": {
+      "bytes": 474546,
+      "node_size": 474546,
+      "node_mtime": 1790838649.555,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "progress.json": {
+      "bytes": 150595,
+      "node_size": 150595,
+      "node_mtime": 1790836003.072,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/heldout-detail.json": {
+      "bytes": 12701,
+      "node_size": 12701,
+      "node_mtime": 1790836117.462,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/metrics.json": {
+      "bytes": 470874,
+      "node_size": 470874,
+      "node_mtime": 1790836117.718,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/per-story.md": {
+      "bytes": 624,
+      "node_size": 624,
+      "node_mtime": 1790836117.61,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/rescore.json": {
+      "bytes": 1445,
+      "node_size": 1445,
+      "node_mtime": 1790836117.609,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/set-aside.json": {
+      "bytes": 375,
+      "node_size": 375,
+      "node_mtime": 1790836117.624,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/accept-report.json": {
+      "bytes": 411839,
+      "node_size": 411839,
+      "node_mtime": 1790836117.719,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/accept-summary.json": {
+      "bytes": 1287,
+      "node_size": 1287,
+      "node_mtime": 1790836116.51,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/accept.json": {
+      "bytes": 35371,
+      "node_size": 35371,
+      "node_mtime": 1790836116.509,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/.last-run.json": {
+      "bytes": 3722,
+      "node_size": 3722,
+      "node_mtime": 1790836110.191,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/app-start.log": {
+      "bytes": 744,
+      "node_size": 744,
+      "node_mtime": 1790836057.188,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/servers.pids": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790836053.184,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-01-story-1-s01-ctrl--68b81--board-ref-prd-zoom-pointer-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836068.169,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-01-story-1-s01-drag--68d5d-he-pointer-ref-prd-pan-drag-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836074.615,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-01-story-1-s01-golde-91d47--at-100-ref-prd-golden-path-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836059.176,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-01-story-1-s01-hint--c53f4-stays-gone-ref-prd-nav-hint-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836071.462,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-01-story-1-s01-keybo-00965-e-ref-prd-zoom-no-page-zoom-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836065.411,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-01-story-1-s01-reset-06e20--centred-ref-prd-view-reset-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836083.08,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-01-story-1-s01-wheel-91745-irection-ref-prd-pan-scroll-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836077.463,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-01-story-1-s01-zoom--4d8e2--fixed-ref-prd-zoom-pointer-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836080.027,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836062.614,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-Delet-11b56--note-ref-prd-sticky-delete-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836077.31,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-click-d2f93-ction-ref-prd-sticky-select-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836082.553,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-delet-3e646--note-ref-prd-sticky-delete-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836079.872,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836060.781,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836071.917,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-dragg-fb22e-verlaps-ref-prd-sticky-move-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836074.627,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-escap-d49e8-end-ref-prd-sticky-edit-end-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836065.798,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836059.179,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-pasti-2f71d-s-ref-prd-sticky-text-limit-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836068.631,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836062.786,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-board-7c3ae-rate-ref-prd-live-isolation-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836065.786,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-board-7c3ae-rate-ref-prd-live-isolation-chromium/test-failed-2.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836065.733,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836059.228,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/test-failed-2.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836059.18,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-late--69178-tes-ref-prd-live-join-state-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836060.707,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836074.683,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836074.596,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-selec-de26d-ef-prd-live-local-selection-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836068.449,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-selec-de26d-ef-prd-live-local-selection-chromium/test-failed-2.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836068.395,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-serve-42e75-es-kept-ref-prd-live-status-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836071.795,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836062.918,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-2.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836062.861,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-04-story-4-s04-board-4e1fb-aves-ref-prd-persist-reopen-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836059.179,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-04-story-4-s04-chang-7b1a6-f-prd-persist-seen-is-saved-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836060.84,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-04-story-4-s04-chang-7b1a6-f-prd-persist-seen-is-saved-chromium/test-failed-2.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836060.839,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-04-story-4-s04-no-sa-7d8de-r-ref-prd-persist-automatic-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836065.913,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-04-story-4-s04-survi-cf3c4-ted-ref-prd-persist-restart-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836063.169,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-05-story-5-s05-disti-53c32-s-ref-prd-share-unguessable-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836079.866,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-05-story-5-s05-home--89dba--board-ref-prd-share-create-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836068.632,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-05-story-5-s05-openi-d7c1a-ing-ref-prd-share-open-link-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836074.036,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-05-story-5-s05-share-de61e-k-copied-ref-prd-share-copy-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836071.482,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-05-story-5-s05-unkno-64fa0-ing-ref-prd-share-not-found-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836076.971,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-07-story-7-s07-arrow-6b592-s-not-pan-ref-prd-sel-nudge-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836095.508,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-07-story-7-s07-corne-1f561--aspect-prd-sel-size-limits-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836098.342,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-07-story-7-s07-dragg-04399-ref-prd-sel-drag-unselected-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836092.242,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-07-story-7-s07-dragg-1bbc6-tion-ref-prd-sel-group-move-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836088.429,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-07-story-7-s07-golde-68792-prd-sel-marquee-prd-sel-bar-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836077.389,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-07-story-7-s07-partl-ebb37-elected-ref-prd-sel-marquee-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836080.02,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-07-story-7-s07-selec-c63d9--clear-prd-sel-group-delete-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836085.415,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-07-story-7-s07-shift-a0a84-ip-ref-prd-sel-shift-toggle-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836082.919,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-08-story-8-s08-a-who-24b20-one-step-ref-prd-undo-steps-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836088.761,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-08-story-8-s08-butto-89500-istory-ref-prd-undo-buttons-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836082.978,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-08-story-8-s08-golde-e7a2f-s-again-ref-prd-golden-path-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836085.656,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-08-story-8-s08-histo-39990-load-ref-prd-undo-no-reload-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836101.07,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-08-story-8-s08-new-c-5e984-o-ref-prd-undo-redo-cleared-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836092.242,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-08-story-8-s08-typin-2a0fa-editing-ref-prd-undo-typing-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836095.649,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-08-story-8-s08-undo--551d0-anges-ref-prd-undo-own-only-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836098.279,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-08-story-8-s08-undo--551d0-anges-ref-prd-undo-own-only-chromium/test-failed-2.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836098.134,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-09-story-9-s09-T-act-a8cca--creating-ref-prd-text-tool-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836085.178,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-09-story-9-s09-auto--5fdaf-nits-ref-prd-text-autowidth-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836091.983,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-09-story-9-s09-empty-24ab8--ref-prd-text-empty-removed-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836095.558,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-09-story-9-s09-golde-66d24-op-left-ref-prd-golden-path-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836088.086,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-09-story-9-s09-selec-e608f-th-ref-prd-text-fixed-width-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836098.307,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-09-story-9-s09-text--f2a5d-o-ref-prd-text-like-objects-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836101.062,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-10-story-10-s10-Esca-ebe6e-reating-ref-prd-tool-return-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836105.243,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-10-story-10-s10-clic-6cdd9-e-point-ref-prd-shape-click-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836088.906,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-10-story-10-s10-conn-3ea93-prd-connector-no-accidental-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836103.05,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-10-story-10-s10-doub-7207d-a-shape-ref-prd-shape-label-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836095.938,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-10-story-10-s10-drag-cee4e-s-active-ref-prd-shape-drag-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836085.695,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-10-story-10-s10-fill-1317a--shape-ref-prd-shape-colour-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836098.416,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-10-story-10-s10-gold-e9cac-ed-ref-prd-connector-follow-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836101.197,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-10-story-10-s10-shif-27b94--square-ref-prd-shape-shift-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836092.284,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-11-story-11-s11-clic-fc833-draws-a-dot-ref-prd-pen-dot-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836103.361,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-11-story-11-s11-fini-7b7da-er-person-ref-prd-pen-share-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836107.231,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-11-story-11-s11-fini-7b7da-er-person-ref-prd-pen-share-chromium/test-failed-2.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836107.193,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-11-story-11-s11-gold-599b1--prd-pen-draw-prd-pen-stays-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836101.08,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-11-story-11-s11-pen--154b1-note-ref-prd-pen-navigation-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836105.398,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-11-story-11-s11-stro-2c5a2-undoable-ref-prd-pen-select-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836108.8,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-12-story-12-s12-Imag-60b8f-e-picker-prd-image-everyone-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836103.197,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-12-story-12-s12-Imag-60b8f-e-picker-prd-image-everyone-chromium/test-failed-2.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836103.144,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-12-story-12-s12-drop-382ed-op-point-ref-prd-image-drop-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836106.782,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-12-story-12-s12-imag-16f80-mage-persist-prd-image-undo-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836110.131,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-12-story-12-s12-larg-0af0e-00-units-ref-prd-image-size-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836105.14,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore-spoiled/vidi-v2.0-pre2-20261001T062837/stories/12/artifacts/story-12-story-12-s12-unsu-1503a-l-added-ref-prd-image-types-chromium/test-failed-1.png": {
+      "bytes": 4713,
+      "node_size": 4713,
+      "node_mtime": 1790836108.532,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "run-history.jsonl": {
+      "bytes": 13140,
+      "node_size": 13140,
+      "node_mtime": 1790833243.095,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "run-status.json": {
+      "bytes": 101,
+      "node_size": 101,
+      "node_mtime": 1790836133.519,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "run.json": {
+      "bytes": 3582,
+      "node_size": 3582,
+      "node_mtime": 1790840255.451,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/accept-report.json": {
+      "bytes": 18217,
+      "node_size": 18217,
+      "node_mtime": 1790816266.096,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/accept-summary.json": {
+      "bytes": 308,
+      "node_size": 308,
+      "node_mtime": 1790816265.78,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/accept.json": {
+      "bytes": 3002,
+      "node_size": 3002,
+      "node_mtime": 1790816265.779,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/agent-events.compact.jsonl.gz": {
+      "bytes": 92824,
+      "node_size": 92824,
+      "node_mtime": 1790838649.555,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/artifacts/.last-run.json": {
+      "bytes": 45,
+      "node_size": 45,
+      "node_mtime": 1790816259.637,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/artifacts/servers.pids": {
+      "bytes": 12,
+      "node_size": 12,
+      "node_mtime": 1790816248.331,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790815979.076,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/gate.json": {
+      "bytes": 4520,
+      "node_size": 4520,
+      "node_mtime": 1790816266.096,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/prompt.md": {
+      "bytes": 1783,
+      "node_size": 1783,
+      "node_mtime": 1790815979.062,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/01/screenshots/s01-golden.png": {
+      "bytes": 16359,
+      "node_size": 16359,
+      "node_mtime": 1790816251.371,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/accept-report.json": {
+      "bytes": 27802,
+      "node_size": 27802,
+      "node_mtime": 1790816792.541,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/accept-summary.json": {
+      "bytes": 369,
+      "node_size": 369,
+      "node_mtime": 1790816802.922,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/accept.json": {
+      "bytes": 5621,
+      "node_size": 5621,
+      "node_mtime": 1790816792.044,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/agent-events.compact.jsonl.gz": {
+      "bytes": 137756,
+      "node_size": 137756,
+      "node_mtime": 1790838649.557,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/artifacts/.last-run.json": {
+      "bytes": 45,
+      "node_size": 45,
+      "node_mtime": 1790816785.93,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/artifacts/servers.pids": {
+      "bytes": 12,
+      "node_size": 12,
+      "node_mtime": 1790816771.855,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790816802.922,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/gate.json": {
+      "bytes": 6355,
+      "node_size": 6355,
+      "node_mtime": 1790816802.922,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/prompt.md": {
+      "bytes": 1816,
+      "node_size": 1816,
+      "node_mtime": 1790816802.922,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/screenshots/s01-golden.png": {
+      "bytes": 17455,
+      "node_size": 17455,
+      "node_mtime": 1790816774.274,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/screenshots/s02-golden.png": {
+      "bytes": 28287,
+      "node_size": 28287,
+      "node_mtime": 1790816780.953,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/accept-report.json": {
+      "bytes": 42709,
+      "node_size": 42709,
+      "node_mtime": 1790817885.688,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/accept-summary.json": {
+      "bytes": 424,
+      "node_size": 424,
+      "node_mtime": 1790817897.743,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/accept.json": {
+      "bytes": 7823,
+      "node_size": 7823,
+      "node_mtime": 1790817885.285,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/agent-events.compact.jsonl.gz": {
+      "bytes": 200405,
+      "node_size": 200405,
+      "node_mtime": 1790838649.558,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/artifacts/.last-run.json": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790817879.205,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/artifacts/servers.pids": {
+      "bytes": 24,
+      "node_size": 24,
+      "node_mtime": 1790817842.244,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md": {
+      "bytes": 442,
+      "node_size": 442,
+      "node_mtime": 1790817876.16,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 17455,
+      "node_size": 17455,
+      "node_mtime": 1790817876.15,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 17455,
+      "node_size": 17455,
+      "node_mtime": 1790817876.15,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790817897.743,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/gate.json": {
+      "bytes": 12113,
+      "node_size": 12113,
+      "node_mtime": 1790817897.743,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/prompt.md": {
+      "bytes": 1837,
+      "node_size": 1837,
+      "node_mtime": 1790817897.744,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/screenshots/s01-golden.png": {
+      "bytes": 17455,
+      "node_size": 17455,
+      "node_mtime": 1790817822.765,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/screenshots/s02-golden.png": {
+      "bytes": 28287,
+      "node_size": 28287,
+      "node_mtime": 1790817830.419,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/03/screenshots/s03-golden-sam.png": {
+      "bytes": 25782,
+      "node_size": 25782,
+      "node_mtime": 1790817833.968,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/accept-report.json": {
+      "bytes": 48112,
+      "node_size": 48112,
+      "node_mtime": 1790818716.024,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/accept-summary.json": {
+      "bytes": 479,
+      "node_size": 479,
+      "node_mtime": 1790818727.136,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/accept.json": {
+      "bytes": 8889,
+      "node_size": 8889,
+      "node_mtime": 1790818715.6,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/agent-events.compact.jsonl.gz": {
+      "bytes": 218336,
+      "node_size": 218336,
+      "node_mtime": 1790838649.559,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/artifacts/.last-run.json": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790818709.406,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/artifacts/servers.pids": {
+      "bytes": 48,
+      "node_size": 48,
+      "node_mtime": 1790818704.881,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md": {
+      "bytes": 442,
+      "node_size": 442,
+      "node_mtime": 1790818690.172,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 17455,
+      "node_size": 17455,
+      "node_mtime": 1790818690.159,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 17455,
+      "node_size": 17455,
+      "node_mtime": 1790818690.135,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790818727.137,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/gate.json": {
+      "bytes": 15795,
+      "node_size": 15795,
+      "node_mtime": 1790818727.137,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/prompt.md": {
+      "bytes": 1836,
+      "node_size": 1836,
+      "node_mtime": 1790818727.137,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/screenshots/s01-golden.png": {
+      "bytes": 17455,
+      "node_size": 17455,
+      "node_mtime": 1790818624.529,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/screenshots/s02-golden.png": {
+      "bytes": 28287,
+      "node_size": 28287,
+      "node_mtime": 1790818643.928,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/screenshots/s03-golden-sam.png": {
+      "bytes": 25782,
+      "node_size": 25782,
+      "node_mtime": 1790818647.484,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/04/screenshots/s04-reopened.png": {
+      "bytes": 81026,
+      "node_size": 81026,
+      "node_mtime": 1790818694.702,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/accept-report.json": {
+      "bytes": 54752,
+      "node_size": 54752,
+      "node_mtime": 1790820327.283,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/accept-summary.json": {
+      "bytes": 534,
+      "node_size": 534,
+      "node_mtime": 1790820337.6,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/accept.json": {
+      "bytes": 10190,
+      "node_size": 10190,
+      "node_mtime": 1790820326.85,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/agent-events.compact.jsonl.gz": {
+      "bytes": 150655,
+      "node_size": 150655,
+      "node_mtime": 1790838649.559,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/artifacts/.last-run.json": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790820320.53,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/artifacts/servers.pids": {
+      "bytes": 48,
+      "node_size": 48,
+      "node_mtime": 1790820311.365,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md": {
+      "bytes": 488,
+      "node_size": 488,
+      "node_mtime": 1790820296.682,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 19127,
+      "node_size": 19127,
+      "node_mtime": 1790820296.658,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 19127,
+      "node_size": 19127,
+      "node_mtime": 1790820296.672,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790820337.6,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/gate.json": {
+      "bytes": 16182,
+      "node_size": 16182,
+      "node_mtime": 1790820337.6,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/prompt.md": {
+      "bytes": 1775,
+      "node_size": 1775,
+      "node_mtime": 1790820337.6,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/screenshots/s01-golden.png": {
+      "bytes": 19127,
+      "node_size": 19127,
+      "node_mtime": 1790820240.951,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/screenshots/s02-golden.png": {
+      "bytes": 29948,
+      "node_size": 29948,
+      "node_mtime": 1790820249.141,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/screenshots/s03-golden-sam.png": {
+      "bytes": 27434,
+      "node_size": 27434,
+      "node_mtime": 1790820253.264,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/screenshots/s04-reopened.png": {
+      "bytes": 82742,
+      "node_size": 82742,
+      "node_mtime": 1790820301.238,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/screenshots/s05-home.png": {
+      "bytes": 13112,
+      "node_size": 13112,
+      "node_mtime": 1790820312.968,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/screenshots/s05-not-found.png": {
+      "bytes": 20488,
+      "node_size": 20488,
+      "node_mtime": 1790820317.15,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/05/screenshots/s05-share.png": {
+      "bytes": 31830,
+      "node_size": 31830,
+      "node_mtime": 1790820313.561,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/accept-report.json": {
+      "bytes": 65288,
+      "node_size": 65288,
+      "node_mtime": 1790821750.422,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/accept-summary.json": {
+      "bytes": 589,
+      "node_size": 589,
+      "node_mtime": 1790821750.028,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/accept.json": {
+      "bytes": 12345,
+      "node_size": 12345,
+      "node_mtime": 1790821750.028,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/agent-events.compact.jsonl.gz": {
+      "bytes": 255041,
+      "node_size": 255041,
+      "node_mtime": 1790838649.56,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/artifacts/.last-run.json": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790821743.692,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/artifacts/servers.pids": {
+      "bytes": 48,
+      "node_size": 48,
+      "node_mtime": 1790821729.991,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md": {
+      "bytes": 488,
+      "node_size": 488,
+      "node_mtime": 1790821715.295,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 19127,
+      "node_size": 19127,
+      "node_mtime": 1790821715.261,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 19127,
+      "node_size": 19127,
+      "node_mtime": 1790821715.286,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790820339.777,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/gate.json": {
+      "bytes": 20048,
+      "node_size": 20048,
+      "node_mtime": 1790821750.422,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/prompt.md": {
+      "bytes": 1848,
+      "node_size": 1848,
+      "node_mtime": 1790820339.744,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/screenshots/s01-golden.png": {
+      "bytes": 19127,
+      "node_size": 19127,
+      "node_mtime": 1790821658.778,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/screenshots/s02-golden.png": {
+      "bytes": 30328,
+      "node_size": 30328,
+      "node_mtime": 1790821666.941,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/screenshots/s03-golden-sam.png": {
+      "bytes": 27838,
+      "node_size": 27838,
+      "node_mtime": 1790821670.943,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/screenshots/s04-reopened.png": {
+      "bytes": 82742,
+      "node_size": 82742,
+      "node_mtime": 1790821719.878,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/screenshots/s05-home.png": {
+      "bytes": 13112,
+      "node_size": 13112,
+      "node_mtime": 1790821731.584,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/screenshots/s05-not-found.png": {
+      "bytes": 20488,
+      "node_size": 20488,
+      "node_mtime": 1790821735.768,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/screenshots/s05-share.png": {
+      "bytes": 31647,
+      "node_size": 31647,
+      "node_mtime": 1790821732.178,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/07/screenshots/s07-golden.png": {
+      "bytes": 85329,
+      "node_size": 85329,
+      "node_mtime": 1790821736.919,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/accept-report.json": {
+      "bytes": 74425,
+      "node_size": 74425,
+      "node_mtime": 1790822523.226,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/accept-summary.json": {
+      "bytes": 644,
+      "node_size": 644,
+      "node_mtime": 1790822533.99,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/accept.json": {
+      "bytes": 14102,
+      "node_size": 14102,
+      "node_mtime": 1790822522.837,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/agent-events.compact.jsonl.gz": {
+      "bytes": 153185,
+      "node_size": 153185,
+      "node_mtime": 1790838649.561,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/artifacts/.last-run.json": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790822516.497,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/artifacts/servers.pids": {
+      "bytes": 48,
+      "node_size": 48,
+      "node_mtime": 1790822496.895,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md": {
+      "bytes": 616,
+      "node_size": 616,
+      "node_mtime": 1790822482.377,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 20183,
+      "node_size": 20183,
+      "node_mtime": 1790822482.369,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 20183,
+      "node_size": 20183,
+      "node_mtime": 1790822482.369,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790822533.991,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/gate.json": {
+      "bytes": 18515,
+      "node_size": 18515,
+      "node_mtime": 1790822533.991,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/prompt.md": {
+      "bytes": 1857,
+      "node_size": 1857,
+      "node_mtime": 1790822533.992,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/screenshots/s01-golden.png": {
+      "bytes": 20183,
+      "node_size": 20183,
+      "node_mtime": 1790822426.99,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/screenshots/s02-golden.png": {
+      "bytes": 31385,
+      "node_size": 31385,
+      "node_mtime": 1790822435.053,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/screenshots/s03-golden-sam.png": {
+      "bytes": 28913,
+      "node_size": 28913,
+      "node_mtime": 1790822439.058,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/screenshots/s04-reopened.png": {
+      "bytes": 84077,
+      "node_size": 84077,
+      "node_mtime": 1790822486.792,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/screenshots/s05-home.png": {
+      "bytes": 13112,
+      "node_size": 13112,
+      "node_mtime": 1790822498.48,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/screenshots/s05-not-found.png": {
+      "bytes": 20488,
+      "node_size": 20488,
+      "node_mtime": 1790822502.664,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/screenshots/s05-share.png": {
+      "bytes": 33079,
+      "node_size": 33079,
+      "node_mtime": 1790822499.075,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/screenshots/s07-golden.png": {
+      "bytes": 86957,
+      "node_size": 86957,
+      "node_mtime": 1790822503.812,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/08/screenshots/s08-restored.png": {
+      "bytes": 24354,
+      "node_size": 24354,
+      "node_mtime": 1790822508.116,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/accept-report.json": {
+      "bytes": 82413,
+      "node_size": 82413,
+      "node_mtime": 1790833483.611,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/accept-summary.json": {
+      "bytes": 699,
+      "node_size": 699,
+      "node_mtime": 1790833483.058,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/accept.json": {
+      "bytes": 15734,
+      "node_size": 15734,
+      "node_mtime": 1790833483.057,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/agent-events.compact.jsonl.gz": {
+      "bytes": 230460,
+      "node_size": 230460,
+      "node_mtime": 1790838649.562,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/artifacts/.last-run.json": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790833476.911,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/artifacts/servers.pids": {
+      "bytes": 48,
+      "node_size": 48,
+      "node_mtime": 1790833454.703,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md": {
+      "bytes": 780,
+      "node_size": 780,
+      "node_mtime": 1790833439.986,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 21368,
+      "node_size": 21368,
+      "node_mtime": 1790833439.976,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 21368,
+      "node_size": 21368,
+      "node_mtime": 1790833439.976,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790833284.763,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/gate.json": {
+      "bytes": 19718,
+      "node_size": 19718,
+      "node_mtime": 1790833483.61,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/prompt.md": {
+      "bytes": 1779,
+      "node_size": 1779,
+      "node_mtime": 1790833284.696,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s01-golden.png": {
+      "bytes": 21368,
+      "node_size": 21368,
+      "node_mtime": 1790833384.379,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s02-golden.png": {
+      "bytes": 32590,
+      "node_size": 32590,
+      "node_mtime": 1790833392.431,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s03-golden-sam.png": {
+      "bytes": 30181,
+      "node_size": 30181,
+      "node_mtime": 1790833396.531,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s04-reopened.png": {
+      "bytes": 85266,
+      "node_size": 85266,
+      "node_mtime": 1790833444.248,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s05-home.png": {
+      "bytes": 13112,
+      "node_size": 13112,
+      "node_mtime": 1790833456.342,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s05-not-found.png": {
+      "bytes": 20488,
+      "node_size": 20488,
+      "node_mtime": 1790833460.476,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s05-share.png": {
+      "bytes": 34063,
+      "node_size": 34063,
+      "node_mtime": 1790833456.937,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s07-golden.png": {
+      "bytes": 88393,
+      "node_size": 88393,
+      "node_mtime": 1790833461.61,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s08-restored.png": {
+      "bytes": 25536,
+      "node_size": 25536,
+      "node_mtime": 1790833465.912,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/09/screenshots/s09-golden.png": {
+      "bytes": 29816,
+      "node_size": 29816,
+      "node_mtime": 1790833471.964,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/accept-report.json": {
+      "bytes": 92911,
+      "node_size": 92911,
+      "node_mtime": 1790834449.032,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/accept-summary.json": {
+      "bytes": 754,
+      "node_size": 754,
+      "node_mtime": 1790834448.514,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/accept.json": {
+      "bytes": 17861,
+      "node_size": 17861,
+      "node_mtime": 1790834448.513,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/agent-events.compact.jsonl.gz": {
+      "bytes": 276864,
+      "node_size": 276864,
+      "node_mtime": 1790838649.563,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/artifacts/.last-run.json": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790834442.356,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/artifacts/servers.pids": {
+      "bytes": 48,
+      "node_size": 48,
+      "node_mtime": 1790834416.487,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md": {
+      "bytes": 934,
+      "node_size": 934,
+      "node_mtime": 1790834401.728,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 22387,
+      "node_size": 22387,
+      "node_mtime": 1790834401.718,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 22387,
+      "node_size": 22387,
+      "node_mtime": 1790834401.717,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790833501.51,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/gate.json": {
+      "bytes": 21870,
+      "node_size": 21870,
+      "node_mtime": 1790834449.031,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/prompt.md": {
+      "bytes": 1875,
+      "node_size": 1875,
+      "node_mtime": 1790833501.491,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s01-golden.png": {
+      "bytes": 22387,
+      "node_size": 22387,
+      "node_mtime": 1790834346.143,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s02-golden.png": {
+      "bytes": 33555,
+      "node_size": 33555,
+      "node_mtime": 1790834354.126,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s03-golden-sam.png": {
+      "bytes": 31091,
+      "node_size": 31091,
+      "node_mtime": 1790834358.192,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s04-reopened.png": {
+      "bytes": 86003,
+      "node_size": 86003,
+      "node_mtime": 1790834406.352,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s05-home.png": {
+      "bytes": 13112,
+      "node_size": 13112,
+      "node_mtime": 1790834418.089,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s05-not-found.png": {
+      "bytes": 20488,
+      "node_size": 20488,
+      "node_mtime": 1790834422.289,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s05-share.png": {
+      "bytes": 34826,
+      "node_size": 34826,
+      "node_mtime": 1790834418.683,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s07-golden.png": {
+      "bytes": 89222,
+      "node_size": 89222,
+      "node_mtime": 1790834423.456,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s08-restored.png": {
+      "bytes": 26509,
+      "node_size": 26509,
+      "node_mtime": 1790834427.741,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s09-golden.png": {
+      "bytes": 30762,
+      "node_size": 30762,
+      "node_mtime": 1790834433.711,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/10/screenshots/s10-connected.png": {
+      "bytes": 23586,
+      "node_size": 23586,
+      "node_mtime": 1790834438.121,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/accept-report.json": {
+      "bytes": 99576,
+      "node_size": 99576,
+      "node_mtime": 1790835047.314,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/accept-summary.json": {
+      "bytes": 809,
+      "node_size": 809,
+      "node_mtime": 1790835046.862,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/accept.json": {
+      "bytes": 19172,
+      "node_size": 19172,
+      "node_mtime": 1790835046.861,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/agent-events.compact.jsonl.gz": {
+      "bytes": 150604,
+      "node_size": 150604,
+      "node_mtime": 1790838649.565,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/artifacts/.last-run.json": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790835040.741,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/artifacts/servers.pids": {
+      "bytes": 48,
+      "node_size": 48,
+      "node_mtime": 1790835011.492,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md": {
+      "bytes": 1007,
+      "node_size": 1007,
+      "node_mtime": 1790834996.813,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 22885,
+      "node_size": 22885,
+      "node_mtime": 1790834996.78,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 22885,
+      "node_size": 22885,
+      "node_mtime": 1790834996.804,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790834462.833,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/gate.json": {
+      "bytes": 22016,
+      "node_size": 22016,
+      "node_mtime": 1790835047.313,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/prompt.md": {
+      "bytes": 1733,
+      "node_size": 1733,
+      "node_mtime": 1790834462.816,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s01-golden.png": {
+      "bytes": 22885,
+      "node_size": 22885,
+      "node_mtime": 1790834941.632,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s02-golden.png": {
+      "bytes": 34084,
+      "node_size": 34084,
+      "node_mtime": 1790834949.457,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s03-golden-sam.png": {
+      "bytes": 31568,
+      "node_size": 31568,
+      "node_mtime": 1790834953.531,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s04-reopened.png": {
+      "bytes": 86867,
+      "node_size": 86867,
+      "node_mtime": 1790835001.362,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s05-home.png": {
+      "bytes": 13112,
+      "node_size": 13112,
+      "node_mtime": 1790835013.085,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s05-not-found.png": {
+      "bytes": 20488,
+      "node_size": 20488,
+      "node_mtime": 1790835017.252,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s05-share.png": {
+      "bytes": 35542,
+      "node_size": 35542,
+      "node_mtime": 1790835013.697,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s07-golden.png": {
+      "bytes": 89658,
+      "node_size": 89658,
+      "node_mtime": 1790835018.386,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s08-restored.png": {
+      "bytes": 27011,
+      "node_size": 27011,
+      "node_mtime": 1790835022.622,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s09-golden.png": {
+      "bytes": 31298,
+      "node_size": 31298,
+      "node_mtime": 1790835028.608,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s10-connected.png": {
+      "bytes": 24075,
+      "node_size": 24075,
+      "node_mtime": 1790835033.067,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/11/screenshots/s11-golden.png": {
+      "bytes": 37744,
+      "node_size": 37744,
+      "node_mtime": 1790835035.32,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/accept-report.json": {
+      "bytes": 106336,
+      "node_size": 106336,
+      "node_mtime": 1790836003.287,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/accept-summary.json": {
+      "bytes": 864,
+      "node_size": 864,
+      "node_mtime": 1790836002.682,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/accept.json": {
+      "bytes": 20594,
+      "node_size": 20594,
+      "node_mtime": 1790836002.681,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/agent-events.compact.jsonl.gz": {
+      "bytes": 197903,
+      "node_size": 197903,
+      "node_mtime": 1790838649.567,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/artifacts/.last-run.json": {
+      "bytes": 96,
+      "node_size": 96,
+      "node_mtime": 1790835996.484,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/artifacts/servers.pids": {
+      "bytes": 44,
+      "node_size": 44,
+      "node_mtime": 1790835957.092,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md": {
+      "bytes": 1093,
+      "node_size": 1093,
+      "node_mtime": 1790835941.969,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png": {
+      "bytes": 23548,
+      "node_size": 23548,
+      "node_mtime": 1790835941.933,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png": {
+      "bytes": 23548,
+      "node_size": 23548,
+      "node_mtime": 1790835941.954,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790835060.639,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/gate.json": {
+      "bytes": 23462,
+      "node_size": 23462,
+      "node_mtime": 1790836003.286,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/prompt.md": {
+      "bytes": 1737,
+      "node_size": 1737,
+      "node_mtime": 1790835060.618,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s01-golden.png": {
+      "bytes": 23548,
+      "node_size": 23548,
+      "node_mtime": 1790835884.52,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s02-golden.png": {
+      "bytes": 34751,
+      "node_size": 34751,
+      "node_mtime": 1790835893.326,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s03-golden-sam.png": {
+      "bytes": 32224,
+      "node_size": 32224,
+      "node_mtime": 1790835898.14,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s04-reopened.png": {
+      "bytes": 87366,
+      "node_size": 87366,
+      "node_mtime": 1790835946.849,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s05-home.png": {
+      "bytes": 13112,
+      "node_size": 13112,
+      "node_mtime": 1790835958.799,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s05-not-found.png": {
+      "bytes": 20488,
+      "node_size": 20488,
+      "node_mtime": 1790835962.983,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s05-share.png": {
+      "bytes": 36201,
+      "node_size": 36201,
+      "node_mtime": 1790835959.402,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s07-golden.png": {
+      "bytes": 90430,
+      "node_size": 90430,
+      "node_mtime": 1790835964.173,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s08-restored.png": {
+      "bytes": 27698,
+      "node_size": 27698,
+      "node_mtime": 1790835968.59,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s09-golden.png": {
+      "bytes": 31983,
+      "node_size": 31983,
+      "node_mtime": 1790835974.837,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s10-connected.png": {
+      "bytes": 24760,
+      "node_size": 24760,
+      "node_mtime": 1790835979.619,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s11-golden.png": {
+      "bytes": 38106,
+      "node_size": 38106,
+      "node_mtime": 1790835981.955,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/12/screenshots/s12-picked.png": {
+      "bytes": 23650,
+      "node_size": 23650,
+      "node_mtime": 1790835985.068,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "summary-detail.md": {
+      "bytes": 6312,
+      "node_size": 6312,
+      "node_mtime": 1790836016.251,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "summary.md": {
+      "bytes": 6312,
+      "node_size": 6312,
+      "node_mtime": 1790836016.252,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "workspace-git-log.txt": {
+      "bytes": 25721,
+      "node_size": 25721,
+      "node_mtime": 1790836003.061,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    },
+    "workspace.bundle": {
+      "bytes": 744098,
+      "node_size": 744098,
+      "node_mtime": 1790836016.476,
+      "at_eof": true,
+      "pulled_at": 1792040675,
+      "refetches": 0,
+      "partial": null
+    }
+  },
+  "unlisted": 1,
+  "dbench_version": "0.1.0+cad9da4ad"
+}

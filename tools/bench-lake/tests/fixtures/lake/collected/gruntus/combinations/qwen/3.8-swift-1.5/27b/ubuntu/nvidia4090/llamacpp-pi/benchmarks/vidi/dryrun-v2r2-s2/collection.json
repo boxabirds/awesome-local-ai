@@ -1,0 +1,573 @@
+{
+  "node": "gruntus",
+  "run": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2",
+  "job": null,
+  "run_status": null,
+  "job_state": null,
+  "complete": false,
+  "first_collected_at": 1791026431,
+  "collected_at": 1792161516,
+  "settled_at": null,
+  "files": {
+    "base/accept-report.json": {
+      "bytes": 18377,
+      "node_size": 18377,
+      "node_mtime": 1790925774.501,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "base/accept-summary.json": {
+      "bytes": 308,
+      "node_size": 308,
+      "node_mtime": 1790925780.523,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "base/accept.json": {
+      "bytes": 3009,
+      "node_size": 3009,
+      "node_mtime": 1790925780.523,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "base/artifacts/.last-run.json": {
+      "bytes": 45,
+      "node_size": 45,
+      "node_mtime": 1790925774.502,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "base/artifacts/servers.pids": {
+      "bytes": 14,
+      "node_size": 14,
+      "node_mtime": 1790925768.297,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "base/screenshots/s01-golden.png": {
+      "bytes": 12852,
+      "node_size": 12852,
+      "node_mtime": 1790925769.478,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "egress.jsonl": {
+      "bytes": 2504,
+      "node_size": 2504,
+      "node_mtime": 1790926267.858,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "finalize.json": {
+      "bytes": 977,
+      "node_size": 977,
+      "node_mtime": 1790926586.456,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "heldout-detail.json": {
+      "bytes": 864,
+      "node_size": 864,
+      "node_mtime": 1790926489.709,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "metrics.json": {
+      "bytes": 55366,
+      "node_size": 55366,
+      "node_mtime": 1790926489.709,
+      "at_eof": true,
+      "pulled_at": 1791301427,
+      "refetches": 0,
+      "partial": null
+    },
+    "progress.json": {
+      "bytes": 16294,
+      "node_size": 16294,
+      "node_mtime": 1790926489.451,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/heldout-detail.json": {
+      "bytes": 864,
+      "node_size": 864,
+      "node_mtime": 1790926586.374,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/metrics.json": {
+      "bytes": 55366,
+      "node_size": 55366,
+      "node_mtime": 1790926586.373,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/per-story.md": {
+      "bytes": 861,
+      "node_size": 861,
+      "node_mtime": 1790926586.443,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/rescore.json": {
+      "bytes": 1323,
+      "node_size": 1323,
+      "node_mtime": 1790926586.442,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/accept-report.json": {
+      "bytes": 40517,
+      "node_size": 40517,
+      "node_mtime": 1790926518.091,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/accept-summary.json": {
+      "bytes": 528,
+      "node_size": 528,
+      "node_mtime": 1790926586.146,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/accept.json": {
+      "bytes": 8909,
+      "node_size": 8909,
+      "node_mtime": 1790926586.146,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/artifacts/.last-run.json": {
+      "bytes": 145,
+      "node_size": 145,
+      "node_mtime": 1790926518.092,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/artifacts/servers.pids": {
+      "bytes": 154,
+      "node_size": 154,
+      "node_mtime": 1790926500.794,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/error-context.md": {
+      "bytes": 411,
+      "node_size": 411,
+      "node_mtime": 1790926507.278,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/test-failed-1.png": {
+      "bytes": 14009,
+      "node_size": 14009,
+      "node_mtime": 1790926507.271,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/error-context.md": {
+      "bytes": 412,
+      "node_size": 412,
+      "node_mtime": 1790926513.015,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/test-failed-1.png": {
+      "bytes": 13808,
+      "node_size": 13808,
+      "node_mtime": 1790926513.004,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-2/accept-report.json": {
+      "bytes": 24164,
+      "node_size": 24164,
+      "node_mtime": 1790926549.106,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-2/artifacts/.last-run.json": {
+      "bytes": 145,
+      "node_size": 145,
+      "node_mtime": 1790926549.107,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-2/artifacts/servers.pids": {
+      "bytes": 154,
+      "node_size": 154,
+      "node_mtime": 1790926532.53,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-2/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/error-context.md": {
+      "bytes": 411,
+      "node_size": 411,
+      "node_mtime": 1790926538.749,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-2/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/test-failed-1.png": {
+      "bytes": 14009,
+      "node_size": 14009,
+      "node_mtime": 1790926538.74,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-2/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/error-context.md": {
+      "bytes": 412,
+      "node_size": 412,
+      "node_mtime": 1790926544.476,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-2/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/test-failed-1.png": {
+      "bytes": 13782,
+      "node_size": 13782,
+      "node_mtime": 1790926544.468,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-3/accept-report.json": {
+      "bytes": 24164,
+      "node_size": 24164,
+      "node_mtime": 1790926580.121,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-3/artifacts/.last-run.json": {
+      "bytes": 145,
+      "node_size": 145,
+      "node_mtime": 1790926580.122,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-3/artifacts/servers.pids": {
+      "bytes": 154,
+      "node_size": 154,
+      "node_mtime": 1790926563.543,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-3/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/error-context.md": {
+      "bytes": 411,
+      "node_size": 411,
+      "node_mtime": 1790926569.756,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-3/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/test-failed-1.png": {
+      "bytes": 14009,
+      "node_size": 14009,
+      "node_mtime": 1790926569.746,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-3/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/error-context.md": {
+      "bytes": 412,
+      "node_size": 412,
+      "node_mtime": 1790926575.481,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/scoring-3/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/test-failed-1.png": {
+      "bytes": 13808,
+      "node_size": 13808,
+      "node_mtime": 1790926575.474,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/screenshots/s01-golden.png": {
+      "bytes": 15255,
+      "node_size": 15255,
+      "node_mtime": 1790926502.057,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "rescore/vidi-v2.0-pre2/stories/02/screenshots/s02-golden.png": {
+      "bytes": 20512,
+      "node_size": 20512,
+      "node_mtime": 1790926502.128,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "run.json": {
+      "bytes": 5306,
+      "node_size": 5306,
+      "node_mtime": 1790925764.866,
+      "at_eof": true,
+      "pulled_at": 1791301427,
+      "refetches": 0,
+      "partial": null
+    },
+    "server-health.json": {
+      "bytes": 15,
+      "node_size": 15,
+      "node_mtime": 1790925764.691,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "server.log": {
+      "bytes": 110685,
+      "node_size": 110685,
+      "node_mtime": 1790926586.536,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/accept-report.json": {
+      "bytes": 40229,
+      "node_size": 40229,
+      "node_mtime": 1790926483.292,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/accept-summary.json": {
+      "bytes": 368,
+      "node_size": 368,
+      "node_mtime": 1790926489.312,
+      "at_eof": true,
+      "pulled_at": 1791301427,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/accept.json": {
+      "bytes": 6905,
+      "node_size": 6905,
+      "node_mtime": 1790926489.312,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/agent-events.jsonl": {
+      "bytes": 15647730,
+      "node_size": 15647730,
+      "node_mtime": 1790926432.183,
+      "at_eof": true,
+      "pulled_at": 1791026431,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/artifacts/.last-run.json": {
+      "bytes": 145,
+      "node_size": 145,
+      "node_mtime": 1790926483.293,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/artifacts/servers.pids": {
+      "bytes": 14,
+      "node_size": 14,
+      "node_mtime": 1790926463.018,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/error-context.md": {
+      "bytes": 411,
+      "node_size": 411,
+      "node_mtime": 1790926472.509,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/test-failed-1.png": {
+      "bytes": 14009,
+      "node_size": 14009,
+      "node_mtime": 1790926472.503,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/error-context.md": {
+      "bytes": 412,
+      "node_size": 412,
+      "node_mtime": 1790926478.246,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/test-failed-1.png": {
+      "bytes": 13808,
+      "node_size": 13808,
+      "node_mtime": 1790926478.238,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/base-commit": {
+      "bytes": 40,
+      "node_size": 40,
+      "node_mtime": 1790925780.687,
+      "at_eof": true,
+      "pulled_at": 1791301427,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/gate.json": {
+      "bytes": 13202,
+      "node_size": 13202,
+      "node_mtime": 1790926460.56,
+      "at_eof": true,
+      "pulled_at": 1791301427,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/prompt.md": {
+      "bytes": 2409,
+      "node_size": 2409,
+      "node_mtime": 1790925780.673,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/screenshots/s01-golden.png": {
+      "bytes": 15255,
+      "node_size": 15255,
+      "node_mtime": 1790926464.215,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "stories/02/screenshots/s02-golden.png": {
+      "bytes": 20512,
+      "node_size": 20512,
+      "node_mtime": 1790926467.371,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "summary-detail.md": {
+      "bytes": 2796,
+      "node_size": 2796,
+      "node_mtime": 1790926489.512,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "summary.md": {
+      "bytes": 2796,
+      "node_size": 2796,
+      "node_mtime": 1790926489.512,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "workspace-git-log.txt": {
+      "bytes": 8519,
+      "node_size": 8519,
+      "node_mtime": 1790926489.449,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    },
+    "workspace.bundle": {
+      "bytes": 418402,
+      "node_size": 418402,
+      "node_mtime": 1790926489.579,
+      "at_eof": true,
+      "pulled_at": 1792116079,
+      "refetches": 0,
+      "partial": null
+    }
+  },
+  "unlisted": 0,
+  "dbench_version": "0.1.0+cad9da4ad"
+}
