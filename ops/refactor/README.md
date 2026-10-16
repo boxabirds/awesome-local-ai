@@ -59,11 +59,37 @@ The stand-in that replaces a cut (one statement, the indentation of the cut's fi
 | TypeScript | `throw new Error("not implemented: refactor-cut:<id>");` |
 | shell | `return 99` inside a function, `exit 99` at script level (it cannot carry the id) |
 
-Two things the fixture `fixtures/cuts/` showed: a Rust binding that a cut initialises needs a written type (`let done: i32;`), or the code
+A use or a guard of one cut may lie inside the span of a *different* cut: a chain (`a = f1()` then `b = f2(a)`: the second statement is the
+first cut's use and is itself a cut) is normal, and the coverage obligation is the union of all the lines. Two cuts that overlap each other,
+or a cut whose own use or guard overlaps that same cut, are `E-CUT-OVERLAP`.
+
+Two things the fixture `fixtures/cuts/` showed: a Rust binding that a cut initialises must be declared with a type before the cut (`let done: i32;`, then `done = ...;` as the cut), or the code
 after the stand-in does not compile; and a test's failure is cited from the exception's own words (junit `message`, the first line of each vitest
 failure message), because a trace lists the source of the function, with every stand-in in it. Two cuts in a row on one path cannot both
-be cited: the first stand-in raises before the second is reached, so put cuts that need their own test on different paths, or prove the later
-one in another function.
+be cited in one run: the first stand-in raises before the second is reached. That is what rounds are for.
+
+### Rounds
+
+    refactor.py apply-cuts --dry-run                  # round 1: every cut replaced (write it into the tree by hand)
+    refactor.py check-stubs
+    refactor.py run-suites
+    refactor.py report-deletion --round 1             # cites the cuts the tests reached; exit 1 with E-CUT-PENDING for the rest
+    refactor.py apply-cuts --dry-run --pending        # round 2: stand-ins only for the pending cuts, the cited ones back at their base text
+    refactor.py check-stubs --pending
+    refactor.py run-suites
+    refactor.py report-deletion --round 2             # ... and so on until no cut is pending: exit 0
+
+State is `reports/cut-rounds.json`: `{"round": N, "cuts": {cut id: {"tests": [citing tests], "round": k}}}`. Round 1 always starts from nothing;
+round N needs the recorded round to be N-1 (`E-ROUND-ORDER`). A round whose tree is not the one it should be (a cited cut still replaced, a
+pending one not) fails `check-stubs --pending` / `E-CUT-COLLATERAL` and records nothing. While some cut is pending and the round cited at least
+one new cut, the exit is 1 with `E-CUT-PENDING` naming each pending cut (progress, not a gap). When a round cites nothing new, each pending cut is
+`E-CUT-NO-TEST-FAILED`: no test reaches it, a real coverage gap, and the round number is not advanced (fix the tests and run the same round again).
+Without `--round`, `report-deletion` is the single-run check (every cut at once, an uncited cut is `E-CUT-NO-TEST-FAILED`) and writes no state.
+A shell entry cannot tell which of its stand-ins ended the script, so all its pending cuts are cited together by the first test that exits 99;
+the second of two sequential shell cuts is therefore not proved separately. `fixtures/rounds/` is the miniature the procedure is tested on.
+
+`epic-worktree can-push` and `epic-groups` treat a cut entry as a stand-in while any of its cuts' stand-ins (the forms above) is left in the
+function; they have no base revision, so they look for the stand-in text, not for a difference from the base.
 
 ## The stages
 
@@ -94,15 +120,15 @@ forward. Moving to `Proved` again records the new proof.
 | `check-register` | every test the four runners list is under exactly one of U1 to U14, or listed unfit with a decision |
 | `build-touched-set --propose` | prints the touched set the scan derives from `classes.toml`; never writes `touched_set.toml` |
 | `check-touched-set` | the committed `touched_set.toml` equals the protected hits of the final audit (`E-NO-FINAL-AUDIT`, `E-AUDIT-MISSING-FROM-SET` with the first pass that found the place, `E-SET-NOT-IN-AUDIT` (a `<module>` entry is exempt), `E-HIT-EXCLUDED-IN-SET`) and equals the scan, after the recorded exclusions; ends with a counts line (protected hits, entries, excluded hits, intrinsic hits). A repository with no `audit/` folder is checked by the scan alone. The tool never writes the set |
-| `check-cuts [--strict] [--base REV]` | the `cut` / `whole` data of every touched-set entry is well formed (see "Cut statements" below): `E-CUT-ANCHOR-MISSING`, `E-CUT-ANCHOR-AMBIGUOUS`, `E-CUT-OUT-OF-FUNCTION` (a span runs past the function), `E-CUT-OVERLAP`, `E-CUT-NO-WHY`, `E-CUT-WHOLE-AND-CUT`; with `--strict` also `E-CUT-UNDECIDED` (an entry with neither `whole` nor `cut`). Anchors are read from the working tree, or from `REV` once the stand-ins are in. The report (`cuts.json`) lists each entry's kind, the undecided entries and the entries with no obligation |
+| `check-cuts [--strict] [--base REV]` | the `cut` / `whole` data of every touched-set entry is well formed (see "Cut statements" below): `E-CUT-ANCHOR-MISSING`, `E-CUT-ANCHOR-AMBIGUOUS`, `E-CUT-OUT-OF-FUNCTION` (a span runs past the function), `E-CUT-OVERLAP` (two cuts overlap, or a cut's own use or guard overlaps that same cut), `E-FILE-UNPARSEABLE` (a working-tree Python file that does not parse; `check-coverage` reports it the same way), `E-CUT-NO-WHY`, `E-CUT-WHOLE-AND-CUT`; with `--strict` also `E-CUT-UNDECIDED` (an entry with neither `whole` nor `cut`). Anchors are read from the working tree, or from `REV` once the stand-ins are in. The report (`cuts.json`) lists each entry's kind, the undecided entries and the entries with no obligation |
 | `check-matrix U<n>` | the cross product of the dimensions in `matrices/U<n>.toml` has one test in every cell |
 | `check-coverage` | runs each suite under its coverage tool: 100% of the lines and branches inside every touched *function* (lcov). For an entry with cuts the obligation is the executable lines of its cut, uses and guards spans, and the branches on those lines (a guard is therefore covered both ways); the rest of the function owes nothing. `E-BELOW` names `file::function` and what is short; the report gives each entry's `kinds` (whole, cut or none) and lists the `no_obligation` entries. The reviewed `blind` table applies to the obligation lines. A `<module>` entry with no executable line (a head of constants and imports) in a file the tool measured is listed under `constants_only` in the report and is not a coverage claim: the functions that read the constants are what the tests exercise (16 Oct 2026) |
-| `check-stubs [--base REV]` | every touched function (or whole script) is replaced by the stub of its language. For an entry with cuts, the current function must equal the BASE version of it (`git show REV:FILE`, default `HEAD`; the working tree holds the deletion, uncommitted) with each cut span replaced by exactly one stand-in, blank lines and comments ignored: `E-CUT-NOT-REPLACED` (the cut's text is still there), `E-CUT-STAND-IN-WRONG` (not the stand-in of the right form, id and indentation, or none, or two), `E-CUT-COLLATERAL` (the function differs from BASE outside the cut spans), `E-STALE-ENTRY`. A base that git cannot read is exit 2 (`E-BASE-UNREADABLE`) |
-| `apply-cuts --dry-run [--base REV]` | prints, for each entry with cuts, the BASE function with a stand-in in place of every cut. It exists to produce the deleted form (for tests, and for a person to copy); without `--dry-run` it refuses. The tool never edits production code |
+| `check-stubs [--base REV] [--pending]` | every touched function (or whole script) is replaced by the stub of its language. For an entry with cuts, the current function must equal the BASE version of it (`git show REV:FILE`, default `HEAD`; the working tree holds the deletion, uncommitted) with each cut span replaced by exactly one stand-in, blank lines and comments ignored: `E-CUT-NOT-REPLACED` (the cut's text is still there), `E-CUT-STAND-IN-WRONG` (not the stand-in of the right form, id and indentation, or none, or two), `E-CUT-COLLATERAL` (the function differs from BASE outside the cut spans), `E-STALE-ENTRY`. A base that git cannot read is exit 2 (`E-BASE-UNREADABLE`). With `--pending` only the cuts not yet cited (see "Rounds") must be replaced, and every cited cut must be at its base text |
+| `apply-cuts --dry-run [--base REV] [--pending]` | prints, for each entry with cuts, the BASE function with a stand-in in place of every cut. It exists to produce the deleted form (for tests, and for a person to copy); without `--dry-run` it refuses. With `--pending`, stand-ins only for the cuts not yet cited. The tool never edits production code |
 | `audit-run NN` | runs the queries of `audit/pass-NN.md` with `git grep` and writes each query's hits (file, line, function) to `reports/audit-hits-NN.json` |
 | `audit-check` | every pass file is well formed, searches the four categories over every scope folder, gives the hits its queries give when run again, and marks as new exactly the hits no earlier pass has; no file outside `audit/` changes; the report gives `final_pass`: the latest pass when it adds a query no earlier pass had and finds no new hit, otherwise null with the reason (`single-pass`, `new-hits`, `repeat`). `--require-final` exits 1 unless the audit is final. Every hit row names its Access (reader or writer), Via (command or path) and one Outcome: protected (with a use case: U1 to U14, or one recorded under `[agreed.Un]` in `use_cases.toml` with a reason), excluded (with a reason) or intrinsic (git in the agent's own repository: a class W function, with a reason). Pass 01 must also have a row with an outcome for every place of `audit/seed.toml` (the gaps known on 15 October 2026; function `*` is satisfied by any row in that file). `audit/findings.toml` holds the findings that are not code (F-01: ten runs hold the only copy of their final source tree): every pass lists each open finding in its Open findings table, and only the owner closes one (a date and a reference); the tool never writes the file |
 | `run-suites` | runs each suite with result output on; failing tests are data, so it exits 0 |
-| `report-deletion [--base REV]` | every assigned test failed for the stub's reason; none passed; no test outside the set failed. If any entry has cuts the rule changes for the set: every cut of a non-shell entry must be cited (`refactor-cut:<id>` in the failure text) by at least one failing test, otherwise `E-CUT-NO-TEST-FAILED` names the cut, a coverage gap; a shell cut entry needs a failing test script that names its script and exited with 99; an assigned test that passes is no longer `E-ASSIGNED-PASSED` (a test that does not depend on a cut passes), while `E-OUTSIDE-FAILED` and `E-STUB-FAILS-TO-IMPORT` keep their meaning. A set with no cuts is checked exactly as before |
+| `report-deletion [--base REV] [--round N]` | every assigned test failed for the stub's reason; none passed; no test outside the set failed. If any entry has cuts the rule changes for the set: every cut of a non-shell entry must be cited (`refactor-cut:<id>` in the failure text) by at least one failing test, otherwise `E-CUT-NO-TEST-FAILED` names the cut, a coverage gap; a shell cut entry needs a failing test script that names its script and exited with 99; an assigned test that passes is no longer `E-ASSIGNED-PASSED` (a test that does not depend on a cut passes), while `E-OUTSIDE-FAILED` and `E-STUB-FAILS-TO-IMPORT` keep their meaning. `--round N` proves the cuts over several rounds (see "Rounds"). A set with no cuts is checked exactly as before |
 | `fates [--render PATH]` | every old test has one fate; every contract area has a new test seen failing; renders the table |
 | `guard-idle NODE` | no job is running on the node (`dbench status --json NODE`) |
 | `stage [TO]` | print the stage, or move to `TO` |
@@ -126,6 +152,7 @@ forward. Moving to `Proved` again records the new proof.
 | `stage.toml` | the current stage and every move |
 | `fixtures/mini/` | a real tiny project (Python, Rust, TypeScript, shell) the tool's process-level tests run on |
 | `fixtures/cuts/` | a second tiny project (Python, Rust, TypeScript, shell): in each language one function with two cuts, a use and a guard, for the cut-entry process tests |
+| `fixtures/rounds/` | a third tiny project (Python, Rust, TypeScript): two cuts in a row on one path, for the round procedure |
 | `fixtures/real/` | pinned excerpts of real files, for the classifier test |
 | `groups.toml` | the epic's component groups: name, order, patterns of the sites' files, the protecting tests of each group (story 20) |
 | `epic.py`, `epic_test.py`, `fixtures/epic/` | the five epic commands, their tests, and the miniature project's overlay (groups, contracts, fates, audit) |

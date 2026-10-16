@@ -350,6 +350,11 @@ def site_still_stub(root: Path, entry: dict) -> bool:
     """Whether a touched function is a hand-written stand-in (the stub detector of check-stubs); a function that is gone is not one."""
     path = root / entry["file"]
     try:
+        kind = R.entry_kind(entry)
+        if kind == R.KIND_NONE:                     # `cut = []`: nothing in the function was replaced, so nothing in it is a stand-in
+            return False
+        if kind == R.KIND_CUT:                      # an entry with cuts is a stand-in while any of its cuts' stand-ins is left in the function
+            return path.exists() and R.stand_ins_left(entry, path.read_text())
         return path.exists() and R.is_stub(entry["language"], path.read_text(), entry["function"]) is True
     except (SyntaxError, UnicodeDecodeError):
         return False         # code that does not parse is not a stand-in; its tests are red, which is reported where it matters

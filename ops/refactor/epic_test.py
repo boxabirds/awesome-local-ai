@@ -1479,3 +1479,80 @@ def test_tc102_w3_main_moves_during_the_work_the_first_commit_rebases_and_the_ov
     assert conflict.returncode == R.EXIT_FAIL and "E-WT-REBASE-CONFLICT  ts/src/core.ts" in conflict.stdout
     assert git(copy, "rev-parse", "HEAD").stdout.strip() == head and (copy / "ts/src/core.ts").read_text() == text
     assert git(copy, "status", "--porcelain", "--untracked-files=no").stdout == ""
+
+
+# ---- cut entries: a site with cuts is a stand-in while any of its cut stand-ins is left in the function --------------------------
+
+CUT_SITE = ('[[entry]]\nlanguage = "python"\nfile = "py/a.py"\nfunction = "record"\nclasses = ["C"]\n'
+            '[[entry.cut]]\nanchor = "x = git()"\nwhy = "runs git"\n[[entry.cut]]\nanchor = "y = git2()"\nwhy = "runs git too"\n')
+CUT_ID = "refactor-cut:py/a.py::record"
+
+
+def cut_site_root(tmp_path: Path, body: str, entry: str = CUT_SITE, language: str = "python", file: str = "py/a.py") -> Path:
+    root = tmp_path / "site"
+    write(root, "ops/refactor/touched_set.toml", entry)
+    write(root, file, body)
+    return root
+
+
+def site(entry: str, root: Path) -> dict:
+    return tomllib.loads((root / "ops/refactor/touched_set.toml").read_text())["entry"][0]
+
+
+@pytest.mark.parametrize("body,still", [
+    (f'def record(items):\n    raise NotImplementedError("{CUT_ID}#1")\n    return items\n', True),
+    (f'def record(items):\n    x = 1\n    raise NotImplementedError("{CUT_ID}#2")\n', True),
+    ('def record(items):\n    x = new_way()\n    return items\n', False),                          # rebuilt
+    ('def record(items):\n    raise NotImplementedError("deleted")\n', False),                       # a whole-function stub is not a cut stand-in
+    ('def other(items):\n    raise NotImplementedError("%s#1")\n\ndef record(items):\n    return items\n' % CUT_ID, False),     # in another function
+])
+def test_cut_site_is_a_stand_in_while_one_of_its_cuts_stand_ins_is_in_the_function(tmp_path, body, still):
+    root = cut_site_root(tmp_path, body)
+    assert E.site_still_stub(root, site(CUT_SITE, root)) is still
+
+
+def test_cut_site_with_a_gone_file_or_function_is_not_a_stand_in(tmp_path):
+    root = cut_site_root(tmp_path, "def other():\n    return 1\n")
+    assert E.site_still_stub(root, site(CUT_SITE, root)) is False
+    (root / "py/a.py").unlink()
+    assert E.site_still_stub(root, site(CUT_SITE, root)) is False
+
+
+def test_cut_site_in_a_file_that_does_not_parse_is_not_a_stand_in(tmp_path):
+    root = cut_site_root(tmp_path, "def record(:\n")
+    assert E.site_still_stub(root, site(CUT_SITE, root)) is False
+
+
+SHELL_SITE = ('[[entry]]\nlanguage = "shell"\nfile = "s/x.sh"\nfunction = "sync"\nclasses = ["C"]\n'
+              '[[entry.cut]]\nanchor = "git push"\nwhy = "pushes"\n')
+
+
+def test_cut_site_in_shell_is_a_stand_in_while_a_return_99_is_in_the_function(tmp_path):
+    left = cut_site_root(tmp_path / "a", "sync() {\n  return 99\n  echo done\n}\n", SHELL_SITE, file="s/x.sh")
+    assert E.site_still_stub(left, site(SHELL_SITE, left)) is True
+    rebuilt = cut_site_root(tmp_path / "b", "sync() {\n  upload\n  echo done\n}\n\nother() {\n  return 99\n}\n", SHELL_SITE, file="s/x.sh")
+    assert E.site_still_stub(rebuilt, site(SHELL_SITE, rebuilt)) is False                           # the 99 belongs to another function
+
+
+def test_cut_site_with_nothing_to_cut_is_never_a_stand_in(tmp_path):
+    entry = CUT_SITE.split("[[entry.cut]]")[0] + "cut = []\n"
+    root = cut_site_root(tmp_path, f'def record(items):\n    raise NotImplementedError("{CUT_ID}#1")\n', entry)
+    assert E.site_still_stub(root, site(entry, root)) is False
+
+
+def test_cut_site_can_push_names_a_site_that_still_has_a_cut_stand_in(tmp_path):
+    copy = tmp_path / "copy"
+    files = tiny_files("Reimplemented", f'    raise NotImplementedError("{CUT_ID}#1")')
+    files["ops/refactor/touched_set.toml"] = CUT_SITE
+    for rel, text in files.items():
+        write(copy, rel, text)
+    write_green(copy, GREEN_JUNIT)
+    result = E.epic_worktree(tmp_path, "can-push", copy, E.DEFAULT_BASE, git=FakeGit())
+    assert [(p.code, p.subject) for p in result.problems if p.code == "E-STUB-REMAINS"] == [("E-STUB-REMAINS", "py/a.py::record")]
+    write(copy, "py/a.py", "def record(items):\n    return list(items)\n")
+    assert [p.code for p in E.epic_worktree(tmp_path, "can-push", copy, E.DEFAULT_BASE, git=FakeGit()).problems if p.code == "E-STUB-REMAINS"] == []
+
+
+def test_cut_site_group_state_counts_a_cut_stand_in_as_a_site_still_to_connect(tmp_path):
+    root = cut_site_root(tmp_path, f'def record(items):\n    raise NotImplementedError("{CUT_ID}#1")\n')
+    assert E.site_is_stub(root, site(CUT_SITE, root)) is True

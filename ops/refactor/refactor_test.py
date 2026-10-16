@@ -4742,3 +4742,20 @@ def test_rounds_fixture_without_rounds_the_second_cut_is_a_coverage_gap(coverage
     report = json.loads((root / "ops/refactor/reports/deletion.json").read_text())
     assert done.returncode == R.EXIT_FAIL
     assert {(p["code"], p["subject"]) for p in report["problems"]} == {("E-CUT-NO-TEST-FAILED", f"refactor-cut:{f}::publish_all#2") for f in ROUND_FILES.values()}
+
+
+# A working-tree file that does not parse is a problem in the report, not a traceback (E-FILE-UNPARSEABLE).
+
+def test_unparseable_check_cuts_names_the_file_instead_of_failing(tmp_path):
+    root = cuts_root(tmp_path, cut_toml("return None"), "def publish(repo:\n    return None\n")
+    result = R.check_cuts(root)
+    assert result.exit_code == R.EXIT_FAIL and cut_problems(result) == [("E-FILE-UNPARSEABLE", "src/p.py::publish")]
+    assert cli(root, "check-cuts") == R.EXIT_FAIL
+
+
+def test_unparseable_check_coverage_names_the_file_for_a_whole_entry_and_a_cut_entry(tmp_path):
+    broken = "def publish(repo:\n    return None\n"
+    for kind, head, body in (("whole", "whole = true\n", ""), ("cut", "", cut_toml("return None"))):
+        result = coverage_result(tmp_path / kind, cut_entry(body=body, head=head), {"src/p.py": broken}, python={"src/p.py": lines({1: 1, 2: 1})})
+        assert cut_problems(result) == [("E-FILE-UNPARSEABLE", "src/p.py::publish")], kind
+        assert result.exit_code == R.EXIT_FAIL

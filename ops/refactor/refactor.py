@@ -855,7 +855,11 @@ def check_cuts(root: Path, strict: bool = False, base: Callable[[str], str | Non
                 no_obligation.append(subject)
             elif kind == KIND_CUT:
                 text = read(e["file"])
-                in_function = lines_in_text(e["language"], text, e["function"]) if text is not None else None
+                try:
+                    in_function = lines_in_text(e["language"], text, e["function"]) if text is not None else None
+                except SyntaxError as exc:
+                    result.fail("E-FILE-UNPARSEABLE", subject, f"the file does not parse: {exc.msg} (line {exc.lineno})")
+                    continue
                 if in_function is None:
                     result.fail("E-STALE-ENTRY", subject, "no such function in the file")
                     continue
@@ -1037,6 +1041,22 @@ def check_cut_entry(root: Path, e: dict, read_base: Callable[[str], str | None],
         return
     for p in stand_in_problems(e, matched):
         result.fail(p.code, p.subject, p.detail)
+
+
+def stand_ins_left(e: dict, text: str) -> bool:
+    """Whether a function of a cut entry still holds a stand-in of any of its cuts (the stand-in forms of check-stubs: the id-carrying
+    line of its language, or `return 99` / `exit 99` in shell). A function that is gone, or a file that does not parse, holds none."""
+    try:
+        in_function = lines_in_text(e["language"], text, e["function"])
+    except SyntaxError:
+        return False
+    if not in_function or entry_kind(e) != KIND_CUT:
+        return False
+    file_lines = text.splitlines()
+    patterns = [stand_in_pattern(e["language"], e["function"], cut_id(e, n)) for n in range(1, len(e["cut"]) + 1)]
+    if e["language"] == "shell":
+        patterns = patterns[:1]               # a shell stand-in carries no id: one pattern stands for all of them
+    return any(p.match(file_lines[n - 1].strip()) for n in in_function if n <= len(file_lines) for p in patterns)
 
 
 def apply_cuts(root: Path, base: Callable[[str], str | None] | None = None, pending: set[str] | None = None) -> Result:
@@ -1651,7 +1671,11 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
         for e in entries:
             subject = f"{e['file']}::{e['function']}"
             data = measured.get(e["file"])
-            span = function_lines(root, language, e["file"], e["function"]) if (root / e["file"]).exists() else None
+            try:
+                span = function_lines(root, language, e["file"], e["function"]) if (root / e["file"]).exists() else None
+            except SyntaxError as exc:
+                result.fail("E-FILE-UNPARSEABLE", subject, f"the file does not parse: {exc.msg} (line {exc.lineno})")
+                continue
             if data is None or span is None:
                 result.fail("E-FILE-UNMEASURED", subject, f"{language}: the coverage tool reported nothing for this {'file' if data is None else 'function'}")
                 continue
