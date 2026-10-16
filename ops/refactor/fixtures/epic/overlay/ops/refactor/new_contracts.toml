@@ -1,0 +1,19 @@
+# The miniature project's new contract tests: three areas, one new test each. They call the same functions the stand-ins
+# replace, so against the stand-ins each of them fails.
+
+[areas]
+keeping = "what a record keeps"
+placing = "where a run lives"
+naming = "what a run is called"
+
+[[contract]]
+area = "keeping"
+test = "python:py/test_contracts.py::test_a_record_keeps_the_first_items"
+
+[[contract]]
+area = "placing"
+test = "python:py/test_contracts.py::test_a_run_lives_under_its_root"
+
+[[contract]]
+area = "naming"
+test = "python:py/test_contracts.py::test_a_run_is_named_by_its_id"

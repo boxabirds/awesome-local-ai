@@ -1,0 +1,8 @@
+{
+  "commit": "HEAD_COMMIT",
+  "checks": [
+    {"name": "harness tests", "outcome": "passed"},
+    {"name": "dbench tests", "outcome": "passed"},
+    {"name": "shell tests", "outcome": "passed"}
+  ]
+}

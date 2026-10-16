@@ -1,0 +1,32 @@
+# The miniature audit's queries: the audit story's layout, one query per language that finds a leftover git read of a run's
+# tree, and one that finds the fixture's publisher (which the exclusions file keeps, with a reason).
+
+[[query]]
+id = "Q1"
+language = "python"
+pattern = 'git\s+ls-tree'
+paths = ["py", "tools"]
+
+[[query]]
+id = "Q2"
+language = "rust"
+pattern = '"ls-tree"'
+paths = ["rs"]
+
+[[query]]
+id = "Q3"
+language = "typescript"
+pattern = 'ls-tree'
+paths = ["ts/src"]
+
+[[query]]
+id = "Q4"
+language = "shell"
+pattern = 'git\s+ls-tree'
+paths = ["tools", "tests", ":(glob)*.sh"]
+
+[[query]]
+id = "Q5"
+language = "shell"
+pattern = 'git\s+push'
+paths = ["tools", "tests"]

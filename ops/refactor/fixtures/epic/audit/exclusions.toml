@@ -1,0 +1,5 @@
+[[exclusion]]
+query = "Q5"
+file = "tools/publish.sh"
+line_pattern = 'git push origin'
+reason = "the miniature project's publisher stays in place: it is not one of the epic's sites"

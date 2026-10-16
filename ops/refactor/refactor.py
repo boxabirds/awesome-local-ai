@@ -2081,6 +2081,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("check-matrix", help="one use case's matrix is a full cross-product with one test per cell").add_argument("use_case")
     sub.add_parser("stage", help="print the epic's stage; with a stage name, move the whole touched set to it if its justifying check passes",
                    description="print the epic's stage; with a stage name, move the whole touched set to it if its justifying check passes").add_argument("to", nargs="?")
+    sys.modules.setdefault("refactor", sys.modules[__name__])      # epic.py imports this module by name; run as a script it is __main__
+    import epic
+    epic.add_parsers(sub)
     args = parser.parse_args(argv)
     root = args.root
     lister = Universe()
@@ -2115,7 +2118,9 @@ def main(argv: list[str] | None = None) -> int:
             for e in propose_touched(root):
                 print(f"{e.language}  {e.file}::{e.function}  {','.join(e.classes)}")
             return EXIT_OK
-        if args.command == "check-matrix":
+        if args.command in epic.COMMAND_NAMES:
+            result = epic.run_command(root, args)
+        elif args.command == "check-matrix":
             result = check_matrix(root, args.use_case, lister)
         elif args.command == "report-deletion":
             result = report_deletion(root, read_results(root))

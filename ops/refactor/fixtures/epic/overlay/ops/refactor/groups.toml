@@ -1,0 +1,29 @@
+# The miniature project's groups: one per language, in the cutover order python, rust, typescript.
+# Each group lists the protecting tests that belong to it (the tests that failed in the deletion report).
+
+[[group]]
+name = "python"
+order = 1
+patterns = ["py/**"]
+tests = [
+  "python:py/test_core.py::test_record_keeps_only_what_fits_under_the_limit",
+  "python:py/test_core.py::test_run_dir_joins_the_root_and_the_run_id",
+]
+
+[[group]]
+name = "rust"
+order = 2
+patterns = ["rs/**"]
+tests = [
+  "rust:rs/mini/src/lib.rs::tests::an_empty_listing_has_no_lines",
+  "rust:rs/mini/src/lib.rs::tests::a_listing_counts_its_lines",
+]
+
+[[group]]
+name = "typescript"
+order = 3
+patterns = ["ts/**"]
+tests = [
+  "typescript:ts/src/core.test.ts::a run with a title shows it",
+  "typescript:ts/src/core.test.ts::a run without a title is untitled",
+]

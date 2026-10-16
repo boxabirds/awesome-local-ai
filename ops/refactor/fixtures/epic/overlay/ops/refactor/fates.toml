@@ -1,0 +1,29 @@
+# One fate for each of the miniature project's six assigned tests.
+
+[[fate]]
+test = "python:py/test_core.py::test_record_keeps_only_what_fits_under_the_limit"
+state = "rewritten"
+new_test = "python:py/test_contracts.py::test_a_record_keeps_the_first_items"
+
+[[fate]]
+test = "python:py/test_core.py::test_run_dir_joins_the_root_and_the_run_id"
+state = "rewritten"
+new_test = "python:py/test_contracts.py::test_a_run_lives_under_its_root"
+
+[[fate]]
+test = "rust:rs/mini/src/lib.rs::tests::an_empty_listing_has_no_lines"
+state = "kept"
+
+[[fate]]
+test = "rust:rs/mini/src/lib.rs::tests::a_listing_counts_its_lines"
+state = "kept"
+
+[[fate]]
+test = "typescript:ts/src/core.test.ts::a run with a title shows it"
+state = "kept"
+
+[[fate]]
+test = "typescript:ts/src/core.test.ts::a run without a title is untitled"
+state = "retired"
+function = "ts/src/core.ts::titleOf"
+reason = "the title default moves into the shared library"
