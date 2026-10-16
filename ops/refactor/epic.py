@@ -1,26 +1,67 @@
-"""The epic's delete-all-then-integrate commands, for story 20 (see the story's design in Ceetrix).
+"""The epic's delete-all-then-integrate commands (story 20 of the data-separation epic).
 
-SKELETON: signatures and constants only; behaviour is added command by command after its tests have been seen to fail.
+Five small commands run the owner's steps four and five once for the whole epic, in one detached working copy:
+
+    epic-entry     refuse to start unless the touched set, the coverage and the stage are right
+    epic-worktree  create, status, sync and can-push for the one detached working copy
+    epic-groups    propose, check, connect NAME and status for the component groups
+    epic-finish    move the stage to Reimplemented when every group is green and the release check passed
+    epic-search    repeat the audit's recorded queries over the tracked files
+
+The tool's existing commands (check-touched-set, check-coverage, check-stubs, run-suites, report-deletion, fates, stage) are
+used as they are. These commands write reports only, apart from the stage move epic-finish asks the existing stage command
+to make. They never edit production code, never create a branch and never send anything to a remote. Exit codes follow the
+tool: 0 the rule holds, 1 it is broken, 2 the tool could not decide.
 """
 from __future__ import annotations
 
 import argparse
+import functools
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from xml.etree import ElementTree
 
 import refactor as R
-from refactor import Result
+from refactor import EXIT_ERROR, EXIT_FAIL, EXIT_OK, Result
 
 MAX_LISTED_FILES = 20                                   # how many incoming files a sync names; the count is always given
+MAX_NAMED_TESTS = 20                                    # how many failing tests a gate refusal names before it says how many more
+MAX_LINE_CHARS = 160                                    # how much of a hit's line a report quotes
+MIN_COMMIT_CHARS = 7                                    # the shortest commit abbreviation that identifies a commit
+PERCENT_FULL = 100.0
+PERCENT_DECIMALS = 2
+BINARY_PROBE_BYTES = 8000                               # git's own test: a NUL byte in the first 8000 bytes makes a file binary
 DEFAULT_WORKTREE = Path(".claude/worktrees/epic-delete")
 DEFAULT_BASE = "origin/main"
+REMOTE_NAME = "origin"
 GROUPS_FILE = R.REFACTOR_DIR / "groups.toml"
 QUERIES_FILE = R.AUDIT_DIR / "queries.toml"
 EXCLUSIONS_FILE = R.AUDIT_DIR / "exclusions.toml"
 RELEASE_CHECK_FILE = R.REPORTS_DIR / "release-check.json"
+DELETION_REPORT = R.REPORTS_DIR / "deletion.json"
 COMMAND_NAMES = ("epic-entry", "epic-worktree", "epic-groups", "epic-finish", "epic-search")
+WORKTREE_ACTIONS = ("create", "status", "sync", "can-push")
+GROUP_ACTIONS = ("propose", "check", "connect", "status")
+ENTRY_STAGE = "Proved"
+FINISH_TO = "Reimplemented"
+GATE_STAGES = ("Reimplemented", "Compared")             # the stages from which the working copy may go to the shared main line
+UNDECIDED_COVERAGE = ("E-TOOL-MISSING", "E-SUITE-RED", "E-NO-COVERAGE-RUNNER")      # the coverage step's codes for "cannot decide"
+GROUP_GREEN, GROUP_RED, GROUP_WAITING, GROUP_SKIPPED = "green", "red", "waiting", "skipped"
+CLOSED_STATES = (GROUP_GREEN, GROUP_SKIPPED)
+RELEASE_PASSED = "passed"
+AUDIT_PREFIX = R.AUDIT_DIR.as_posix() + "/"             # the audit folder holds the patterns themselves: no query searches it
+EXCLUDE_SPEC, GLOB_SPEC = ":(exclude)", ":(glob)"       # the git pathspec forms the audit's Paths column uses
+GIT_QUIET_ENV = {"GIT_TERMINAL_PROMPT": "0", "GIT_EDITOR": "true"}
 
+
+# ---- git, behind one seam so the unit tests can answer for it ---------------------------------------------------------
 
 @dataclass
 class GitOut:
@@ -33,6 +74,140 @@ GitRunner = Callable[[Path, list[str]], GitOut]
 
 
 def run_git(cwd: Path, args: list[str]) -> GitOut:
+    done = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, env={**os.environ, **GIT_QUIET_ENV})
+    return GitOut(done.returncode, done.stdout, done.stderr)
+
+
+def git_tracked_files(root: Path) -> list[str]:
+    """Every file git tracks in the working copy, as repository-relative paths (a path git lists that is gone from the disk is left out)."""
+    done = run_git(root, ["ls-files", "-z"])
+    if done.code != 0:
+        raise RuntimeError(f"git ls-files failed: {done.err.strip()}")
+    return sorted(name for name in done.out.split("\0") if name and (root / name).is_file())
+
+
+# ---- paths: the globs of the groups, and the pathspecs of the audit's queries ---------------------------------------------
+
+@functools.lru_cache(maxsize=None)
+def glob_regex(pattern: str) -> re.Pattern:
+    """`**/` any folders (or none), `**` anything, `*` anything within one folder, `?` one character of a name."""
+    out, i = [], 0
+    while i < len(pattern):
+        if pattern.startswith("**/", i):
+            out.append("(?:.*/)?")
+            i += 3
+        elif pattern.startswith("**", i):
+            out.append(".*")
+            i += 2
+        elif pattern[i] == "*":
+            out.append("[^/]*")
+            i += 1
+        elif pattern[i] == "?":
+            out.append("[^/]")
+            i += 1
+        else:
+            out.append(re.escape(pattern[i]))
+            i += 1
+    return re.compile("".join(out))
+
+
+def glob_matches(path: str, pattern: str) -> bool:
+    return glob_regex(pattern).fullmatch(path) is not None
+
+
+def spec_matches(path: str, spec: str) -> bool:
+    """One positive pathspec: a file, a folder (everything under it) or a glob."""
+    if spec.startswith(GLOB_SPEC):
+        return glob_matches(path, spec[len(GLOB_SPEC):])
+    folder = spec.rstrip("/")
+    return path == folder or path.startswith(folder + "/") or glob_matches(path, spec)
+
+
+def pathspecs_match(path: str, specs: list[str]) -> bool:
+    """Git's rule: at least one plain spec includes the path and no `:(exclude)` spec removes it."""
+    include = [s for s in specs if not s.startswith(EXCLUDE_SPEC)]
+    exclude = [s[len(EXCLUDE_SPEC):] for s in specs if s.startswith(EXCLUDE_SPEC)]
+    return any(spec_matches(path, s) for s in include) and not any(spec_matches(path, s) for s in exclude)
+
+
+def percent(hit: int, total: int) -> float:
+    return PERCENT_FULL if total == 0 else round(PERCENT_FULL * hit / total, PERCENT_DECIMALS)
+
+
+def read_stage_or_none(root: Path, result: Result) -> str | None:
+    try:
+        return R.read_stage(root)
+    except R.StageFileCorrupt as exc:
+        result.error("E-STAGE-FILE-CORRUPT", R.STAGE_FILE.as_posix(), f"left as it is: {exc}")
+        return None
+
+
+def read_results_safe(root: Path) -> R.Results:
+    """The result files the last run-suites wrote. A file that cannot be read is the same as a file that is not there: the language
+    is listed as missing, never counted as passed."""
+    try:
+        return R.read_results(root)
+    except (ElementTree.ParseError, json.JSONDecodeError, KeyError, ValueError, OSError):
+        found = R.Results()
+        for key, spec in R.read_toml(root / R.RUNNERS_FILE).items():
+            if spec.get("results") is not None:
+                found.missing.add(R.runner_language(key))
+        return found
+
+
+def all_outcomes(results: R.Results) -> dict[str, str]:
+    return {**results.outcomes, **{f"rust:{name}": outcome for name, outcome in results.rust_names.items()}}
+
+
+
+# ======================================================================================================================
+# epic-entry
+# ======================================================================================================================
+
+def audit_pass_of(root: Path) -> str | None:
+    files = R.pass_files(root)
+    return files[-1].stem if files else None
+
+
+def epic_entry(root: Path, runner: R.CoverageRunner = R.run_coverage) -> Result:
+    """The touched set equals the audit, every touched function is at 100% of lines and branches, and the stage is Proved. The three
+    checks always all run, so the one report lists every difference."""
+    result = Result()
+    entries = R.read_toml(root / R.TOUCHED_FILE).get("entry", [])
+    for p in R.check_touched(root).problems:
+        result.fail("E-ENTRY-TOUCHED", p.subject, f"{p.code} {p.detail}".strip())
+    coverage = R.check_coverage(root, runner)
+    for p in coverage.problems:
+        if p.code in UNDECIDED_COVERAGE:
+            result.error(p.code, p.subject, p.detail)
+        else:
+            result.fail("E-ENTRY-COVERAGE", p.subject, f"{p.code} {p.detail}".strip())
+    for language, why in sorted(coverage.data.get("not_measured", {}).items()):
+        result.fail("E-ENTRY-COVERAGE", language, f"not measured: {why}")
+    stage = read_stage_or_none(root, result)
+    if stage is not None and stage != ENTRY_STAGE:
+        result.fail("E-ENTRY-STAGE", R.STAGE_FILE.as_posix(), f"the stage is {stage}; the epic starts from {ENTRY_STAGE}")
+    if not entries:
+        result.fail("E-ENTRY-EMPTY", R.TOUCHED_FILE.as_posix(), "the touched set has no entry, so there is nothing to remove")
+    measured = coverage.data.get("measured", {})
+    lines_n, lines_hit = sum(c[0] for c in measured.values()), sum(c[1] for c in measured.values())
+    branches_n, branches_hit = sum(c[2] for c in measured.values()), sum(c[3] for c in measured.values())
+    languages = sorted({e["language"] for e in entries})
+    result.data = {
+        "audit_pass": audit_pass_of(root),
+        "functions": {language: sum(1 for e in entries if e["language"] == language) for language in languages},
+        "coverage": {"lines_percent": percent(lines_hit, lines_n), "branches_percent": percent(branches_hit, branches_n), "measured": measured},
+        "stage": stage,
+    }
+    R.write_report(root, "epic-entry", result)
+    return result
+
+
+def cap_files(names: list[str]) -> tuple[list[str], int]:
+    raise NotImplementedError("skeleton")
+
+
+def epic_worktree(root: Path, action: str, path: Path | None, base: str, git: GitRunner = run_git) -> Result:
     raise NotImplementedError("skeleton")
 
 
@@ -47,19 +222,7 @@ class Group:
     sites: list[str] = field(default_factory=list)
 
 
-def epic_entry(root: Path, runner: R.CoverageRunner = R.run_coverage) -> Result:
-    raise NotImplementedError("skeleton")
-
-
-def epic_worktree(root: Path, action: str, path: Path | None, base: str, git: GitRunner = run_git) -> Result:
-    raise NotImplementedError("skeleton")
-
-
 def propose_groups(root: Path) -> list[Group]:
-    raise NotImplementedError("skeleton")
-
-
-def cap_files(names: list[str]) -> tuple[list[str], int]:
     raise NotImplementedError("skeleton")
 
 
@@ -71,11 +234,7 @@ def ungrouped_sites(root: Path, groups: list[Group]) -> list[str]:
     raise NotImplementedError("skeleton")
 
 
-def read_results_safe(root: Path) -> R.Results:
-    raise NotImplementedError("skeleton")
-
-
-def site_is_stub(root: Path, entry: R.Entry) -> bool:
+def site_is_stub(root: Path, entry: R.Entry | dict) -> bool:
     raise NotImplementedError("skeleton")
 
 
@@ -87,17 +246,13 @@ def epic_finish(root: Path, git: GitRunner = run_git, results: R.Results | None 
     raise NotImplementedError("skeleton")
 
 
-def git_tracked_files(root: Path) -> list[str]:
-    raise NotImplementedError("skeleton")
-
-
 def epic_search(root: Path, files: Callable[[Path], list[str]] = git_tracked_files) -> Result:
     raise NotImplementedError("skeleton")
 
 
-WORKTREE_ACTIONS = ("create", "status", "sync", "can-push")
-GROUP_ACTIONS = ("propose", "check", "connect", "status")
-
+# ======================================================================================================================
+# the command line
+# ======================================================================================================================
 
 def add_parsers(sub: argparse._SubParsersAction) -> None:
     """Register the five commands on the tool's parser (the only change refactor.py makes for them)."""
@@ -112,12 +267,41 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
                         description="connect the removed places to the shared library one group at a time")
     gr.add_argument("action", choices=GROUP_ACTIONS)
     gr.add_argument("name", nargs="?", help="the group to connect")
-    gr.add_argument("--toml", action="store_true", help="propose: print the draft as groups.toml text")
+    gr.add_argument("--toml", action="store_true", help="propose: print the draft as groups.toml text and nothing else")
     sub.add_parser("epic-finish", help="move the stage to Reimplemented when every group is green and the release check passed",
                    description="every group green, the release check passed on this commit, the suite green")
     sub.add_parser("epic-search", help="repeat the audit's queries over the tracked files: zero hits outside the exclusions",
                    description="repeat the audit's recorded queries and report every hit that no exclusion covers")
 
 
+def print_groups(result: Result, action: str) -> None:
+    if action == "propose":
+        for g in result.data["groups"]:
+            print(f"  {g['order']}  {g['name']}: {len(g['sites'])} site(s)")
+        for site in result.data["ungrouped"]:
+            print(f"  ungrouped  {site}")
+    elif action == "status" and result.exit_code == EXIT_OK:
+        for g in result.data["groups"]:
+            print(f"  {g['order']}  {g['name']}  {g['state']}  ({g['sites']} sites, {g['sites_stub']} stand-in; {g['tests']} tests, {g['tests_red']} red)")
+
+
 def run_command(root: Path, args: argparse.Namespace) -> Result:
-    raise NotImplementedError("skeleton")
+    if args.command == "epic-entry":
+        return epic_entry(root)
+    if args.command == "epic-worktree":
+        return epic_worktree(root, args.action, args.path, args.base)
+    if args.command == "epic-finish":
+        return epic_finish(root)
+    if args.command == "epic-search":
+        return epic_search(root)
+    if args.action == "propose" and args.toml:
+        sys.stdout.write(render_groups_toml(propose_groups(root)))
+        sys.stdout.flush()
+        raise SystemExit(EXIT_OK)
+    if args.action == "connect":
+        ran = R.run_suites(root)
+        if ran.exit_code != EXIT_OK:
+            return ran
+    result = epic_groups(root, args.action, args.name, read_results_safe(root))
+    print_groups(result, args.action)
+    return result
