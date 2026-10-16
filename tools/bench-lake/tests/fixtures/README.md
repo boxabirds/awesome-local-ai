@@ -41,8 +41,8 @@ Not copied: the 11 stories' logs of each run beyond the ones named below, `serve
   the scan refused them; the bundle used is `v2-q36fork-b-r2`'s (613 KB), a tracked run.
 - **No combination run without a note.** Every combination run in the lake has a note. TC-61 builds one from a copy of the
   first run by removing `collection.json`. The only real runs without a note are the hand-built reference runs (above).
-- **The raw logs of the dry run and of `v2-q36fork-b-r2` are left out**: the first 20 lines of the dry run's raw log
-  hold a home path.
+- **The dry run's raw log is left out**: the first 20 lines of its story 02 raw log hold a home path. `v2-q36fork-b-r2` has
+  no raw logs in the lake (compact only), so the raw-log cells use `v2-fresh-r1`.
 - **Empty folders.** Git cannot store an empty folder. The real empty `benchmarks` folder in a node folder (macbook-air and
   quintus have one) is created by the tests that need it (TC-05).
 
