@@ -850,6 +850,24 @@ mod tests {
     }
 
     #[test]
+    fn a_run_path_is_a_reference_run_or_a_combination_run_and_nothing_else() {
+        // A combination run: under combinations/, `benchmarks/<pack>/<run>` at its end.
+        assert!(is_run_path("combinations/a/b/c/d/benchmarks/p/r1"));
+        // The same shape under another top directory, or with something else where `benchmarks` goes.
+        assert!(!is_run_path("other/a/b/c/d/benchmarks/p/r1"));
+        assert!(!is_run_path("combinations/a/b/c/d/results/p/r1"));
+        // Too few segments to hold a combination and its run.
+        assert!(!is_run_path("combinations/benchmarks/p/r1"));
+        // A reference run has exactly stack, pack and run after the prefix.
+        assert!(is_run_path("benchmarks/reference/vidi/opus-5.5/run-3"));
+        assert!(!is_run_path("benchmarks/reference/vidi/opus-5.5"));
+        assert!(!is_run_path("benchmarks/reference/vidi/opus-5.5/run-3/extra"));
+        // Not a valid directory at all.
+        assert!(!is_run_path("../x/benchmarks/p/r1"));
+        assert!(!is_run_path(""));
+    }
+
+    #[test]
     fn store_dir_rejects_a_run_path_the_node_should_not_have_sent() {
         let store = Path::new("/lake");
         assert_eq!(store_dir(store, "node-a", "combinations/a/benchmarks/p/r1"), Some(PathBuf::from("/lake/node-a/combinations/a/benchmarks/p/r1")));
