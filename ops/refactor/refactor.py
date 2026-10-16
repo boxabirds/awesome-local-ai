@@ -1105,6 +1105,7 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
     not_measured: dict[str, str] = {}
     measured_counts: dict[str, list[int]] = {}
     excused: dict[str, dict] = {}
+    constants_only: list[str] = []              # module heads in a measured file with no executable line: reported, not a coverage claim
     spans_seen: dict[str, set[int]] = {}        # the lines of each file that a touched function covers
     blind: dict[str, list[dict]] = {}          # the reviewed table of lines a tool cannot see, by file
     for tool_spec in specs.values():
@@ -1145,6 +1146,9 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
                 continue
             executable = sorted(n for n in span if n in data.lines)
             if not executable:
+                if e["function"] == MODULE_LEVEL:      # a head of constants and imports has no line a coverage tool measures; the functions that read it are what the tests exercise
+                    constants_only.append(subject)
+                    continue
                 result.fail("E-FILE-UNMEASURED", subject, f"{language}: no measurable line in this function")
                 continue
             unrun = [n for n in executable if data.lines[n] == 0]
@@ -1177,7 +1181,7 @@ def check_coverage(root: Path, runner: CoverageRunner = run_coverage, languages:
         for n in sorted({n for row in rows for n in row.get("lines", [])} - spans_seen.get(file, set())):
             if file in spans_seen:
                 result.fail("E-BLIND-STALE", f"{file}:{n}", "not a line of any touched function in this file: remove it from the table")
-    result.data = {"not_measured": not_measured, "measured": measured_counts, "excused": excused}
+    result.data = {"not_measured": not_measured, "measured": measured_counts, "excused": excused, "constants_only": constants_only}
     write_report(root, "coverage", result)
     return result
 

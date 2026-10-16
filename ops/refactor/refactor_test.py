@@ -774,6 +774,27 @@ def test_a_function_with_no_measurable_line_or_a_file_the_tool_never_saw_is_unme
     assert [(p.code, p.subject) for p in unseen.problems] == [("E-FILE-UNMEASURED", "src/a.py::record")]
 
 
+RS_CONSTANTS = "const COMBINATIONS_DIR: &str = \"combinations\";\nconst BENCHMARKS_DIR: &str = \"benchmarks\";\n\nfn pull() {\n    run();\n}\n"
+
+
+def test_a_module_head_of_constants_has_no_line_to_measure_and_is_reported_not_failed(tmp_path):
+    result = coverage_result(tmp_path, entry_toml("rust", "src/a.rs", "<module>"), {"src/a.rs": RS_CONSTANTS},
+                             rust={"src/a.rs": lines({5: 1})})
+    assert result.exit_code == R.EXIT_OK and result.problems == []
+    assert result.data["constants_only"] == ["src/a.rs::<module>"]
+    assert "src/a.rs::<module>" not in result.data["measured"]
+
+
+def test_a_module_head_in_a_file_the_tool_never_saw_is_still_unmeasured(tmp_path):
+    result = coverage_result(tmp_path, entry_toml("rust", "src/a.rs", "<module>"), {"src/a.rs": RS_CONSTANTS}, rust={})
+    assert [(p.code, p.subject) for p in result.problems] == [("E-FILE-UNMEASURED", "src/a.rs::<module>")]
+
+
+def test_only_a_module_head_may_have_no_measurable_line_a_named_function_may_not(tmp_path):
+    result = coverage_result(tmp_path, entry_toml("rust", "src/a.rs", "pull"), {"src/a.rs": RS_CONSTANTS}, rust={"src/a.rs": lines({1: 1})})
+    assert [(p.code, p.subject) for p in result.problems] == [("E-FILE-UNMEASURED", "src/a.rs::pull")]
+
+
 def test_a_touched_function_that_is_not_in_its_file_is_unmeasured_not_passed(tmp_path):
     result = coverage_result(tmp_path, entry_toml("python", "src/a.py", "ghost"), {"src/a.py": PY_RECORD}, python={"src/a.py": lines(ALL_HIT)})
     assert [p.code for p in result.problems] == ["E-FILE-UNMEASURED"]
