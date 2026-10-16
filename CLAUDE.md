@@ -91,13 +91,15 @@ Why: the owner, 16 Oct 2026: "Python only when necessary. it's a resource hungry
 
 ## Refactor DELETE FIRST
 
-Refactoring breaks things easily, so all refactoring in this repository follows three steps, in order:
+Refactoring breaks things easily, so all refactoring in this repository follows three steps, in order. The unit of deletion is **the code that depends on the thing being replaced**, not the function or file around it. Name those statements first: the **cut statements** (a call to a git command, a path built from a checkout) and the statements that use their results.
 
-1. **Prove 100% coverage.** Assert that the code to be refactored has 100% test coverage (lines and branches), with exhaustive test fixtures. If it doesn't, write the missing tests first, against the code as it is, until it does. Never refactor code that isn't fully covered.
-2. **Delete first.** Delete all the actual code, leaving only the functions (their signatures, as stubs). The tests stay, and now fail.
-3. **Rebuild step by step.** Insert new code in the new design, piece by piece, until every test passes again.
+1. **Prove coverage of the cut statements and what depends on them.** Assert 100% test coverage (lines and branches) of the cut statements and of the code that consumes their results, with exhaustive test fixtures. The fixtures must include the ways the old code can go wrong and the properties it gave for free (a consistent snapshot, an atomic write, one copy per id), because nothing else asserts those. If coverage is short, write the missing tests first, against the code as it is, until it is complete. Never refactor code that isn't covered.
+2. **Delete first.** Delete the cut statements only, and put a stand-in that raises where each one was. Everything else in the function stays as it is. The tests stay, and the ones that depend on the cut now fail. A cut that makes no test fail has found a coverage gap: go back to step 1. When a whole function is the thing being replaced (a push helper, a function that only turns a checkout path into an id), the whole function is the cut: delete its body and leave the signature as a stub.
+3. **Rebuild step by step.** Put new code in place of each stand-in, in the new design, piece by piece, until every test passes again.
 
-Why: moving working code around keeps its untested assumptions and hides what was lost. Deleting it makes the tests the only definition of the behaviour, so whatever they don't pin down is found in step 1, before the refactor, and not on a live run after it.
+Why: moving working code around keeps its untested assumptions and hides what was lost. Deleting the dependent code makes the tests the only definition of its behaviour, so whatever they don't pin down is found in step 1, before the refactor, and not on a live run after it. Deleting only what depends on the replaced code keeps the rest of the program working code, so the change stays small and the tests that fail are the ones that should.
+
+History: until 16 October 2026 this section said to delete all the code and leave only the signatures, and the refactor tool did that per function (about 3,200 lines across 112 sites, including two functions of over 200 lines with a handful of git lines each). The owner: "I'm not saying delete all the code everywhere, I'm saying delete the code that depends on the code that has to be refactored."
 
 ## Least privilege
 
