@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { finalizePath, git, isKnownGood, loadFlowCounts, loadRuns, rescoreStoryPaths, rescoredStory, runFinalize, runNotes, runNotePaths } from "./sources.ts";
+import { finalizePath, git, isKnownGood, loadFlowCounts, loadRuns, readBlobs, rescoreStoryPaths, rescoredStory, runFinalize, runNotes, runNotePaths } from "./sources.ts";
 
 // A re-scored story's counts: since 30 Sep 2026 a record has only the public summary (accept-summary.json);
 // the full result (accept.json) is private. Older records have only the full result.
@@ -274,5 +274,38 @@ describe("loadFlowCounts(): tests per story in the private suite, by version tag
 
   it("a tag that was never read and is gone gives nothing", async () => {
     expect(await loadFlowCounts(priv, [{ pack: "vidi", version: "vidi-v7-other" }])).toEqual({});
+  });
+});
+
+describe("readBlobs(): many files of origin/main in one git call", () => {
+  const BLOB_REPO = join(SCRATCH, "blobs");
+  const PRESENT = "combinations/stackA/run.json";
+  const ABSENT = "combinations/stackA/never-pushed.json";
+  const UNICODE = "notes/caf\u00e9.md";
+
+  function repoWithOriginMain() {
+    mkdirSync(BLOB_REPO, { recursive: true });
+    g(BLOB_REPO, "init", "-q", "-b", "main");
+    put(BLOB_REPO, { [PRESENT]: j({ pack: "vidi" }), [UNICODE]: "na\u00efve caf\u00e9\n" });
+    g(BLOB_REPO, "add", PRESENT, UNICODE);
+    g(BLOB_REPO, "commit", "-q", "-m", "fixture");
+    g(BLOB_REPO, "update-ref", "refs/remotes/origin/main", "HEAD");
+  }
+
+  it("no paths: an empty map, without starting git", async () => {
+    expect(await readBlobs(join(SCRATCH, "no-such-repo-needed"), [])).toEqual(new Map());
+  });
+  it("gives each present file's text, keeps multibyte text whole, and leaves out a file that is missing", async () => {
+    repoWithOriginMain();
+    const got = await readBlobs(BLOB_REPO, [PRESENT, ABSENT, UNICODE]);
+    expect([...got.keys()]).toEqual([PRESENT, UNICODE]);
+    expect(got.get(PRESENT)).toBe(j({ pack: "vidi" }));
+    expect(got.get(UNICODE)).toBe("na\u00efve caf\u00e9\n");
+    expect(got.has(ABSENT)).toBe(false);
+  });
+  it("a folder that is not a repository: git prints nothing to read, so the map is empty", async () => {
+    const notRepo = join(SCRATCH, "blobs-not-a-repo");
+    mkdirSync(notRepo);
+    expect(await readBlobs(notRepo, [PRESENT, UNICODE])).toEqual(new Map());
   });
 });
