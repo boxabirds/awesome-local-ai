@@ -87,7 +87,10 @@ The harness no longer makes these copies or puts them in git. Each line is a tes
 2. No `agent-events.compact.jsonl.gz` is written (`drive.compact_events` is gone).
 3. Nothing under a run's `stories/*/agent-events*`, `workspace/`, or any `*.compact.jsonl.gz` is ever staged or committed
    (`.gitignore` rules, `publicise` rules, `record_story`).
-4. `workspace.bundle`, `metrics.json` and the other records are still committed and pushed at each story's end, as today.
+4. `metrics.json` and the other records are still committed and pushed at each story's end, as today. `workspace.bundle` is
+   made when the run is finalised (`finalize.py`, or the pending sweep for a stopped or failed run), not at each story's end:
+   until then the code exists only in the node's work folder. The mirror used to be the in-between copy (found 17 Oct 2026,
+   when nine stopped or failed runs turned out to have no bundle).
 5. The judge, its preparation and the gallery read the bundle, not the `workspace/` folder.
 6. The readers of the compact log read the raw log; a reference run that has only a compact log is still read (99 exist).
 
