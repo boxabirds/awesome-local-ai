@@ -267,6 +267,7 @@ pub fn router(shared: Arc<Shared>) -> Router {
         .route("/v1/runs", get(list_runs))
         .route("/v1/runs/files", get(run_files))
         .route("/v1/runs/file", get(run_file))
+        .merge(crate::scopes::routes())
         .route_layer(middleware::from_fn_with_state(shared.clone(), auth));
     Router::new()
         .route("/v1/health", get(health))

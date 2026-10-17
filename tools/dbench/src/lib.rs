@@ -25,6 +25,7 @@ pub mod progress;
 pub mod recovery;
 pub mod release;
 pub mod runner;
+pub mod scopes;
 pub mod server;
 pub mod service_unit;
 pub mod store;
