@@ -1439,3 +1439,47 @@ fn a_warehouse_made_before_the_host_columns_gains_them_when_opened_and_keeps_its
     Db::open(&path).unwrap();    // opening it again is harmless
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+// ---- the raw log and its compact copy give one story ----
+
+/// A real excerpt (lake: mtplx-pi v2-mtplx2122-r1 story 12) in both forms, beside the harness's other fixtures: the
+/// raw log with its per-token deltas and three agent restarts, and the compact copy the harness used to publish.
+fn event_log_excerpt(client: &str, compact: bool) -> String {
+    use std::io::Read;
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../benchmarks/spec-bench/harness/fixtures/events").join(client);
+    if !compact {
+        return std::fs::read_to_string(dir.join("agent-events.jsonl")).unwrap();
+    }
+    let mut text = String::new();
+    flate2::read::GzDecoder::new(std::fs::File::open(dir.join("agent-events.compact.jsonl.gz")).unwrap()).read_to_string(&mut text).unwrap();
+    text
+}
+
+/// What a story ingested from this text holds: its stream in order (kind, time, ord), and the table counts.
+fn ingested_story(client: &str, compact: bool) -> (Vec<(String, i64, i64)>, Vec<i64>, (String, String)) {
+    let mut db = Db::open_memory().unwrap();
+    let parts = ingest::run_parts(RUN).unwrap();
+    let rel = format!("{RUN}/stories/01");
+    let mut inp = story_inputs(&rel, &event_log_excerpt(client, compact), json!({"title": "One", "status": "DONE"}), true);
+    inp.events_source = if compact { ingest::EVENTS_COMPACT } else { ingest::EVENTS_FULL }.to_string();
+    db.upsert_run(RUN, &parts, &inp.run_json, &inp.status_json, Some("node-a"), 1.0).unwrap();
+    let sk = ingest::ingest_story(&mut db, &parts, &inp, 1_790_001_000.0).unwrap().sk;
+    let stream = db.events_in_range(sk, i64::MIN, i64::MAX, None, 100_000).unwrap().into_iter().map(|e| (e.kind, e.t_ms, e.ord)).collect();
+    let counts = ["calls", "tools", "msgs", "attempts", "sessions"].iter().map(|t| db.count(t, sk).unwrap()).collect();
+    let (fmt, status): (String, String) = db.conn.query_row("select fmt, status from stories where sk = ?1", [sk], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+    (stream, counts, (fmt, status))
+}
+
+#[test]
+fn a_story_ingests_to_the_same_rows_from_its_raw_log_and_from_its_compact_copy() {
+    // (The Claude Code fixture carries no `_rx` stamps, which a stream needs; it is covered by the harness tests.)
+    for client in ["pi", "opencode"] {
+        let raw = ingested_story(client, false);
+        let compact = ingested_story(client, true);
+        assert!(!raw.0.is_empty(), "{client}: nothing ingested");
+        assert_eq!(raw.1, compact.1, "{client}: table counts differ");
+        assert_eq!(raw.2, compact.2, "{client}: the story row differs");
+        assert_eq!(raw.0, compact.0, "{client}: the stream differs");
+        assert!(raw.1[0] > 0, "{client}: no calls ingested");
+    }
+}

@@ -1,6 +1,7 @@
 //! A varied, reproducible set of texts to count: the repository's own tracked files (prose, code in several
-//! languages, JSON, configuration) and the long strings inside its tracked compact agent logs (thinking, replies,
-//! tool-call inputs, tool results) from every client the harness drives.
+//! languages, JSON, configuration) and the long strings inside its tracked agent logs (thinking, replies,
+//! tool-call inputs, tool results) from every client the harness drives. A story's log is its raw
+//! `agent-events.jsonl` where that is tracked, else the compact copy older runs published; stream deltas are skipped.
 //!
 //! Only files git tracks in the public repository are read, and anything that touches the held-out suite is left out.
 //! Every choice is by a hash of the text's name, so the same repository gives the same corpus.
@@ -17,6 +18,10 @@ pub const MAX_CHARS: usize = 6000;
 pub const MIN_STRING_CHARS: usize = 300;
 const MAX_FILE_BYTES: u64 = 3 * 1024 * 1024;
 const LOG_SUFFIX: &str = ".compact.jsonl.gz";
+const RAW_LOG_NAME: &str = "agent-events.jsonl";
+/// Per-token stream events: the raw log has one for every chunk, carrying partial text and partial tool output.
+/// The compact copy kept only the first of each model call; none is a sample.
+const STREAM_DELTA_EVENTS: [&str; 2] = ["message_update", "tool_execution_update"];
 /// Path fragments that mark held-out, private or generated material. Nothing under them is read.
 const EXCLUDED: [&str; 9] = ["acceptance", "accept-", "accept.", "heldout", "audit", "node_modules", "/private", "package-lock", "pnpm-lock"];
 
@@ -138,6 +143,29 @@ fn read_gz(path: &Path) -> Result<String> {
     Ok(text)
 }
 
+/// A story's log: the raw one if it is tracked, else the compact copy (a story with both is read once, from the raw one).
+fn story_logs(paths: &[String]) -> Vec<String> {
+    let folder = |p: &str, name: &str| p.strip_suffix(name).map(|d| d.to_string());
+    let raw: std::collections::BTreeSet<String> = paths.iter().filter_map(|p| folder(p, RAW_LOG_NAME).filter(|d| d.is_empty() || d.ends_with('/'))).collect();
+    paths
+        .iter()
+        .filter(|p| match (folder(p, RAW_LOG_NAME), p.ends_with(LOG_SUFFIX)) {
+            (Some(d), _) => d.is_empty() || d.ends_with('/'),
+            (None, true) => !raw.contains(&p[..p.rfind('/').map_or(0, |i| i + 1)]),
+            _ => false,
+        })
+        .cloned()
+        .collect()
+}
+
+fn read_log(path: &Path) -> Result<String> {
+    if path.extension().is_some_and(|e| e == "gz") {
+        read_gz(path)
+    } else {
+        Ok(std::fs::read_to_string(path)?)
+    }
+}
+
 /// The corpus for `repo`, leaving out any source whose path starts with one of `skip_prefixes`.
 pub fn build(repo: &Path, plan: Plan, skip_prefixes: &[String]) -> Result<Vec<Sample>> {
     let paths: Vec<String> = tracked(repo)?.into_iter().filter(|p| !excluded(p) && !skip_prefixes.iter().any(|s| p.starts_with(s.as_str()))).collect();
@@ -163,12 +191,15 @@ pub fn build(repo: &Path, plan: Plan, skip_prefixes: &[String]) -> Result<Vec<Sa
         }
     }
 
-    let logs: Vec<(String, String)> = paths.iter().filter(|p| p.ends_with(LOG_SUFFIX)).map(|p| (p.clone(), p.clone())).collect();
+    let logs: Vec<(String, String)> = story_logs(&paths).into_iter().map(|p| (p.clone(), p)).collect();
     let mut strings: std::collections::BTreeMap<String, Vec<(String, Sample)>> = Default::default();
     for rel in pick(logs, plan.logs) {
-        let Ok(text) = read_gz(&repo.join(&rel)) else { continue };
+        let Ok(text) = read_log(&repo.join(&rel)) else { continue };
         for (n, line) in text.lines().enumerate() {
             let Ok(value) = serde_json::from_str::<Value>(line) else { continue };
+            if value.get("type").and_then(Value::as_str).is_some_and(|t| STREAM_DELTA_EVENTS.contains(&t)) {
+                continue;
+            }
             let mut found = Vec::new();
             strings_in(&value, "", &mut found);
             for (i, (kind, s)) in found.into_iter().enumerate() {
@@ -375,6 +406,65 @@ mod tests {
         assert_eq!(kinds, vec!["log:result", "log:thinking"]);
         let none = build(&dir, Plan { logs: 0, ..ALL }, &[]).unwrap();
         assert!(none.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ---- a story's raw log and its compact copy ----
+
+    /// A real excerpt of a pi story (lake: mtplx-pi v2-mtplx2122-r1 story 12) in both forms: the raw log with its
+    /// per-token deltas, and the compact copy the harness used to publish. Beside the harness's other fixtures.
+    fn excerpt(client: &str, file: &str) -> Vec<u8> {
+        std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../benchmarks/spec-bench/harness/fixtures/events").join(client).join(file)).unwrap()
+    }
+
+    fn texts_of(samples: &[Sample]) -> Vec<(String, String)> {
+        let mut v: Vec<(String, String)> = samples.iter().filter(|s| s.kind.starts_with("log:")).map(|s| (s.kind.clone(), s.text.clone())).collect();
+        v.sort();
+        v
+    }
+
+    #[test]
+    fn a_story_gives_the_same_log_samples_from_its_raw_log_and_from_its_compact_copy() {
+        for client in ["pi", "opencode", "claude"] {
+            let raw = scratch("raw-log");
+            git(&raw, &["init", "-q"]);
+            write(&raw, "combinations/x/stories/01/agent-events.jsonl", &excerpt(client, "agent-events.jsonl"));
+            git(&raw, &["add", "."]);
+            let compact = scratch("compact-log");
+            git(&compact, &["init", "-q"]);
+            write(&compact, "combinations/x/stories/01/agent-events.compact.jsonl.gz", &excerpt(client, "agent-events.compact.jsonl.gz"));
+            git(&compact, &["add", "."]);
+            let from_raw = texts_of(&build(&raw, ALL, &[]).unwrap());
+            let from_compact = texts_of(&build(&compact, ALL, &[]).unwrap());
+            assert!(!from_raw.is_empty(), "{client}: no samples");
+            assert_eq!(from_raw, from_compact, "{client}");
+            let _ = std::fs::remove_dir_all(&raw);
+            let _ = std::fs::remove_dir_all(&compact);
+        }
+    }
+
+    #[test]
+    fn a_stream_delta_is_not_a_sample_and_a_story_with_both_forms_is_read_once_from_the_raw_log() {
+        let dir = scratch("both-forms");
+        git(&dir, &["init", "-q"]);
+        let partial = "p".repeat(MIN_STRING_CHARS + MIN_CHARS);
+        let final_result = "f".repeat(MIN_STRING_CHARS + MIN_CHARS);
+        let raw = format!(
+            "{}\n{}\n",
+            serde_json::json!({"_rx": 1.0, "type": "tool_execution_update", "partialResult": partial}),
+            serde_json::json!({"_rx": 2.0, "type": "tool_execution_end", "result": final_result})
+        );
+        let compact_only = format!("{}\n", serde_json::json!({"_rx": 2.0, "type": "tool_execution_end", "result": "c".repeat(MIN_STRING_CHARS + MIN_CHARS)}));
+        write(&dir, "combinations/x/stories/01/agent-events.jsonl", raw.as_bytes());
+        write(&dir, "combinations/x/stories/01/agent-events.compact.jsonl.gz", &gz(&compact_only));
+        write(&dir, "combinations/x/stories/02/agent-events.compact.jsonl.gz", &gz(&compact_only));
+        git(&dir, &["add", "."]);
+        let samples = build(&dir, ALL, &[]).unwrap();
+        let got: Vec<(&str, char)> = samples.iter().map(|s| (s.source.as_str(), s.text.chars().next().unwrap())).collect();
+        assert!(got.contains(&("combinations/x/stories/01/agent-events.jsonl", 'f')), "{got:?}");
+        assert!(!got.iter().any(|(_, c)| *c == 'p'), "a delta's partial result is not a sample: {got:?}");
+        assert!(!got.iter().any(|(s, _)| s.contains("stories/01/agent-events.compact")), "story 1 is read from its raw log only: {got:?}");
+        assert!(got.contains(&("combinations/x/stories/02/agent-events.compact.jsonl.gz", 'c')), "story 2 has only the compact copy: {got:?}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

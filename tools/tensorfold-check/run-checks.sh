@@ -43,7 +43,11 @@ COMBINATION="qwen/3.8/flash-next/macos/128GB/tensorfold-pi"
 CFG="$REPO_ROOT/combinations/$COMBINATION/config.sh"
 # The longest recorded mlx-serve session on this Mac with no truncated strings: 652 turns, which grow one
 # uncompacted conversation past 135k tokens at about turn 45.
-DEFAULT_LOG="combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/stories/10/agent-events.compact.jsonl.gz"
+DEFAULT_STORY_DIR="combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/stories/10"
+# The story's log: the raw one where this checkout has it, else the compact copy older runs published (the harness no
+# longer writes one). TFC_STORY_DIR names another folder (the tests do).
+RAW_LOG_NAME="agent-events.jsonl"
+COMPACT_LOG_NAME="agent-events.compact.jsonl.gz"
 # Far from the bench ports (18010 server, 18100 proxy) and the combinations' 8010-8012.
 DEFAULT_PORT=18950
 # A ~105 GiB checkpoint loading from SSD, plus TensorFold's startup probes and kernel builds.
@@ -59,7 +63,7 @@ EXIT_FAILED=1; EXIT_ERROR=2; EXIT_BUSY=3
 # The header comment: every line from the second up to the first that is not a comment.
 usage() { awk 'NR == 1 {next} !/^#/ {exit} {sub(/^# ?/, ""); print}' "${BASH_SOURCE[0]}"; }
 
-EVEN_IF_BUSY=0; PREPARE_ONLY=0; PORT="$DEFAULT_PORT"; LOG="$REPO_ROOT/$DEFAULT_LOG"
+EVEN_IF_BUSY=0; PREPARE_ONLY=0; PORT="$DEFAULT_PORT"; LOG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --prepare-only) PREPARE_ONLY=1; shift ;;
@@ -70,6 +74,14 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown option $1" >&2; exit "$EXIT_ERROR" ;;
   esac
 done
+
+if [[ -z "$LOG" ]]; then
+  STORY_DIR="${TFC_STORY_DIR:-$REPO_ROOT/$DEFAULT_STORY_DIR}"
+  for name in "$RAW_LOG_NAME" "$COMPACT_LOG_NAME"; do
+    [[ -f "$STORY_DIR/$name" ]] && { LOG="$STORY_DIR/$name"; break; }
+  done
+  [[ -n "$LOG" ]] || LOG="$STORY_DIR/$RAW_LOG_NAME"
+fi
 
 . "$HERE/busy.sh"
 
@@ -142,7 +154,7 @@ prepare() {
   { read -r TF_BIN; read -r TF_MODEL_DIR; } < "$RUN_DIR/.resolved"; rm -f "$RUN_DIR/.resolved"
 
   # ---- 2. pi's requests (its recording server takes a free loopback port of its own) -------------------------------
-  [[ -f "$LOG" ]] || { echo "no agent log at $LOG" >&2; return "$EXIT_ERROR"; }
+  [[ -f "$LOG" ]] || { echo "no agent log in $(dirname "$LOG") ($RAW_LOG_NAME or $COMPACT_LOG_NAME)" >&2; return "$EXIT_ERROR"; }
   command -v pi >/dev/null && command -v node >/dev/null \
     || { echo "pi and node must be on PATH: the requests are rendered with pi's own code" >&2; return "$EXIT_ERROR"; }
   echo "pi $(pi --version 2>/dev/null | head -1) renders the session in ${LOG#"$REPO_ROOT"/}"

@@ -345,4 +345,22 @@ drive TENSORFOLD_BIN="$WORK/bin/tensorfold-dies" /bin/bash "$DRIVER" --port "$(f
 assert_eq "-> exit 2 (could not run the checks)" 2 "$?"
 assert_ok "...showing the server's own words" grep -q 'this checkpoint is refused' "$WORK/out"
 
+echo
+echo "the recorded session: the raw log when it is there, else the compact copy"
+STORY="$WORK/story"; mkdir -p "$STORY"
+: > "$STORY/agent-events.compact.jsonl.gz"
+unprepared
+prep TFC_STORY_DIR="$STORY" /bin/bash "$DRIVER" --prepare-only
+assert_eq "only a compact copy: it is the one rendered" 1 "$(calls node "capture_pi_requests.mjs --log $STORY/agent-events.compact.jsonl.gz ")"
+: > "$STORY/agent-events.jsonl"
+unprepared
+prep TFC_STORY_DIR="$STORY" /bin/bash "$DRIVER" --prepare-only
+assert_eq "a raw log beside it: the raw log is rendered" 1 "$(calls node "capture_pi_requests.mjs --log $STORY/agent-events.jsonl ")"
+assert_eq "...and the compact copy is not" 0 "$(calls node "agent-events.compact.jsonl.gz")"
+rm -f "$STORY/agent-events.compact.jsonl.gz" "$STORY/agent-events.jsonl"
+unprepared
+prep TFC_STORY_DIR="$STORY" /bin/bash "$DRIVER" --prepare-only
+assert_eq "no log at all: exit 2" 2 "$?"
+assert_ok "...naming the folder it looked in" grep -q "no agent log in $STORY" "$WORK/out"
+
 finish
