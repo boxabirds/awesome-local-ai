@@ -1,3 +1,57 @@
+commit b0b038a2002d8ade45ba6a3bee4349e27323bf91
+agent  Sat Oct 17 14:22:45 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  74 +++++++++
+ PROGRESS.md                               |  18 +--
+ playwright.config.ts                      |  13 +-
+ src/client/board/Marquee.tsx              |  20 ++-
+ src/client/board/SelectionBar.tsx         |  32 +++-
+ src/client/board/Toolbar.tsx              | 105 +++++++++++-
+ src/client/board/useBoardKeys.ts          |  17 +-
+ src/client/board/useTool.ts               |  42 -----
+ src/client/canvas/BoardViewport.tsx       |  18 ++-
+ src/client/canvas/testHooks.ts            |   6 +
+ src/client/objects/ConnectorObject.tsx    | 261 ++++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 182 +++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  70 ++++++++
+ src/client/objects/hitTest.ts             |  58 +++++++
+ src/client/objects/registry.tsx           |  58 ++++++-
+ src/client/pages/BoardPage.tsx            | 102 +++++++++++-
+ src/client/styles.css                     | 182 ++++++++++++++++++++-
+ src/client/tools/ConnectorTool.tsx        | 260 +++++++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 147 +++++++++++++++++
+ src/client/tools/useActiveTool.ts         | 119 ++++++++++++++
+ src/shared/board-model.ts                 |  68 +++++++-
+ src/shared/config.ts                      |  86 ++++++++++
+ src/shared/geometry.ts                    |   3 +
+ src/shared/geometry/connector-geometry.ts | 164 +++++++++++++++++++
+ src/shared/geometry/polyline.ts           |  37 +++++
+ src/shared/objects/checkout-flow.ts       | 125 ++++++++++++++
+ src/shared/objects/connector.ts           | 158 ++++++++++++++++++
+ src/shared/objects/shape.ts               | 189 ++++++++++++++++++++++
+ tests/component/Connector.test.tsx        | 225 ++++++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 211 ++++++++++++++++++++++++
+ tests/component/boardHarness.tsx          |  92 ++++++++++-
+ tests/component/stickyHarness.tsx         |   6 +-
+ tests/component/useActiveTool.test.tsx    | 111 +++++++++++++
+ tests/e2e/broken-board.spec.ts            |   3 +-
+ tests/e2e/connectors.spec.ts              | 249 ++++++++++++++++++++++++++++
+ tests/e2e/selection.spec.ts               |  30 +++-
+ tests/e2e/shapes.spec.ts                  | 149 +++++++++++++++++
+ tests/unit/connector-model.test.ts        | 236 +++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 212 ++++++++++++++++++++++++
+ 39 files changed, 4040 insertions(+), 98 deletions(-)
+commit 422a40f6cdb00d3c38c91d1ee1e87523289461d4
+vidi-agent  Sat Oct 17 12:55:23 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 058f5fdf994c20de4c7ef8b793fb7b411af37ba2
 agent  Sat Oct 17 12:50:59 2026 +0100
 
