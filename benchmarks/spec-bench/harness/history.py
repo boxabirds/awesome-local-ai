@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import collections
 import datetime as dt
-import gzip
 import json
 import re
 import sys
 from pathlib import Path
 
+import claims
 import heldout
 
 COMMIT_RE = re.compile(r"^commit ([0-9a-f]+)$")
@@ -124,33 +124,32 @@ def _epoch(stamp: str) -> float | None:
         return None
 
 
+# A stream delta's type, within the first bytes of its line: the raw log has one per token, the compact copy only the
+# first of each model call (and a stamp where an agent process was last heard from). None of them is a step.
+STREAM_DELTAS = ("message_update", "tool_execution_update")
+DELTA_PREFIX = 80
+
+
 def _event_times(run: Path, sid: str) -> list[float]:
-    """Every timestamp in a story's agent events (compact log, else raw), sorted, in epoch seconds."""
-    d = run / "stories" / f"{int(sid):02d}"
-    f = d / "agent-events.compact.jsonl.gz"
-    opener = (lambda: gzip.open(f, "rt", errors="replace")) if f.exists() else None
-    if opener is None and (d / "agent-events.jsonl").exists():
-        raw = d / "agent-events.jsonl"
-        opener = lambda: raw.open(errors="replace")
-    if opener is None:
-        return []
+    """Every timestamp in a story's agent events (raw log, else the compact copy), sorted, in epoch seconds. Stream
+    deltas are left out in both forms, so the answer is the same from either."""
+    lines = claims.event_lines(run / "stories" / f"{int(sid):02d}")
     out = []
-    with opener() as fh:
-        for line in fh:
-            if '"message_update"' in line[:60]:
-                continue
-            try:
-                e = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(e, dict):
-                continue
-            m = e.get("message")
-            v = e.get("_rx") or e.get("timestamp") or (m.get("timestamp") if isinstance(m, dict) else None)
-            if isinstance(v, str):
-                v = _epoch(v)
-            if isinstance(v, (int, float)) and v > 0:
-                out.append(v / 1000 if v > 1e11 else float(v))
+    for line in lines:
+        if any(f'"{d}"' in line[:DELTA_PREFIX] for d in STREAM_DELTAS):
+            continue
+        try:
+            e = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(e, dict) or e.get("type") in STREAM_DELTAS:
+            continue
+        m = e.get("message")
+        v = e.get("_rx") or e.get("timestamp") or (m.get("timestamp") if isinstance(m, dict) else None)
+        if isinstance(v, str):
+            v = _epoch(v)
+        if isinstance(v, (int, float)) and v > 0:
+            out.append(v / 1000 if v > 1e11 else float(v))
     return sorted(out)
 
 

@@ -2,7 +2,8 @@
 
     claims.py <run-record-dir> <out-dir>
 
-Reads stories/NN/agent-events.compact.jsonl.gz from a recorded run and writes <out-dir>/story-NN.md,
+Reads each story's raw event log (stories/NN/agent-events.jsonl) from a recorded run, else its compact copy
+(agent-events.compact.jsonl.gz, the only form some reference runs have), and writes <out-dir>/story-NN.md,
 one per story, holding the agent's final message. Two event formats are understood:
 - pi: the text parts of the last assistant `message_end`;
 - Claude Code (stream-json): the final `result` event's `result`.
@@ -15,7 +16,28 @@ import json
 import sys
 from pathlib import Path
 
-EVENTS = "agent-events.compact.jsonl.gz"
+RAW_EVENTS = "agent-events.jsonl"
+HOME_MARK = "~"
+EVENTS = "agent-events.compact.jsonl.gz"      # the compact copy: stream deltas dropped; older runs have only this
+
+
+def event_log(sdir: Path) -> Path | None:
+    """A story's event log: the raw one when it is there, else the compact copy, else None."""
+    return next((p for p in (sdir / RAW_EVENTS, sdir / EVENTS) if p.is_file()), None)
+
+
+def event_lines(sdir: Path) -> list[str]:
+    """The lines of the story's event log (raw, else compact); [] when it has none. The raw log is read as the
+    compact copy was written: this machine's home directory shown as ~."""
+    path = event_log(sdir)
+    if path is None:
+        return []
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt", errors="replace") as f:
+            return f.readlines()
+    home = str(Path.home())
+    with path.open(errors="replace") as f:
+        return [line.replace(home, HOME_MARK) for line in f]
 
 
 def final_message(lines) -> str | None:
@@ -44,11 +66,9 @@ def write_claims(run: Path, out: Path) -> list[str]:
     out.mkdir(parents=True, exist_ok=True)
     written = []
     for sdir in sorted(p for p in (run / "stories").iterdir() if p.is_dir()):
-        events = sdir / EVENTS
-        if not events.exists():
+        if event_log(sdir) is None:
             continue
-        with gzip.open(events, "rt", errors="replace") as f:
-            text = final_message(f)
+        text = final_message(event_lines(sdir))
         if text is None:
             continue
         (out / f"story-{sdir.name}.md").write_text(f"# Story {sdir.name}\n{text}\n")

@@ -28,13 +28,13 @@ from pathlib import Path
 from clients import CLIENTS, empty_state
 
 FULL_LOG = "agent-events.jsonl"                 # git-ignored, on the machine that ran the story
-COMPACT_LOG = "agent-events.compact.jsonl.gz"   # the committed copy: stream deltas dropped, long strings cut
+COMPACT_LOG = "agent-events.compact.jsonl.gz"   # the compact copy older runs published: stream deltas dropped
 PROVENANCE = "tokens_recounted"
 METRICS = "metrics.json"
 
 
 def story_log(sdir: Path) -> Path | None:
-    """The story's event log: the full one if the machine still has it, else the committed compact one."""
+    """The story's event log: the raw one if it is there, else the compact copy (older runs' only form)."""
     return next((p for p in (sdir / FULL_LOG, sdir / COMPACT_LOG) if p.is_file()), None)
 
 

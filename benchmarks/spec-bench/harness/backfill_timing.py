@@ -1,23 +1,21 @@
 """backfill_timing.py [--recompute] <run-dir>... — bring a finished run's records up to what the harness records now.
-Every step is idempotent and only fills or corrects; it prints what each changed. In order:
+The harness no longer writes a compact copy of a story's event log, so no step rebuilds one (the former first step did,
+from the raw log). Every step is idempotent and only fills or corrects; it prints what each changed. In order:
 
-1. events: rebuild each story's published conversation log (stories/NN/agent-events.compact.jsonl.gz) from the
-   full log the machine kept (stories/NN/agent-events.jsonl), lossless as drive.compact_events writes it now: logs
-   from before 30 Sep 2026 cut long strings. Needs the full logs: run it on the machine that ran the run.
-2. attempts: a story the harness restarted mid-way gets its totals over every attempt (attempts.recompute), from
+1. attempts: a story the harness restarted mid-way gets its totals over every attempt (attempts.recompute), from
    the full log, else from the published one (counts only when that one is an old, cut log).
    recount: a restarted story whose record already has its attempts, but with counts that differ from its log
    (a past bug counted 0 steps for earlier attempts), is recounted from the log and its time split redone.
-3. timing: stories with no model time (servers other than llama.cpp, before the harness timed them from the agent's
+2. timing: stories with no model time (servers other than llama.cpp, before the harness timed them from the agent's
    stream) get their prefill and decode time, exactly as a live run computes it (drive.story_time_split, over every
    attempt of a restarted story). Only stories whose model time is missing are changed, each marked "backfilled";
    --recompute also redoes those, any whose parts overran the wall, any made by an older accounting version
    (accounting.VERSION changes with the calculation: test_accounting.py holds it to that), and any whose stored
    accounting check failed. A record of version 3 that failed for a tool call cut off by a restart or the story's
    end, or for a machine that slept under Claude Code, passes once redone.
-4. conversation: each story with no conversation profile, or one from an older conversation.VERSION, gets one
+3. conversation: each story with no conversation profile, or one from an older conversation.VERSION, gets one
    (conversation.py), from the full log.
-5. provenance: each story with none gets the harness commit and pack version it ran under (provenance.py), from
+4. provenance: each story with none gets the harness commit and pack version it ran under (provenance.py), from
    run.sh's record of each start (run-history.jsonl, run.json).
 """
 from __future__ import annotations
@@ -42,15 +40,6 @@ def _raw(run: Path, sid: str) -> Path:
 
 def _stories(metrics: dict):
     return sorted((metrics.get("stories") or {}).items(), key=lambda kv: int(kv[0]))
-
-
-def backfill_events(run: Path) -> list[str]:
-    """Rebuild the lossless published log of every story whose full log is on this machine."""
-    done = []
-    for raw in sorted((run / "stories").glob(f"*/{RAW}")):
-        drive.compact_events(raw)
-        done.append(raw.parent.name)
-    return done
 
 
 def _sync_processed(metrics: dict, sid: str, agent: dict) -> None:
@@ -157,8 +146,8 @@ def backfill_provenance(run: Path) -> list[str]:
 
 
 def backfill_all(run: Path, recompute: bool = False) -> dict[str, list[str]]:
-    """Every step, in the order each needs the one before (a rebuilt log, then totals, then timing over them)."""
-    return {"events": backfill_events(run), "attempts": backfill_attempts(run), "recount": backfill_recount(run),
+    """Every step, in the order each needs the one before (totals over every attempt, then timing over them)."""
+    return {"attempts": backfill_attempts(run), "recount": backfill_recount(run),
             "timing": backfill(run, recompute),
             "conversation": backfill_conversation(run), "provenance": backfill_provenance(run)}
 

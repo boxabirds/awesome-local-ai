@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import gzip
 import hashlib
 import http.server
 import json
@@ -164,15 +163,14 @@ def commits_for(log: str, sid: int) -> list[str]:
 def build_attempt(run: Path, repo: Path, sdir: Path, metrics: dict, log: str) -> dict | None:
     sid = sdir.name
     # The held-out result is private: this machine's copy, else the private repo's (heldout.find).
-    accept_path, events_path = heldout.find(run, f"stories/{sid}/accept.json"), sdir / EVENTS
-    if accept_path is None or not events_path.exists():
+    accept_path = heldout.find(run, f"stories/{sid}/accept.json")
+    if accept_path is None or claims.event_log(sdir) is None:
         return None
     accept = json.loads(accept_path.read_text())
     own = (accept.get("by_story") or {}).get(sid) or {}
     failed = [{"title": t.get("title"), "error": first_line(t.get("error"))}
               for t in accept.get("tests") or [] if t.get("status") != "passed" and t.get("file", "").startswith(f"story-{sid}")]
-    with gzip.open(events_path, "rt", errors="replace") as f:
-        lines = f.readlines()
+    lines = claims.event_lines(sdir)
     s = story_entry(metrics, sid)
     agent = s.get("agent") or {}
     gate = {}

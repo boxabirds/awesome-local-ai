@@ -160,21 +160,6 @@ def restarted_run(tmp_path: Path) -> Path:
     return run
 
 
-def test_the_lossless_log_is_rebuilt_from_the_machine_s_full_log(tmp_path):
-    run = restarted_run(tmp_path)
-    assert backfill_timing.backfill_events(run) == ["01", "02"]
-    text = gzip.open(run / "stories" / "01" / "agent-events.compact.jsonl.gz", "rt").read()
-    assert "truncated" not in text and "x" * 3000 in text and '"message_update"' in text
-
-
-def test_a_story_without_its_full_log_keeps_its_published_log(tmp_path):
-    run = restarted_run(tmp_path)
-    (run / "stories" / "02" / "agent-events.jsonl").unlink()
-    before = (run / "stories" / "02" / "agent-events.compact.jsonl.gz").read_bytes()
-    assert backfill_timing.backfill_events(run) == ["01"]
-    assert (run / "stories" / "02" / "agent-events.compact.jsonl.gz").read_bytes() == before
-
-
 def test_a_restarted_story_is_recomputed_over_every_attempt(tmp_path):
     run = restarted_run(tmp_path)
     assert backfill_timing.backfill_attempts(run) == ["1"]
@@ -225,8 +210,8 @@ def test_provenance_is_filled_from_the_run_s_starts(tmp_path):
 def test_backfill_all_runs_each_step_in_order_and_reports_them(tmp_path):
     run = restarted_run(tmp_path)
     report = backfill_timing.backfill_all(run)
-    assert list(report) == ["events", "attempts", "recount", "timing", "conversation", "provenance"]
-    assert report["events"] == ["01", "02"] and report["attempts"] == ["1"]
+    assert list(report) == ["attempts", "recount", "timing", "conversation", "provenance"]
+    assert report["attempts"] == ["1"]
 
 
 def test_recompute_redoes_a_story_whose_stored_accounting_check_failed(tmp_path):
