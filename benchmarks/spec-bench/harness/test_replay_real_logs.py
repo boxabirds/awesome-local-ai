@@ -14,7 +14,7 @@ the release gate.
     uv run --with pytest python test_replay_real_logs.py [--all]     # the same, printed: each log's problems, the totals
 
 Readers replayed, each fed the log the way the harness feeds it (READERS): accounting (parse, time_split, check),
-conversation.profile, drive (final_reply_text, tool_call_as_text, compact_events, last_session, _stamped_events,
+conversation.profile, drive (final_reply_text, tool_call_as_text, last_session, _stamped_events,
 _last_event_type, first_event_time, reconstruct_agent, story_time_split), clients (the run's own client's scan on
 every event, and every other client's: none may raise on an event it doesn't know), attempts (events,
 has_stream_timing, earlier_attempts, recompute, split_of), logscan (read_calls, scan), history (_event_times,
@@ -55,7 +55,6 @@ import time
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
-from unittest import mock
 
 import pytest
 
@@ -404,31 +403,6 @@ class Problems(list):
         return back
 
 
-NO_ONE_S_HOME = Path("/nonexistent/spec-bench-replay/home")       # a home no recorded log mentions
-
-
-def compacted_again(plain: Path) -> list[str]:
-    """The lines of an already published log after drive.compact_events has been through a copy of it. Its home
-    paths were redacted on the machine that recorded it; this machine's home is no part of that, so the
-    compaction runs with a home that is in no log."""
-    copy_of = plain.with_name("again.jsonl")
-    shutil.copyfile(plain, copy_of)
-    with mock.patch.object(Path, "home", return_value=NO_ONE_S_HOME):
-        compact = drive.compact_events(copy_of)
-    with gzip.open(compact, "rt", errors="replace") as f:
-        return f.read().splitlines()
-
-
-def test_compacting_a_published_log_again_does_not_depend_on_this_machine_s_home(tmp_path):
-    """A published log can hold, as text, the home directory of the machine the replay runs on: Swift 1.5 v2-r4
-    story 12's has miniflare's source, built on GitHub Actions under its runner's own home, which is CI's home too. The
-    second compaction then redacted it, and the replay reported the log as changed, on CI only."""
-    line = json.dumps({"_rx": 1.0, "type": "tool_execution_end", "result": f"// embed-worker:{Path.home()}/work/sdk/x.ts"})
-    plain = tmp_path / "plain.jsonl"
-    plain.write_text(line + "\n")
-    assert compacted_again(plain) == [line]
-
-
 # ---------------------------------------------------------------- accounting.py
 
 def replay_accounting(s: Story, p: Problems) -> None:
@@ -586,10 +560,6 @@ def replay_drive(s: Story, p: Problems) -> None:
     for k in COUNTS:
         p.same(agent[k], s.whole[k], f"reconstruct_agent {k}")
     p.same(agent["tokens"], s.whole["tokens"], "reconstruct_agent tokens")
-    # The published log is already compact: compacting it again changes nothing (no event lost, none rewritten).
-    again = compacted_again(s.plain)
-    kept = [l for l in s.lines if isinstance(_loads(l), dict)]
-    p.expect(again == kept, f"compact_events changed an already compact log ({len(kept)} events in, {len(again)} out)")
 
 
 # ---------------------------------------------------------------- clients.py
@@ -708,7 +678,7 @@ def replay_history(s: Story, p: Problems) -> None:
     times = history._event_times(s.run, s.sid)
     p.expect(all(isinstance(t, float) and t > 0 for t in times) and times == sorted(times), "_event_times aren't sorted positive floats")
     if s.stamped:
-        p.same(len(times), sum(1 for e in s.events if e.get("type") != drive.FIRST_CHUNK_EVENT), "_event_times, one per stamped event")
+        p.same(len(times), sum(1 for e in s.events if e.get("type") not in drive.STREAM_DELTA_EVENTS), "_event_times, one per stamped event that is not a stream delta")
     found, per_story = history.interruptions(s.run, {s.sid: s.rec})
     p.serialisable([found, per_story], "interruptions")
     p.expect(all(i["story"] == s.sid and i["gap_s"] >= 0 and isinstance(i["kind"], str) for i in found), "an interruption's shape")
