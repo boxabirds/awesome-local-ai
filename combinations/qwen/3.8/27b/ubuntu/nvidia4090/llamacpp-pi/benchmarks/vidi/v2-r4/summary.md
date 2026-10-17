@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 5/5 | 0 | 0 | 33/36 |
 | 7 | 8/8 | 2 | 0 | 39/44 |
 | 8 | 7/7 | 0 | 0 | 46/51 |
+| 9 | 5/6 | 0 | 0 | 51/57 |
 
-**New work** 44/47, **regressions** 2, **repairs** 0, **cumulative** 46/51.
+**New work** 49/53, **regressions** 2, **repairs** 0, **cumulative** 51/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE | 103.7 | None | None | None | — | — | red | 33/36 |  | 0 / 0 | 5 | — | throttled 0%, server peak 18 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 118.5 | None | None | None | — | — | red | 39/44 |  | 0 / 0 | 6 | — | throttled 0%, server peak 18 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 55.3 | None | None | None | — | — | red | 46/51 |  | 1 / 0 | 2 | — | throttled 0%, server peak 18 GB |
+| 9 | Write free text anywhere on the board | DONE | 111.9 | None | None | None | — | — | red | 51/57 |  | 0 / 0 | 7 | — | throttled 0%, server peak 17 GB |
 
-**Totals:** 7 stories, 668 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/7, final acceptance 46/51, stalled 0, partial 0, 17452 lines in src+tests.
+**Totals:** 8 stories, 780 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/8, final acceptance 51/57, stalled 0, partial 0, 20268 lines in src+tests.
 
 ## How it happened
 
@@ -43,6 +45,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 2393 / 270 | `BoardPage.tsx` (266), `App.tsx` (230), `styles.css` (161), `SharePanel.tsx` (149), `NOTES.md` (128), `board-store.ts` (109), +14 more |
 | 7 | 1 by the agent | 4112 / 462 | `useTransformGesture.ts` (394), `StickyNote.tsx` (332), `board-model.ts` (308), `geometry.ts` (242), `useSelection.ts` (233), `BoardPage.tsx` (170), +13 more |
 | 8 | 1 by the agent | 1774 / 29 | `undo.ts` (126), `NOTES.md` (97), `useUndo.ts` (54), `UndoButtons.tsx` (51), `StickyTextEditor.tsx` (45), `useBoardKeys.ts` (43), +7 more |
+| 9 | 10 by the agent | 3138 / 322 | `TextEditor.tsx` (235), `StickyTextEditor.tsx` (213), `text.ts` (204), `TextObject.tsx` (174), `textLayout.ts` (145), `useTransformGesture.ts` (127), +17 more |
 
 ### Earlier stories broken or fixed
 
@@ -54,4 +57,12 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 
 A gap in a story's agent events with a restart or a logged intervention inside it is dead time (the machine or the run was down), not agent time. *Active* is the story's event span minus that dead time, across every attempt. *Recorded* is the harness's agent time, which covers only the attempt after the last restart.
 
-No interruptions inside a story.
+**1 restart (no intervention logged); 7603 min dead in total.**
+
+| Story | When (UTC) | Down for | Kind | Logged cause |
+|---|---|---|---|---|
+| 3 | 09 Oct 16:16 | 7603 min | restart (no intervention logged) | — |
+
+| Story | Active | Dead | Recorded |
+|---|---|---|---|
+| 3 | 140 min | 7603 min | 140 min |
