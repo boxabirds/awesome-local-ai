@@ -16,3 +16,7 @@ streaming. Unverified here.
 Sources: [Engram paper](https://arxiv.org/pdf/2601.07372) ·
 [DeepSeek-V4.1-Flash paper](https://arxiv.org/pdf/2609.19969) ·
 [ROCm ATOM: host-side n-gram lookup for DeepSeek-V4.1](https://github.com/ROCm/ATOM/pull/2185)
+
+**Update, 17 Oct 2026.** The recheck above has a partial answer: a 1.6-bit vector-quantised V4.1-Flash-1017 is described by its own card
+as sized for one 128 GB DGX Spark, and the owner has two. See [DeepSeek V4.1-Flash-1017, VQ GGUF](deepseek-v4.1-flash-1017-vq.md). This
+note's status is unchanged for the machines we run today.

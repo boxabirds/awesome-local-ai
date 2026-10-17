@@ -92,4 +92,5 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [pi 1.0](pi-1.0.md) | candidate | every machine | client update, 0.87.1 to 1.0.0; no landmine release; fixes a llama.cpp tool-call bug |
 | [pi 0.99](pi-0.99.md) | parked | every machine | superseded by pi 1.0; kept as why v2 pinned 0.87.1 |
 | [DeepSeek V4.1](deepseek-v4.1.md) | eliminated | none | about 750B parameters in total; V4.1-Flash size not checked |
+| [DeepSeek V4.1-Flash-1017, VQ GGUF](deepseek-v4.1-flash-1017-vq.md) | **gated** | DGX Spark (two, owner's) | 1.6-bit vector-quantised experts, 318 GB of files, sized by its card for one 128 GB Spark; needs the uploader's own engine (ds4-dfm-rs v0.1.3, CUDA); no 1017 quality or Spark speed figure exists; first gate is the Spark as a node |
 | Swift 1.5 Qwen3.8-27B (llama.cpp) | adopted | RTX 4090 | [combination](../combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/README.md) |
