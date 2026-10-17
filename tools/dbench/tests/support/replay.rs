@@ -9,8 +9,8 @@
 //! * a story's other files exist only once the story ended (closing status and `finished` <= T); a story that started
 //!   has its streams; a story that has not started has nothing, not even a folder.
 //! * `metrics.json` mid-run versions do NOT exist in the lake (only the final one). They are SYNTHESIZED here: the
-//!   stories that ended by T, with their real status and times, taken from the final metrics.json (or, for tritus runs
-//!   that have no metrics.json, from progress.json). At or after the run's end the real metrics.json is copied.
+//!   stories that ended by T, with their real status and times, taken from the final metrics.json (or, for runs of a node that
+//!   has no metrics.json, from progress.json). At or after the run's end the real metrics.json is copied.
 //! * `run-status.json` and the job are scenario data (see `Scenario`): `started` and a running job before the run's end,
 //!   the real final state and a terminal job at or after it.
 //!
@@ -1104,8 +1104,10 @@ pub fn pick_times(run: &LakeRun, max: usize) -> Vec<(f64, Variant)> {
 
 // ---------------------------------------------------------------- the run set
 
-/// Per node, how many finished runs with raw logs are sampled; macbook-air has no raw log at all in the lake.
+/// Per node, how many finished runs with raw logs are sampled; one node has no raw log at all in the lake.
 pub const FINISHED_PER_NODE: usize = 6;
+/// The run set covers at least this many nodes (the lake holds this many).
+pub const MIN_NODES: usize = 4;
 pub const FINISHED_NO_LOG_PER_NODE: usize = 2;
 /// In the big run, the agent logs of these stories (190k, 305k and 108k lines) are replayed UNCAPPED; all else is capped.
 pub const BIG_UNCAPPED_STORIES: [u32; 3] = [3, 4, 5];
@@ -1119,8 +1121,10 @@ pub fn select_runs(lake: &Path) -> Vec<LakeRun> {
     let mut odd: Vec<LakeRun> = Vec::new();
     let mut finished_logs: BTreeMap<String, Vec<LakeRun>> = BTreeMap::new();
     let mut finished_nologs: BTreeMap<String, Vec<LakeRun>> = BTreeMap::new();
+    // The same combination and run id can be on several nodes; the first copy found is the big run, the others are ordinary.
+    let mut big_taken = false;
     for dir in all {
-        let big = dir.to_string_lossy().ends_with(BIG_RUN_MARK) && dir.to_string_lossy().contains("gruntus");
+        let big = !big_taken && dir.to_string_lossy().ends_with(BIG_RUN_MARK);
         let rs = LakeRun::load_state_only(&dir, lake);
         let has_raw = dir.join("stories").is_dir() && std::fs::read_dir(dir.join("stories")).map(|rd| rd.filter_map(|e| e.ok()).any(|e| e.path().join("agent-events.jsonl").is_file())).unwrap_or(false);
         if rs != "finished" {
@@ -1129,6 +1133,7 @@ pub fn select_runs(lake: &Path) -> Vec<LakeRun> {
         }
         let node = dir.strip_prefix(lake).unwrap().components().next().unwrap().as_os_str().to_string_lossy().to_string();
         if big {
+            big_taken = true;
             odd.push(LakeRun::load(&dir, lake, true));
         } else if has_raw {
             finished_logs.entry(node).or_default().push(LakeRun::load_lazy(dir));

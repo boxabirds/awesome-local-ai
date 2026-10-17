@@ -6,7 +6,7 @@
 //! a SKIPPED line and passes.
 //!
 //! RUN SET: every lake run that did not finish cleanly (failed, stopped, started, no status), plus per node a spread of
-//! finished runs with raw logs (FINISHED_PER_NODE) and without (macbook-air has no raw log at all), plus one big run whose
+//! finished runs with raw logs (FINISHED_PER_NODE) and without (one node has no raw log at all), plus one big run whose
 //! logs are replayed UNCAPPED (it holds logs of more than 100,000 lines). All other logs are cut to their first LINE_CAP
 //! lines in a copy (runtime); the capped copy is "the original file" of the properties.
 //!
@@ -709,9 +709,8 @@ fn the_run_set_covers_the_lake() {
     assert!(count("stopped") >= 8, "stopped runs: {}", count("stopped"));
     assert!(runs.iter().filter(|r| r.never_settled()).count() >= 3);
     assert!(count("finished") >= 15, "finished runs: {}", count("finished"));
-    for node in ["gruntus", "macbook-air", "quintus", "tritus"] {
-        assert!(runs.iter().any(|r| r.node == node), "no run of node {node}");
-    }
+    let nodes: std::collections::BTreeSet<&str> = runs.iter().map(|r| r.node.as_str()).collect();
+    assert!(nodes.len() >= MIN_NODES, "nodes in the run set: {nodes:?}");
     let big = runs
         .iter()
         .flat_map(|r| r.stories.values())

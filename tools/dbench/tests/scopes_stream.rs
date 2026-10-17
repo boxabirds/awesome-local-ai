@@ -57,7 +57,12 @@ const REAL_PAGE_SIZES: [usize; 3] = [1, 7, 1000];
 const REAL_SMALL_PAGE_LINES: usize = 1500;
 /// Pages this size or larger go through the whole copy.
 const FULL_PASS_MIN_LIMIT: usize = 1000;
-const LAKE: &str = "/Users/julian/expts/awesome-local-ai-bench-private/state/collected";
+/// Where the lake is, under the home folder of whoever runs the tests.
+const LAKE_UNDER_HOME: &str = "expts/awesome-local-ai-bench-private/state/collected";
+
+fn lake_dir() -> String {
+    format!("{}/{LAKE_UNDER_HOME}", std::env::var("HOME").unwrap_or_default())
+}
 
 static COUNTER: AtomicU32 = AtomicU32::new(0);
 
@@ -810,7 +815,7 @@ fn expected_lines(path: &Path) -> Vec<String> {
 
 fn real_logs() -> Vec<PathBuf> {
     let mut found = Vec::new();
-    let mut stack = vec![PathBuf::from(LAKE)];
+    let mut stack = vec![PathBuf::from(lake_dir())];
     while let Some(d) = stack.pop() {
         let Ok(rd) = std::fs::read_dir(&d) else {
             continue;
@@ -843,8 +848,8 @@ fn real_logs() -> Vec<PathBuf> {
 
 #[tokio::test]
 async fn real_logs_rebuild_byte_for_byte() {
-    if !Path::new(LAKE).is_dir() {
-        eprintln!("SKIPPED real_logs_rebuild_byte_for_byte: {LAKE} is absent on this machine");
+    if !Path::new(&lake_dir()).is_dir() {
+        eprintln!("SKIPPED real_logs_rebuild_byte_for_byte: {} is absent on this machine", lake_dir());
         return;
     }
     let logs = real_logs();
