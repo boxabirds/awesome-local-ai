@@ -7,6 +7,9 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use serde_json::Value;
 
+/// The run's app with its git history, and the plain-file copy older runs also have.
+const BUNDLE: &str = "workspace.bundle";
+const MIRROR: &str = "workspace";
 /// Folders never searched for runs: build output, dependencies, per-story records, git internals.
 const SKIP_DIRS: &[&str] = &["workspace", "node_modules", "stories", ".git", "target", "dist"];
 /// How deep under combinations/ a run can be (combination path + benchmarks/vidi/<run>).
@@ -95,7 +98,8 @@ pub fn slug(setup: &str, run: &str) -> String {
 }
 
 /// Run folders: `combinations/**/benchmarks/vidi/<run>/` and `benchmarks/reference/vidi/<stack>/<run>/`
-/// that have both a metrics.json and a workspace/.
+/// that have a metrics.json and the app they built: workspace.bundle (what the harness writes) or, for older and
+/// hand-built runs, a workspace/ folder.
 pub fn discover(repo: &Path) -> Vec<(String, String, PathBuf)> {
     let mut out = Vec::new();
     let combos = repo.join("combinations");
@@ -143,7 +147,10 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
 }
 
 fn run_dirs(dir: &Path) -> Vec<PathBuf> {
-    subdirs(dir).into_iter().filter(|r| r.join("metrics.json").is_file() && r.join("workspace").is_dir()).collect()
+    subdirs(dir)
+        .into_iter()
+        .filter(|r| r.join("metrics.json").is_file() && (r.join(BUNDLE).is_file() || r.join(MIRROR).is_dir()))
+        .collect()
 }
 
 /// Depth-first walk; `visit` returns false to stop descending into that folder.
@@ -382,7 +389,7 @@ fn load_with(repo: &Path, private: &Path) -> Vec<Run> {
                             .collect()
                     })
                     .unwrap_or_default(),
-                has_history: path.join("workspace.bundle").is_file(),
+                has_history: path.join(BUNDLE).is_file(),
                 pack_version: read_json(&path.join("run.json"))
                     .and_then(|m| m.get("pack_version").and_then(Value::as_str).map(String::from))
                     .unwrap_or_default(),
@@ -474,6 +481,28 @@ mod tests {
         assert_eq!(
             found.iter().map(|(s, r, _)| (s.as_str(), r.as_str())).collect::<Vec<_>>(),
             vec![("qwen/3.8/flash-next/macos/128GB/mtplx-pi", "canvas-pi-01"), ("reference/opus-5.5", "run-1")]
+        );
+    }
+
+    #[test]
+    fn a_run_with_a_bundle_and_metrics_is_listed_without_a_workspace_folder_and_a_bare_record_is_not() {
+        let repo = tmp("discover-bundle-only");
+        let bundled = repo.join("combinations/q/benchmarks/vidi/bundled");
+        let folder = repo.join("benchmarks/reference/vidi/opus-5.5/by-hand");
+        let neither = repo.join("combinations/q/benchmarks/vidi/neither");
+        let no_metrics = repo.join("combinations/q/benchmarks/vidi/no-metrics");
+        for d in [&bundled, &folder, &neither] {
+            write(&d.join("metrics.json"), &json!({"stories": {}}));
+        }
+        std::fs::write(bundled.join("workspace.bundle"), "bundle").unwrap();
+        std::fs::create_dir_all(folder.join("workspace")).unwrap();
+        std::fs::create_dir_all(&no_metrics).unwrap();
+        std::fs::write(no_metrics.join("workspace.bundle"), "bundle").unwrap();
+        let found = discover(&repo);
+        assert_eq!(
+            found.iter().map(|(s, r, _)| (s.as_str(), r.as_str())).collect::<Vec<_>>(),
+            vec![("q", "bundled"), ("reference/opus-5.5", "by-hand")],
+            "{found:?}"
         );
     }
 
