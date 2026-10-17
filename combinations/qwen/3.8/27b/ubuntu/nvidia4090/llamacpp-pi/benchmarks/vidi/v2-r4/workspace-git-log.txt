@@ -1,3 +1,57 @@
+commit 2d32f842b5edd4e1e3f300a6881653c22c126ca1
+agent  Sat Oct 17 16:34:16 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                     |  83 ++++++
+ PROGRESS.md                                  |  18 +-
+ src/client/board/Toolbar.tsx                 |  10 +
+ src/client/board/useBoardKeys.ts             |   6 +
+ src/client/images/DropHighlight.tsx          |  16 ++
+ src/client/images/uploadImage.ts             |  66 +++++
+ src/client/images/useImageInsert.ts          | 392 +++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts           |  58 ++++
+ src/client/objects/ImageObject.tsx           | 269 ++++++++++++++++++
+ src/client/objects/registry.tsx              |  23 ++
+ src/client/pages/BoardPage.tsx               |  91 ++++++-
+ src/client/styles.css                        | 128 +++++++++
+ src/client/tools/useActiveTool.ts            |   5 +-
+ src/client/ui/Toast.tsx                      |  21 ++
+ src/shared/board-model.ts                    |  47 ++++
+ src/shared/config.ts                         |  35 +++
+ src/shared/geometry.ts                       |   6 +
+ src/shared/image-format.ts                   |  76 ++++++
+ src/shared/objects/image.ts                  | 213 +++++++++++++++
+ src/worker/assets.ts                         | 107 ++++++++
+ src/worker/index.ts                          |  20 ++
+ tests/component/ImageObject.test.tsx         | 178 ++++++++++++
+ tests/component/imageHarness.tsx             | 145 ++++++++++
+ tests/component/useImageInsert.test.tsx      | 270 ++++++++++++++++++
+ tests/e2e/helpers/images.ts                  | 183 +++++++++++++
+ tests/e2e/images.spec.ts                     | 303 +++++++++++++++++++++
+ tests/fixtures/images/corrupt.png            | Bin 0 -> 256 bytes
+ tests/fixtures/images/png.ts                 | 137 ++++++++++
+ tests/fixtures/images/renamed-pdf.png        |   7 +
+ tests/fixtures/images/screenshot-840x525.png | Bin 0 -> 1323693 bytes
+ tests/fixtures/images/small-240x160.png      | Bin 0 -> 115433 bytes
+ tests/fixtures/images/small-320x200.png      | Bin 0 -> 192278 bytes
+ tests/fixtures/images/svg-script.svg         |   1 +
+ tests/integration/assets.test.ts             | 156 +++++++++++
+ tests/integration/env.d.ts                   |   2 +
+ tests/unit/image-format.test.ts              |  71 +++++
+ tests/unit/image-model.test.ts               | 197 ++++++++++++++
+ tests/unit/validate-files.test.ts            |  56 ++++
+ wrangler.jsonc                               |   4 +
+ 39 files changed, 3384 insertions(+), 16 deletions(-)
+commit 87f5d4658ce52260cc3e2ca3f91356899947dd58
+vidi-agent  Sat Oct 17 15:24:48 2026 +0100
+
+    harness: PROGRESS.md for story 12
+
+
+ PROGRESS.md | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 commit ee727305a24b72ca99f1cbe854183ce35c0211e3
 agent  Sat Oct 17 15:20:00 2026 +0100
 
