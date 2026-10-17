@@ -117,4 +117,28 @@ files from git history. They follow when the API is done and backtested.
 * **Listing:** the streams are listed under `streams`, not `files`; file names are the full relative names (`stories/01/gate.json`).
   Unknown story status values read `running` while the run is open and `failed` once it is final. No `FAILED` or `SKIPPED` story
   status exists in the lake: an operator skip ends as `PARTIAL` with `ended_by: operator`.
+* **`final` is worked out before the page is read (17 Oct, found by reading the route).** It was the other way round, and a
+  line written, and the run closed, between the two would be missing from an answer that said `final`: a collector that
+  stops at the first `final` would lose it for ever. Now a writer that has finished writes no more, so everything written
+  before the flag turned true is in the page. Test: `final_is_never_true_while_a_line_is_unread` (it runs code in the gap
+  through `stream::answer`).
 * **scope-file:** names outside the allow-list give `E-NAME-NOT-ALLOWED`; an allow-listed name the run lacks gives the existing 404.
+
+## The collector that uses it (`dbench collect --scopes`, 17 Oct 2026)
+
+`tools/dbench/src/scope_collect.rs`. The same lake, the same layout and the same `collection.json` as the old pass; the node is
+asked through the scope routes only (`/v1/runs` for the run list, `/v1/runs/scopes`, `/v1/runs/events`, `/v1/runs/scope-file`;
+never `/v1/runs/files` or `/v1/runs/file`). It runs beside the old pass and is off unless `--scopes` is given.
+
+* A stream is read by cursor into `<run>/stories/NN/agent-events.jsonl`, `conditions.jsonl` and `<run>/egress.jsonl`, each
+  event written as the node sent it. The cursor is a function of the lake's own file (`stream::scan_file`); the note keeps a
+  copy (`cursors`) that is trusted only while the file's length is the one recorded. A torn tail in the lake (a crash between
+  the write and the note) is cut off.
+* The files of the story and run scopes are pulled with the old pull code (`collector::pull_planned`): range, prefix check, blob.
+* **Complete** = the listing says the run is final, every stream's last (empty) page said `final`, every file is held to its end,
+  and a look after the grace found nothing new. A stream that is not final when the run is, holds it back.
+* **Declared differences from a copy of the node's file** (each pinned by a test): a last line without its newline, a complete
+  line that is not a JSON object, and blanks or a CR around a line never reach the lake. Real data has none of the three
+  (the real-data comparison counts them).
+* A lake copy that cannot be the start of the node's file (its first event differs, or it has gone further than the node's last
+  event) is replaced by a fresh read, as the old pass refetches: the node is the authority.

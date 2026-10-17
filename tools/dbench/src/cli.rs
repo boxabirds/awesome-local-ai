@@ -249,6 +249,10 @@ pub struct CollectArgs {
     /// Pull only; don't ingest.
     #[arg(long)]
     pub no_ingest: bool,
+    /// Collect through the scope API (events by cursor, files by scope) instead of whole-file ranges. The nodes need the
+    /// build that serves `/v1/runs/scopes`.
+    #[arg(long)]
+    pub scopes: bool,
     #[arg(long, default_value_t = DEFAULT_RUNNING_POLL_MS, hide = true)]
     pub running_poll_ms: u64,
     #[arg(long, default_value_t = DEFAULT_FINISHED_RECHECK_MS, hide = true)]

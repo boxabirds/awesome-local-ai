@@ -94,6 +94,10 @@ pub struct Collection {
     /// Files the node holds below a tree rule whose names the rules refuse: a count, not a fault.
     #[serde(default)]
     pub unlisted: u64,
+    /// For each event stream collected through the scope API, the cursor after the last event the lake holds. Only a
+    /// shortcut, trusted while the file's `bytes` still equal its length; otherwise the file is scanned.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub cursors: BTreeMap<String, String>,
     pub dbench_version: String,
 }
 
@@ -400,6 +404,64 @@ pub struct RunSummary {
     pub changed: bool,
 }
 
+/// Pull what `plan` says for every file of `manifest` that is not up to date, through `run_ref`'s file route, and note it in
+/// `local`. The one place a pass turns the node's files into the lake's, for the old routes and the scope routes alike.
+pub async fn pull_planned(api: &Api, run_ref: &RunRef, dir: &Path, manifest: &Manifest, local: &mut Collection, now: u64, summary: &mut RunSummary) -> Result<()> {
+    for (entry, action) in plan(manifest, local, |name| local_len(&dir.join(name))) {
+        let dest = dir.join(&entry.name);
+        let pulled = match action {
+            Action::Skip => {
+                if let Some(r) = local.files.get_mut(&entry.name) {
+                    r.node_size = entry.size;
+                    r.node_mtime = entry.mtime;
+                    r.at_eof = r.bytes >= entry.size;
+                }
+                continue;
+            }
+            Action::Blob { resume_from } => {
+                let resume = local.files.get(&entry.name).and_then(|r| r.partial.clone()).filter(|p| p.bytes == resume_from);
+                let name = entry.name.clone();
+                let mut record = |p: &Partial| -> Result<()> {
+                    local.files.entry(name.clone()).or_default().partial = Some(p.clone());
+                    save_collection(dir, local)
+                };
+                pull_blob(api, run_ref, &entry, &dest, resume.as_ref(), &mut record).await?
+            }
+            other => pull_file(api, run_ref, &entry, other, &dest).await?,
+        };
+        summary.pulled_files += 1;
+        summary.pulled_bytes += pulled.pulled;
+        summary.changed = true;
+        let rec = local.files.entry(entry.name.clone()).or_default();
+        *rec = Collected {
+            bytes: pulled.bytes,
+            node_size: pulled.meta.size,
+            node_mtime: pulled.meta.mtime,
+            at_eof: pulled.at_eof,
+            pulled_at: now,
+            refetches: rec.refetches + pulled.refetches,
+            partial: None,
+        };
+    }
+    Ok(())
+}
+
+/// Move a run's completeness on by one look: `settled` is whether this look found the node's run over and every file held
+/// to its end. A run is complete only when a look after the grace finds nothing to pull; a look that pulled anything, or
+/// found the run open, starts it over.
+pub fn settle(local: &mut Collection, settled: bool, pulled_files: usize, cadence: &Cadence, now: u64) {
+    if settled && pulled_files == 0 {
+        match local.settled_at {
+            None => local.settled_at = Some(now),
+            Some(at) if now.saturating_sub(at) >= cadence.settle_grace.as_secs() => local.complete = true,
+            Some(_) => {}
+        }
+    } else {
+        local.settled_at = None;
+        local.complete = false;
+    }
+}
+
 /// Collect one run of one node into `dir`; the record it leaves says what it holds. Only the classes of file in
 /// `classes` are taken (a reference model's run takes its records only).
 pub async fn collect_run(api: &Api, node: &str, run: &str, dir: &Path, classes: &[Class], cadence: &Cadence, now: u64) -> Result<RunSummary> {
@@ -419,42 +481,7 @@ pub async fn collect_run(api: &Api, node: &str, run: &str, dir: &Path, classes: 
     let mut manifest = api.files(&run_ref).await?;
     manifest.files.retain(|f| crate::collect::parse_name(&f.name).is_some_and(|n| classes.contains(&n.class())));
     let was_complete = local.complete;
-    for (entry, action) in plan(&manifest, &local, |name| local_len(&dir.join(name))) {
-        let dest = dir.join(&entry.name);
-        let pulled = match action {
-            Action::Skip => {
-                if let Some(r) = local.files.get_mut(&entry.name) {
-                    r.node_size = entry.size;
-                    r.node_mtime = entry.mtime;
-                    r.at_eof = r.bytes >= entry.size;
-                }
-                continue;
-            }
-            Action::Blob { resume_from } => {
-                let resume = local.files.get(&entry.name).and_then(|r| r.partial.clone()).filter(|p| p.bytes == resume_from);
-                let name = entry.name.clone();
-                let mut record = |p: &Partial| -> Result<()> {
-                    local.files.entry(name.clone()).or_default().partial = Some(p.clone());
-                    save_collection(dir, &local)
-                };
-                pull_blob(api, &run_ref, &entry, &dest, resume.as_ref(), &mut record).await?
-            }
-            other => pull_file(api, &run_ref, &entry, other, &dest).await?,
-        };
-        summary.pulled_files += 1;
-        summary.pulled_bytes += pulled.pulled;
-        summary.changed = true;
-        let rec = local.files.entry(entry.name.clone()).or_default();
-        *rec = Collected {
-            bytes: pulled.bytes,
-            node_size: pulled.meta.size,
-            node_mtime: pulled.meta.mtime,
-            at_eof: pulled.at_eof,
-            pulled_at: now,
-            refetches: rec.refetches + pulled.refetches,
-            partial: None,
-        };
-    }
+    pull_planned(api, &run_ref, dir, &manifest, &mut local, now, &mut summary).await?;
     local.node = node.to_string();
     local.job = manifest.job.clone();
     local.run_status = manifest.run_status.clone();
@@ -462,17 +489,8 @@ pub async fn collect_run(api: &Api, node: &str, run: &str, dir: &Path, classes: 
     local.unlisted = manifest.unlisted;
     local.collected_at = now;
     local.dbench_version = crate::VERSION.to_string();
-    // A run is complete only when a look after the grace finds nothing to pull: a pass that pulled anything starts it over.
-    if settled(&manifest) && all_at_eof(&manifest, &local) && summary.pulled_files == 0 {
-        match local.settled_at {
-            None => local.settled_at = Some(now),
-            Some(at) if now.saturating_sub(at) >= cadence.settle_grace.as_secs() => local.complete = true,
-            Some(_) => {}
-        }
-    } else {
-        local.settled_at = None;
-        local.complete = false;
-    }
+    let held = settled(&manifest) && all_at_eof(&manifest, &local);
+    settle(&mut local, held, summary.pulled_files, cadence, now);
     summary.complete = local.complete;
     summary.changed |= local.complete != was_complete;
     save_collection(dir, &local)?;
@@ -517,6 +535,12 @@ pub struct Lake<'a> {
 }
 
 pub async fn collect_node(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs: &[String], archived: &BTreeSet<String>, cadence: &Cadence, now: u64) -> NodeSummary {
+    collect_node_with(ctx, node, lake, only_runs, archived, cadence, now, false).await
+}
+
+/// `collect_node`, through the scope API when `scopes`. A node without `/v1/runs/scopes` is reported as old, once per run.
+#[allow(clippy::too_many_arguments)]
+pub async fn collect_node_with(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs: &[String], archived: &BTreeSet<String>, cadence: &Cadence, now: u64, scopes: bool) -> NodeSummary {
     let mut out = NodeSummary { node: node.to_string(), ..Default::default() };
     let api = match ctx.api(node) {
         Ok(a) => a,
@@ -542,8 +566,16 @@ pub async fn collect_node(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs: &[St
             out.problems.push(format!("{code}: {}: not a run path", r.run));
             continue;
         };
-        match collect_run(&api, node, &r.run, &dir, classes_for(&r.run), cadence, now).await {
+        let result = if scopes {
+            crate::scope_collect::collect_run(&api, node, &r.run, &dir, classes_for(&r.run), cadence, now).await
+        } else {
+            collect_run(&api, node, &r.run, &dir, classes_for(&r.run), cadence, now).await
+        };
+        match result {
             Ok(s) => out.runs.push(s),
+            Err(e) if scopes && e.to_string().contains("404") && !e.to_string().contains("E-RUN-NOT-FOUND") => {
+                out.problems.push(format!("{E_NODE_OLD}: {}: needs the new dbench (no /v1/runs/scopes)", r.run));
+            }
             Err(e) => out.problems.push(format!("{}: {e:#}", r.run)),
         }
     }
@@ -590,7 +622,7 @@ pub async fn pass(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: 
     let names: Vec<String> = if cfg.nodes.is_empty() { ctx.nodes.keys().cloned().collect() } else { cfg.nodes.clone() };
     let archived = archived_runs(cfg);
     let lake = Lake { store: &cfg.store, reference: &cfg.reference };
-    let futs = names.iter().map(|n| collect_node(ctx, n, lake, &cfg.runs, &archived, cadence, now));
+    let futs = names.iter().map(|n| collect_node_with(ctx, n, lake, &cfg.runs, &archived, cadence, now, cfg.scopes));
     let summaries = futures_util::future::join_all(futs).await;
     for s in &summaries {
         for p in &s.problems {
@@ -653,6 +685,8 @@ pub struct Config {
     pub nodes: Vec<String>,
     pub runs: Vec<String>,
     pub no_ingest: bool,
+    /// Pull through the scope API (`scope_collect`) instead of whole-file ranges.
+    pub scopes: bool,
     /// The lake's disk must have at least this many GiB free for a pass to pull anything.
     pub free_space_margin_gib: u64,
     pub free_bytes: FreeBytes,
@@ -670,6 +704,7 @@ impl Default for Config {
             nodes: Vec::new(),
             runs: Vec::new(),
             no_ingest: false,
+            scopes: false,
             free_space_margin_gib: crate::cli::DEFAULT_FREE_SPACE_MARGIN_GIB,
             free_bytes,
         }
@@ -697,6 +732,7 @@ pub fn resolve(ctx: &Ctx, args: &CollectArgs) -> Result<Config> {
         nodes: args.nodes.clone(),
         runs: args.runs.clone(),
         no_ingest: args.no_ingest,
+        scopes: args.scopes,
         free_space_margin_gib: args.free_space_margin_gib,
         free_bytes,
     })

@@ -16,7 +16,7 @@
 //!
 //! Everything is a copy; the lake is only ever read.
 
-#![allow(dead_code)]
+#![allow(dead_code, clippy::too_many_arguments, clippy::type_complexity)]
 
 use dbench::cli::ServerConfig;
 use dbench::job::{AgentClient, Job, JobSpec, JobState};
@@ -583,6 +583,8 @@ pub struct Node {
     pub base: String,
     pub http: reqwest::Client,
     pub requests: Arc<std::sync::atomic::AtomicUsize>,
+    /// The path of every request the real router received, from any client, in order.
+    pub paths: Arc<Mutex<Vec<String>>>,
 }
 
 impl Drop for Node {
@@ -662,7 +664,15 @@ impl Node {
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-        let app = router(shared.clone());
+        let paths: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen = paths.clone();
+        let app = router(shared.clone()).layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+            let seen = seen.clone();
+            async move {
+                seen.lock().unwrap().push(req.uri().path().to_string());
+                next.run(req).await
+            }
+        }));
         tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
         Node {
             root,
@@ -670,6 +680,7 @@ impl Node {
             base: format!("http://{addr}"),
             http: reqwest::Client::new(),
             requests: Arc::new(Default::default()),
+            paths,
         }
     }
 

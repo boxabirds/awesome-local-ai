@@ -76,13 +76,16 @@ pub const CHUNK_TIMEOUT: Duration = Duration::from_secs(120);
 pub enum RunRef {
     Job(String),
     Path(String),
+    /// A run read through the scope routes (`/v1/runs/scope-file`): the same bytes and headers as `Path`, plus the
+    /// scope's `x-dbench-final`.
+    Scope(String),
 }
 
 impl RunRef {
     fn files_path(&self) -> String {
         match self {
             RunRef::Job(id) => format!("/v1/jobs/{id}/files"),
-            RunRef::Path(run) => format!("/v1/runs/files?run={}", urlencode(run)),
+            RunRef::Path(run) | RunRef::Scope(run) => format!("/v1/runs/files?run={}", urlencode(run)),
         }
     }
     fn file_path(&self, name: &str, from: u64, check: Option<&str>, mtime: Option<f64>) -> String {
@@ -91,6 +94,7 @@ impl RunRef {
         match self {
             RunRef::Job(id) => format!("/v1/jobs/{id}/file?name={}&from={from}{check}{mtime}", urlencode(name)),
             RunRef::Path(run) => format!("/v1/runs/file?run={}&name={}&from={from}{check}{mtime}", urlencode(run), urlencode(name)),
+            RunRef::Scope(run) => format!("/v1/runs/scope-file?run={}&name={}&from={from}{check}{mtime}", urlencode(run), urlencode(name)),
         }
     }
 }
@@ -174,6 +178,27 @@ impl Api {
     /// The collectable files of a run and their sizes.
     pub async fn files(&self, run: &RunRef) -> Result<crate::collect::Manifest> {
         self.get_ok(&run.files_path()).await
+    }
+
+    /// What a run has produced so far, by scope (`GET /v1/runs/scopes`).
+    pub async fn scopes(&self, run: &str) -> Result<crate::scope_collect::Listing> {
+        self.get_ok(&format!("/v1/runs/scopes?run={}", urlencode(run))).await
+    }
+
+    /// One page of a stream's events after the cursor `after` (`GET /v1/runs/events`). Each event keeps the text the node
+    /// sent, byte for byte.
+    pub async fn run_events(&self, run: &str, stream: &str, story: Option<&str>, after: Option<&str>, limit: usize) -> Result<crate::scope_collect::EventsPage> {
+        let story = story.map(|s| format!("&story={}", urlencode(s))).unwrap_or_default();
+        let after = after.map(|a| format!("&after={}", urlencode(a))).unwrap_or_default();
+        let path = format!("/v1/runs/events?run={}&stream={}{story}{after}&limit={limit}", urlencode(run), urlencode(stream));
+        let resp = self.req(reqwest::Method::GET, &path).timeout(CHUNK_TIMEOUT).send().await?;
+        let status = resp.status();
+        let body = resp.text().await?;
+        if !status.is_success() {
+            let text = serde_json::from_str::<serde_json::Value>(&body).map(|v| error_text(&v)).unwrap_or(body);
+            bail!("{status}: {text}");
+        }
+        crate::scope_collect::EventsPage::parse(&body)
     }
 
     /// One chunk of a file from `from`, with the prefix check `check` (the hex FNV-1a-64 of the bytes before `from`) for
