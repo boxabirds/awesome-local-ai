@@ -407,8 +407,38 @@ async fn api_open(State(app): State<Arc<App>>, UrlPath(slug): UrlPath<String>) -
         colour: colours.iter().find(|(s, _)| *s == run.setup).map(|(_, c)| c.clone()).unwrap_or_else(|| colour(0)),
         title: format!("{} {}", short_setup, run.run),
     };
-    let state = app.builds.open(Spec { slug: slug.clone(), workspace: run.path.join("workspace"), banner, in_place: false }).await;
+    let workspace = match final_build_source(run) {
+        FinalBuildSource::Folder(dir) => dir,
+        FinalBuildSource::Bundle { story } => match story_checkout(&app.cache, run, story).await {
+            Ok(dir) => dir,
+            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+        },
+        FinalBuildSource::None => {
+            return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "this run has no build to open"}))).into_response();
+        }
+    };
+    let state = app.builds.open(Spec { slug: slug.clone(), workspace, banner, in_place: false }).await;
     Json(serde_json::json!(state)).into_response()
+}
+
+/// Where a run's final build comes from: the plain `workspace/` folder an older record holds, else the last story's commit
+/// out of `workspace.bundle`. Newer runs have no folder (the app is stored once, as the bundle).
+#[derive(Debug, PartialEq, Eq)]
+enum FinalBuildSource {
+    Folder(PathBuf),
+    Bundle { story: u64 },
+    None,
+}
+
+fn final_build_source(run: &runs::Run) -> FinalBuildSource {
+    let folder = run.path.join("workspace");
+    if folder.is_dir() {
+        return FinalBuildSource::Folder(folder);
+    }
+    match run.story_commits.keys().next_back() {
+        Some(&story) if run.path.join("workspace.bundle").is_file() => FinalBuildSource::Bundle { story },
+        _ => FinalBuildSource::None,
+    }
 }
 
 async fn api_stop(State(app): State<Arc<App>>, UrlPath(slug): UrlPath<String>) -> impl IntoResponse {
@@ -1583,5 +1613,53 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "{got}");
         let v = json(&got);
         assert_eq!((v["tasks"].as_array().map(Vec::len), v["commits"].as_array().map(Vec::len), v["status_recorded"].as_bool()), (Some(1), Some(0), Some(false)));
+    }
+}
+
+#[cfg(test)]
+mod final_build_source_tests {
+    use super::*;
+
+    fn scratch(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("vidi-gallery-final-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn run_at(path: &std::path::Path, commits: &[(u64, &str)]) -> runs::Run {
+        runs::Run {
+            slug: "s__r".into(),
+            path: path.to_path_buf(),
+            story_commits: commits.iter().map(|(n, c)| (*n, c.to_string())).collect(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn an_old_run_with_a_workspace_folder_opens_the_folder() {
+        let dir = scratch("folder");
+        std::fs::create_dir_all(dir.join("workspace")).unwrap();
+        let run = run_at(&dir, &[(1, "aaa"), (2, "bbb")]);
+        assert_eq!(final_build_source(&run), FinalBuildSource::Folder(dir.join("workspace")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_run_with_only_a_bundle_opens_the_last_story_s_commit_from_it() {
+        let dir = scratch("bundle");
+        std::fs::write(dir.join("workspace.bundle"), b"bundle").unwrap();
+        let run = run_at(&dir, &[(1, "aaa"), (3, "ccc"), (2, "bbb")]);
+        assert_eq!(final_build_source(&run), FinalBuildSource::Bundle { story: 3 });
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_run_with_neither_a_folder_nor_a_usable_bundle_has_no_build() {
+        let dir = scratch("none");
+        assert_eq!(final_build_source(&run_at(&dir, &[(1, "aaa")])), FinalBuildSource::None);
+        std::fs::write(dir.join("workspace.bundle"), b"bundle").unwrap();
+        assert_eq!(final_build_source(&run_at(&dir, &[])), FinalBuildSource::None, "a bundle with no recorded commit");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
