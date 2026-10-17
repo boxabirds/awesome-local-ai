@@ -24,13 +24,42 @@ import heldout  # noqa: E402
 import packdir  # noqa: E402
 PACK = packdir.resolve()  # the judged runs are vidi's
 PER_STORY_FILES = ("accept.json", "gate.json")
+BUNDLE = "workspace.bundle"   # the run's app with its git history: what the harness keeps (finalize.py writes it)
+MIRROR = "workspace"          # the plain-file copy older runs also have; the harness no longer writes it
+# What the plain-file mirror left out (drive.MIRROR_EXCLUDES, minus .git): the pack's spec, build output, test output.
+NOT_MIRRORED = ("spec", "node_modules", "dist", ".wrangler", "test-results", "playwright-report")
+
+
+def drop_unmirrored(tree: Path) -> None:
+    """Take from an app's working tree what the mirror never held, so the judge sees what it always saw."""
+    for name in NOT_MIRRORED:
+        target = tree / name
+        if target.is_dir() and not target.is_symlink():
+            shutil.rmtree(target)
+        elif target.exists() or target.is_symlink():
+            target.unlink()
+
+
+def clone_app(run: Path, dest: Path) -> None:
+    """The run's app, with its git history, cloned to dest: from workspace.bundle, else (a run from before the
+    bundle, or a hand-built reference run) from its workspace/ folder."""
+    bundle, folder = run / BUNDLE, run / MIRROR
+    if bundle.is_file():
+        source = bundle
+    elif folder.is_dir():
+        source = folder
+    else:
+        raise SystemExit(f"{run}: no {BUNDLE} and no {MIRROR}/ folder: the app it built is not here")
+    subprocess.run(["git", "clone", "-q", str(source), str(dest)], check=True)
+    if source == bundle:
+        drop_unmirrored(dest)
 
 
 def copy_run(run: Path, dest: Path) -> None:
-    """The run's workspace and each story's results. The held-out ones are private: taken from wherever
+    """The run's app (clone_app) and each story's results. The held-out ones are private: taken from wherever
     heldout.find finds them (this machine's record, else the private repo's copy)."""
     dest.mkdir(parents=True)
-    subprocess.run(["git", "clone", "-q", str(run / "workspace"), str(dest / "workspace")], check=True)
+    clone_app(run, dest / "workspace")
     for sdir in sorted((run / "stories").iterdir()):
         out = dest / "stories" / sdir.name
         out.mkdir(parents=True)

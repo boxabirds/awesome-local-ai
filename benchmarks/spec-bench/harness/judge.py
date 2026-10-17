@@ -36,6 +36,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -46,6 +47,7 @@ import claims  # noqa: E402
 import gates  # noqa: E402
 import heldout  # noqa: E402
 import hostenv  # noqa: E402
+import judge_prep  # noqa: E402
 import judge_sandbox  # noqa: E402
 import packdir  # noqa: E402
 
@@ -103,17 +105,38 @@ def scored_commit(record: Path) -> str:
 
 def record_workspace(record: Path, dest: Path) -> None:
     """The run's final workspace from its record, as a one-commit git repo (grading_package archives
-    HEAD). Refuses a snapshot that isn't the commit the final score was taken on."""
+    HEAD). Refuses a snapshot that isn't the commit the final score was taken on. The app is read from
+    workspace.bundle, at the commit the score was taken on; a run with no bundle but a workspace/ folder (a run from
+    before the bundle, a hand-built reference run) is read from the folder."""
     log = (record / "workspace-git-log.txt").read_text()
     head = log.split("\n", 1)[0].split()[-1]
     scored = scored_commit(record)
     if not (head.startswith(scored[:7]) or scored.startswith(head[:7])):
         raise SystemExit(f"{record}: the workspace snapshot is {head[:7]}, but the score was taken on {scored[:7]}")
-    shutil.copytree(record / "workspace", dest)
+    if (record / judge_prep.BUNDLE).is_file():
+        copy_scored_tree(record, scored, dest)
+    else:
+        shutil.copytree(record / judge_prep.MIRROR, dest)
     git = ["git", "-C", str(dest), "-c", "user.name=build", "-c", "user.email=build@invalid"]
     subprocess.run([*git, "init", "-q"], check=True)
     subprocess.run([*git, "add", "-A"], check=True)
     subprocess.run([*git, "commit", "-q", "-m", "final build"], check=True)
+
+
+def copy_scored_tree(record: Path, scored: str, dest: Path) -> None:
+    """The files of commit `scored` from the record's workspace.bundle, without history, in dest."""
+    with tempfile.TemporaryDirectory() as tmp:
+        clone = Path(tmp) / "clone"
+        judge_prep.clone_app(record, clone)
+        found = subprocess.run(["git", "-C", str(clone), "rev-parse", "--verify", "--quiet", f"{scored}^{{commit}}"],
+                               capture_output=True, text=True)
+        if found.returncode != 0:
+            raise SystemExit(f"{record}: the commit the score was taken on ({scored[:7]}) is not in workspace.bundle")
+        tree = subprocess.run(["git", "-C", str(clone), "archive", "--format=tar", found.stdout.strip()],
+                              capture_output=True, check=True).stdout
+    dest.mkdir(parents=True)
+    subprocess.run(["tar", "-x", "-C", str(dest)], input=tree, check=True)
+    judge_prep.drop_unmirrored(dest)
 
 
 def record_claims(record: Path, out: Path) -> list[str]:

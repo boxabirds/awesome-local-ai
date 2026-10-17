@@ -289,3 +289,115 @@ def test_a_whole_command_judges_collects_and_unblinds(tmp_path, monkeypatch, cap
     out = capsys.readouterr().out.splitlines()
     assert "run-1: judge exited 0; missing outputs: none" in out
     assert out[-1] == f"done: {job.private / 'state' / 'judging' / 'job' / 'results'}"
+
+
+# ---------------------------------------------------------------- the app is read from workspace.bundle
+
+def bundled_record(tmp_path, scored_is_tip=True):
+    """A record with workspace.bundle and NO workspace/ folder (what the harness now writes): two commits, the
+    bundle's tip on b.ts = 2; LOG's head (bbbbbbb...) is patched to the real tip so the log check passes."""
+    src = tmp_path / "src"
+    src.mkdir()
+    git = lambda *a: subprocess.run(["git", "-C", str(src), "-c", "user.name=a", "-c", "user.email=a@b", *a],
+                                    capture_output=True, text=True, check=True).stdout.strip()
+    git("init", "-q", "-b", "main")
+    (src / "b.ts").write_text("export const b = 1\n")
+    (src / "spec").mkdir()
+    (src / "spec" / "README.md").write_text("the pack's spec, which the mirror never held\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "story 1")
+    first = git("rev-parse", "HEAD")
+    (src / "b.ts").write_text("export const b = 2\n")
+    (src / "c.ts").write_text("export const c = 3\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "story 2")
+    tip = git("rev-parse", "HEAD")
+    rec = tmp_path / "rec"
+    rec.mkdir()
+    git("bundle", "create", str(rec / "workspace.bundle"), "--all")
+    scored = tip if scored_is_tip else first
+    (rec / "workspace-git-log.txt").write_text(f"commit {scored}\nvidi-agent  Fri Sep 25 17:07:33 2026 +0100\n\n    story\n")
+    (rec / "metrics.json").write_text(json.dumps({"stories": {"2": {"commit": scored}}}))
+    return rec, first, tip
+
+
+def files_of(repo):
+    return subprocess.run(["git", "-C", str(repo), "ls-files"], capture_output=True, text=True).stdout.split()
+
+
+def test_record_workspace_reads_the_bundle_when_there_is_no_workspace_folder(tmp_path):
+    rec, _, _ = bundled_record(tmp_path)
+    assert not (rec / "workspace").exists()
+    judge.record_workspace(rec, tmp_path / "ws")
+    assert files_of(tmp_path / "ws") == ["b.ts", "c.ts"]            # no spec/: the mirror never held it
+    assert (tmp_path / "ws" / "b.ts").read_text() == "export const b = 2\n"
+    commits = subprocess.run(["git", "-C", str(tmp_path / "ws"), "rev-list", "--count", "HEAD"], capture_output=True, text=True)
+    assert commits.stdout.strip() == "1"                 # one commit, no history, so no author names
+
+
+def test_record_workspace_takes_the_commit_the_score_was_taken_on_from_the_bundle(tmp_path):
+    rec, first, _ = bundled_record(tmp_path, scored_is_tip=False)
+    judge.record_workspace(rec, tmp_path / "ws")
+    assert files_of(tmp_path / "ws") == ["b.ts"]
+    assert (tmp_path / "ws" / "b.ts").read_text() == "export const b = 1\n"
+
+
+def test_a_scored_commit_the_bundle_does_not_hold_is_refused(tmp_path):
+    rec, _, _ = bundled_record(tmp_path)
+    missing = "d" * 40
+    (rec / "workspace-git-log.txt").write_text(f"commit {missing}\nvidi-agent  Fri\n")
+    (rec / "metrics.json").write_text(json.dumps({"stories": {"2": {"commit": missing}}}))
+    with pytest.raises(SystemExit, match="not in workspace.bundle"):
+        judge.record_workspace(rec, tmp_path / "ws")
+
+
+def test_a_bundle_snapshot_that_is_not_the_scored_commit_is_refused(tmp_path):
+    rec, first, _ = bundled_record(tmp_path)
+    (rec / "metrics.json").write_text(json.dumps({"stories": {"2": {"commit": first}}}))
+    with pytest.raises(SystemExit, match="score was taken on"):
+        judge.record_workspace(rec, tmp_path / "ws")
+
+
+def test_the_bundle_wins_over_a_workspace_folder_and_the_folder_serves_a_run_without_one(tmp_path):
+    rec, _, _ = bundled_record(tmp_path)
+    (rec / "workspace").mkdir()
+    (rec / "workspace" / "stale.ts").write_text("x\n")
+    judge.record_workspace(rec, tmp_path / "ws")
+    assert files_of(tmp_path / "ws") == ["b.ts", "c.ts"]
+    old = fake_record(tmp_path / "old")                   # a folder and no bundle: the fallback, as before
+    judge.record_workspace(old, tmp_path / "ws-old")
+    assert files_of(tmp_path / "ws-old") == ["src/b.ts"]
+
+
+REAL_BUNDLED_RUN = "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1"
+
+
+def test_a_real_runs_bundle_gives_the_files_its_workspace_folder_has(tmp_path):
+    run = judge.REPO / REAL_BUNDLED_RUN
+    if not (run / "workspace.bundle").is_file() or not (run / "workspace").is_dir():
+        pytest.skip("the run is archived or already has no mirror")
+    from_bundle = tmp_path / "from-bundle"
+    judge.record_workspace(run, from_bundle)
+    from_folder = tmp_path / "from-folder"
+    shutil.copytree(run / "workspace", from_folder, ignore=shutil.ignore_patterns(".git"))
+    subprocess.run(["git", "-C", str(from_folder), "init", "-q"], check=True)
+    subprocess.run(["git", "-C", str(from_folder), "add", "-A"], check=True)
+    assert files_of(from_bundle) == files_of(from_folder)
+
+
+def test_judge_prep_clones_the_app_from_the_bundle_when_the_run_has_no_workspace_folder(tmp_path):
+    import judge_prep
+    rec, _, tip = bundled_record(tmp_path)
+    (rec / "stories").mkdir()
+    judge_prep.copy_run(rec, tmp_path / "out")
+    app = tmp_path / "out" / "workspace"
+    assert (app / "b.ts").read_text() == "export const b = 2\n" and not (app / "spec").exists()
+    head = subprocess.run(["git", "-C", str(app), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    assert head == tip                                   # with its history, as a clone of the folder had
+
+
+def test_judge_prep_names_a_run_that_has_neither_bundle_nor_folder(tmp_path):
+    import judge_prep
+    (tmp_path / "stories").mkdir()
+    with pytest.raises(SystemExit, match="no workspace.bundle and no workspace/ folder"):
+        judge_prep.copy_run(tmp_path, tmp_path / "out")
