@@ -36,6 +36,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::collect::{self, Source};
+use crate::scopes::finality;
 use crate::server::{Shared, E_BAD_RUN_ID, E_OUTSIDE_RUN, E_RUN_NOT_FOUND};
 
 pub const E_BAD_CURSOR: &str = "E-BAD-CURSOR";
@@ -500,10 +501,12 @@ fn err(status: StatusCode, msg: impl Into<String>) -> Response {
     (status, Json(json!({ "error": msg.into() }))).into_response()
 }
 
-/// Whether the stream is final. TODO(listing agent): replace with the real finality rule (the story's status in
-/// metrics.json, the run's run-status.json, the job's state: api.md, "Final, and resumption").
-fn final_for(_st: &Shared, _run: &str, _story: Option<&str>, _stream: &str) -> bool {
-    false
+/// Whether the stream is final (api.md, "Final, and resumption"): the story's status in metrics.json, the run's
+/// run-status.json and the state of the run's newest job, decided by `finality::stream_final`. `egress` is run level.
+fn final_for(st: &Shared, run: &str, story: Option<&str>, stream: &str) -> bool {
+    let job_label = st.jobs_by_run().remove(run).map(|(_, label)| label);
+    let story_number = if stream == EGRESS_NAME { None } else { story.and_then(finality::story_number) };
+    finality::stream_final(&st.cfg.repo.join(run), job_label.as_deref(), story_number)
 }
 
 enum Located {

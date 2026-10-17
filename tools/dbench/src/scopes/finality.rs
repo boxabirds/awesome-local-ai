@@ -110,11 +110,17 @@ impl JobPhase {
     pub fn is_terminal(self) -> bool {
         matches!(self, JobPhase::Done | JobPhase::Failed | JobPhase::Cancelled)
     }
+
+    /// A job that is queued or running: the harness will write more.
+    pub fn is_live(self) -> bool {
+        matches!(self, JobPhase::Queued | JobPhase::Running)
+    }
 }
 
-/// Whether the run scope is final.
+/// Whether the run scope is final. A queued or running job reopens the run whatever run-status.json still says: a resumed
+/// run keeps the old closing state until its harness writes `started`, and a caller must not stop reading then.
 pub fn run_is_final(run: RunState, job: JobPhase) -> bool {
-    run.is_closing() || job.is_terminal()
+    !job.is_live() && (run.is_closing() || job.is_terminal())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -373,8 +379,11 @@ mod tests {
         for run in RUN_STATES {
             for label in JOB_LABELS {
                 let job = JobPhase::from_label(label);
-                let expected = matches!(run, RunState::Finished | RunState::Failed | RunState::Stopped)
-                    || matches!(label, Some("done") | Some("failed") | Some("cancelled"));
+                // A queued or running job reopens the run whatever run-status.json still says (a resumed run).
+                let live = matches!(label, Some("queued") | Some("running"));
+                let expected = !live
+                    && (matches!(run, RunState::Finished | RunState::Failed | RunState::Stopped)
+                        || matches!(label, Some("done") | Some("failed") | Some("cancelled")));
                 assert_eq!(run_is_final(run, job), expected, "run {run:?}, job {label:?}");
             }
         }

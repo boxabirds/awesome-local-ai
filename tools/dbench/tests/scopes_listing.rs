@@ -251,7 +251,8 @@ async fn f1_every_run_state_and_job_state_gives_the_contract_final_flag() {
             let terminal = matches!(job, Some("done") | Some("failed") | Some("cancelled"));
             let ctx = format!("run {tag}, job {job:?}");
             assert_eq!(listing["run_state"], expect_state, "{ctx}");
-            assert_eq!(listing["final"], closing || terminal, "{ctx}");
+            let live = matches!(job, Some("queued") | Some("running"));   // a live job reopens the run, whatever run-status.json says
+            assert_eq!(listing["final"], !live && (closing || terminal), "{ctx}");
             match job {
                 Some(label) => {
                     assert_eq!(listing["job_state"], label, "{ctx}");
@@ -382,6 +383,11 @@ async fn f7_a_story_with_files_and_no_record_follows_the_run() {
     let open = node.scopes(RUN_ID).await;
     assert_eq!((story(&open, 1)["state"].as_str(), story(&open, 1)["final"].as_bool()), (Some("running"), Some(false)));
     std::fs::write(dir.join("run-status.json"), fixture("run-status-stopped.json")).unwrap();
+    // The job is still running: a resumed run keeps its old closing state until the harness writes `started`.
+    let still = node.scopes(RUN_ID).await;
+    assert_eq!((story(&still, 1)["state"].as_str(), story(&still, 1)["final"].as_bool()), (Some("running"), Some(false)));
+    node.shared.lock().jobs.clear();
+    node.add_job("job-1", RUN_ID, job_state("done"), 1);
     let closed = node.scopes(RUN_ID).await;
     assert_eq!((story(&closed, 1)["state"].as_str(), story(&closed, 1)["final"].as_bool()), (Some("failed"), Some(true)));
 }
@@ -574,6 +580,7 @@ async fn s1_scope_file_serves_the_same_bytes_and_headers_as_runs_file_plus_the_f
         assert_eq!(new.header(FINAL_HEADER).as_deref(), Some(final_flag), "{name}");
     }
     // The run ends: every file is final.
+    node.shared.lock().jobs.clear();
     std::fs::write(dir.join("run-status.json"), fixture("run-status-finished.json")).unwrap();
     for (name, _) in cases {
         let r = node.get("/v1/runs/scope-file", &[("run", rel.as_str()), ("name", name)]).await;
@@ -746,7 +753,7 @@ async fn r1_every_real_run_in_the_lake_has_the_final_flag_its_recorded_state_imp
             }
             let listing = node.scopes(&run_id).await;
             let closing = matches!(recorded.as_str(), "finished" | "failed" | "stopped");
-            let expect = closing || label == Some("done");
+            let expect = label != Some("running") && (closing || label == Some("done"));
             assert_eq!(listing["final"], expect, "{} ({recorded}, job {tag})", src.display());
             assert_eq!(listing["run_state"], if closing || recorded == "started" { recorded.as_str() } else { "unknown" });
             if label.is_none() {

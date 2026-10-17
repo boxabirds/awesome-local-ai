@@ -907,3 +907,40 @@ async fn real_logs_rebuild_byte_for_byte() {
 fn time_keys_per_stream() {
     assert_eq!((AGENT_KEY, COND_KEY), ("_rx", "t"));
 }
+
+// ---- R10: `final` follows the scope rules (api.md, "Final, and resumption") ----
+
+fn write_state(rig: &Rig, run_status: Option<&str>, metrics: Option<&str>) {
+    if let Some(state) = run_status {
+        std::fs::write(rig.run_dir().join("run-status.json"), format!(r#"{{"state":"{state}"}}"#)).unwrap();
+    }
+    if let Some(m) = metrics {
+        std::fs::write(rig.run_dir().join("metrics.json"), m).unwrap();
+    }
+}
+
+async fn final_of(rig: &Rig, query: &str) -> Value {
+    rig.page(query, None, 10).await.2["final"].clone()
+}
+
+#[tokio::test]
+async fn a_closed_run_makes_every_stream_final() {
+    for state in ["finished", "failed", "stopped"] {
+        let rig = Rig::new(&format!("final-{state}")).await;
+        write_lines(&rig.story_file(STORY, "agent-events.jsonl"), &[ev("1.5", 0)]);
+        write_state(&rig, Some(state), None);
+        assert_eq!(final_of(&rig, AGENT_Q).await, Value::Bool(true), "agent, run {state}");
+        assert_eq!(final_of(&rig, "stream=conditions&story=02").await, Value::Bool(true), "story that never started, run {state}");
+        assert_eq!(final_of(&rig, "stream=egress").await, Value::Bool(true), "egress, run {state}");
+    }
+}
+
+#[tokio::test]
+async fn an_open_run_is_final_only_for_a_story_that_has_ended() {
+    let rig = Rig::new("final-open").await;
+    write_lines(&rig.story_file(STORY, "agent-events.jsonl"), &[ev("1.5", 0)]);
+    write_state(&rig, Some("started"), Some(r#"{"stories":{"2":{"status":"DONE"},"3":{"title":"running"}}}"#));
+    assert_eq!(final_of(&rig, AGENT_Q).await, Value::Bool(true), "story 2 has ended");
+    assert_eq!(final_of(&rig, "stream=agent&story=03").await, Value::Bool(false), "story 3 has not ended");
+    assert_eq!(final_of(&rig, "stream=egress").await, Value::Bool(false), "egress waits for the run");
+}
