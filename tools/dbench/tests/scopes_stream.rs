@@ -30,7 +30,7 @@
 //!   D1  up to five real agent logs, pages of 1, 7, 1000, byte for byte     real_logs_rebuild_byte_for_byte
 
 use dbench::cli::ServerConfig;
-use dbench::scopes::stream::{self, Cursor};
+use dbench::scopes::stream::{self, Cursor, EventsQuery};
 use dbench::server::{router, Inner, Shared};
 use serde_json::Value;
 use std::collections::{HashMap, VecDeque};
@@ -85,6 +85,7 @@ impl Drop for Temp {
 
 struct Rig {
     _root: Temp,
+    st: Arc<Shared>,
     repo: PathBuf,
     bench_home: PathBuf,
     base: String,
@@ -151,12 +152,13 @@ impl Rig {
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-        let app = router(st);
+        let app = router(st.clone());
         let server = tokio::spawn(async move {
             let _ = axum::serve(listener, app).await;
         });
         Rig {
             _root: root,
+            st,
             repo,
             bench_home,
             base: format!("http://{addr}"),
@@ -948,4 +950,37 @@ async fn an_open_run_is_final_only_for_a_story_that_has_ended() {
     assert_eq!(final_of(&rig, AGENT_Q).await, Value::Bool(true), "story 2 has ended");
     assert_eq!(final_of(&rig, "stream=agent&story=03").await, Value::Bool(false), "story 3 has not ended");
     assert_eq!(final_of(&rig, "stream=egress").await, Value::Bool(false), "egress waits for the run");
+}
+
+// ---- the flag and the page are one answer ----
+
+/// A line written, and the run closed, in the gap between the page being read and the flag being worked out. The answer
+/// must never say `final` while a complete line is still unread: a collector that stops at the first `final` would lose
+/// it for ever. (Found by reading the route on 17 Oct 2026: it read the page, then worked out `final`.)
+#[tokio::test]
+async fn final_is_never_true_while_a_line_is_unread() {
+    let rig = Rig::new("flag-race").await;
+    std::fs::write(rig.run_dir().join("run-status.json"), r#"{"state":"started"}"#).unwrap();
+    let path = rig.story_file(STORY, "agent-events.jsonl");
+    write_lines(&path, &[ev("10.0", 1), ev("20.0", 2)]);
+    let run_dir = rig.run_dir();
+    let last = ev("30.0", 3);
+    let between = {
+        let path = path.clone();
+        move || {
+            append(&path, &format!("{last}\n"));
+            std::fs::write(run_dir.join("run-status.json"), r#"{"state":"finished"}"#).unwrap();
+        }
+    };
+    let q = EventsQuery { run: RUN.into(), stream: Some("agent".into()), story: Some(STORY.into()), after: None, limit: None };
+    let resp = stream::answer(&rig.st, q, &between).await;
+    let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+    let first: Value = serde_json::from_slice(&body).unwrap();
+    let next = first["next"].as_str().unwrap().to_string();
+    let (rest, _, _) = rig.page(AGENT_Q, Some(&next), DEFAULT_LIMIT).await;
+    assert!(
+        !(first["final"] == Value::Bool(true) && !rest.is_empty()),
+        "the answer said final while {} complete line(s) were still unread",
+        rest.len()
+    );
 }

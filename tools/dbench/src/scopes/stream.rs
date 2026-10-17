@@ -437,6 +437,54 @@ fn exact(mut file: File, key: &str, after: Option<&Cursor>, limit: usize) -> std
     })
 }
 
+/// What a copy of a stream's file holds: the cursor of its events and how many leading bytes are whole lines.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileScan {
+    /// The cursor after the last event the file holds; None when it holds none.
+    pub cursor: Option<Cursor>,
+    /// The length of the file up to and including its last newline. Bytes past it are a torn last line.
+    pub whole_lines_len: u64,
+}
+
+/// The cursor a reader of `path` would be given after the file's last event, by the same counting `read_page` does (so a
+/// copy made from the pages continues exactly where it ended). A missing file holds nothing.
+pub fn scan_file(path: &Path, time_key: &str) -> std::io::Result<FileScan> {
+    let file = match File::open(path) {
+        Ok(f) => f,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(FileScan { cursor: None, whole_lines_len: 0 })
+        }
+        Err(e) => return Err(e),
+    };
+    let mut reader = BufReader::with_capacity(READ_BUF_BYTES, file);
+    let (mut buf, mut counts) = (Vec::new(), HashMap::<String, u64>::new());
+    let (mut whole, mut last) = (0u64, None::<Cursor>);
+    loop {
+        buf.clear();
+        let n = reader.read_until(b'\n', &mut buf)?;
+        if n == 0 || buf.last() != Some(&b'\n') {
+            break;
+        }
+        whole += n as u64;
+        let Some(line) = event_of(&buf) else { continue };
+        let text = time_text(line, time_key).unwrap_or("");
+        let count = counts.entry(text.to_string()).or_insert(0);
+        *count += 1;
+        last = Some(Cursor { ts: text.to_string(), n: *count });
+    }
+    Ok(FileScan { cursor: last, whole_lines_len: whole })
+}
+
+/// The time key of a stream by its name in the API (`agent`, `conditions`, `egress`).
+pub fn time_key_of(stream: &str) -> Option<&'static str> {
+    Stream::parse(stream).map(Stream::time_key)
+}
+
+/// The run-relative name of a stream's file: `story` is the two-digit folder name for the story streams, None for `egress`.
+pub fn file_name_of(stream: &str, story: Option<&str>) -> Option<String> {
+    Stream::parse(stream).map(|s| s.file_name(story))
+}
+
 /// The body of a response: the events laid out one per line, exactly as the file holds them.
 pub fn events_body(page: &Page, is_final: bool) -> String {
     let events = if page.lines.is_empty() {
@@ -489,12 +537,12 @@ impl Stream {
 }
 
 #[derive(Deserialize)]
-struct EventsQuery {
-    run: String,
-    stream: Option<String>,
-    story: Option<String>,
-    after: Option<String>,
-    limit: Option<u64>,
+pub struct EventsQuery {
+    pub run: String,
+    pub stream: Option<String>,
+    pub story: Option<String>,
+    pub after: Option<String>,
+    pub limit: Option<u64>,
 }
 
 fn err(status: StatusCode, msg: impl Into<String>) -> Response {
@@ -543,6 +591,13 @@ fn locate(st: &Shared, run: &str, name: &str) -> Located {
 }
 
 async fn events(State(st): State<Arc<Shared>>, Query(q): Query<EventsQuery>) -> Response {
+    answer(&st, q, &|| {}).await
+}
+
+/// The route's work. `between` runs once, between the two things the answer is made of (the `final` flag and the page read
+/// from the file), so a test can make the writer act in exactly that gap; the route passes a function that does nothing.
+pub async fn answer(st: &Arc<Shared>, q: EventsQuery, between: &(dyn Fn() + Send + Sync)) -> Response {
+    let st = st.clone();
     // the run, as /v1/runs/files names it
     if !crate::ids::valid_run_dir(&q.run) {
         return err(
@@ -604,6 +659,11 @@ async fn events(State(st): State<Arc<Shared>>, Query(q): Query<EventsQuery>) -> 
         .unwrap_or(MAX_LIMIT)
         .min(MAX_LIMIT);
     let name = stream.file_name(story);
+    // The flag first, the page second: whatever was written before the flag turned true is in the page, because a writer
+    // that is finished writes no more. The other way round, a line written between the two reads would be missed by an
+    // answer that says it is final.
+    let is_final = final_for(&st, &q.run, story, q.stream.as_deref().unwrap_or(""));
+    between();
     let page = match locate(&st, &q.run, &name) {
         Located::Outside => {
             return err(
@@ -626,7 +686,6 @@ async fn events(State(st): State<Arc<Shared>>, Query(q): Query<EventsQuery>) -> 
             }
         }
     };
-    let is_final = final_for(&st, &q.run, story, q.stream.as_deref().unwrap_or(""));
     Response::builder()
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::from(events_body(&page, is_final)))
