@@ -46,6 +46,7 @@ ALWAYS = {
     "conversation profile": (conversation, "profile"),
     "lines of code": (drive, "loc"),
     "workspace git log": (drive, "write_workspace_git_log"),
+    "workspace bundle": (drive, "write_workspace_bundle"),
     "task table": (progress, "task_table"),
     "progress file": (progress, "write_progress"),
 }

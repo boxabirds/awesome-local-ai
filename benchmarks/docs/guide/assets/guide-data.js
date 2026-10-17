@@ -190,7 +190,7 @@ GUIDE_DATA.entities = [
     id: "run", name: "Run", group: "run", row: 0,
     short: "One combination building a scope of a pack, start to finish.",
     what: "One attempt by one combination to build a scope of a pack: a directory `combinations/<combination>/benchmarks/<pack>/<run-id>/` (or `benchmarks/reference/<pack>/<stack>/<run-id>/`). Running again with the same run id resumes at the first unfinished story. Three runs per stack are wanted, so run-to-run spread is visible.",
-    contains: ["`run.json`: configuration at each start", "`metrics.json`: one record per story", "`run-status.json`, `summary.md`, `interventions.md`", "`stories/NN/`: prompt, agent log, gate, held-out counts", "`workspace.bundle` and `finalize.json` at the end", "`rescore/<suite version>/`"],
+    contains: ["`run.json`: configuration at each start", "`metrics.json`: one record per story", "`run-status.json`, `summary.md`, `interventions.md`", "`stories/NN/`: prompt, agent log, gate, held-out counts", "`workspace.bundle`, refreshed after every story and at every start, stop or finish; `finalize.json` at the end", "`rescore/<suite version>/`"],
     rel: [["is of", "combination"], ["builds", "scope"], ["has", "story-run"], ["works in", "workspace"], ["ends with", "finalize"]],
     repo: [["benchmarks/spec-bench/TELEMETRY.md", "TELEMETRY.md: every field"], ["combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r5/summary.md", "an example run summary"]],
     example: "`v2-r5` of the gufo combination: 11 stories, a score of record of 68/75 under suite version `vidi-v2.0-pre2`.",
@@ -199,7 +199,7 @@ GUIDE_DATA.entities = [
   {
     id: "workspace", name: "Workspace", group: "run", row: 1,
     short: "The agent's git repository, carried from story to story.",
-    what: "The agent's git repository for a run. It is created once and carried through every story: story 2 starts from the code story 1 left. On main it lives outside the repo in a short neutral directory (`~/.w/<id>`, shown to the agent as `/w` on Linux; the bench home keeps a link with the run's long name); in release 1 it had a long name under the bench home. It holds a copy of the spec (read-only on main) and, on main, a `PROGRESS.md`, and is snapshotted after each story. The run's record holds the repository as `workspace.bundle`, made at the end of the run. Since 17 October 2026 the harness no longer copies the files into a `workspace/` folder of the record (nodes on earlier releases still do).",
+    what: "The agent's git repository for a run. It is created once and carried through every story: story 2 starts from the code story 1 left. On main it lives outside the repo in a short neutral directory (`~/.w/<id>`, shown to the agent as `/w` on Linux; the bench home keeps a link with the run's long name); in release 1 it had a long name under the bench home. It holds a copy of the spec (read-only on main) and, on main, a `PROGRESS.md`, and is snapshotted after each story. The run's record holds the repository as `workspace.bundle`, made after every story and at every start, stop or finish of the run, and again at its end. Since 17 October 2026 the harness no longer copies the files into a `workspace/` folder of the record (nodes on earlier releases still do).",
     contains: ["`spec/`, read-only", "the agent's commits", "`PROGRESS.md`, `NOTES.md`", "a private `tmp/` and `agent-home/`"],
     rel: [["holds", "progress-file"]],
     repo: [["benchmarks/spec-bench/harness/drive.py", "harness/drive.py (setup_workspace)"]],

@@ -133,8 +133,8 @@ def ensure_bundle(run: Path) -> None:
 
 
 def bundle(workspace: Path, dest: Path) -> None:
-    subprocess.run(["git", "-C", str(workspace), "bundle", "create", str(dest), "--all"],
-                   check=True, capture_output=True, text=True)
+    import drive
+    drive.make_bundle(workspace, dest)
 
 
 def score_of(run: Path, version: str) -> str:

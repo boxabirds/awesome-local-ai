@@ -104,6 +104,7 @@ TMP_ENV = ("TMPDIR", "TMP", "TEMP", "CLAUDE_CODE_TMPDIR")
 CONTEXT_BANDS = [(0, 16_000), (16_000, 32_000), (32_000, 64_000), (64_000, 100_000), (100_000, 10**9)]
 CONDITION_POLL_S = 30        # how often run conditions are sampled during a story / while waiting
 WORKSPACE_GIT_LOG = "workspace-git-log.txt"   # the agent's git history as text, beside the run's records
+WORKSPACE_BUNDLE = "workspace.bundle"         # the agent's repository as one file: the run's code, kept in git
 CONDITIONS_FILE = "conditions.jsonl"   # every reading of a story, one JSON line per tick, beside its agent-events.jsonl (git-ignored; dbench collect pulls it)
 # Per-token stream deltas are ~99% of an agent event log. The readers of the log (_stamped_events) skip them, except the
 # first of each model call: its arrival is when prefill ended, which accounting.py needs to split a call's time into
@@ -312,6 +313,37 @@ def write_workspace_git_log(ws: Path, run: Path) -> None:
     log = subprocess.run(["git", "log", "--stat", "--format=commit %H%n%an  %ad%n%n    %s%n"], cwd=ws,
                          capture_output=True, text=True, errors="replace").stdout
     (run / WORKSPACE_GIT_LOG).write_text(log)
+
+
+def make_bundle(workspace: Path, dest: Path) -> None:
+    """The workspace's whole git history as one file. Written beside its name and renamed into place, so a process
+    killed part-way never leaves a torn bundle where a whole one was. The one command that makes a run's bundle
+    (finalize.bundle calls it)."""
+    part = dest.with_name(dest.name + ".part")
+    try:
+        subprocess.run(["git", "-C", str(workspace), "bundle", "create", str(part), "--all"],
+                       check=True, capture_output=True, text=True)
+        os.replace(part, dest)
+    finally:
+        part.unlink(missing_ok=True)
+
+
+def write_workspace_bundle(ws: Path, run: Path) -> None:
+    """The run's code, beside its records, when a story completes: the bundle is the only copy of it that is kept."""
+    make_bundle(ws, run / WORKSPACE_BUNDLE)
+
+
+def bundle_run_workspace(run: Path) -> bool:
+    """The same, from the run's own work folder (work_dir.txt), for a run event: started, stopped, failed or finished.
+    False, and nothing touched, when the work folder is not on this machine or has no repository."""
+    try:
+        work = Path((run / "work_dir.txt").read_text().strip()).expanduser()
+    except OSError:
+        return False
+    if not (work / "workspace" / ".git").exists():
+        return False
+    write_workspace_bundle(work / "workspace", run)
+    return True
 
 
 def _redact(text: str) -> str:
@@ -2286,6 +2318,7 @@ def main() -> None:
             sdir / "agent-events.jsonl", rec.get("first_started", rec["started"]), rec["agent_finished"]), run=run)
         rec["loc"] = derived("lines of code", lambda: loc(ws), {}, run=run)
         derived("workspace git log", lambda: write_workspace_git_log(ws, run), run=run)
+        derived("workspace bundle", lambda: write_workspace_bundle(ws, run), run=run)
         rec["finished"] = time.time()
         # Where the story stands, from workspace evidence: its tasks, and, if it was ended early,
         # whether later stories can build on it (never stops the run).

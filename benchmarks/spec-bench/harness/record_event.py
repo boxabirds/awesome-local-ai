@@ -29,6 +29,11 @@ def record(repo_root: Path, run: Path, state: str, reason: str = "") -> dict:
     if host:
         status["host"] = host
     (run / "run-status.json").write_text(json.dumps(status, indent=2) + "\n")
+    # The code the run has, committed with the event: a run stopped mid-story leaves it only in the work folder.
+    try:
+        drive.bundle_run_workspace(run)
+    except Exception as e:           # never fails the caller: the event is recorded without it
+        print(f"record_event: no workspace.bundle: {type(e).__name__}: {e}", file=sys.stderr)
     # run.sh exports the pack's name; older callers ran vidi only.
     pack_name = os.environ.get("SPEC_BENCH_PACK_NAME", "vidi")
     message = f"{pack_name} {drive.combination_label(run)} {run.name}: run {state}" + (f": {reason}" if reason else "")
