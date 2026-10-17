@@ -199,7 +199,7 @@ GUIDE_DATA.entities = [
   {
     id: "workspace", name: "Workspace", group: "run", row: 1,
     short: "The agent's git repository, carried from story to story.",
-    what: "The agent's git repository for a run. It is created once and carried through every story: story 2 starts from the code story 1 left. On main it lives outside the repo in a short neutral directory (`~/.w/<id>`, shown to the agent as `/w` on Linux; the bench home keeps a link with the run's long name); in release 1 it had a long name under the bench home. It holds a copy of the spec (read-only on main) and, on main, a `PROGRESS.md`, and is snapshotted after each story. The code (without `node_modules`) is mirrored into the run's record.",
+    what: "The agent's git repository for a run. It is created once and carried through every story: story 2 starts from the code story 1 left. On main it lives outside the repo in a short neutral directory (`~/.w/<id>`, shown to the agent as `/w` on Linux; the bench home keeps a link with the run's long name); in release 1 it had a long name under the bench home. It holds a copy of the spec (read-only on main) and, on main, a `PROGRESS.md`, and is snapshotted after each story. The run's record holds the repository as `workspace.bundle`, made at the end of the run. Since 17 October 2026 the harness no longer copies the files into a `workspace/` folder of the record (nodes on earlier releases still do).",
     contains: ["`spec/`, read-only", "the agent's commits", "`PROGRESS.md`, `NOTES.md`", "a private `tmp/` and `agent-home/`"],
     rel: [["holds", "progress-file"]],
     repo: [["benchmarks/spec-bench/harness/drive.py", "harness/drive.py (setup_workspace)"]],
@@ -235,7 +235,7 @@ GUIDE_DATA.entities = [
   {
     id: "conversation", name: "Conversation (events)", group: "run", row: 5,
     short: "The agent's complete event log for a story.",
-    what: "The agent's complete event log for a story: every model reply, thought, tool call and tool result, each stamped with its arrival time. It is published whole, compressed (`agent-events.compact.jsonl.gz`); only the repeated stream deltas are dropped (the last one before an agent process died is kept as a bare time stamp, so the log gives the record's figures). From it the harness counts a conversation profile (thinking, context growth, tools) with no LLM.",
+    what: "The agent's complete event log for a story: every model reply, thought, tool call and tool result, each stamped with its arrival time. It is kept whole, as the node wrote it (`agent-events.jsonl`), and is not committed: the lake holds it. Until 17 October 2026 the harness also made a compressed copy without the repeated stream deltas (`agent-events.compact.jsonl.gz`); runs from before then have only that copy. From it the harness counts a conversation profile (thinking, context growth, tools) with no LLM.",
     rel: [["includes", "compaction"], ["is collected into", "collection"]],
     repo: [["benchmarks/spec-bench/harness/conversation.py", "harness/conversation.py"], ["benchmarks/spec-bench/harness/accounting.py", "harness/accounting.py"]],
     example: "The insights analysis read 436 story conversations in 52 runs, each from its complete log.",
@@ -1367,7 +1367,7 @@ GUIDE_DATA.components = [
     status: { state: "built" },
     what: "`detect_core.py`, `detect_performance.py`, `detect_behaviour.py` and `detect_security.py` print every table, deterministically, from the {e:conversation-db|conversation database}; `detect_time.py` and `detect_reads.py` print the tables behind the time analysis. The database was first built by `build_full.py` (1 October 2026); since 3 October it is the warehouse `dbench ingest` builds and `dbench collect` keeps current, whose reader of the logs is held equal to `build_full.py`'s by goldens.",
     why: "So the analysis can be reproduced rather than taken on trust: each finding is a query run over every conversation.",
-    inputs: "The conversation database: each story from its complete log (`agent-events.jsonl`) where the lake has it, else the published compact log.",
+    inputs: "The conversation database: each story from its complete log (`agent-events.jsonl`) where the lake has it, else the compact log that runs before 17 October 2026 have.",
     outputs: "The tables and findings in `benchmarks/docs/insights/`.",
     fails: "The database is not in the repo, because it holds complete conversations, including credentials one story printed. The published logs are lossless only for runs recorded since 30 September 2026; the complete logs reach the host only once the collector runs.",
     repo: [["benchmarks/docs/insights/README.md", "benchmarks/docs/insights/README.md"], ["benchmarks/spec-bench/harness/export_goldens.py", "export_goldens.py"]],
@@ -2226,7 +2226,7 @@ GUIDE_DATA.flows = [
   {
     id: "collect", letter: "J", short: "Collecting the conversation", title: "Collecting the conversation: from the machine to the page",
     intro: [
-      "After every story the harness pushes the published record: metrics.json, the compact transcript, the score. What it never pushes stays on the machine: the complete `agent-events.jsonl` (hundreds of MB), the model server's log, the live progress file, the egress log, each story's machine readings. This flow is how those reach the host, become one database with one time axis, and are shown, happening by happening, under every time bar.",
+      "After every story the harness pushes the published record: metrics.json, the gate and score files, the bundle. What it never pushes stays on the machine: the complete `agent-events.jsonl` (hundreds of MB), the model server's log, the live progress file, the egress log, each story's machine readings. This flow is how those reach the host, become one database with one time axis, and are shown, happening by happening, under every time bar.",
       "Three layers: the lake (raw, byte-for-byte copies of what the machine had), the warehouse (parsed, queryable, one millisecond time axis), and the analytics that read the warehouse: the benchmarker's conversation pages and the insights scripts. Nothing reads the lake but the ingest.",
     ],
     status: {
@@ -2241,7 +2241,7 @@ GUIDE_DATA.flows = [
         { id: "srv", label: "dbench serve\nnamed files by byte range (allow-list)", kind: "guard", x: 270, y: 122, w: 300 },
         { id: "col", label: "dbench collect on the host\nthe local length is the cursor; the last 4 KiB checked", x: 270, y: 210, w: 300 },
         { id: "lake", label: "The lake\nstate/collected/<node>/<run>/ + collection.json", kind: "store", x: 270, y: 298, w: 300 },
-        { id: "rec", label: "The published record\norigin/main: metrics.json, compact log", kind: "store", x: 540, y: 386, w: 220 },
+        { id: "rec", label: "The published record\norigin/main: metrics.json, gate, bundle", kind: "store", x: 540, y: 386, w: 220 },
         { id: "ing", label: "Ingest\nrows, the events stream, requests placed", x: 270, y: 386, w: 300 },
         { id: "wh", label: "conversations.db\nthe warehouse: one time axis", kind: "store", x: 270, y: 474, w: 300 },
         { id: "api", label: "Conversation API\nfromMs/toMs + cursor; after=cursor", x: 270, y: 562, w: 300 },
@@ -2593,6 +2593,7 @@ GUIDE_DATA.glossary = [
 // Ledger: what is built, in progress, planned, and where the repo's own documents disagree with its code.
 // =====================================================================================================================
 GUIDE_DATA.ledger = [
+  { state: "in-progress", item: "Scope API for events, stories and runs", detail: "On main since 17 October 2026 (`docs/design/dbench-scopes/api.md`): `dbench` serves a run's event streams by a time cursor, and its story and run files, each with a `final` flag, at any stage, so a failed run loses nothing. The harness no longer writes the `workspace/` copy or the compact log, and commits neither. Backtested on 52 real runs; no node runs it yet, and the collector does not use it yet." },
   { state: "built", item: "Every agent in agent-sandbox", detail: "Every agent session, for both clients, on every machine, runs in `agent-sandbox`, deny by default (its own directory at a short path, `spec/` read-only by mount, the system's own directories shown whole and read-only, an allow-listed environment, a closed network but for the package registry and the model, its own ports, a private process list on Linux kept to close a `/proc` leak). The old permissive sandbox is gone from the agent's execution, and `run.json` records which sandbox a run had. Not enforced, and said so in its README: on macOS a run that serves on kernel-picked ports can connect to every port in the kernel's ephemeral range (accepted by the owner), and the run is not at `/w`." },
   { state: "built", item: "The stop rule", detail: "One fixed message, once per story, and a story ends only on a verified `STORY n DONE <hash>` line, live since harness-v2026.10.01.2. Release 1 (harness-v2026.10.01.1) sent a reworded 'Continue…' nudge (with a reminder to commit) up to five times, and accepted any commit since the story began; its measured share of stops ending in a verified commit was 15%, the baseline the new rule is judged against." },
   { state: "built", item: "Read-only spec and PROGRESS.md", detail: "Live on every machine since harness-v2026.10.01.2. The agent's own progress goes in `PROGRESS.md`, because agents edited the Status column of `tasks.md` in 13 recorded runs." },
