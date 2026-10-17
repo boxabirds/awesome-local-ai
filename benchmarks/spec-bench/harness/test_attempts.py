@@ -392,8 +392,10 @@ def test_recompute_from_the_lossless_compact_log_times_every_attempt(tmp_path):
     """accounting.py and conversation.py read plain logs; recompute reads the published .gz through a plain copy."""
     import drive
     raw = _write(tmp_path / "stories/05/agent-events.jsonl", _session(T0, "s1", 4)[:-1] + _session(T0 + 5001, "s1", 2))
-    gz = drive.compact_events(raw)
-    raw.unlink()                       # as on a machine without the full log: the published one only
+    gz = raw.with_name("agent-events.compact.jsonl.gz")      # a reference run that has only a compact log (99 exist)
+    with gzip.open(gz, "wt") as dst:
+        dst.write(raw.read_text())
+    raw.unlink()                       # as on a machine without the full log: the compact one only
     rec = _metrics_story(T0 + 5000, T0 + 5032, _harness_agent(31.0, 2, 2, "s1"))
     new = attempts.recompute(rec, gz, "pi")
     assert new["time_split"]["model"]["requests"] == 6 and new["time_split"]["model"]["decode_s"] > 0

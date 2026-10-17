@@ -158,10 +158,10 @@ PRIVATE_KINDS = [
     "base/accept.json", "base/screenshots/b.png", "base/artifacts/x/error-context.md",
     "superseded/story-03-early-stop/accept.json", "superseded/story-03-early-stop/artifacts/x/error-context.md",
 ]
-# The agent's own files, some named like private ones: always public.
-OWN_KINDS = ["workspace/accept.json", "workspace/AUDIT.md", "workspace/tests/e2e/screenshots/w.png",
-             "workspace/artifacts/notes.md", "workspace/tests/e2e/notes.spec.ts", "stories/01/gate.json",
-             "workspace-git-log.txt"]
+# The agent's own files that are committed: always public. Its workspace/ folder is not committed (the lake keeps it).
+OWN_KINDS = ["stories/01/gate.json", "workspace-git-log.txt"]
+WORKSPACE_KINDS = ["workspace/accept.json", "workspace/AUDIT.md", "workspace/tests/e2e/screenshots/w.png",
+                   "workspace/artifacts/notes.md", "workspace/tests/e2e/notes.spec.ts"]
 # Each held-out result, and its public summary beside it.
 SUMMARIES = {"stories/01/accept.json": "stories/01/accept-summary.json",
              "stories/02/accept.json": "stories/02/accept-summary.json",
@@ -266,16 +266,23 @@ def test_A2_the_agents_own_files_are_published_whatever_their_names(recorded, ki
     assert f"{RUN_REL}/{kind}" in recorded.public
 
 
+@pytest.mark.parametrize("kind", WORKSPACE_KINDS)
+def test_A2b_the_agents_workspace_is_not_published_and_stays_on_the_machine(recorded, kind):
+    assert f"{RUN_REL}/{kind}" not in recorded.public and (recorded.run / kind).exists()
+
+
 CORPUS_PUBLIC = ["metrics.json", "summary.md", "run.json", "interventions.md", "workspace-git-log.txt",
                  "stories/01/gate.json", "stories/01/accept-summary.json", "stories/01/prompt.md",
                  f"rescore/{VERSION}/rescore.json",
                  f"rescore/{VERSION}/per-story.md", f"rescore/{VERSION}/metrics.json",
                  f"rescore/{VERSION}/stories/02/accept-summary.json", "accept-final-summary.json",
-                 "superseded/story-03-early-stop/prompt.md", "workspace/accept.json", "workspace/AUDIT.md",
-                 "workspace/audit.jsonl", "workspace/tests/e2e/screenshots/a.png", "workspace/artifacts/notes.md",
-                 "workspace/src/stories/01/artifacts/x.ts", "workspace/test-results/x/error-context.md",
-                 "workspace/scoring-2/x.md"]
-CORPUS_LAKE_ONLY = ["stories/01/agent-events.compact.jsonl.gz", "stories/02/agent-events.compact.jsonl.gz"]
+                 "superseded/story-03-early-stop/prompt.md", "workspace.bundle"]
+CORPUS_LAKE_ONLY = ["stories/01/agent-events.compact.jsonl.gz", "stories/02/agent-events.compact.jsonl.gz",
+                    "stories/01/agent-events.jsonl", "stories/01/agent-events-restart2.jsonl", "other.compact.jsonl.gz",
+                    "workspace/accept.json", "workspace/AUDIT.md", "workspace/audit.jsonl",
+                    "workspace/tests/e2e/screenshots/a.png", "workspace/artifacts/notes.md",
+                    "workspace/src/stories/01/artifacts/x.ts", "workspace/test-results/x/error-context.md",
+                    "workspace/scoring-2/x.md"]
 CORPUS_PRIVATE = [*PRIVATE_KINDS, "accept.json", pub.PUBLISH_REFUSED, f"rescore/{VERSION}/stories/02/scoring-3/screenshots/s.png",
                   f"rescore-spoiled/{VERSION}-20260930T000000/stories/02/accept.json", "stories/01/pre-suite-fix/screenshots/p.png"]
 
@@ -309,8 +316,9 @@ def test_A4_private_files_an_older_harness_committed_are_untracked_and_kept_on_d
     assert (run / "stories/01/accept.json").exists() and (run / "stories/01/screenshots/a.png").exists()
 
 
-@pytest.mark.parametrize("kind", CORPUS_LAKE_ONLY)
-def test_A5_the_compacted_conversation_of_a_story_is_in_neither_repo_and_stays_on_the_machine(recorded, kind):
+@pytest.mark.parametrize("kind", ["stories/01/agent-events.compact.jsonl.gz", "stories/02/agent-events.compact.jsonl.gz",
+                                  "stories/01/agent-events.jsonl", *WORKSPACE_KINDS])
+def test_A5_the_conversation_logs_and_workspace_are_in_neither_repo_and_stay_on_the_machine(recorded, kind):
     assert pub.is_lake_only(f"{RUN_REL}/{kind}")
     assert f"{RUN_REL}/{kind}" not in recorded.public and f"{RUN_REL}/{kind}" not in recorded.in_private
     assert (recorded.run / kind).exists()

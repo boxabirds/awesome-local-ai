@@ -103,28 +103,16 @@ SPEC_DIR = sandbox.SPEC_DIR
 TMP_ENV = ("TMPDIR", "TMP", "TEMP", "CLAUDE_CODE_TMPDIR")
 CONTEXT_BANDS = [(0, 16_000), (16_000, 32_000), (32_000, 64_000), (64_000, 100_000), (100_000, 10**9)]
 CONDITION_POLL_S = 30        # how often run conditions are sampled during a story / while waiting
+WORKSPACE_GIT_LOG = "workspace-git-log.txt"   # the agent's git history as text, beside the run's records
 CONDITIONS_FILE = "conditions.jsonl"   # every reading of a story, one JSON line per tick, beside its agent-events.jsonl (git-ignored; dbench collect pulls it)
-# The mirror is committed into the outer repo: no nested .git (it would become a
-# broken gitlink), no copy of the spec (it lives in the pack), no build output.
-MIRROR_EXCLUDES = [".git", "spec", "node_modules", "dist", ".wrangler", "test-results", "playwright-report"]
-# Per-token stream deltas are ~99% of an agent event log: each repeats the partial message so far. The published log
-# (compact_events) drops them, except the first of each model call: its arrival is when prefill ended, which
-# accounting.py needs to split a call's time into prefill and decode.
+# Per-token stream deltas are ~99% of an agent event log. The readers of the log (_stamped_events) skip them, except the
+# first of each model call: its arrival is when prefill ended, which accounting.py needs to split a call's time into
+# prefill and decode.
 STREAM_DELTA_EVENTS = {"message_update", "tool_execution_update"}
 FIRST_CHUNK_EVENT = "message_update"
-DELTA_TYPE = re.compile(r'"type":\s*"(message_update|tool_execution_update)"')
-DELTA_PREFIX = 80            # a stamped line names its type within its first bytes: skip a delta without parsing it
 # tests/privacy-test.sh: committed benchmark files carry no home paths, and stay within their kind's size limit
-# (publicise.size_limit, the one table both use).
-# The conversation log is the exception (owner's decision, 30 Sep 2026): it is published whole, nothing truncated,
-# because a record that cuts what the model read and wrote can't be audited. Measured: a 30.9 MB story compacts to
-# about 0.7 MB gzipped. Its own cap is GitHub's: pushes warn on files over 50 MB and are refused over 100 MB, and a
-# refused push would stop every later story's record. Past the cap (never seen) strings are cut, and the log says so.
-MB = 1024 * 1024
-EVENT_LOG_MAX_BYTES = publicise.EVENT_LOG_LIMIT
-LOG_CUT_MARK = "harness_log_cut"
-# Only past EVENT_LOG_MAX_BYTES: long strings are cut to this, then shorter (EVENT_STRING_STEPS).
-EVENT_STRING_MAX = 2000
+# (publicise.size_limit, the one table both use). The conversation logs and the workspace folder are not committed
+# (publicise.is_lake_only): the lake keeps them.
 # Git-ignored bookkeeping read by local tools; must keep real absolute paths.
 LOCAL_ONLY_FILES = {"work_dir.txt", "current_story", "progress.json"}
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".log", ".ts", ".tsx", ".js", ".mjs", ".css", ".html", ".jsonc", ".sh"}
@@ -318,153 +306,54 @@ def link_work_dir(run: Path, work: Path) -> None:
         link.symlink_to(work)
 
 
-def mirror(ws: Path, dest: Path) -> None:
-    """Copy the workspace source into the results folder; the agent's git history goes alongside as text."""
-    dest.mkdir(parents=True, exist_ok=True)
-    excludes = [f"--exclude=/{e}" for e in MIRROR_EXCLUDES]
-    subprocess.run(["rsync", "-a", "--delete", *excludes, f"{ws}/", f"{dest}/"], check=True)
+def write_workspace_git_log(ws: Path, run: Path) -> None:
+    """The agent's git history as text, beside the run's records (the judge reads it). The files are not copied: the
+    workspace.bundle holds them."""
     log = subprocess.run(["git", "log", "--stat", "--format=commit %H%n%an  %ad%n%n    %s%n"], cwd=ws,
                          capture_output=True, text=True, errors="replace").stdout
-    (dest.parent / "workspace-git-log.txt").write_text(log)
-
-
-# If a log is over EVENT_LOG_MAX_BYTES, strings are cut in these steps until it fits;
-# every event is kept, only long strings get shorter.
-EVENT_STRING_STEPS = (EVENT_STRING_MAX, 500, 200, 80)
-
-
-def _truncate(v, limit: int = EVENT_STRING_MAX):
-    if isinstance(v, str) and len(v) > limit:
-        return v[:limit] + f"…[truncated {len(v) - limit} chars]"
-    if isinstance(v, dict):
-        return {k: _truncate(x, limit) for k, x in v.items()}
-    if isinstance(v, list):
-        return [_truncate(x, limit) for x in v]
-    return v
+    (run / WORKSPACE_GIT_LOG).write_text(log)
 
 
 def _redact(text: str) -> str:
     return text.replace(str(Path.home()), "~")
 
 
-# A dropped delta's stamp, from its line without parsing it: where a process that died mid-call was last heard from.
-DELTA_STAMP = re.compile(r'^\{"_rx":\s*([0-9.]+)')
-DELTA_TOOL_ID = re.compile(r'"toolCallId":\s*"([^"]*)"')
-STAMP_SEPARATORS = (",", ":")      # written as the agent writes its lines ({"_rx":…,"type":…}), which the readers' prefix tests expect
-
-
-def _delta_stamp(line: str, kind: str) -> dict | None:
-    m = DELTA_STAMP.match(line)
-    if not m:
-        return None
-    stamp = {"_rx": float(m.group(1)), "type": kind}
-    if (tool := DELTA_TOOL_ID.search(line)) is not None:
-        stamp["toolCallId"] = tool.group(1)
-    return stamp
-
-
-def compact_events(raw: Path) -> Path:
-    """Gzip the agent event log, lossless but for the stream deltas: every other event exactly as the agent wrote
-    it (its line, home paths redacted, nothing truncated), the first delta of each model call for its timing, and
-    the last delta before a new agent process or the log's end, as a stamp (its time, type and tool call id, no
-    payload): that is when a process that died mid-call was last heard from, which is where the accounting ends the
-    call (accounting.parse), so the compact log gives the record's figures. Lines that aren't a JSON object (a line
-    cut off when the agent was killed) are dropped."""
-    import gzip
-    from accounting import CLAUDE_INIT, RESTART_MARK
-    out = raw.with_name(raw.stem + ".compact.jsonl.gz")
-    first_chunk_due = False            # an assistant message has started and its first chunk isn't kept yet
-    pending = None                     # the last delta dropped since the last line kept
-    with raw.open(errors="replace") as src, gzip.open(out, "wt") as dst:
-        for line in src:
-            m = DELTA_TYPE.search(line[:DELTA_PREFIX])
-            if m and not (first_chunk_due and m.group(1) == FIRST_CHUNK_EVENT):
-                pending = _delta_stamp(line, m.group(1)) or pending
-                continue
-            try:
-                e = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(e, dict):
-                continue
-            t = e.get("type")
-            if t in STREAM_DELTA_EVENTS and not (first_chunk_due and t == FIRST_CHUNK_EVENT):
-                pending = _delta_stamp(line, t) or pending     # a delta whose type wasn't at the start of its line
-                continue
-            if t == FIRST_CHUNK_EVENT:
-                first_chunk_due = False
-            elif t == "message_start":
-                msg = e.get("message")
-                first_chunk_due = isinstance(msg, dict) and msg.get("role") == "assistant"
-            if pending is not None and (t in ("session", RESTART_MARK) or (t == "system" and e.get("subtype") == CLAUDE_INIT)):
-                dst.write(json.dumps(pending, separators=STAMP_SEPARATORS) + "\n")   # the process before this one was last heard from here
-            pending = None
-            dst.write(_redact(line.rstrip("\n")) + "\n")
-        if pending is not None:
-            dst.write(json.dumps(pending, separators=STAMP_SEPARATORS) + "\n")   # a log that ends in a delta: cut off by a death
-    return out
-
-
-def _cut_to_fit(f: Path) -> None:
-    """The safety valve past EVENT_LOG_MAX_BYTES: strings cut in steps until the log fits, a first line saying so."""
-    import gzip
-    with gzip.open(f, "rt", errors="replace") as src:
-        events = [json.loads(l) for l in src if l.strip()]
-    events = [e for e in events if not (isinstance(e, dict) and e.get("type") == LOG_CUT_MARK)]
-    for limit in EVENT_STRING_STEPS:
-        mark = {"type": LOG_CUT_MARK, "limit_bytes": EVENT_LOG_MAX_BYTES, "string_max": limit}
-        with gzip.open(f, "wt") as dst:
-            dst.write("\n".join(_redact(json.dumps(x)) for x in [mark, *(_truncate(e, limit) for e in events)]) + "\n")
-        if f.stat().st_size <= EVENT_LOG_MAX_BYTES:
-            break
-
-
 def _over_limit(f: Path) -> bool:
     return f.stat().st_size > publicise.size_limit(f.as_posix())
 
 
-def _raw_story_file(f: Path) -> bool:
-    """A story's raw log or conditions (git-ignored, never published): kept exactly as written, because the story's
-    profile is counted from it and the collector pulls it into the lake, where it is counted again."""
-    return f.parent.parent.name == "stories" and f.name in ("agent-events.jsonl", CONDITIONS_FILE)
+def _not_committed(run: Path, f: Path) -> bool:
+    """A file of the run that git ignores (RUN_GITIGNORE): machine-local bookkeeping, a story's conditions, and what the
+    lake keeps (publicise.is_lake_only: the conversation logs, the workspace folder). Left exactly as written, real
+    paths and all: the story's profile is counted from the raw log, and the collector pulls them into the lake."""
+    return (f.name in LOCAL_ONLY_FILES or f.name == CONDITIONS_FILE
+            or publicise.is_lake_only_in_run(f.relative_to(run).as_posix()))
 
 
 def make_publishable(run: Path) -> list[str]:
-    """Make a run dir safe to commit: redact home paths everywhere, compact any raw event log that
-    is not git-ignored, and cut a compact log only if it is over its own cap. Returns files still over their cap."""
-    for raw in run.rglob("agent-events.jsonl"):
-        if raw.parent.parent.name != "stories":        # stories/*/agent-events.jsonl is git-ignored
-            compact_events(raw)
-            raw.unlink()
-    for f in run.rglob("*"):
-        if not f.is_file() or ".git" in f.parts or "node_modules" in f.parts:
-            continue
-        if f.name in LOCAL_ONLY_FILES or _raw_story_file(f):     # git-ignored, machine-local: keep real paths
-            continue
-        if f.name.endswith(".compact.jsonl.gz"):
-            # Written redacted by compact_events; left byte for byte as it is unless it is over its cap.
-            if f.stat().st_size > EVENT_LOG_MAX_BYTES:
-                _cut_to_fit(f)
-        elif f.suffix in TEXT_SUFFIXES:
+    """Make a run dir safe to commit: redact home paths in the files that are committed. Returns the committed
+    files over their size limit."""
+    committed = [f for f in run.rglob("*") if f.is_file() and ".git" not in f.parts and "node_modules" not in f.parts
+                 and not _not_committed(run, f)]
+    for f in committed:
+        if f.suffix in TEXT_SUFFIXES:
             try:
                 t = f.read_text()
             except UnicodeDecodeError:
                 continue
             if str(Path.home()) in t:
                 f.write_text(_redact(t))
-    return [str(f) for f in run.rglob("*") if f.is_file() and ".git" not in f.parts and "node_modules" not in f.parts
-            and not _raw_story_file(f) and _over_limit(f)]
+    return [str(f) for f in committed if _over_limit(f)]
 
 
-RUN_GITIGNORE = """# Written by benchmarks/spec-bench/harness/drive.py. Raw agent logs are kept compacted
-# (agent-events.compact.jsonl.gz); machine-local bookkeeping stays out of git.
-stories/*/agent-events.jsonl
+RUN_GITIGNORE = """# Written by benchmarks/spec-bench/harness/drive.py. Machine-local bookkeeping stays out of git.
 stories/*/conditions.jsonl
 current_story
 work_dir.txt
 progress.json
 control/
-# What the lake holds and git does not (publicise.is_lake_only): the compacted conversation of each story.
+# What the lake holds and git does not (publicise.is_lake_only): each story's conversation logs, raw or compacted, and
+# the agent's workspace folder (workspace.bundle, in git, holds its files).
 """ + "\n".join(publicise.lake_only_lines()) + """
 # Held-out detail (publicise.py): kept on this machine and in the private repo, never in this one.
 """ + "\n".join(publicise.gitignore_lines()) + "\n"
@@ -2396,7 +2285,7 @@ def main() -> None:
         rec["conversation"] = derived("conversation profile", lambda: conversation.profile(
             sdir / "agent-events.jsonl", rec.get("first_started", rec["started"]), rec["agent_finished"]), run=run)
         rec["loc"] = derived("lines of code", lambda: loc(ws), {}, run=run)
-        derived("workspace mirror", lambda: mirror(ws, run / "workspace"), run=run)
+        derived("workspace git log", lambda: write_workspace_git_log(ws, run), run=run)
         rec["finished"] = time.time()
         # Where the story stands, from workspace evidence: its tasks, and, if it was ended early,
         # whether later stories can build on it (never stops the run).
@@ -2443,7 +2332,6 @@ def main() -> None:
         if a.record:
             import report
             derived("summary", lambda: report.write_summary(run), run=run)
-            derived("compacted log", lambda: compact_events(sdir / "agent-events.jsonl"), run=run)
             label = combination_label(run)
             outcome = "done" if status == DONE else "partial (ended by operator)"
             # Recorded with the faults so far; a fault in recording itself leaves the story on the machine, and

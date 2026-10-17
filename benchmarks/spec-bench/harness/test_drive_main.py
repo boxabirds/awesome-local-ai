@@ -468,7 +468,7 @@ def test_the_run_s_bookkeeping_files_and_the_workspace_are_where_local_tools_loo
         "story 2: work", "harness: PROGRESS.md for story 2", "story 1: work", "harness: PROGRESS.md for story 1",
         "harness: empty repository with spec"]
     assert git(loop.ws, "status", "--porcelain") == ""
-    assert sorted(p.name for p in (loop.run / "workspace").iterdir()) == ["PROGRESS.md", "README.md", "src"]      # the mirror: no .git, no spec
+    assert not (loop.run / "workspace").exists()                      # no mirror of the workspace is made (the bundle holds it)
     assert "story 2: work" in (loop.run / "workspace-git-log.txt").read_text()
     assert not (loop.run / "interventions.md").exists()
 
@@ -1245,7 +1245,7 @@ def test_run_sh_s_help_describes_both_forms_of_known_good_mode():
 
 # ======================= --record =======================
 
-def test_each_story_is_recorded_with_its_summary_and_compacted_log(loop, monkeypatch, capsys):
+def test_each_story_is_recorded_with_its_summary_and_no_compacted_log(loop, monkeypatch, capsys):
     monkeypatch.setattr(drive, "SkipWatcher", ends_story(2, {**REQUEST, "story": 2}))
     loop.main("--record")
     label = drive.combination_label(loop.run)
@@ -1253,7 +1253,7 @@ def test_each_story_is_recorded_with_its_summary_and_compacted_log(loop, monkeyp
                              (drive.REPO_ROOT, loop.run.resolve(), f"{PACK} {label} run: story 2 partial (ended by operator)")]
     for sid in (1, 2):
         assert loop.story(sid)["record"] == loop.record_result and "harness_faults" not in loop.story(sid)
-        assert (loop.run / "stories" / f"{sid:02d}" / "agent-events.compact.jsonl.gz").exists()
+        assert not list((loop.run / "stories" / f"{sid:02d}").glob("*.compact.jsonl.gz"))
     assert (loop.run / "summary.md").exists()
     out = capsys.readouterr().out
     assert "[story 1] recorded: commit abc1234 pushed=True\n" in out

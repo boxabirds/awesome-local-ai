@@ -8,7 +8,6 @@ repository outside tmp_path: commands the helpers would run are faked where the 
 """
 from __future__ import annotations
 
-import gzip
 import json
 import os
 import re
@@ -107,116 +106,12 @@ def test_tree_hash_covers_names_and_contents_of_files_only(tmp_path):
     assert drive.tree_hash(a) != drive.tree_hash(b)
 
 
-# ---------- the conversation log: compaction, the cut past its cap, publishing ----------
-
-def test_truncate_cuts_long_strings_wherever_they_are_and_says_by_how_much():
-    limit = 5
-    got = drive._truncate({"keep": "12345", "cut": "1234567", "list": ["abcdefgh", 7, None, {"deep": "x" * 6}],
-                           "n": 1.5, "flag": True}, limit)
-    assert got == {"keep": "12345", "cut": "12345…[truncated 2 chars]",
-                   "list": ["abcde…[truncated 3 chars]", 7, None, {"deep": "xxxxx…[truncated 1 chars]"}],
-                   "n": 1.5, "flag": True}
-    assert drive._truncate("x" * (drive.EVENT_STRING_MAX + 1)) == "x" * drive.EVENT_STRING_MAX + "…[truncated 1 chars]"
-
+# ---------- publishing: home paths redacted in what is committed ----------
 
 def test_redact_replaces_the_home_directory_with_a_tilde():
     assert drive._redact(f"at {Path.home()}/work and {Path.home()}") == "at ~/work and ~"
 
 
-def compacted(tmp_path: Path, *events) -> list[dict]:
-    raw = tmp_path / "agent-events.jsonl"
-    raw.write_text(lines(*events))
-    out = drive.compact_events(raw)
-    assert out == tmp_path / "agent-events.compact.jsonl.gz"
-    with gzip.open(out, "rt") as f:
-        return [json.loads(l) for l in f]
-
-
-def test_compaction_drops_a_stream_delta_whose_type_is_not_at_the_start_of_its_line(tmp_path):
-    late = {"padding": "p" * (drive.DELTA_PREFIX + 1), "type": "message_update"}
-    late_tool = {"padding": "p" * (drive.DELTA_PREFIX + 1), "type": "tool_execution_update"}
-    kept = compacted(tmp_path, {"type": "session", "id": "s"}, late, late_tool, {"type": "agent_end"})
-    assert [e["type"] for e in kept] == ["session", "agent_end"]
-
-
-def test_compaction_keeps_the_first_chunk_of_an_assistant_message_only(tmp_path):
-    late = {"padding": "p" * (drive.DELTA_PREFIX + 1), "type": "message_update", "n": 1}
-    kept = compacted(
-        tmp_path,
-        {"type": "message_start", "message": {"role": "user"}},
-        {"type": "message_update", "n": 0},                                   # a user message has no first chunk
-        {"type": "message_start", "message": {"role": "assistant"}},
-        {"type": "tool_execution_update", "n": 0},                            # not the first chunk's type
-        late,                                                                 # the first chunk, type late in its line
-        {"type": "message_update", "n": 2},
-        {"type": "message_start", "message": "not a model message"},
-        {"type": "message_update", "n": 3},
-        {"type": "message_start", "message": {"role": "assistant"}},
-        {"type": "message_update", "n": 4},                                   # the first chunk, type at the start
-        {"type": "message_update", "n": 5},
-        [1, 2],                                                               # JSON, but not an event
-        '{"type": "message_end", "cut off',
-    )
-    assert [(e["type"], e.get("n")) for e in kept] == [
-        ("message_start", None), ("message_start", None), ("message_update", 1), ("message_start", None),
-        ("message_start", None), ("message_update", 4)]
-
-
-def gz_events(f: Path) -> list[dict]:
-    with gzip.open(f, "rt") as src:
-        return [json.loads(l) for l in src if l.strip()]
-
-
-CUT_MARGIN_BYTES = 200      # more than a gzip header's file name and the mark's digits; far less than one step's cut
-
-
-def test_a_log_over_its_cap_is_cut_one_step_at_a_time_until_it_fits(tmp_path, monkeypatch):
-    f = tmp_path / "agent-events.compact.jsonl.gz"
-    import random
-    rng = random.Random(7)
-    noise = "".join(rng.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(4000))   # doesn't compress
-    with gzip.open(f, "wt") as dst:
-        dst.write(lines({"type": "message_end", "text": noise}, {"type": "agent_end"}))
-    sizes = {}
-    for limit in drive.EVENT_STRING_STEPS:
-        with gzip.open(tmp_path / "probe.gz", "wt") as dst:
-            dst.write(lines({"type": drive.LOG_CUT_MARK, "limit_bytes": 0, "string_max": limit},
-                            drive._truncate({"type": "message_end", "text": noise}, limit), {"type": "agent_end"}))
-        sizes[limit] = (tmp_path / "probe.gz").stat().st_size
-    (tmp_path / "probe.gz").unlink()
-    second = drive.EVENT_STRING_STEPS[1]
-    cap = sizes[second] + CUT_MARGIN_BYTES                  # the first step is still too big, the second fits
-    assert sizes[drive.EVENT_STRING_STEPS[0]] > cap
-    monkeypatch.setattr(drive, "EVENT_LOG_MAX_BYTES", cap)
-    drive._cut_to_fit(f)
-    events = gz_events(f)
-    assert events[0] == {"type": drive.LOG_CUT_MARK, "limit_bytes": cap, "string_max": second}
-    assert events[1]["text"] == noise[:second] + f"…[truncated {len(noise) - second} chars]"
-    assert events[2] == {"type": "agent_end"} and len(events) == 3
-    assert f.stat().st_size <= cap
-
-
-def test_a_log_that_no_cut_can_fit_is_left_at_the_shortest_cut_with_one_mark(tmp_path, monkeypatch):
-    f = tmp_path / "agent-events.compact.jsonl.gz"
-    with gzip.open(f, "wt") as dst:
-        dst.write(lines({"type": "message_end", "text": "y" * 300}, {"type": "agent_end"}) + "\n")
-    monkeypatch.setattr(drive, "EVENT_LOG_MAX_BYTES", 1)     # nothing fits in a byte
-    drive._cut_to_fit(f)
-    drive._cut_to_fit(f)                                     # cut again: the earlier mark is replaced, not kept
-    shortest = drive.EVENT_STRING_STEPS[-1]
-    events = gz_events(f)
-    assert events[0] == {"type": drive.LOG_CUT_MARK, "limit_bytes": 1, "string_max": shortest}
-    assert [e["type"] for e in events] == [drive.LOG_CUT_MARK, "message_end", "agent_end"]
-    assert events[1]["text"].startswith("y" * shortest + "…[truncated ")
-
-
-def test_cutting_redacts_home_paths_it_rewrites(tmp_path, monkeypatch):
-    f = tmp_path / "agent-events.compact.jsonl.gz"
-    with gzip.open(f, "wt") as dst:
-        dst.write(lines({"type": "tool", "path": f"{Path.home()}/work"}))
-    monkeypatch.setattr(drive, "EVENT_LOG_MAX_BYTES", 10 ** 9)
-    drive._cut_to_fit(f)
-    assert gz_events(f)[1] == {"type": "tool", "path": "~/work"}
 
 
 def test_publishing_redacts_text_files_and_leaves_everything_else_as_it_is(tmp_path):
@@ -268,26 +163,6 @@ def test_publishing_leaves_the_raw_story_logs_as_written_so_the_lake_gets_the_th
     drive.make_publishable(run)
     assert {f: f.read_bytes() for f in (raw, conditions)} == as_written
     assert conversation.profile(raw, 0, 10)["thinking_chars"] == counted
-
-
-def test_publishing_compacts_a_raw_log_outside_stories_and_cuts_a_compact_log_over_its_cap(tmp_path, monkeypatch):
-    run = tmp_path / "run"
-    (run / "judge").mkdir(parents=True)
-    (run / "stories" / "01").mkdir(parents=True)
-    (run / "judge" / "agent-events.jsonl").write_text(lines({"type": "session", "id": "j"}))
-    (run / "stories" / "01" / "agent-events.jsonl").write_text(lines({"type": "session", "id": "s"}))
-    big = run / "stories" / "01" / "agent-events.compact.jsonl.gz"
-    with gzip.open(big, "wt") as dst:
-        dst.write(lines({"type": "message_end", "text": "z" * 5000}))
-    whole = big.read_bytes()
-    drive.make_publishable(run)
-    assert not (run / "judge" / "agent-events.jsonl").exists()
-    assert gz_events(run / "judge" / "agent-events.compact.jsonl.gz") == [{"type": "session", "id": "j"}]
-    assert (run / "stories" / "01" / "agent-events.jsonl").exists()
-    assert big.read_bytes() == whole                                   # within its cap: byte for byte as it was
-    monkeypatch.setattr(drive, "EVENT_LOG_MAX_BYTES", 60)
-    drive.make_publishable(run)
-    assert gz_events(big)[0]["type"] == drive.LOG_CUT_MARK
 
 
 def test_publishing_names_the_files_still_over_their_limit_but_never_the_ignored_raw_log(tmp_path, monkeypatch):
@@ -1300,24 +1175,6 @@ def test_the_long_name_is_a_symlink_to_the_short_work_dir_and_a_run_from_before_
     with pytest.raises(SystemExit) as e:
         drive.link_work_dir(run, work)
     assert str(link) in str(e.value) and str(work) in str(e.value)
-
-
-def test_the_mirror_holds_the_source_without_build_output_and_the_git_log_beside_it(tmp_path):
-    ws, dest = tmp_path / "ws", tmp_path / "run" / "workspace"
-    for rel in ("src/a.ts", "spec/prd.md", "node_modules/p/i.js", "dist/out.js", ".wrangler/s", "test-results/r",
-                "playwright-report/i.html", "sub/dist/kept.js"):
-        (ws / rel).parent.mkdir(parents=True, exist_ok=True)
-        (ws / rel).write_text(rel)
-    git(ws, "init", "-q", "-b", "main")
-    git(ws, "add", "src")
-    git(ws, "commit", "-qm", "story 1: a")
-    (dest / "stale.ts").parent.mkdir(parents=True)
-    (dest / "stale.ts").write_text("deleted since")
-    drive.mirror(ws, dest)
-    kept = sorted(str(p.relative_to(dest)) for p in dest.rglob("*") if p.is_file())
-    assert kept == ["src/a.ts", "sub/dist/kept.js"]                   # only top-level excludes; nothing stale
-    log = (tmp_path / "run" / "workspace-git-log.txt").read_text()
-    assert log.startswith("commit ") and "    story 1: a" in log and "src/a.ts" in log
 
 
 def test_set_pack_points_every_pack_global_at_the_new_pack(tmp_path, monkeypatch):

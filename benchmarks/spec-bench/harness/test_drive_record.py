@@ -238,10 +238,10 @@ def test_a_credential_in_anything_staged_is_redacted_before_the_commit_and_named
     run = run_with_credentials(repo)
     res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
     assert res["committed"] is True and res["pushed"] is True
-    # The agent's printed environment is in its logs, and the compacted log is not published (publicise.is_lake_only): the
-    # key it held is found in no file that is, so it is not counted.
-    names = ["Bearer token", "CLAUDE_CODE_MESSAGING_TOKEN", "GitHub token"]
-    assert res["credentials_redacted"] == {"count": 3, "names": names}
+    # The agent's printed environment is in its logs, and the logs and workspace are not published (publicise.is_lake_only): the
+    # key it held, and the token in its workspace file, are found in no file that is, so they are not counted.
+    names = ["Bearer token", "CLAUDE_CODE_MESSAGING_TOKEN"]
+    assert res["credentials_redacted"] == {"count": 2, "names": names}
     everything = "".join(published(repo, f) for f in git(repo, "ls-tree", "-r", "--name-only", "HEAD", "--", pg.RUN_REL)
                          .replace(pg.RUN_REL + "/", "").split())
     for value in (tc.FAKE_DEEPSEEK, tc.FAKE_SESSION_TOKEN, tc.ALNUM, FAKE_GITHUB_TOKEN):
@@ -249,11 +249,11 @@ def test_a_credential_in_anything_staged_is_redacted_before_the_commit_and_named
     assert f"{pg.RUN_REL}/{LOG}" not in git(repo, "ls-tree", "-r", "--name-only", "HEAD").split()     # kept in the lake, not committed
     assert "CLAUDE_CODE_MESSAGING_TOKEN=[redacted: 32 characters]" in published(repo, "interventions.md")
     assert json.loads(published(repo, "stories/01/gate.json"))["steps"]["build"]["tail"] == "Authorization: Bearer [redacted Bearer token: 32 characters]"
-    assert "[redacted GitHub token: 40 characters]" in published(repo, "workspace/deploy.sh")
+    assert f"{pg.RUN_REL}/workspace/deploy.sh" not in git(repo, "ls-tree", "-r", "--name-only", "HEAD").split()   # the workspace is not committed
     assert tc.FAKE_DEEPSEEK in (run / RAW_LOG).read_text()                  # the full log on the machine is as it was
     assert git(repo, "status", "--porcelain").strip() == ""                 # what is on disk is what was committed
     out = capsys.readouterr().out
-    assert out.count(f"record: 3 credential(s) redacted from what is published: {', '.join(names)}\n") == 1
+    assert out.count(f"record: 2 credential(s) redacted from what is published: {', '.join(names)}\n") == 1
     for value in (tc.FAKE_DEEPSEEK, tc.FAKE_SESSION_TOKEN, tc.ALNUM, FAKE_GITHUB_TOKEN):
         assert value not in out
     # Recorded again with nothing new: nothing is found, and nothing is said.

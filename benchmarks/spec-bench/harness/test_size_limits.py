@@ -20,8 +20,6 @@ RUN = "combinations/a/stack/benchmarks/vidi/r1"
 
 @pytest.mark.parametrize("path,limit", [
     (f"{RUN}/workspace.bundle", 20 * MB),
-    (f"{RUN}/workspace/tests/big-image.png", 20 * MB),
-    (f"{RUN}/stories/01/agent-events.compact.jsonl.gz", 50 * MB),
     (f"{RUN}/metrics.json", 2 * MB),
     (f"{RUN}/summary.md", 512 * KB),
     (f"{RUN}/stories/01/accept-summary.json", 512 * KB),

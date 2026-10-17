@@ -15,7 +15,7 @@ anything converting old records:
   it in a git-ignored sidecar (HELDOUT_DETAIL) that the machine's own tools read back;
 - the size limit of each kind of committed file (size_limit), used by the harness and tests/privacy-test.sh
   (`publicise.py over-limit <repo>`), so the two can't disagree.
-The agent's own work (anything under a run's workspace/, its conversation and its gate) is its own and always
+The agent's own work (its gate and git log; its workspace/ and conversation stay on the machine and in the lake) is its own and always
 public, except a credential in it: every file staged for a public commit is put through the credential scanner
 (credentials.py, heldout.redact_staged), which replaces the value by a marker naming it.
 The harness applies these rules in heldout.py and drive.record_story.
@@ -61,8 +61,6 @@ COMMON_ERROR = re.compile(r"\.? Most common error: `[^`]*`")
 KB, MB = 1024, 1024 * 1024
 DEFAULT_SIZE_LIMIT = 512 * KB
 BUNDLE_LIMIT = 20 * MB          # workspace.bundle: the agent's git history, which re-scoring and judging rebuild from
-WORKSPACE_LIMIT = 20 * MB       # <run>/workspace/**: the agent's own work, mirrored (agents write large test images)
-EVENT_LOG_LIMIT = 50 * MB       # the lossless conversation log: GitHub warns on pushes over 50 MB, refuses over 100
 METRICS_LIMIT = 2 * MB          # per-story records with conversation profiles
 
 
@@ -95,25 +93,41 @@ def is_private(rel: str) -> bool:
     return False
 
 
-# What the lake holds and git does not: the compacted conversation of each story. It is the largest thing a story adds to
-# the repository (100 of 146 MiB in the four days to 15 Oct 2026), it is not secret (the agent's own words, checked like
-# any other file of its), and `dbench collect` already takes it into the lake from the node. Committing it filled the
-# repository's host to its size limit, so it is no longer committed; a copy an older harness committed is dropped from the
-# index with the next record of the run (drive.untrack_private) and stays in history.
-LAKE_ONLY_FILES = {"agent-events.compact.jsonl.gz"}
+# What the lake holds and git does not: a story's conversation logs (raw or compacted), the agent's workspace folder, and
+# any compacted log. They are the largest things a run adds to the repository (100 of 146 MiB in the four days to 15 Oct
+# 2026), they are not secret (the agent's own words and work), and `dbench collect` takes them into the lake from the node
+# (the workspace is rebuilt from workspace.bundle, which stays in git). The harness no longer writes the workspace/ mirror
+# or the compacted log; a copy an older harness committed is dropped from the index with the next record of the run
+# (drive.untrack_private) and stays in history.
+WORKSPACE_DIR = "workspace"
+EVENT_LOG_PREFIX = "agent-events"
+COMPACT_SUFFIX = ".compact.jsonl.gz"
+STORY_EVENT_LINE = f"stories/*/{EVENT_LOG_PREFIX}*"
+LAKE_ONLY_LINES = (STORY_EVENT_LINE, f"{WORKSPACE_DIR}/", f"*{COMPACT_SUFFIX}")
+
+
+def _lake_only_parts(parts: tuple[str, ...]) -> bool:
+    if WORKSPACE_DIR in parts[:-1] or parts[-1].endswith(COMPACT_SUFFIX):
+        return True
+    return (len(parts) >= 3 and parts[-1].startswith(EVENT_LOG_PREFIX) and parts[-3] == "stories"
+            and parts[-2].isdigit())
 
 
 def is_lake_only(rel: str) -> bool:
-    """Whether a repo-relative path is a run file the lake keeps and git does not: LAKE_ONLY_FILES directly under a
-    story's folder, stories/NN/, of a run record. The agent's own files of the same name, under workspace/, are its work."""
+    """Whether a repo-relative path of a run record is a file the lake keeps and git does not: anything under a
+    workspace/ folder, any *.compact.jsonl.gz, and agent-events* directly under a story's folder, stories/NN/."""
     parts = _parts(rel)
-    return (_in_run_records(parts) and "workspace" not in parts and len(parts) >= 3
-            and parts[-1] in LAKE_ONLY_FILES and parts[-3] == "stories" and parts[-2].isdigit())
+    return _in_run_records(parts) and _lake_only_parts(parts)
+
+
+def is_lake_only_in_run(rel_to_run: str) -> bool:
+    """is_lake_only for a path given relative to the run's own directory."""
+    return _lake_only_parts(_parts(rel_to_run))
 
 
 def lake_only_lines() -> list[str]:
-    """A run's .gitignore lines for is_lake_only: stories/*/<name>."""
-    return [f"stories/*/{name}" for name in sorted(LAKE_ONLY_FILES)]
+    """A run's .gitignore lines for is_lake_only."""
+    return list(LAKE_ONLY_LINES)
 
 
 def summary_path(rel: str) -> str | None:
@@ -176,12 +190,11 @@ def merge_metrics(public: dict, detail: dict) -> dict:
 
 
 def gitignore_lines() -> list[str]:
-    """A run's .gitignore lines that keep every private file of the run out of git (is_private), and put back what
-    the agent wrote under its workspace/, whatever it named it. Scoring repeats are matched as scoring-<digit>…, a
+    """A run's .gitignore lines that keep every private file of the run out of git (is_private). Scoring repeats are matched as scoring-<digit>…, a
     little wider than SCORING_DIR; nothing else in a run is named that way."""
     names = sorted(PRIVATE_FILES | PRIVATE_RUN_FILES)
     dirs = [f"{d}/" for d in sorted(PRIVATE_DIRS)] + ["scoring-[0-9]*/"]
-    return [*names, *dirs, *(f"!/workspace/**/{p}" for p in [*names, *dirs])]
+    return [*names, *dirs]
 
 
 def redact_markdown(text: str) -> str:
@@ -255,10 +268,6 @@ def size_limit(rel: str) -> int:
     name = parts[-1]
     if name == "workspace.bundle":
         return BUNDLE_LIMIT
-    if "workspace" in parts[:-1]:
-        return WORKSPACE_LIMIT
-    if name == "agent-events.compact.jsonl.gz":
-        return EVENT_LOG_LIMIT
     if name == "metrics.json":
         return METRICS_LIMIT
     return DEFAULT_SIZE_LIMIT
@@ -275,7 +284,7 @@ def over_limit(repo: Path) -> list[tuple[str, int, int]]:
                             check=True).stdout.decode().split("\0")
     out = []
     for rel in filter(None, listed):
-        if rel.startswith(DOCUMENTATION_FOLDERS):
+        if rel.startswith(DOCUMENTATION_FOLDERS) or is_lake_only(rel):    # the latter: a copy of an older harness, on its way out
             continue
         f = repo / rel
         if f.is_file() and f.stat().st_size > size_limit(rel):

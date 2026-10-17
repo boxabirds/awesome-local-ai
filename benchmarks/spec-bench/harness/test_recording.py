@@ -232,115 +232,10 @@ def _redacted(e: dict) -> dict:
     return json.loads(json.dumps(e).replace(HOME, "~"))
 
 
-def test_every_non_delta_event_survives_whole(tmp_path):
-    events = _story(5)
-    gz = drive.compact_events(_raw(tmp_path, events))
-    kept = [e for e in _read_gz(gz) if e["type"] not in drive.STREAM_DELTA_EVENTS]
-    assert kept == [_redacted(e) for e in events if e["type"] not in drive.STREAM_DELTA_EVENTS]
-    # Nothing cut: the long thinking block and tool result are whole.
-    text = gzip.open(gz, "rt").read()
-    assert "truncated" not in text and ("file body " * 800) in text
-
-
-def test_home_paths_are_redacted(tmp_path):
-    gz = drive.compact_events(_raw(tmp_path, _story(2)))
-    text = gzip.open(gz, "rt").read()
-    assert HOME not in text and '"~/w/f0.ts"' in text
-
-
-def test_only_the_first_stream_delta_of_each_model_call_is_kept(tmp_path):
-    events = _story(4)
-    kept = _read_gz(drive.compact_events(_raw(tmp_path, events)))
-    updates = [e for e in kept if e["type"] == "message_update"]
-    firsts = [events[i + 1] for i, e in enumerate(events) if e["type"] == "message_start"]
-    assert updates == [_redacted(e) for e in firsts]
-    assert not any(e["type"] == "tool_execution_update" for e in kept)
-
-
-def test_lines_that_are_not_json_are_dropped(tmp_path):
-    raw = _raw(tmp_path, _story(1), extra_lines='not json\n{"_rx":1,"type":"message_end","mess')
-    kept = _read_gz(drive.compact_events(raw))
-    assert len(kept) == len([e for e in _story(1) if e["type"] not in drive.STREAM_DELTA_EVENTS]) + 1
-
-
 def _plain(gz: Path, dest: Path) -> Path:
     with gzip.open(gz, "rt") as src:
         dest.write_text(src.read())
     return dest
-
-
-def test_timing_from_the_compact_log_matches_the_full_log(tmp_path):
-    """accounting.py times prefill by each call's first streamed chunk: the kept first delta."""
-    import accounting
-    raw = _raw(tmp_path, _story(6))
-    plain = _plain(drive.compact_events(raw), tmp_path / "plain.jsonl")
-    window = (T0, T0 + 100)
-    full, compact = (accounting.time_split(p, tmp_path / "none.log", *window) for p in (raw, plain))
-    assert compact == full and full["model"]["prefill_s"] > 0 and full["model"]["decode_s"] > 0
-
-
-def test_the_conversation_profile_from_the_compact_log_matches_the_full_log(tmp_path):
-    import conversation
-    raw = _raw(tmp_path, _story(6))
-    plain = _plain(drive.compact_events(raw), tmp_path / "plain.jsonl")
-    redacted = tmp_path / "redacted.jsonl"                 # paths are shorter once the home is redacted
-    redacted.write_text(raw.read_text().replace(HOME, "~"))
-    assert conversation.profile(plain, T0, T0 + 100) == conversation.profile(redacted, T0, T0 + 100)
-
-
-def test_the_lossless_log_is_a_small_fraction_of_the_full_log(tmp_path):
-    """Measured on a real story: 30.9 MB raw to about 0.7 MB gzipped. Here: the deltas are most of the bytes."""
-    raw = _raw(tmp_path, _story(40, n_deltas=200))
-    gz = drive.compact_events(raw)
-    assert gz.stat().st_size * MIN_COMPRESSION < raw.stat().st_size
-    assert gz.stat().st_size < drive.EVENT_LOG_MAX_BYTES
-
-
-def test_the_readers_read_the_lossless_log_as_before(tmp_path):
-    import annotate, claims, history, progress
-    from clients import PiClient, empty_state
-    events = _story(3)
-    raw = _raw(tmp_path, events)
-    gz = drive.compact_events(raw)
-    no_deltas = tmp_path / "no-deltas.jsonl"
-    no_deltas.write_text("".join(json.dumps(_redacted(e)) + "\n" for e in events if e["type"] not in drive.STREAM_DELTA_EVENTS))
-    lines = gzip.open(gz, "rt").readlines()
-    ref = no_deltas.read_text().splitlines()
-    assert claims.final_message(lines) == claims.final_message(ref) and claims.final_message(lines).startswith("call 2")
-    assert annotate.timeline(lines) == annotate.timeline(ref)
-    run = tmp_path
-    assert history._event_times(run, "1") == sorted(e["_rx"] for e in events if e["type"] not in drive.STREAM_DELTA_EVENTS)
-    tally = progress.EventTally(PiClient(tmp_path), _plain(gz, tmp_path / "p.jsonl"), empty_state).update()
-    assert tally["calls"] == 3 and tally["output_tokens"] == 3 * 60
-
-
-def test_publishing_leaves_a_lossless_log_whole_even_over_the_old_512_kb_cap(tmp_path):
-    run = tmp_path / "run"
-    gz = run / "stories" / "02" / "agent-events.compact.jsonl.gz"
-    gz.parent.mkdir(parents=True)
-    with gzip.open(gz, "wt") as f:
-        for i in range(1000):
-            f.write(json.dumps({"type": "message_end", "i": i, "text": os.urandom(600).hex()}) + "\n")
-    assert gz.stat().st_size > publicise.DEFAULT_SIZE_LIMIT
-    before = gz.read_bytes()
-    assert drive.make_publishable(run) == []
-    assert gz.read_bytes() == before
-
-
-def test_a_log_over_its_own_cap_is_cut_to_fit_and_says_so(tmp_path, monkeypatch):
-    """A safety valve, never expected: GitHub refuses files over 100 MB, and a refused push stops every record."""
-    monkeypatch.setattr(drive, "EVENT_LOG_MAX_BYTES", 200 * 1024)
-    run = tmp_path / "run"
-    gz = run / "stories" / "04" / "agent-events.compact.jsonl.gz"
-    gz.parent.mkdir(parents=True)
-    with gzip.open(gz, "wt") as f:
-        for i in range(2000):
-            f.write(json.dumps({"type": "message_end", "i": i, "text": os.urandom(900).hex()[:1900]}) + "\n")
-    assert drive.make_publishable(run) == []
-    assert gz.stat().st_size <= drive.EVENT_LOG_MAX_BYTES
-    kept = _read_gz(gz)
-    assert kept[0]["type"] == drive.LOG_CUT_MARK and kept[0]["limit_bytes"] == drive.EVENT_LOG_MAX_BYTES
-    assert [e["i"] for e in kept[1:]] == list(range(2000))            # every event kept, strings shortened
 
 
 def test_other_files_keep_the_512_kb_cap(tmp_path):
@@ -348,17 +243,6 @@ def test_other_files_keep_the_512_kb_cap(tmp_path):
     run.mkdir()
     (run / "big.json").write_text("x" * (publicise.DEFAULT_SIZE_LIMIT + 1))
     assert drive.make_publishable(run) == [str(run / "big.json")]
-
-
-def test_a_raw_log_outside_stories_is_replaced_by_its_lossless_form(tmp_path):
-    run = tmp_path / "run"
-    sup = run / "superseded" / "agent-events.jsonl"
-    sup.parent.mkdir(parents=True)
-    sup.write_text("".join(json.dumps(e) + "\n" for e in _story(2)))
-    drive.make_publishable(run)
-    assert not sup.exists()
-    kept = _read_gz(run / "superseded" / "agent-events.compact.jsonl.gz")
-    assert "file body " * 800 in json.dumps(kept)
 
 
 def test_the_publish_gate_still_reads_the_log(tmp_path):

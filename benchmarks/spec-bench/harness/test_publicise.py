@@ -289,24 +289,31 @@ def test_H8_the_agents_conversation_and_git_log_are_its_own_work():
     assert not pub.is_own_work(f"{RUN}/stories/07/prompt.md")      # the harness wrote it: checked
 
 
-def test_H9_the_run_gitignore_names_every_private_file_and_dir_and_gives_the_workspace_back():
+def test_H9_the_run_gitignore_names_every_private_file_and_dir():
     lines = pub.gitignore_lines()
     assert set(pub.PRIVATE_FILES | pub.PRIVATE_RUN_FILES) <= set(lines)
     assert {f"{d}/" for d in pub.PRIVATE_DIRS} | {"scoring-[0-9]*/"} <= set(lines)
-    assert {f"!/workspace/**/{x}" for x in ["accept.json", "artifacts/", "scoring-[0-9]*/"]} <= set(lines)
+    assert not [l for l in lines if l.startswith("!")]       # the workspace is no longer committed, so nothing is given back
     # git reads them as is_private does: test_publish_gate.test_A3 checks every kind of path with git itself.
 
 
 # ---------- I. what the lake holds and git does not ----------
-# The compacted conversation of each story is the largest thing a story adds to the repository (100 of 146 MiB in the four
-# days to 15 Oct 2026), and the lake holds it (dbench collect). It is not secret, so it is not private; it is not committed.
+# A story's conversation logs (raw or compacted) and the agent's workspace folder are the largest things a run adds to the
+# repository (100 of 146 MiB in the four days to 15 Oct 2026), and the lake holds them (dbench collect). They are not secret, so
+# they are not private; they are not committed (docs/design/dbench-scopes/api.md, "Scope reduction").
 
 @pytest.mark.parametrize("rel", [
     f"{RUN}/stories/02/agent-events.compact.jsonl.gz",
     f"{RUN}/stories/12/agent-events.compact.jsonl.gz",
     f"{REF}/stories/03/agent-events.compact.jsonl.gz",
+    f"{RUN}/stories/02/agent-events.jsonl",
+    f"{RUN}/stories/02/agent-events-restart2.jsonl",
+    f"{RUN}/agent-events.compact.jsonl.gz",                       # any compact log, wherever it is
+    f"{RUN}/workspace/stories/02/agent-events.compact.jsonl.gz",
+    f"{RUN}/workspace/tests/e2e/screenshots/a.png",
+    f"{REF}/workspace/src/a.ts",
 ])
-def test_I1_the_compacted_conversation_of_a_story_is_kept_in_the_lake_and_not_in_git(rel):
+def test_I1_conversation_logs_and_the_workspace_are_kept_in_the_lake_and_not_in_git(rel):
     assert pub.is_lake_only(rel) and not pub.is_private(rel)
 
 
@@ -314,17 +321,15 @@ def test_I1_the_compacted_conversation_of_a_story_is_kept_in_the_lake_and_not_in
     f"{RUN}/metrics.json",
     f"{RUN}/summary.md",
     f"{RUN}/workspace.bundle",                                    # the gallery and the benchmarker still read it from git
+    f"{RUN}/workspace-git-log.txt",
     f"{RUN}/stories/02/gate.json",
     f"{RUN}/stories/02/accept-summary.json",
-    f"{RUN}/stories/02/agent-events.jsonl",                       # the raw log is git-ignored already, not by this rule
-    f"{RUN}/agent-events.compact.jsonl.gz",                       # not under stories/NN/
-    f"{RUN}/workspace/stories/02/agent-events.compact.jsonl.gz",  # the agent's own file of that name is its own work
     "tools/dbench/tests/fixtures/stories/02/agent-events.compact.jsonl.gz",   # not a run record
 ])
 def test_I2_nothing_else_is_kept_in_the_lake_only(rel):
     assert not pub.is_lake_only(rel)
 
 
-def test_I3_the_run_gitignore_names_the_compacted_conversation_of_every_story():
-    assert "stories/*/agent-events.compact.jsonl.gz" in pub.lake_only_lines()
+def test_I3_the_run_gitignore_names_what_the_lake_holds():
+    assert {"stories/*/agent-events*", "workspace/", "*.compact.jsonl.gz"} <= set(pub.lake_only_lines())
     # Ignored as is_lake_only decides: test_publish_gate.test_A3 asks the version control program itself, path by path.

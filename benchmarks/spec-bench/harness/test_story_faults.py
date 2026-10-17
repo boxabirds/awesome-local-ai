@@ -2,8 +2,8 @@
 
 After the agent finishes, a story needs its gate, its held-out scoring, its commit and its record. Everything
 else the harness does with it is derived: the check of the agent's last reply, totals over attempts, provenance,
-task evidence, server statistics, the time split, the conversation profile, lines of code, the workspace mirror,
-the task table, the progress file, the summary, the compacted log, and (for a story the operator ended) the
+task evidence, server statistics, the time split, the conversation profile, lines of code, the workspace git log,
+the task table, the progress file, the summary, and (for a story the operator ended) the
 verdict and what it says about later stories. On 30 Sep and 1 Oct 2026 a bug in two of those (the time
 accounting, the reply check) crashed the harness after hours of the agent's work, before the story was saved.
 
@@ -45,13 +45,12 @@ ALWAYS = {
     "time split": (drive, "story_time_split"),
     "conversation profile": (conversation, "profile"),
     "lines of code": (drive, "loc"),
-    "workspace mirror": (drive, "mirror"),
+    "workspace git log": (drive, "write_workspace_git_log"),
     "task table": (progress, "task_table"),
     "progress file": (progress, "write_progress"),
 }
 RECORDING = {            # only with --record
     "summary": (report, "write_summary"),
-    "compacted log": (drive, "compact_events"),
     "record": (drive, "record_story"),
 }
 ENDED_BY_OPERATOR = {    # only for a story the operator ended, and the stories after it
