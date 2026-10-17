@@ -328,7 +328,7 @@ results with `git ls-tree` and `git show`. A repeated judge label is refused. Re
 | `gradings_results(package, judge)` | the file list and contents of one result set; "no such result set" distinct |
 
 The design says a repeated judge label is *versioned* beside the first; the code today *refuses* it. This is a behaviour
-difference the owner must settle (section 9, item 4). `--ref` has no equivalent and goes.
+difference, settled as keep-refusing (section 9, item 4). `--ref` has no equivalent and goes.
 
 ### 11. `Export`: what may leave
 
@@ -503,7 +503,7 @@ reference in this document only. `<m>` means the module-level constants and head
 | 74 | `fetch-work.sh` | `drive.REPO_ROOT / path` to get names; rsync of the work folder | names from `Id.long_name` / `work_id`; the rsync and workspace `git log` stay | ID |
 | 75 | `history::policy_link` | relative link to the checkout's copy of the policy | `Paths.policy_url` | PATH |
 | 76 | `judge-setup.sh` | `git archive` of `gradings/<name>` from the private repo | `Gradings.get` | GRD |
-| 77 | `judge-submit.sh` | worktree, commit, push to the private repo; refuses a repeated label | `Gradings.put` (refuse or version: open, item 4) | GRD |
+| 77 | `judge-submit.sh` | worktree, commit, push to the private repo; refuses a repeated label | `Gradings.put` (refuses a repeated label, as today; item 4) | GRD |
 | 78 | `judge::main` | run records from the checkout path; final result; the workspace folder; `git check-ignore` guard | `Read.read_best final-accept`, `Workspace final`; the guard goes with the checkout | WS, READ |
 | 79 | `judge::work_dir_name` | second copy of the long-name rule; no caller outside its test | deleted with its test | DEL |
 | 80 | `judge_collect::load_results` | `fetch`, `ls-tree`, `show` on the private repo | `Gradings.results` | GRD |
@@ -629,10 +629,8 @@ Open, for the owner, each with a recommendation:
    on the host. Recommendation: created on the host, in the lake's `reference/`; `import_run` runs there.
 2. **Redaction timing.** Recommendation: keep redacting the node's own files at story end (op 11, part 1) and also check at
    export. The alternative leaves credentials in the lake and its backups.
-3. **`pushed` and `record-not-pushed`.** Recommendation: replace with "last collection older than N minutes" from `complete`
-   and `collected_at`; N chosen from the collector's cadence, not guessed.
-4. **Repeated judge label: refuse (today) or version (design)?** Recommendation: version, as designed; refusal was a
-   side-effect of git (a second push would collide).
+3. **`pushed` and `record-not-pushed`. SETTLED 17 Oct, not an owner question.** The flag exists to catch a finished record that has not reached safe storage. That need stays; its source becomes "not collected" (`complete`, `collected_at`), N from the collector cadence. `pushed` and `committed` name git states that no longer exist and are no longer written.
+4. **Repeated judge label. SETTLED 17 Oct: keep refusing, as today.** The check moves to Gradings. Versioning is new behaviour, so it is out of a refactor.
 5. **Containment scan on a node.** A node knows only its own runs, but the scan wants the fleet's. Recommendation:
    `known-runs.json` in the inputs folder (small list of ids). The alternative, `known_runs=None` (any run-shaped name
    counts), changes what the scan flags.
