@@ -104,3 +104,17 @@ job state alone. `metrics.json` mid-run versions do not exist in the lake, so th
 
 The collector loop that writes into the lake, the lake file layout, the migration of live nodes, and the removal of the
 files from git history. They follow when the API is done and backtested.
+
+## Decisions made while building (17 Oct 2026)
+
+* **A live job reopens a run.** A queued or running job makes the run not final whatever `run-status.json` still says, because a
+  resumed run keeps its old closing state until its harness writes `started`. Reading stops only when `final` is true.
+* **Events:** with no `after` and nothing delivered, `next` is `null`. A complete line that is not a JSON object is skipped
+  everywhere and never counted. `limit=0` returns an empty page with the same `next`; over-maximum limits are clamped to 10000.
+  A malformed or unknown `story`, a `story` given for `egress`, and an unknown stream give 400 `E-BAD-STREAM`; a well-formed
+  story that has no file gives an empty page (absent is not an error), so `E-STORY-NOT-FOUND` is not used on this route.
+  A line with no numeric time key is returned, with an empty time text (cursor `:N`).
+* **Listing:** the streams are listed under `streams`, not `files`; file names are the full relative names (`stories/01/gate.json`).
+  Unknown story status values read `running` while the run is open and `failed` once it is final. No `FAILED` or `SKIPPED` story
+  status exists in the lake: an operator skip ends as `PARTIAL` with `ended_by: operator`.
+* **scope-file:** names outside the allow-list give `E-NAME-NOT-ALLOWED`; an allow-listed name the run lacks gives the existing 404.
