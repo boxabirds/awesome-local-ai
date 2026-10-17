@@ -498,6 +498,17 @@
           "pushed": true
         },
         "commit": "886034257"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 149
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -1020,6 +1031,17 @@
           "pushed": true
         },
         "commit": "8e208cb10"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 138
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -1706,6 +1728,17 @@
           "pushed": true
         },
         "commit": "f3dedbda0"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 627
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -2275,6 +2308,17 @@
           "pushed": true
         },
         "commit": "f0066f55b"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 444
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -2809,6 +2853,17 @@
           "pushed": true
         },
         "commit": "d4fc83014"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 312
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -3425,6 +3480,17 @@
           "pushed": true
         },
         "commit": "883d7a86a"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 351
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -3987,6 +4053,17 @@
           "pushed": true
         },
         "commit": "749905d6e"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 149
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -4708,6 +4785,17 @@
           "pushed": true
         },
         "commit": "563630db8"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 465
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -5286,6 +5374,17 @@
           "pushed": true
         },
         "commit": "8b7604690"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 298
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -5819,6 +5918,17 @@
           "pushed": true
         },
         "commit": "12f64ff77"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 203
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -6392,6 +6502,30 @@
           "8": "done",
           "9": "done"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4/server.log"
+        ],
+        "private": {
+          "copied": 37,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "4ac2b8fd0"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 227
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
