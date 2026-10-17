@@ -1,0 +1,4 @@
+{"updated_at": 1792018077.43, "scope": "canvas", "stories": [
+  {"id": 1, "title": "Pan", "status": "DONE", "ended_by": "agent"},
+  {"id": 2, "title": "Shapes", "status": "running"},
+  {"id": 3, "title": "Undo", "status": "pending"}]}

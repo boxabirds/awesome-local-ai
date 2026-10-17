@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::server::Shared;
 
 pub mod file;
+pub mod finality;
 pub mod listing;
 pub mod stream;
 

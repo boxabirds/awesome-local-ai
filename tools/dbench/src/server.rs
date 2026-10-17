@@ -755,7 +755,7 @@ struct RunQuery {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct FileQuery {
+pub(crate) struct FileQuery {
     run: Option<String>,
     name: String,
     from: Option<u64>,
@@ -776,7 +776,7 @@ impl Shared {
     }
 
     /// Every job by its run directory: (job id, state label). Resolved at request time; jobs are few.
-    fn jobs_by_run(&self) -> HashMap<String, (String, String)> {
+    pub(crate) fn jobs_by_run(&self) -> HashMap<String, (String, String)> {
         let mut jobs: Vec<Job> = self.lock().jobs.values().cloned().collect();
         // Oldest first, so the newest job for a run dir (a resumed run has several) is the one kept.
         jobs.sort_by_key(|j| (j.submitted_at, j.seq));
@@ -842,7 +842,7 @@ fn job_run(st: &Shared, id: &str) -> Result<(String, Job), (StatusCode, String)>
 }
 
 /// A run directory named by its repo-relative path; 400 for a path that isn't one, 404 when it has no run.json.
-fn named_run(st: &Shared, run: &str) -> Result<String, (StatusCode, String)> {
+pub(crate) fn named_run(st: &Shared, run: &str) -> Result<String, (StatusCode, String)> {
     if !crate::ids::valid_run_dir(run) {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -930,7 +930,7 @@ pub fn blob_stale(from: u64, size: u64, mtime: f64, held_mtime: Option<f64>) -> 
 /// offset up to its size, but a read from past 0 names the mtime of its first chunk (`mtime`): 409 E-BLOB-CHANGED when
 /// the file's mtime is another, or the offset is past its size. A link, or a path that leaves the run directory, is
 /// never followed: 404 E-OUTSIDE-RUN.
-async fn file_of(st: &Shared, run: &str, q: FileQuery) -> Response {
+pub(crate) async fn file_of(st: &Shared, run: &str, q: FileQuery) -> Response {
     let Some(name): Option<FileName> = collect::parse_name(&q.name) else {
         return err(
             StatusCode::NOT_FOUND,
