@@ -1,0 +1,24 @@
+# Written by benchmarks/spec-bench/harness/drive.py. Machine-local bookkeeping stays out of git.
+stories/*/conditions.jsonl
+current_story
+work_dir.txt
+progress.json
+control/
+# What the lake holds and git does not (publicise.is_lake_only): each story's conversation logs, raw or compacted, and
+# the agent's workspace folder (workspace.bundle, in git, holds its files).
+stories/*/agent-events*
+workspace/
+*.compact.jsonl.gz
+# Held-out detail (publicise.py): kept on this machine and in the private repo, never in this one.
+AUDIT.md
+accept-final.json
+accept-report.json
+accept.json
+audit.jsonl
+heldout-detail.json
+publish-refused.json
+summary-detail.md
+artifacts/
+pre-suite-fix/
+screenshots/
+scoring-[0-9]*/
