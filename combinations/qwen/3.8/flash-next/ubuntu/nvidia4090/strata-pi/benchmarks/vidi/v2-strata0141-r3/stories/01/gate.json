@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 3.6,
+      "tail": "\nadded 142 packages, and audited 143 packages in 4s\n\n28 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.38 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-B2rszJlO.css    1.98 kB \u2502 gzip:  0.83 kB\ndist/client/assets/index-C3wzAb5S.js   227.41 kB \u2502 gzip: 71.23 kB\n\n\u001b[32m\u2713 built in 81ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc -p tsconfig.json --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.5 \u001b[39m\u001b[90m~/.w/5bfb410147/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 22\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (15)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:16:23\n\u001b[2m   Duration \u001b[22m 111ms\u001b[2m (transform 45%, tests 40%, import 12%, worker 4%)\u001b[22m\n\n",
+      "passed": 15,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.5 \u001b[39m\u001b[90m~/.w/5bfb410147/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 70\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 112\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 364\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m21 passed\u001b[39m\u001b[22m\u001b[90m (21)\u001b[39m\n\u001b[2m   Start at \u001b[22m 18:16:23\n\u001b[2m   Duration \u001b[22m 800ms\u001b[2m (environment 50%, tests 33%, import 6%, transform 6%, setup 4%)\u001b[22m\n\n",
+      "passed": 21,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 1,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.1.0 test:e2e\n> npm run build:test && bash scripts/prepare-browsers.sh && playwright test --project=chromium\n\n\n> vidi6@0.1.0 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.4 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.38 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-B2rszJlO.css    1.98 kB \u2502 gzip:  0.83 kB\ndist/client/assets/index-D3FnvKGU.js   227.62 kB \u2502 gzip: 71.28 kB\n\n\u001b[32m\u2713 built in 76ms\u001b[39m\nNo WebKit build found in ~/.cache/vidi-agent-ms-playwright (run: npx playwright install webkit).\n",
+      "passed": null,
+      "failed": null
+    }
+  },
+  "all_green": false
+}
