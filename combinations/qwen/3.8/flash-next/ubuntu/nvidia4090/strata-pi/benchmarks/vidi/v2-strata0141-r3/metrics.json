@@ -3954,6 +3954,19 @@
           "fixed": 0,
           "regressed": 0
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8/flash-next/ubuntu/nvidia4090/strata-pi/benchmarks/vidi/v2-strata0141-r3/server.log"
+        ],
+        "private": {
+          "copied": 24,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "0ece527fb"
       }
     }
   },
