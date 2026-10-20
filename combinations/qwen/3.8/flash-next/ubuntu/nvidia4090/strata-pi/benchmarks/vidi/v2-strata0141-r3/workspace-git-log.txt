@@ -1,3 +1,45 @@
+commit 1dd36a0186ad3797d0e8db31e92adeba006f2e5a
+agent  Tue Oct 20 22:12:10 2026 +0100
+
+    story 11: Sketch freehand with a pen
+
+
+ NOTES.md                                         |  87 +++++
+ PROGRESS.md                                      |  12 +-
+ src/client/board/BoardApp.tsx                    |  33 ++
+ src/client/board/Toolbar.tsx                     |  28 ++
+ src/client/canvas/BoardViewport.tsx              |   9 +
+ src/client/objects/StickyNote.tsx                |  12 +-
+ src/client/objects/StrokeObject.tsx              | 190 ++++++++++
+ src/client/objects/registry.tsx                  |  72 +++-
+ src/client/styles.css                            | 126 +++++++
+ src/client/tools/PenTool.tsx                     | 339 +++++++++++++++++
+ src/client/tools/PenToolbar.tsx                  |  98 +++++
+ src/client/tools/useActiveTool.ts                |   8 +-
+ src/client/tools/usePenOptions.ts                |  46 +++
+ src/shared/board-model.ts                        | 118 +++++-
+ src/shared/config.ts                             |  63 ++++
+ src/shared/geometry/simplify.ts                  | 171 +++++++++
+ src/shared/objects/stroke.ts                     | 249 +++++++++++++
+ tests/component/ActiveTool.test.tsx              |  31 +-
+ tests/component/PenOptions.test.tsx              | 203 ++++++++++
+ tests/component/PenTool.test.tsx                 | 453 +++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx            | 349 +++++++++++++++++
+ tests/e2e/helpers/pen.ts                         | 271 ++++++++++++++
+ tests/e2e/pen.spec.ts                            | 371 +++++++++++++++++++
+ tests/fixtures/pen-paths.ts                      |  94 +++++
+ tests/integration/board-api.test.ts              |   5 +-
+ tests/integration/board-room-persistence.test.ts |   3 +-
+ tests/unit/stroke.test.ts                        | 334 +++++++++++++++++
+ 27 files changed, 3745 insertions(+), 30 deletions(-)
+commit fecd98f6fc862bbb547a475dfb746698d5402f70
+vidi-agent  Tue Oct 20 19:31:27 2026 +0100
+
+    harness: PROGRESS.md for story 11
+
+
+ PROGRESS.md | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 commit 97ca6e0e958aa4c790e1ab20fc79528d3f1620c2
 agent  Tue Oct 20 19:20:49 2026 +0100
 

@@ -17,8 +17,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 8 | 7/7 | 0 | 0 | 47/51 |
 | 9 | 5/6 | 0 | 0 | 52/57 |
 | 10 | 5/8 | 0 | 0 | 57/65 |
+| 11 | 5/5 | 0 | 0 | 62/70 |
 
-**New work** 53/61, **regressions** 0, **repairs** 0, **cumulative** 57/65.
+**New work** 58/66, **regressions** 0, **repairs** 0, **cumulative** 62/70.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -31,8 +32,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 4 | 124.8 | None | None | None | — | — | red | 47/51 |  | 0 / 0 | 4 | — | throttled 0%, server peak 0 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 4 | 157.4 | None | None | None | — | — | red | 52/57 |  | 0 / 0 | 5 | — | throttled 0%, server peak 0 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | PARTIAL (red), on partial 4 | 240.0 | None | None | None | — | — | red | 57/65 |  | 0 / 0 | 5 | — | throttled 0%, server peak 0 GB |
+| 11 | Sketch freehand with a pen | DONE, on partial 4, 10 | 161.3 | None | None | None | — | — | red | 62/70 |  | 0 / 0 | 3 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 9 stories, 1462 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/9, final acceptance 57/65, stalled 0, partial 2, 34398 lines in src+tests.
+**Totals:** 10 stories, 1623 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/10, final acceptance 62/70, stalled 0, partial 2, 38026 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -43,6 +45,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 9, built on partial 4: held-out tests on the partial base 28/30; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - **Story 10 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **red**: gate red, tasks not verified [12, 13, 15] (implementation: [12, 13]), held-out 5/8 (floor 0.625).
 - Story 10, built on partial 4: held-out tests on the partial base 33/38; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 11, built on partial 4, 10: held-out tests on the partial base 38/43; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -59,6 +62,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 8 | 1 by the agent | 2458 / 24 | `NOTES.md` (165), `undo.ts` (151), `useUndo.ts` (98), `UndoButtons.tsx` (90), `useBoardKeys.ts` (41), `StickyTextEditor.tsx` (38), +11 more |
 | 9 | 5 by the agent | 4509 / 339 | `text.ts` (297), `textLayout.ts` (255), `TextEditor.tsx` (230), `TextObject.tsx` (188), `text-edit.ts` (154), `styles.css` (152), +18 more |
 | 10 | 6 by the agent | 6374 / 1155 | `connector.ts` (919), `connector-geometry.ts` (533), `shape.ts` (352), `ConnectorObject.tsx` (314), `ConnectorTool.tsx` (312), `ShapeObject.tsx` (277), +14 more |
+| 11 | 1 by the agent | 3745 / 30 | `PenTool.tsx` (339), `stroke.ts` (249), `StrokeObject.tsx` (190), `simplify.ts` (171), `styles.css` (126), `board-model.ts` (118), +11 more |
 
 ### Earlier stories broken or fixed
 
