@@ -14,8 +14,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 4 | 4/4 | 0 | 0 | 28/31 |
 | 5 | 5/5 | 0 | 0 | 33/36 |
 | 7 | 7/8 | 0 | 0 | 40/44 |
+| 8 | 7/7 | 0 | 0 | 47/51 |
 
-**New work** 36/40, **regressions** 0, **repairs** 0, **cumulative** 40/44.
+**New work** 43/47, **regressions** 0, **repairs** 0, **cumulative** 47/51.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -25,14 +26,16 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 4 | Return to a board and find everything as it was left | PARTIAL (red) | 240.0 | None | None | None | — | — | red | 28/31 |  | 0 / 0 | 6 | — | throttled 0%, server peak 0 GB |
 | 5 | Share a board with others using a link | DONE, on partial 4 | 173.0 | None | None | None | — | — | red | 33/36 |  | 0 / 0 | 6 | — | throttled 0%, server peak 0 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 4 | 148.6 | None | None | None | — | — | red | 40/44 |  | 3 / 0 (ended in error) | 5 | — | throttled 0%, server peak 0 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 4 | 124.8 | None | None | None | — | — | red | 47/51 |  | 0 / 0 | 4 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 6 stories, 940 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/6, final acceptance 40/44, stalled 0, partial 1, 22932 lines in src+tests.
+**Totals:** 7 stories, 1065 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/7, final acceptance 47/51, stalled 0, partial 1, 25167 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 4 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **red**: gate red, tasks not verified [4, 6, 7, 9] (implementation: [4, 7]), held-out 4/4 (floor 0.25).
 - Story 5, built on partial 4: held-out tests on the partial base 9/9; partial story's tests fixed 0, regressed 0; 1 stub-like lines added to src/.
 - Story 7, built on partial 4: held-out tests on the partial base 16/17; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 8, built on partial 4: held-out tests on the partial base 23/24; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -46,6 +49,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 4 | 6 by the agent, + harness snapshot | 4251 / 157 | `board-store.ts` (623), `board-room.ts` (330), `room-state.ts` (203), `test-hooks.ts` (184), `connectBoard.ts` (50), `App.tsx` (35), +15 more |
 | 5 | 2 by the agent | 3820 / 349 | `App.tsx` (253), `BoardApp.tsx` (219), `SharePanel.tsx` (154), `styles.css` (152), `index.ts` (121), `useSharePanel.ts` (112), +22 more |
 | 7 | 7 by the agent, + harness snapshot | 5950 / 510 | `board-model.ts` (368), `useTransformGesture.ts` (351), `geometry.ts` (342), `useObjectDrag.ts` (264), `StickyNote.tsx` (259), `BoardApp.tsx` (235), +10 more |
+| 8 | 1 by the agent | 2458 / 24 | `NOTES.md` (165), `undo.ts` (151), `useUndo.ts` (98), `UndoButtons.tsx` (90), `useBoardKeys.ts` (41), `StickyTextEditor.tsx` (38), +11 more |
 
 ### Earlier stories broken or fixed
 
