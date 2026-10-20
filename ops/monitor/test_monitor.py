@@ -103,16 +103,33 @@ def test_an_idle_machine_with_an_empty_queue_is_detected_once():
     assert "machine_idle" not in kinds(dets2)
 
 
-def test_queued_jobs_that_do_not_start_are_urgent_after_15_minutes():
+def _node_a_with_queue_and_nothing_running(held: bool):
     status, nodes = load("status.json"), load("nodes.json")
     for j in status["node-a"]:
         if j["state"]["status"] == "running":
             j["state"] = {"status": "done", "exit_code": 0}
+    if not held:
+        del nodes["node-a"]["node"]["hold"]
+    return status, nodes
+
+
+def test_queued_jobs_that_do_not_start_are_urgent_after_15_minutes():
+    status, nodes = _node_a_with_queue_and_nothing_running(held=False)
     dets, st = _nodes_state(status, nodes)
     assert "queue_not_starting" not in kinds(dets)
     dets, st = _nodes_state(status, nodes, st, NOW + 16 * MIN)
     d = next(d for d in dets if d["kind"] == "queue_not_starting")
-    assert d["urgent"] and d["machine"] == "node-a" and "held" in d["detail"]
+    assert d["urgent"] and d["machine"] == "node-a"
+
+
+def test_a_queue_waiting_behind_the_owners_hold_raises_nothing():
+    # owner, 20 Oct 2026: no alerts for what their own action (a hold) causes
+    status, nodes = _node_a_with_queue_and_nothing_running(held=True)
+    _, st = _nodes_state(status, nodes)
+    dets, _ = _nodes_state(status, nodes, st, NOW + 16 * MIN)
+    assert "queue_not_starting" not in kinds(dets)
+    dets, _ = _nodes_state(status, nodes, st, NOW + 24 * 60 * MIN)
+    assert "queue_not_starting" not in kinds(dets)
 
 
 def test_an_unreachable_machine_is_urgent_after_15_minutes():

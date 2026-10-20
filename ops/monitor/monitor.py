@@ -209,10 +209,11 @@ def node_detections(status: dict, nodes: dict, prev: dict, now: float) -> tuple[
             if not queued:
                 dets.append(det("machine_idle", f"machine_idle:{name}:{int(since)}", "nothing running, nothing queued"
                                 + (" (held)" if held else ""), machine=name))
-            elif now - since >= QUEUE_NOT_STARTING_S:
+            elif not held and now - since >= QUEUE_NOT_STARTING_S:
+                # a hold is the owner's own action: a queue waiting behind it is not a fault
                 dets.append(det("queue_not_starting", f"queue_not_starting:{name}:{int(since)}",
-                                f"{len(queued)} queued, nothing running for {int((now - since) / 60)} min"
-                                + (" (node held)" if held else ""), machine=name, urgent=True))
+                                f"{len(queued)} queued, nothing running for {int((now - since) / 60)} min",
+                                machine=name, urgent=True))
         for j in jobs:
             st = j["state"].get("status")
             attempt = j.get("attempt") or 0
