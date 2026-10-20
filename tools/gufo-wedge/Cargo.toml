@@ -1,0 +1,21 @@
+[package]
+name = "gufo-wedge"
+version = "0.1.0"
+edition = "2021"
+description = "Provokes the gufo 0.17.0 component-cache wedge (gufo issue 631) against a running server and says whether it froze."
+publish = false
+
+[[bin]]
+name = "gufo-wedge"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+
+[dev-dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
