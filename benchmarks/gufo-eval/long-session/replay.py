@@ -70,6 +70,7 @@ def replay(url: str, body: dict) -> dict:
 
     return {"seconds": round(t_end - t0, 1), "ttft_s": round(t_first - t0, 2) if t_first else None,
             "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"),
+            "engine_usage": usage.get("gufo"),  # the server's own usage block, raw, as throughput.py records it
             "reasoning_chars": len("".join(reasoning)), "content_chars": len("".join(content)),
             "tool_calls": [c["name"] for c in calls.values()],
             # a tool call the server failed to parse comes back as its raw markup in the text
