@@ -1,3 +1,88 @@
+commit a2f84e8607b7a8ad9e5f30ce7fc26c786a282f0a
+agent  Tue Oct 20 15:25:07 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                            | 150 ++++++++++++
+ PROGRESS.md                         |  20 +-
+ docs/ACCESSIBILITY.md               |   8 +
+ src/client/canvas/BoardViewport.tsx |   7 +
+ src/client/objects/TextEditor.tsx   |  33 ++-
+ src/client/objects/TextObject.tsx   |   2 +-
+ tests/e2e/helpers/text.ts           | 283 ++++++++++++++++++++++
+ tests/e2e/text.spec.ts              | 451 ++++++++++++++++++++++++++++++++++++
+ 8 files changed, 939 insertions(+), 15 deletions(-)
+commit 0a415154433f655d4f58b4245847ab8eef4688a7
+agent  Tue Oct 20 14:01:07 2026 +0100
+
+    story 9 tasks 6 to 9: the Text tool, the text object, and their component tests
+
+
+ src/client/board/BoardApp.tsx           | 103 +++++-
+ src/client/board/SelectionBar.tsx       |   1 +
+ src/client/board/SelectionOverlay.tsx   |  16 +-
+ src/client/board/TextToolbar.tsx        |  78 ++++
+ src/client/board/Toolbar.tsx            |  84 ++++-
+ src/client/board/useBoardKeys.ts        |  39 +-
+ src/client/board/useIdentity.ts         |  23 ++
+ src/client/board/useTool.ts             |  39 ++
+ src/client/board/useTransformGesture.ts |  72 +++-
+ src/client/canvas/BoardViewport.tsx     |  54 ++-
+ src/client/objects/StickyTextEditor.tsx | 141 +-------
+ src/client/objects/TextEditor.tsx       | 197 ++++++++++
+ src/client/objects/TextObject.tsx       | 186 ++++++++++
+ src/client/objects/registry.tsx         |  63 +++-
+ src/client/styles.css                   | 152 ++++++++
+ src/shared/config.ts                    |   3 +-
+ tests/component/TextObject.test.tsx     | 615 ++++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 288 +++++++++++++++
+ tests/component/helpers.tsx             |   4 +-
+ 19 files changed, 1999 insertions(+), 159 deletions(-)
+commit 763229e6c6552a47a6fe16810272b73c04b0331a
+agent  Tue Oct 20 13:25:56 2026 +0100
+
+    story 9 task 5: box sync component tests (TC-12, TC-13) + local-only box sync
+
+
+ src/client/objects/useTextBoxSync.ts   |  94 +++++++++++
+ tests/component/text-box-sync.test.tsx | 275 +++++++++++++++++++++++++++++++++
+ 2 files changed, 369 insertions(+)
+commit 6f1efa7acbc014e1f421f6fd0e03e40e01c41932
+agent  Tue Oct 20 11:50:42 2026 +0100
+
+    story 9 tasks 2 and 4: the text model and the layout maths
+
+
+ src/client/objects/StickyText.ts | 127 +++-----------------
+ src/client/objects/textLayout.ts | 224 +++++++++++++++++++++++++++++++++--
+ src/shared/objects/text.ts       | 246 +++++++++++++++++++++++++++++++++++----
+ src/shared/text-edit.ts          | 127 +++++++++++++++++---
+ tests/fixtures/texts.ts          |  12 +-
+ tests/unit/text-layout.test.ts   |   4 +-
+ tests/unit/text-model.test.ts    |   9 +-
+ 7 files changed, 586 insertions(+), 163 deletions(-)
+commit f535bd0f1a31c2a7d6569f4d36f914c367dae51a
+agent  Tue Oct 20 11:43:30 2026 +0100
+
+    story 9 tasks 1 and 3: text model and layout tests first (TC-01…TC-11, TC-32)
+
+
+ src/client/objects/textLayout.ts |  31 ++++
+ src/shared/config.ts             |  44 +++++-
+ src/shared/objects/text.ts       |  51 +++++++
+ src/shared/text-edit.ts          |  27 ++++
+ tests/unit/text-layout.test.ts   | 161 +++++++++++++++++++++
+ tests/unit/text-model.test.ts    | 304 +++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 616 insertions(+), 2 deletions(-)
+commit aefc6fb93a01c1e043131dda880a505b13bb8be9
+vidi-agent  Tue Oct 20 11:26:53 2026 +0100
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 commit bd88615706d134d1bedefd6f80055c0306b76f5a
 agent  Tue Oct 20 11:23:56 2026 +0100
 
