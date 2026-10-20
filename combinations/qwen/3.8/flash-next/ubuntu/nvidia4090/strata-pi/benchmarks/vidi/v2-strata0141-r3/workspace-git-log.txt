@@ -1,3 +1,71 @@
+commit 4492c666ee4e5a08524abba2f41c9eef7aa93413
+agent  Tue Oct 20 06:42:55 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                            |  79 ++++++
+ PROGRESS.md                         |  14 +-
+ docs/TESTING.md                     |  72 +++++-
+ index.html                          |   6 +
+ playwright.config.ts                |   6 +-
+ playwright.persistence.config.ts    |  12 +-
+ src/client/App.tsx                  | 253 ++----------------
+ src/client/api.ts                   |  61 +++++
+ src/client/board/BoardApp.tsx       | 219 ++++++++++++++++
+ src/client/main.tsx                 |  29 +--
+ src/client/pages/BoardPage.tsx      | 101 ++++++++
+ src/client/pages/HomePage.tsx       |  21 ++
+ src/client/pages/NewBoardButton.tsx |  71 +++++
+ src/client/pages/NotFoundPage.tsx   |  42 +++
+ src/client/pages/state.ts           |  59 +++++
+ src/client/router.ts                |  64 +++++
+ src/client/share/SharePanel.tsx     | 154 +++++++++++
+ src/client/share/copyText.ts        |  30 +++
+ src/client/share/link.ts            |  16 ++
+ src/client/share/useSharePanel.ts   | 112 ++++++++
+ src/client/styles.css               | 152 +++++++++++
+ src/shared/config.ts                |  33 +++
+ src/shared/routes.ts                |  97 +++++++
+ src/worker/index.ts                 |  13 +-
+ tests/component/SharePanel.test.tsx | 354 +++++++++++++++++++++++++
+ tests/component/helpers.tsx         |   8 +-
+ tests/component/pages.test.tsx      | 504 ++++++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/board.ts          |  64 ++++-
+ tests/e2e/helpers/participants.ts   |   7 +-
+ tests/e2e/helpers/seed-board.ts     |  50 ++++
+ tests/e2e/legacy-board.spec.ts      |  78 ++++++
+ tests/e2e/persistence.spec.ts       |  15 +-
+ tests/e2e/share.spec.ts             | 254 ++++++++++++++++++
+ tests/integration/board-api.test.ts |  32 ++-
+ 34 files changed, 2787 insertions(+), 295 deletions(-)
+commit b9bf07286476d18702b645679cdd927a93a0319a
+agent  Tue Oct 20 04:47:38 2026 +0100
+
+    story 5 (wip): board creation, link routing, board existence
+
+
+ src/shared/config.ts                             |  12 +
+ src/worker/board-room.ts                         |  68 +++-
+ src/worker/board-store.ts                        | 107 +++++-
+ src/worker/create-board.ts                       |  46 +++
+ src/worker/index.ts                              | 108 +++++-
+ src/worker/test-hooks.ts                         |  93 ++++-
+ tests/integration/board-api.test.ts              | 467 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  10 +-
+ tests/integration/helpers/room.ts                |  48 ++-
+ tests/integration/helpers/ws-client.ts           |  20 +-
+ tests/integration/worker-routing.test.ts         |   9 +-
+ tests/unit/create-board.test.ts                  |  99 +++++
+ 12 files changed, 1033 insertions(+), 54 deletions(-)
+commit 7acc1bf5611eae3ce722966971db6f7338c7df9f
+vidi-agent  Tue Oct 20 03:50:13 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 31 ++++++++-----------------------
+ 1 file changed, 8 insertions(+), 23 deletions(-)
 commit e9764079e07a9644d9af0ea5e40c3f863664799f
 vidi-agent  Tue Oct 20 03:50:04 2026 +0100
 
