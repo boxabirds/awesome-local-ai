@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 5caf3e158 (harness-v2026.10.17.2), client pi, model strata-flash-next-iq3xxs",
-  "at": "2026-10-20T12:23:33Z",
+  "state": "stopped",
+  "reason": "exit 143:",
+  "at": "2026-10-20T22:13:28Z",
   "host": "13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB"
 }
