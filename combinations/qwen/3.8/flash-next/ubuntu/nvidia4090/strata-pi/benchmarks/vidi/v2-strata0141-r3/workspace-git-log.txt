@@ -1,3 +1,109 @@
+commit 955b66ab32448c82fcc9ee9133799313fc175676
+vidi-agent  Tue Oct 20 09:19:24 2026 +0100
+
+    harness: snapshot after story 7 (uncommitted agent work)
+
+
+ tests/e2e/group-collaboration.spec.ts | 167 ++++++++++++++++++++
+ tests/e2e/group-selection.spec.ts     | 270 ++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/group.ts            | 284 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 721 insertions(+)
+commit df43533e73131604c461d03f498c5a06480a6873
+agent  Tue Oct 20 08:50:08 2026 +0100
+
+    story 7 task 14: component tests for the bar, the marquee, the gesture and the keyboard (TC-16 to TC-31)
+
+
+ tests/component/group-keys.test.tsx      | 334 ++++++++++++++++++++
+ tests/component/group-marquee.test.tsx   | 227 ++++++++++++++
+ tests/component/group-overlay.test.tsx   | 230 ++++++++++++++
+ tests/component/group-transform.test.tsx | 507 +++++++++++++++++++++++++++++++
+ tests/component/selection-bar.test.tsx   | 159 ++++++++++
+ 5 files changed, 1457 insertions(+)
+commit 037af4dafd7a43979afd8d78f105b2f1d179fd79
+agent  Tue Oct 20 08:50:04 2026 +0100
+
+    story 7 tasks 10 to 13: outlines and selection bar, Shift+drag marquee, the transform gesture, keyboard commands
+
+
+ src/client/board/BoardApp.tsx           | 173 +++++++++-------
+ src/client/board/SelectionBar.tsx       |  61 ++++++
+ src/client/board/SelectionOverlay.tsx   | 225 ++++++++++++++++++++
+ src/client/board/useBoardKeys.ts        | 132 ++++++++++++
+ src/client/board/useMarquee.ts          | 158 ++++++++++++++
+ src/client/board/useTransformGesture.ts | 351 ++++++++++++++++++++++++++++++++
+ src/shared/config.ts                    |   4 +
+ src/shared/geometry.ts                  |  14 +-
+ tests/fixtures/testbox.tsx              |  36 +++-
+ tests/unit/registry.test.ts             |   4 +-
+ 10 files changed, 1080 insertions(+), 78 deletions(-)
+commit ef15213a50189b107b45df0e6f0ab767643c8004
+agent  Tue Oct 20 08:49:56 2026 +0100
+
+    story 7 task 9: selection rules as plain transitions, tested on their own (TC-13 to TC-15)
+
+
+ PROGRESS.md                          |  18 +++---
+ src/client/board/useSelection.ts     |  95 ++++++++++++++++++++++++--------
+ tests/component/selection.test.tsx   |  12 ++--
+ tests/unit/selection-reducer.test.ts | 103 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 189 insertions(+), 39 deletions(-)
+commit edf3b09372cb3a2628f034ed89101ad55edf7f42
+agent  Tue Oct 20 07:38:32 2026 +0100
+
+    story 7 task 8: a selection that holds several ids
+
+
+ src/client/board/BoardApp.tsx       |  62 ++++++------
+ src/client/board/useSelection.ts    | 136 ++++++++++++++++++++++----
+ src/client/canvas/BoardViewport.tsx |  73 +++++++++++++-
+ tests/component/selection.test.tsx  | 184 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 399 insertions(+), 56 deletions(-)
+commit ea1a07ea348c32204545cbee4190d322179ea08a
+agent  Tue Oct 20 07:38:11 2026 +0100
+
+    story 7 task 7: a client object type registry, a second object type to test against
+
+
+ src/client/main.tsx                 |  33 +++--
+ src/client/objects/StickyNote.tsx   | 259 ++++++++---------------------------
+ src/client/objects/registry.tsx     | 149 ++++++++++++++++++++
+ src/client/objects/useObjectDrag.ts | 264 ++++++++++++++++++++++++++++++++++++
+ tests/fixtures/testbox.tsx          |  89 ++++++++++++
+ tests/unit/registry.test.ts         | 166 +++++++++++++++++++++++
+ 6 files changed, 747 insertions(+), 213 deletions(-)
+commit 12e6402807062eb3023e417f01db8fdc27c2760e
+agent  Tue Oct 20 07:13:39 2026 +0100
+
+    story 7 task 2: shared geometry and generic board-model group operations
+
+
+ src/shared/board-model.ts            | 287 +++++++++++++++++++++++++++--------
+ src/shared/geometry.ts               | 257 +++++++++++++++++++++++++++----
+ tests/unit/board-model-group.test.ts |  36 +++--
+ tests/unit/geometry.test.ts          |  65 ++++++--
+ 4 files changed, 528 insertions(+), 117 deletions(-)
+commit 70b5da10c948893bcdd6495808f72d1dfbe84a5c
+agent  Tue Oct 20 06:57:29 2026 +0100
+
+    story 7 task 6: geometry and group-operation unit tests first (TC-01 to TC-10) with not-implemented stubs
+
+
+ PROGRESS.md                          |   4 +-
+ src/shared/board-model.ts            |  81 +++++++-
+ src/shared/config.ts                 |  25 +++
+ src/shared/geometry.ts               |  71 +++++++
+ tests/unit/board-model-group.test.ts | 385 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 270 ++++++++++++++++++++++++
+ 6 files changed, 829 insertions(+), 7 deletions(-)
+commit 6f986d7e244d2889ecac3b317dc6495f2233f6f9
+vidi-agent  Tue Oct 20 06:45:33 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 4492c666ee4e5a08524abba2f41c9eef7aa93413
 agent  Tue Oct 20 06:42:55 2026 +0100
 
