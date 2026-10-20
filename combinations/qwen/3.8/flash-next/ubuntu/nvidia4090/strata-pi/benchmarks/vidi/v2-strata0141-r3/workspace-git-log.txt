@@ -1,3 +1,102 @@
+commit 97ca6e0e958aa4c790e1ab20fc79528d3f1620c2
+agent  Tue Oct 20 19:20:49 2026 +0100
+
+    story 10 task 14: component tests for shape and connector tools, objects, toolbar and the active tool (TC-15..TC-22, TC-28); arrow hit test applied to the press, pointer-events narrowed to the line
+
+
+ src/client/board/BoardApp.tsx            |   2 +-
+ src/client/objects/ConnectorObject.tsx   |  10 +-
+ src/client/objects/ShapeObject.tsx       |  28 ++-
+ src/client/styles.css                    |   8 +
+ src/client/tools/ConnectorTool.tsx       |  10 +-
+ tests/component/ActiveTool.test.tsx      | 289 ++++++++++++++++++++++++++++
+ tests/component/ConnectorObject.test.tsx | 310 +++++++++++++++++++++++++++++++
+ tests/component/ConnectorTool.test.tsx   | 276 +++++++++++++++++++++++++++
+ tests/component/ShapeObject.test.tsx     | 201 ++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx       | 260 ++++++++++++++++++++++++++
+ 10 files changed, 1383 insertions(+), 11 deletions(-)
+commit a8fafc601df9f4ad0e0d9ef7ec7ab91c311ed5e9
+agent  Tue Oct 20 18:27:52 2026 +0100
+
+    story 10: active tool hook, Shape tool/object/toolbar, Connector tool/object, registry and styles
+
+
+ src/client/board/BoardApp.tsx          |  46 ++++-
+ src/client/board/SelectionOverlay.tsx  |   6 +-
+ src/client/board/Toolbar.tsx           | 141 ++++++++++++---
+ src/client/board/useBoardKeys.ts       |  43 +++--
+ src/client/board/useTool.ts            |  39 -----
+ src/client/canvas/BoardViewport.tsx    |  34 +++-
+ src/client/objects/ConnectorObject.tsx | 304 +++++++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx     | 249 +++++++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx    | 118 +++++++++++++
+ src/client/objects/registry.tsx        |  99 ++++++++++-
+ src/client/styles.css                  | 242 ++++++++++++++++++++++++++
+ src/client/tools/ConnectorTool.tsx     | 302 ++++++++++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx         | 212 +++++++++++++++++++++++
+ src/client/tools/useActiveTool.ts      | 112 ++++++++++++
+ src/shared/config.ts                   |  30 ++--
+ 15 files changed, 1868 insertions(+), 109 deletions(-)
+commit 3c8baacfc91dd316a864847653df4b6de6ecd26b
+agent  Tue Oct 20 17:30:43 2026 +0100
+
+    story 10: shape and connector models, with arrows whose position is derived from the board
+
+
+ src/shared/board-model.ts                 |  20 +-
+ src/shared/geometry/connector-geometry.ts | 254 +++++------
+ src/shared/objects/connector.ts           | 378 +++++++---------
+ tests/unit/connector-geometry.test.ts     | 239 +++++-----
+ tests/unit/connector-model.test.ts        | 721 ++++++++++++++++--------------
+ 5 files changed, 758 insertions(+), 854 deletions(-)
+commit cf82471dafc20b201b4fd09d8b53dda8a2aca6df
+agent  Tue Oct 20 16:49:36 2026 +0100
+
+    story 10 task 10: connector model and geometry implemented; board-model reads and detaches arrows
+
+
+ src/shared/board-model.ts                 |  10 +
+ src/shared/geometry/connector-geometry.ts | 205 +++++++++++---
+ src/shared/geometry/polyline.ts           | 129 +++++++--
+ src/shared/objects/connector.ts           | 436 ++++++++++++++++++++++++++----
+ src/shared/objects/shape.ts               |  16 +-
+ tests/unit/connector-geometry.test.ts     |   2 +-
+ tests/unit/connector-model.test.ts        |  20 +-
+ 7 files changed, 680 insertions(+), 138 deletions(-)
+commit ec7604642f4023fadf71b90800c87abb665214b0
+agent  Tue Oct 20 16:36:31 2026 +0100
+
+    story 10 tasks 8-9: shape model implemented; connector model + geometry tests first (TC-07..TC-14, TC-29) with stub exports
+
+
+ src/shared/board-model.ts                 | 173 ++++++++++--
+ src/shared/geometry/connector-geometry.ts |  74 +++++
+ src/shared/geometry/polyline.ts           |  59 ++++
+ src/shared/objects/connector.ts           | 105 ++++++++
+ src/shared/objects/shape.ts               | 288 ++++++++++++++++++--
+ tests/unit/board-model.test.ts            |  17 +-
+ tests/unit/connector-geometry.test.ts     | 170 ++++++++++++
+ tests/unit/connector-model.test.ts        | 430 ++++++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            |   2 +-
+ 9 files changed, 1275 insertions(+), 43 deletions(-)
+commit 736bf2e1457a113e386663dd5c5d018ac85e28cf
+agent  Tue Oct 20 16:04:57 2026 +0100
+
+    story 10 task 7: shape model unit tests first (TC-01..TC-06) + story 10 settings and stub exports
+
+
+ src/shared/config.ts           |  96 +++++++++++++++
+ src/shared/objects/shape.ts    |  48 ++++++++
+ tests/unit/shape-model.test.ts | 266 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 410 insertions(+)
+commit 8e153a7b5c27cd8fbd6ce5bcd50a82553f95b1b9
+vidi-agent  Tue Oct 20 15:28:26 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit a2f84e8607b7a8ad9e5f30ce7fc26c786a282f0a
 agent  Tue Oct 20 15:25:07 2026 +0100
 
