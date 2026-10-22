@@ -1,6 +1,6 @@
 # The DGX Spark, one or two (read 11 Oct 2026)
 
-What a Spark would add to the question of how many agents a model server carries, from NVIDIA's pages and third-party measurements. **Advertised** and **measured** are kept apart. Nothing here was run on a Spark; we do not own one yet.
+What a Spark would add to the question of how many agents a model server carries, from NVIDIA's pages and third-party measurements. **Advertised** and **measured** are kept apart. Nothing here was run on a Spark. (Update, 22 Oct 2026: the owner now has two, thing1 and thing2, 128 GB each and reachable over ssh; neither is a benchmark node yet. See `horizon/dgx-spark-thing1-thing2.md`. The text below was written before that and is unchanged.)
 
 ## Hardware
 

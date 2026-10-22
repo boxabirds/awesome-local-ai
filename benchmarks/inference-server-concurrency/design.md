@@ -47,7 +47,7 @@ Default to **synthetic, token-exact and unique per agent** (so no accidental cac
 | Strix Halo box | gufo (`--sessions N`), llama.cpp (`-np`) |
 | M5 Max | mlx-serve (`--max-concurrent`) |
 | RTX 4090 | llama.cpp (`-np`), SGLang or vLLM if they run our model |
-| DGX Spark, if bought | llama.cpp (supports Flash-Next), then vLLM or SGLang (advertised for Flash-Next, not for the Spark) |
+| DGX Spark (thing1, thing2; owned since 22 Oct 2026, not yet nodes) | llama.cpp (supports Flash-Next), then vLLM or SGLang (advertised for Flash-Next, not for the Spark) |
 
 Runs that stop a machine's server (to restart with more sessions) need the owner's approval each time.
 

@@ -125,6 +125,12 @@ full-precision Flash is far beyond 128 GB, and only this 1.6-bit expert quantisa
 Strix Halo and M5 Max boxes are out on the engine, not the memory: the only builds the card and the engine page name for this
 model are CUDA (`make cuda-spark`), and the page's Metal path says "separate live checks required".
 
+## Added 22 Oct 2026
+
+[Mia's AI Lab](deepseek-v4.1-flash-1017-two-sparks-mia.md) publishes a **two-Spark** recipe for the same model (2.9 bpw EXL3 on TensorFold, TP=2), and
+the owner's Sparks are named thing1 and thing2 ([hardware](dgx-spark-thing1-thing2.md)). It is a second arm with a different
+quantiser, engine and unit count, not a replacement for this one. Neither has a 1017 quality figure.
+
 ## Last checked and recheck
 
 **Last checked:** 17 Oct 2026, from the three pages above, read once; nothing is measured here.

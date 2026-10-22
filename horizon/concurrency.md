@@ -1,7 +1,7 @@
 # Concurrency: how many agents one model server carries
 
 **Status:** open question (11 Oct 2026). Design and background written; nothing built or run. The owner wants a practical baseline of **concurrent subagents** per machine, with the same model throughout, in two cases: fresh unrelated agents (separate projects) and subagents forked from a parent's context.
-**Where it could run:** the Strix Halo box, the M5 Max, the RTX 4090 machine, and one or two DGX Sparks if bought. It would be compared across machines and engines on the same scenarios.
+**Where it could run:** the Strix Halo box, the M5 Max, the RTX 4090 machine, and the two DGX Sparks thing1 and thing2 (owned since 22 Oct 2026, not yet nodes). It would be compared across machines and engines on the same scenarios.
 
 All the material is in [`benchmarks/inference-server-concurrency/`](../benchmarks/inference-server-concurrency/README.md): the proposed general tool (`design.md`), what each engine's docs claim (`engines.md`), the per-session memory model for the 27B and Flash-Next (`memory-model.md`), how Claude Code, pi and OpenCode hand context to subagents (`subagent-context.md`), the Spark (`dgx-spark.md`) and 11 hours of a gufo server's log (`strix-halo-observations-20261011.md`).
 

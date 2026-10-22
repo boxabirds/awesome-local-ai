@@ -23,6 +23,25 @@ removed) and UkisAI's Swift 1.5 for Flash-Next, at Q2_0, IQ2_XS, IQ3_XXS or IQ3_
    puts the agent, browsers and test servers there. Check the memory guard's headroom on a real story.
 4. Then a one-story smoke test.
 
+## Update, 22 Oct 2026: IQ3_S, and the Sparks
+
+Added when the owner listed "Strata + ISTA Lab IQ3_S quant". It was already here: IQ3_S is the first size this note says to
+start with, and [Strata on a small card](strata-small-card.md) has IQ3_S figures. The 4090 combination runs IQ3_XXS, not
+IQ3_S, because IQ3_S leaves no margin in the machine's 63 GB of RAM (the owner's choice, 2 Oct). What is new:
+
+- **A machine with room for IQ3_S.** The ISTA card (read via search, not fetched) puts IQ3_S at 3.50 bpw, 83.6 GB, marked
+  recommended, with AIME25 100.00 equal to the base, GPQA-Diamond 92.93 against 91.92 and LiveCodeBench v6 within 0.57; those are
+  ISTA's figures on the original model. A 128 GB Spark could hold it, as could the Strix Halo box and the M5 Max, but each of
+  those has an engine of its own for Flash-Next, so the only new variable would be Strata itself.
+- **Strata on a Spark is unchecked.** The one Strata fork read (`sergqwer/strata-nvfp4`, not upstream) lists x86-64 with AVX2
+  and CUDA targets sm_75, 86, 89 and 120. It does **not** list aarch64 or sm_121 (the Spark's GB10), unified memory, or
+  more than one node, and its design assumes a discrete GPU with separate RAM. Whether upstream Strata builds for a Spark was not
+  found. Read upstream's README and build files before putting any Strata work on [thing1](dgx-spark-thing1-thing2.md).
+- **Result:** no change to the 4090 plan. IQ3_S on a Spark is not a candidate until the aarch64 question is answered; the
+  expert-offload design Strata exists for is least needed where the whole model fits in unified memory.
+
+**Last checked (this update):** 22 Oct 2026. **Recheck when:** upstream Strata documents aarch64 or sm_121.
+
 ## Confounds
 
 1- to 3-bit quantisation (GSQ-RCO) against our IQ4_XS and mixed 4/8-bit Flash-Next runs; the Coder variant
