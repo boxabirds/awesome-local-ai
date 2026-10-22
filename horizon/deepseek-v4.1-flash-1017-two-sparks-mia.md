@@ -1,6 +1,6 @@
 # DeepSeek V4.1-Flash-1017 on two DGX Sparks (Mia's AI Lab recipe)
 
-**Status:** gated (22 Oct 2026). Added at the owner's request: [MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks](https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks). Nothing downloaded, built or run.
+**Status:** parked (22 Oct 2026, owner): wait a few weeks for the repo to settle; nothing is scheduled, and the Sparks are not touched for it. Was gated; the gates below still stand when it comes back. Added at the owner's request: [MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks](https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks). Nothing downloaded, built or run.
 **Kind:** a new model family on a new engine, a 2.9-bit quant, on hardware we have just got. Every confound moves at once; it is not a version bump of anything we run.
 **Machine:** thing1 and thing2 together as **one linked node** (tensor parallel, TP=2). See [the hardware note](dgx-spark-thing1-thing2.md). It uses both units, so nothing else runs on either while it does.
 **Gate:** both Sparks on the network and enrolled as one node; the disk, memory and cabling checks below; then the first story, watched. The repo's open issues (below) are the main risk for our workload.
@@ -40,6 +40,12 @@ These are what a 131k-token, tool-calling, sub-agent harness would hit, so they 
 - **#21** control-token spellings in request text become real control tokens; **#22** no `response_format`; **#42** `ABLIT=1` fails on a read-only cache.
 - The README itself lists a freeze risk (a rank can take all shared memory and the Spark then needs a power cycle) and says its memory guard is "a brake, not a guarantee"; #17 and #4 were ranks killed by memory.
 
+## Open questions for the owner (logged 22 Oct 2026, unanswered)
+
+1. **Where does the harness run?** The head probably cannot host the agent, Chromium and the tests in what is left: 112 GiB must be free on each unit of about 119 GiB, and the author's own head, with about 6 GiB of other software, was limited to a 524,288 window. This is arithmetic, not a measurement. Options: the harness on another machine than the head, or a smaller `CONTEXT`.
+2. **May I log in to thing1** to check disk, free memory, the link and the Arm Linux dependencies? Read-only checks. Not asked again until this note is picked up. The GPU clock lock (`nvidia-smi -lgc 0,2200`) needs root, which is the owner's.
+3. **Pair or independent?** This recipe takes both units and nothing else may run on either. Decide whether the pair is reserved for it or thing1 and thing2 stay independent nodes first.
+
 ## Checks before a run
 
 1. **Disk.** The head needs about 505 GB plus 25 GB for the image, the worker about 310 GB. Engram tables must be on **local** disk: over NFS their reads were about 10x slower (940 vs 90 µs) and prefill fell to 690-890 tok/s. Free disk on thing1 and thing2: **not checked**.
@@ -64,4 +70,4 @@ Model family (not Qwen), quantisation (EXL3 2.9 bpw, 3-bit experts, versus 3- an
 - [TensorFold](tensorfold.md): parked on the M5 Max for a 47k-token window. That is MLX on a Mac; this recipe uses the CUDA/Zig engine, so the ceiling here is unknown.
 - Same lab, not this item: an [Ornith-1.5-122B EXL3 quant on one Spark](ornith-1.5-122b.md) and a GB10 [exllamav3 fork](https://github.com/MiaAI-Lab/exllamav3) (MIT; batch-1 speculative decoding; no GB10 figures).
 
-**Last checked:** 22 Oct 2026. **Recheck when:** #36, #34, #18 and #27 close; the README and model card agree on quality; the owner's Sparks are one node; the author publishes an agent benchmark.
+**Last checked:** 22 Oct 2026. **Recheck when:** from mid-November 2026 (the owner's "a few weeks"), or sooner if the owner asks; then look at whether #36, #34, #18 and #27 are closed, whether the README and model card agree on quality, and whether the author has published an agent benchmark.
