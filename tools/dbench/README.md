@@ -242,6 +242,7 @@ dbench status node-a canvas-pi-02              # one job: state, stories, histor
 dbench logs node-a canvas-pi-02 -f             # follow; reconnects from the last byte if the connection drops
 dbench events node-a canvas-pi-02
 dbench cancel node-a canvas-pi-02 --reason "preflight failed; resubmitting after the fix"
+                                               # loses no work: see "Cancel and resume" below
 dbench hold node-a --reason "restart on the new binary"   # the running job finishes; nothing new starts
 dbench release node-a                                       # queued jobs start again
 dbench skip-story node-a canvas-pi-02 --story 3 --reason "3h, no commit for 107 min"
@@ -273,6 +274,14 @@ This ends the running story's work. The harness stops the agent (no resume, no n
 - **Checks:** the node refuses (409) unless the job is running and `N` is the run's `current_story`. The error names the current story. The reason can't be empty.
 - **What it does:** dbench only writes `<run_dir>/control/skip-story.json` (`{story, reason, by, at}`, atomically). It records the request in the job's history and log, like a cancel. The harness checks for the file every few seconds and renames it to `skip-story-<N>.applied.json` once applied.
 - **Timing:** it takes effect within a few seconds. `dbench status` then shows the story as PARTIAL.
+
+## Cancel and resume
+
+dbench has no pause. Cancel and resume is the pause, and it loses no work.
+
+- **Cancel** stops the job's process group. Stories already recorded stay recorded. The story that was running keeps its workspace and its session.
+- **Resume** is `dbench submit` with a new job id (say `<id>-again1`) and the same `--run-id`. There is no `dbench start`. The harness resumes at the first unfinished story and continues the agent's own session in that story's workspace ("continuing the agent's own session … after a harness restart"). The story's clock, calls and tokens count the whole story, both attempts.
+- **To free a GPU for other work:** `dbench hold <node>`, `dbench cancel <node> <job>`, do the work, then `dbench submit` the `-againN` job and `dbench release <node>`. Waiting for the story to end is not needed.
 
 ## Which harness a job runs
 

@@ -155,6 +155,11 @@ pub enum Cmd {
         before: Option<String>,
     },
     /// Cancel a job (SIGTERM, then SIGKILL, to its process group).
+    ///
+    /// Cancelling loses no work. Stories already recorded stay recorded, and the story that was
+    /// running keeps its workspace and its session. To carry on, `dbench submit` a job with a new
+    /// id (say `<id>-again1`) and the same run id: the harness resumes at the first unfinished
+    /// story and continues the agent's own session there. Cancelling a running job frees its GPU.
     Cancel {
         node: String,
         id: String,
@@ -162,12 +167,6 @@ pub enum Cmd {
         #[arg(long)]
         reason: String,
     },
-    /// End the running story as PARTIAL; the run continues with the next story.
-    ///
-    /// Ends the running story's work: the harness stops the agent, records the story
-    /// as PARTIAL with your reason, and the run continues with the next story (the job
-    /// keeps running). Later stories may then build on incomplete work, so use with care.
-    /// See benchmarks/spec-bench/harness/CONTROL.md.
     /// Pull what git never carries from every node into the lake, keep the conversation database
     /// current, and serve the conversation API.
     ///
@@ -188,6 +187,12 @@ pub enum Cmd {
     Stalls(StallsArgs),
     /// Validate pre-labels in a browser: accept or correct each, with blind items, agreement and kappa.
     Label(LabelArgs),
+    /// End the running story as PARTIAL; the run continues with the next story.
+    ///
+    /// Ends the running story's work: the harness stops the agent, records the story
+    /// as PARTIAL with your reason, and the run continues with the next story (the job
+    /// keeps running). Later stories may then build on incomplete work, so use with care.
+    /// See benchmarks/spec-bench/harness/CONTROL.md.
     #[command(name = "skip-story")]
     SkipStory {
         node: String,

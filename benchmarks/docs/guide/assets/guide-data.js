@@ -1533,7 +1533,7 @@ GUIDE_DATA.flows = [
       },
       {
         title: "Watch, and step in", nodes: ["cli", "queue"], edges: [],
-        text: ["`dbench status`, `logs -f`, `events` and `nodes` read state. `dbench cancel --reason …` sends SIGTERM to the job's process group and SIGKILL after 20 s. `dbench skip-story --story N --reason …` writes a control file the harness reads: it stops the agent, records the story as PARTIAL and goes on; the node refuses (409) unless N is the story running now."],
+        text: ["`dbench status`, `logs -f`, `events` and `nodes` read state. `dbench cancel --reason …` sends SIGTERM to the job's process group and SIGKILL after 20 s. Cancelling loses no work: recorded stories stay, and submitting a job with a new id and the same run id resumes at the first unfinished story, continuing the agent's own session. `dbench skip-story --story N --reason …` writes a control file the harness reads: it stops the agent, records the story as PARTIAL and goes on; the node refuses (409) unless N is the story running now."],
         cmd: "dbench status <node> canvas-pi-02\ndbench logs <node> canvas-pi-02 -f\ndbench skip-story <node> canvas-pi-02 --story 3 --reason \"3h, no commit for 107 min\"",
         where: [["benchmarks/spec-bench/harness/CONTROL.md", "CONTROL.md: skip-story"], ["tools/dbench/src/control.rs", "src/control.rs"]],
         state: "built",

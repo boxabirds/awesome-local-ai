@@ -2060,7 +2060,7 @@ dbench release &lt;node&gt;</code></pre>
 <li class="step" id="flow-submit-s9" data-step="9" data-nodes="cli queue" data-edges="" data-search data-title="Submit a job (dbench): Watch, and step in">
 <h4><span class="s-n">Step 9</span> Watch, and step in</h4>
 <p class="s-parts"><span class="lbl">In the picture:</span> <a class="term" href="#g-dbench" data-term="dbench">dbench</a> client (any machine) &middot; Node queue FIFO, one job at a time</p>
-<p><code>dbench status</code>, <code>logs -f</code>, <code>events</code> and <code>nodes</code> read state. <code>dbench cancel --reason …</code> sends SIGTERM to the job's process group and SIGKILL after 20 s. <code>dbench skip-story --story N --reason …</code> writes a control file the harness reads: it stops the agent, records the story as PARTIAL and goes on; the node refuses (409) unless N is the story running now.</p>
+<p><code>dbench status</code>, <code>logs -f</code>, <code>events</code> and <code>nodes</code> read state. <code>dbench cancel --reason …</code> sends SIGTERM to the job's process group and SIGKILL after 20 s. Cancelling loses no work: recorded stories stay, and submitting a job with a new id and the same run id resumes at the first unfinished story, continuing the agent's own session. <code>dbench skip-story --story N --reason …</code> writes a control file the harness reads: it stops the agent, records the story as PARTIAL and goes on; the node refuses (409) unless N is the story running now.</p>
 <pre class="cmd" tabindex="0"><code>dbench status &lt;node&gt; canvas-pi-02
 dbench logs &lt;node&gt; canvas-pi-02 -f
 dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no commit for 107 min&quot;</code></pre>
