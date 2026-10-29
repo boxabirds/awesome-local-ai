@@ -147,7 +147,12 @@ device_free_mib() {
   case "$ACCEL" in
     cuda)
       command -v nvidia-smi >/dev/null 2>&1 || return 0
-      nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | head -1 ;;
+      local free
+      free="$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | head -1)"
+      # A GB10 (DGX Spark) answers "[N/A]": its GPU shares system memory, so
+      # the headroom is what Linux can hand out.
+      [[ "$free" =~ ^[0-9]+$ ]] || free=$(( $(awk '/^MemAvailable:/ {print $2}' "${PROC_MEMINFO:-/proc/meminfo}") / 1024 ))
+      echo "$free" ;;
     strix-halo)
       # Unified memory: the GPU's headroom is GTT total minus GTT used, but
       # Linux can only hand out MemAvailable, and 'GTT free' ignores what the

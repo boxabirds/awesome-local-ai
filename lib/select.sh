@@ -66,7 +66,14 @@ _detect_linux() {
     HOST_ACCEL="cuda"
     HOST_MEM_MIB="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)"
     HOST_MEM_MIB="${HOST_MEM_MIB:-0}"
-    HOST_MEM_DESC="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1), ${HOST_MEM_MIB} MiB VRAM"
+    if [[ "$HOST_MEM_MIB" =~ ^[0-9]+$ ]]; then
+      HOST_MEM_DESC="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1), ${HOST_MEM_MIB} MiB VRAM"
+    else
+      # A GB10 (DGX Spark) answers "[N/A]": its GPU shares system memory, so
+      # the machine class is MemTotal, as on a Strix Halo.
+      HOST_MEM_MIB=$(( $(awk '/^MemTotal:/ {print $2}' "${PROC_MEMINFO:-/proc/meminfo}" 2>/dev/null || echo 0) / 1024 ))
+      HOST_MEM_DESC="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1), ${HOST_MEM_MIB} MiB unified memory"
+    fi
   elif _has_strix_halo_gpu; then
     HOST_ACCEL="strix-halo"
     # Unified memory, as on a Mac: the machine class is its physical memory.
@@ -132,6 +139,7 @@ _fixed_device_mib() {
   case "$1" in
     nvidia3090|nvidia3090ti|nvidia4090) printf '24576' ;;
     nvidia5090)                         printf '32768' ;;
+    dgx-spark)                          printf '131072' ;;
     *)                                  printf '0' ;;
   esac
 }
@@ -141,7 +149,7 @@ _fixed_device_mib() {
 # to every device of its family; qualification says which one was measured.
 _accel_family() {
   case "$1" in
-    nvidia*)        printf 'cuda' ;;
+    nvidia*|dgx-spark) printf 'cuda' ;;
     strix-halo)     printf 'strix-halo' ;;
     m[0-9]*)        printf 'metal' ;;
     *)              printf '%s' "$1" ;;

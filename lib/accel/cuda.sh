@@ -36,6 +36,9 @@ qualify_accel() {
   local gpu_name
   gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)
   ACCEL_MEM_MIB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | head -1)
+  # A GB10 (DGX Spark) shares system memory with its GPU and answers "[N/A]"
+  # here; arithmetic on that refused a 128 GB machine. Its memory is MemTotal.
+  _is_mib "$ACCEL_MEM_MIB" || ACCEL_MEM_MIB=$(_meminfo_mib MemTotal)
   ACCEL_DESC="${gpu_name} (sm_${ACCEL_ARCH}, ${ACCEL_MEM_MIB} MiB VRAM)"
   ok "GPU: ${ACCEL_DESC}"
 
@@ -91,6 +94,12 @@ _qualify_vram() {
   warn "ALLOW_LOW_VRAM=1 set -- continuing with QUANT=${QUANT}. Profiles will NOT fit; use manual CTX/KV_TYPE."
 }
 
+# A whole number of MiB, as nvidia-smi gives for a card with its own memory.
+_is_mib() { [[ "$1" =~ ^[0-9]+$ ]]; }
+
+# A /proc/meminfo field in MiB: the memory of a unified-memory GPU.
+_meminfo_mib() { echo $(( $(awk -v k="$1:" '$1 == k {print $2}' "${PROC_MEMINFO:-/proc/meminfo}") / 1024 )); }
+
 # Reuse whatever CUDA toolkit is installed. 12.x is sufficient for Ada/Ampere;
 # only Blackwell (sm_120) needs >=12.8.
 _ensure_nvcc() {
@@ -119,6 +128,10 @@ accel_report_mem() {
   local used free
   used=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
   free=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | head -1)
+  if ! _is_mib "$free"; then  # unified memory (GB10): what Linux can hand out
+    free=$(_meminfo_mib MemAvailable)
+    used=$(( $(_meminfo_mib MemTotal) - free ))
+  fi
   printf '%s %s' "$used" "$free"
 }
 

@@ -1,0 +1,68 @@
+PROFILE DETAIL
+  NOTHING HERE HAS BEEN MEASURED BY THIS REPO YET. The profiles and memory
+  figures are the Strix Halo combination's, unchanged, so the two run the
+  same configuration; the installer's smoke test prints the real server
+  footprint on your machine. Replace the estimates in profiles.tsv with it.
+
+  coding     128k ctx   f16 KV   vision off   1 slot
+      >> DEFAULT. One agent session with a real repo in context.
+
+  vision     128k ctx   f16 KV   vision ON    1 slot
+      Adds the 0.9 GB projector. Whether upstream llama.cpp's multimodal path
+      supports qwen4exp is not verified; if loading the projector fails, the
+      server stops -- use coding.
+
+  agents     3 x 128k   f16 KV   vision off   3 slots
+      -c is SHARED across slots: 393216 total is 128k each.
+
+  max        256k ctx   f16 KV   vision off   1 slot
+      The model's native context.
+
+UNIFIED MEMORY: WHAT "FITS" MEANS HERE
+  The GB10's GPU and CPU share 128 GB. nvidia-smi reports no device memory
+  on it ("[N/A]"), so the installer qualifies against MemTotal and the
+  launcher's pre-flight budgets from MemAvailable. A Spark can freeze when
+  memory runs out: stop other GPU work before a load.
+
+KV CACHE: f16 ONLY
+  Quantised KV (q8_0, q4_0) has been reported to break tool calling on this
+  model, and with two KV heads there is little memory to save. The launcher
+  warns if you pick anything else.
+
+SPECULATIVE DECODING
+  The MTP draft head guesses the next tokens and the model checks them in one
+  pass; the output is unchanged. This install builds PR #28243's branch with
+  Unsloth's shared-Q8_0 head: 4 draft tokens a step, p-min 0. Look for a
+  "draft acceptance" line in the log; one "borrow_shared_tensor" error at
+  startup is expected with a shared head.
+      SPEC_MTP=0 <server>             # without the head, for an A/B
+      SPEC_DRAFT_N_MAX=2 <server>     # Unsloth's default depth
+
+CUDA
+  Built for sm_121 with the CUDA toolkit DGX OS ships (13.0, /usr/local/cuda).
+  sm_12x needs CUDA 12.9 or newer.
+
+LOAD TIME AND THE IDLE TIMER
+  -lm dio reads all 94 GB into memory up front: minutes from a cold page
+  cache. The session manager waits up to 15 minutes for a load and keeps the
+  server for 30 minutes after the last client. Override per run:
+  IDLE_TIMEOUT=300, SERVER_START_TIMEOUT=1200.
+
+ENVIRONMENT OVERRIDES
+  PORT=8080          HOST=127.0.0.1     CTX=<tokens>     VISION=0|1
+  NP=<slots>         UB=<micro-batch>   BATCH=<batch>
+  THINKING=1|0       THINKING_BUDGET=<tokens>
+  REASONING_EFFORT=low|medium|xhigh|default
+  SPEC_MTP=0         SPEC_DRAFT_N_MAX=<n>   SPEC_DRAFT_P_MIN=<p>
+  QWEN38_FLASH_NEXT_ROOT=<dir>              MODEL=<file>
+
+SECURITY
+  HOST defaults to 127.0.0.1 and there is NO authentication. HOST=0.0.0.0
+  exposes an unauthenticated model server to your network; put a reverse
+  proxy with auth in front, or pass --api-key <key> after the command.
+
+EXAMPLES
+  qwen38-flash-next-spark-server                          # 128k, one agent
+  # API: http://127.0.0.1:8080/v1  model id: qwen3.8-flash-next
+  PROFILE=agents qwen38-flash-next-spark-server           # 3 x 128k slots
+  SPEC_MTP=0 qwen38-flash-next-spark-server               # A/B without the MTP head
