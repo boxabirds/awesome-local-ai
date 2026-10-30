@@ -30,7 +30,9 @@ mk node 'echo "v${FAKE_NODE:-22.1.0}"'
 mk uv 'if [ "$2" = "--quiet" ] && [ "$3" = "preflight.py" ]; then echo "preflight with: $*" >> "${FAKE_LOG:-/dev/null}"; exit "${FAKE_PREFLIGHT_RC:-0}"; fi; exit 0'
 mk rsync 'exit 0'
 mk cargo 'echo "cargo ${FAKE_CARGO:-1.98.0} (abc 2026-01-01)"'
-mk bwrap 'echo "bubblewrap ${FAKE_BWRAP:-0.9.0}"'
+mk bwrap 'if [ "$1" = --version ]; then echo "bubblewrap ${FAKE_BWRAP:-0.9.0}"; exit 0; fi
+echo "bwrap $*" >> "${FAKE_LOG:-/dev/null}"
+[ -z "$FAKE_BWRAP_NET_FAIL" ] || { echo "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted" >&2; exit 1; }'
 mk sandbox-exec 'exit 0'
 mk npm 'exit "${FAKE_NPM_RC:-0}"'
 mk brew 'echo "brew $*" >> "${FAKE_LOG:-/dev/null}"; echo 22.1.0 > "$FAKE_NODE_UPGRADED"'
@@ -269,6 +271,27 @@ fresh
 FAKE_PREFLIGHT_RC=1 run "$W"
 assert_eq "a failing preflight: exit 1" "1" "$RC"
 assert_ok "and says so" contains "$OUT" "preflight failed"
+
+echo "bwrap's network namespace (AppArmor on Ubuntu 24.04+)"
+fresh
+FAKE_UNAME=Linux run "$W"
+assert_ok "on Linux bwrap is tried with a network namespace" contains "$(cat "$W/log")" "bwrap --unshare-net"
+assert_ok "and passes" contains "$OUT" "ok    bwrap can create its network namespace"
+fresh
+FAKE_UNAME=Linux FAKE_BWRAP_NET_FAIL=1 run "$W"
+assert_eq "bwrap refused a network namespace: exit 1, before the preflight" "1" "$RC"
+assert_ok "bwrap's own error is shown" contains "$OUT" "Failed RTM_NEWADDR"
+assert_ok "and the fix is the repo's script" contains "$OUT" "sudo bash $W/pub/benchmarks/spec-bench/harness/allow-bwrap-userns.sh"
+assert_ok "the preflight did not run" test -z "$(grep 'preflight with' "$W/log")"
+fresh
+FAKE_UNAME=Darwin FAKE_BWRAP_NET_FAIL=1 run "$W"
+assert_eq "macOS does not try bwrap" "0" "$RC"
+fresh
+mk sudo 'echo "sudo $*" >> "$FAKE_LOG"'
+FAKE_UNAME=Linux FAKE_BWRAP_NET_FAIL=1 run_tty "$W" "y"
+assert_ok "on a terminal it offers to run the script" contains "$OUT" "allow-bwrap-userns.sh ? [y/N]"
+assert_ok "and yes runs it with sudo" contains "$(cat "$W/log")" "sudo bash $W/pub/benchmarks/spec-bench/harness/allow-bwrap-userns.sh"
+rm -f "$BIN/sudo"
 
 echo "the prompt to install"
 fresh

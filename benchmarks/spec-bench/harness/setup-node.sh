@@ -76,6 +76,21 @@ if [[ "$(uname)" == Darwin ]]; then
 else
   need_version node "$MIN_NODE" "nvm install $MIN_NODE   (and put it first on PATH: the system's own node is often older)"
   need_version bwrap "$MIN_BWRAP" "sudo apt install bubblewrap" "sudo apt install -y bubblewrap"
+  # Ubuntu 24.04 and newer restrict unprivileged user namespaces through AppArmor, and bwrap then cannot set up the
+  # sandbox's network namespace. Checked on every run, so an upgrade that undoes the fix is caught here.
+  if command -v bwrap >/dev/null; then
+    ALLOW_USERNS="sudo bash $HARNESS/allow-bwrap-userns.sh"
+    bwrap_net() { bwrap --unshare-net --dev-bind / / true 2>&1; }
+    if err="$(bwrap_net)"; then ok "bwrap can create its network namespace"
+    else
+      if [[ -t 0 && -t 1 ]]; then
+        read -r -p "  bwrap cannot create its network namespace (${err%%$'\n'*}). Run now: $ALLOW_USERNS ? [y/N] " answer
+        [[ "$answer" == [yY]* ]] && bash -c "$ALLOW_USERNS" && err="$(bwrap_net)" && err=""
+      fi
+      if [[ -z "$err" ]]; then ok "bwrap can create its network namespace"
+      else bad "bwrap cannot create its network namespace (${err%%$'\n'*}) -- fix: $ALLOW_USERNS"; fi
+    fi
+  fi
 fi
 # The agent's sandbox (tools/agent-sandbox) is built once per change of its source, on the node, from the harness release.
 command -v cargo >/dev/null || PATH="$PATH:$HOME/.cargo/bin"

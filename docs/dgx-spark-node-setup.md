@@ -110,25 +110,19 @@ bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
 
 Ubuntu 24.04 sets `kernel.apparmor_restrict_unprivileged_userns = 1`, so bwrap
 gets a user namespace without the right to configure its network namespace.
-The fix gives that right to `/usr/bin/bwrap` alone, which is narrower than
-turning the restriction off for every program. It needs root:
+The repo's script gives that right to `/usr/bin/bwrap` alone with an AppArmor
+profile, which is narrower than turning the restriction off for every program.
+It needs root and asks for sudo itself; run it from a terminal on the Spark:
 
 ```bash
-sudo tee /etc/apparmor.d/bwrap >/dev/null <<'EOF'
-abi <abi/4.0>,
-include <tunables/global>
-
-profile bwrap /usr/bin/bwrap flags=(unconfined) {
-  userns,
-  include if exists <local/bwrap>
-}
-EOF
-sudo apparmor_parser -r /etc/apparmor.d/bwrap
+bash ~/.dbench/repo/benchmarks/spec-bench/harness/allow-bwrap-userns.sh
 ```
 
-Then run `setup-node.sh` again; its last section is the sandbox preflight.
-(Not yet run on a Spark when written: the preflight passing after it is the
-proof.)
+It does nothing where bwrap already works, writes the profile atomically, puts
+the previous one back if the new one will not load, and proves the result as
+you. AppArmor reloads the profile at every boot. `setup-node.sh` now checks
+bwrap's network namespace among its tools and offers the script, so the
+problem shows there, not in the preflight. Then run `setup-node.sh` again.
 
 ## 6. The install
 
