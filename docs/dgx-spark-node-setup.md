@@ -68,6 +68,16 @@ curl -LsSf https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh     # ~/
 PATH=$HOME/node/bin:$PATH npm install -g @earendil-works/pi-coding-agent@0.87.1   # into ~/node
 ```
 
+The second Spark had no `~/node` and no cargo (both needed: pi runs on Node,
+and `setup-node.sh` builds the agent sandbox with cargo). In user space:
+
+```bash
+cd /tmp && curl -fsSLO https://nodejs.org/dist/v22.12.0/node-v22.12.0-linux-arm64.tar.xz
+curl -fsSL https://nodejs.org/dist/v22.12.0/SHASUMS256.txt | grep " node-v22.12.0-linux-arm64.tar.xz$" | sha256sum -c -
+mkdir -p ~/node && tar -xJf node-v22.12.0-linux-arm64.tar.xz -C ~/node --strip-components=1
+curl -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --profile minimal     # ~/.cargo/bin
+```
+
 pi is 0.87.1 to match every other node's v2 runs (the guide: client versions
 must not differ between stacks). Then the dbench unit gets `~/node/bin` and
 `~/.local/bin` on its `--path-prepend` (and on its `Environment=PATH`), and is
@@ -154,3 +164,12 @@ On a free machine (30 Oct, 04:57 GMT) it passed: server healthy in 23 s at
 length 3.29); on its 22-token reply, 36 tok/s decode and 60 tok/s prefill
 (too short to be a measurement). After it, `dbench nodes` lists the install
 `qwen38-flash-next-spark` on the Spark.
+
+The second Spark (30 Oct): llama.cpp built in two minutes, the download took 65
+minutes, and the smoke test passed (healthy in 22 s, draft acceptance 0.63).
+Its first try was refused at once: the launcher will not start beside another
+model server, and an `ollama serve` (in Docker) was running there, holding no
+model. `ALLOW_COEXIST=1` let the smoke test run; a benchmark job is refused the
+same way while that server runs. The container was not needed and was stopped
+(its restart policy is `no`, so it stays stopped after a reboot). With the
+AppArmor script run there too, `setup-node.sh` reported `ready`.
