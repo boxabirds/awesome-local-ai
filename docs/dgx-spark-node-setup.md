@@ -70,17 +70,93 @@ PATH=$HOME/node/bin:$PATH npm install -g @earendil-works/pi-coding-agent@0.87.1 
 
 pi is 0.87.1 to match every other node's v2 runs (the guide: client versions
 must not differ between stacks). Then the dbench unit gets `~/node/bin` and
-`~/.local/bin` on its `--path-prepend`, and is restarted.
+`~/.local/bin` on its `--path-prepend` (and on its `Environment=PATH`), and is
+restarted: `systemctl --user daemon-reload && systemctl --user restart dbench`.
+After it, `dbench nodes` says `missing tools: none`.
+
+The Spark's global git identity may be someone else's setting. Set the
+records' identity on the bench checkout only:
+`git -C ~/.dbench/repo config user.name …` and `user.email …`.
 
 ## 4. The private pack
 
 The Spark's GitHub key is a deploy key for the public repo only, so
-`setup-node.sh` cannot clone `awesome-local-ai-bench-private`. It is copied
-from another node instead, without `node_modules` (built for another
-architecture; `setup-node.sh` runs `npm ci`).
+`setup-node.sh` cannot clone `awesome-local-ai-bench-private`. Copy its git
+history from a node that has it, as a bundle (not the working tree, which
+holds other runs' held-out detail), then point origin at GitHub:
 
-## 5. setup-node.sh, the install, the check
+```bash
+ssh <node> 'git -C ~/.dbench/awesome-local-ai-bench-private bundle create - --all' > pack.bundle
+scp pack.bundle <spark>:/tmp/ && ssh <spark> 'git clone -q /tmp/pack.bundle ~/.dbench/awesome-local-ai-bench-private
+  && cd ~/.dbench/awesome-local-ai-bench-private
+  && git remote set-url origin git@github.com:boxabirds/awesome-local-ai-bench-private.git
+  && git checkout -q vidi-v2.0-pre2 && rm /tmp/pack.bundle'
+```
 
-Still to record: `setup-node.sh` (Playwright's arm64 Chromium, the sandbox
-preflight), the installer (the llama.cpp build for sm_121, the 97 GB
-download, the smoke test), and `dbench nodes` showing the install.
+## 5. setup-node.sh
+
+```bash
+cd ~/.dbench/repo && PATH=$HOME/node/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH \
+  bash benchmarks/spec-bench/harness/setup-node.sh
+```
+
+On the first Spark every check passed, including the held-out suite's
+`npm ci` and Playwright's Chromium for arm64 ("browser launches", for the
+agents' browser and the suite's), **except the sandbox preflight**:
+
+```
+bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+```
+
+Ubuntu 24.04 sets `kernel.apparmor_restrict_unprivileged_userns = 1`, so bwrap
+gets a user namespace without the right to configure its network namespace.
+The fix gives that right to `/usr/bin/bwrap` alone, which is narrower than
+turning the restriction off for every program. It needs root:
+
+```bash
+sudo tee /etc/apparmor.d/bwrap >/dev/null <<'EOF'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+  include if exists <local/bwrap>
+}
+EOF
+sudo apparmor_parser -r /etc/apparmor.d/bwrap
+```
+
+Then run `setup-node.sh` again; its last section is the sandbox preflight.
+(Not yet run on a Spark when written: the preflight passing after it is the
+proof.)
+
+## 6. The install
+
+The installer's packages that DGX OS lacks: `ninja-build` and
+`libcurl4-openssl-dev`. Without passwordless sudo the installer warns and
+falls back (ninja as a uv tool, llama.cpp built with `-DLLAMA_CURL=OFF`,
+which only drops llama.cpp's own downloading). To have them:
+`sudo apt-get install -y --no-install-recommends ninja-build libcurl4-openssl-dev`.
+
+```bash
+cd ~/.dbench/repo && PATH=$HOME/node/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH INSTALL_INTERACTIVE=0 \
+  setsid nohup bash ./install-qwen-3.8-flash-next-ubuntu-dgx-spark-llamacpp-pi.sh > ~/spark-install.log 2>&1 < /dev/null &
+```
+
+On the first Spark: qualification read `NVIDIA GB10 (sm_121, 124608 MiB)` and
+passed; llama.cpp (the MTP branch) built for sm_121 with CUDA 13.0 in under
+two minutes (12:24 to 12:26); the 97.4 GB download took 94 minutes (12:26 to
+14:00 GMT, about 17 MB/s, over the machine's Wi-Fi).
+
+The smoke test loads the whole model, so it needs about 100 GB free. Run it
+when nothing else on the Spark holds memory: two attempts there failed while
+another program (in Docker) held 61 GB and then 15 GB and growing. The
+launcher's pre-flight named the first. The kernel's OOM killer ended the
+second (`journalctl -k`: "Out of memory: Killed process … (llama-server)"). Re-running the
+installer redoes only the smoke test (`SKIP_BACKEND_UPDATE=1` keeps the build).
+
+On a free machine (30 Oct, 04:57 GMT) it passed: server healthy in 23 s at
+131072 context, generation OK, MTP draft acceptance 0.57 (16 of 28, mean
+length 3.29); on its 22-token reply, 36 tok/s decode and 60 tok/s prefill
+(too short to be a measurement). After it, `dbench nodes` lists the install
+`qwen38-flash-next-spark` on the Spark.
