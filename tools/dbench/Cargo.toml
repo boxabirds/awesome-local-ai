@@ -9,6 +9,11 @@ publish = false
 name = "dbench"
 path = "src/main.rs"
 
+# The collector as its own program, so it is not mistaken for a benchmark node in a process list.
+[[bin]]
+name = "dbench-collector"
+path = "src/bin/dbench-collector.rs"
+
 [dependencies]
 anyhow = "1"
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }

@@ -190,8 +190,19 @@ repo = "/Users/me/expts/awesome-local-ai"
 api = "127.0.0.1:7761"
 ```
 
+The collector also builds as its own program, `dbench-collector`, with the same options and the same code as
+`dbench collect`. Run it that way as a service, so a process list tells it from a benchmark node's `dbench serve`
+(both showed as `dbench` until 30 October 2026).
+
+Deciding that a story is unchanged reads nothing: its digest is made from file stamps (size and mtime) and git ids,
+and only a story whose digest moved has its logs read and ingested, complete or not. A run that never completes (its
+node gone, the run stopped) is not redone on every pass. Measured on this host's warehouse, 30 October 2026: a pass
+with nothing to ingest went from 40.6 s and a 2 GB peak (all 599 stories' logs read, 25 GB, and 14 incomplete
+stories rewritten) to 3.5 s and 28 MB.
+
 ```sh
-dbench collect                      # for ever: a pass every 10 s, the API served
+dbench-collector                    # the service: for ever, a pass every 10 s, the API served
+dbench collect                      # the same, as a dbench command
 dbench collect --once --json        # one pass, a summary per node
 dbench collect --once --node node-a --run combinations/.../benchmarks/vidi/v2-r1
 dbench ingest --db … --repo … --store … --rebuild     # the whole warehouse afresh, renamed over the old
