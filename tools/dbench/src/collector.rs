@@ -16,6 +16,7 @@ use crate::cli::CollectArgs;
 use crate::client::{Api, Chunk, Ctx, RunRef};
 use crate::collect::{check_window, fnv1a64, Class, FileEntry, FileKind, Manifest, RunStatus};
 use crate::ids::{valid_id, valid_run_dir};
+use crate::profile::Profile;
 /// A reference model's run id begins like this; its files go to the reference folder.
 use crate::ingest::db::REFERENCE_RUN_PREFIX;
 use crate::timefmt::now_secs;
@@ -614,16 +615,31 @@ pub fn space_decision(free: std::io::Result<u64>, margin_gib: u64) -> SpaceDecis
 
 /// One pass over the nodes, then the ingest of what changed.
 pub async fn pass(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: u64) -> Result<Vec<NodeSummary>> {
+    pass_profiled(ctx, cfg, cadence, fetch, now, &mut Profile::default()).await
+}
+
+/// One line for the log: how long the pass took, what took it, and how much of the time the collector is busy.
+pub fn pass_log_line(profile: &Profile, wall: f64, idle: Duration, top: usize) -> String {
+    let idle = idle.as_secs_f64();
+    let busy = if wall + idle > 0.0 { wall / (wall + idle) * 100.0 } else { 0.0 };
+    format!("dbench collect: pass {} | idle {idle:.0} s, busy {busy:.0}% of the time", profile.line(wall, top))
+}
+
+/// `pass`, charging where its time went to `profile`.
+pub async fn pass_profiled(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: u64, profile: &mut Profile) -> Result<Vec<NodeSummary>> {
     crate::store::create_private_dir_all(&cfg.store)?;
-    if let SpaceDecision::Hold(line) = space_decision((cfg.free_bytes)(&cfg.store), cfg.free_space_margin_gib) {
+    let free = profile.time("pass.free_space", || (cfg.free_bytes)(&cfg.store));
+    if let SpaceDecision::Hold(line) = space_decision(free, cfg.free_space_margin_gib) {
         eprintln!("dbench collect: {line}");
         return Ok(Vec::new());
     }
     let names: Vec<String> = if cfg.nodes.is_empty() { ctx.nodes.keys().cloned().collect() } else { cfg.nodes.clone() };
-    let archived = archived_runs(cfg);
+    let archived = profile.time("pass.archived", || archived_runs(cfg));
     let lake = Lake { store: &cfg.store, reference: &cfg.reference };
     let futs = names.iter().map(|n| collect_node_with(ctx, n, lake, &cfg.runs, &archived, cadence, now, cfg.scopes));
+    let nodes_started = std::time::Instant::now();
     let summaries = futures_util::future::join_all(futs).await;
+    profile.record("pass.nodes", nodes_started.elapsed().as_secs_f64(), summaries.iter().flat_map(|s| &s.runs).map(|r| r.pulled_bytes).sum());
     for s in &summaries {
         for p in &s.problems {
             eprintln!("dbench collect: {}: {p}", s.node);
@@ -636,32 +652,40 @@ pub async fn pass(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: 
             let db_path = cfg.db.clone();
             let repo = repo.clone();
             let worktree = cfg.worktree;
-            let summary = tokio::task::spawn_blocking(move || -> Result<crate::ingest::inputs::Summary> {
+            let (summary, setup) = tokio::task::spawn_blocking(move || -> Result<(crate::ingest::inputs::Summary, Profile)> {
+                let mut setup = Profile::default();
                 let published: Box<dyn crate::ingest::inputs::Published> = if worktree {
                     Box::new(crate::ingest::inputs::TreeSource { root: repo })
                 } else {
                     let g = crate::ingest::inputs::GitSource::new(&repo, "origin/main");
                     if fetch {
-                        g.fetch()?;
+                        setup.time("pass.git_fetch", || g.fetch())?;
                     }
                     Box::new(g)
                 };
                 if let Some(dir) = db_path.parent() {
                     std::fs::create_dir_all(dir)?;
                 }
-                let mut db = crate::ingest::db::Db::open(&db_path)?;
-                crate::ingest::inputs::run(&mut db, published.as_ref(), &store, &Default::default(), now as f64)
+                let mut db = setup.time("pass.db_open", || crate::ingest::db::Db::open(&db_path))?;
+                let summary = crate::ingest::inputs::run(&mut db, published.as_ref(), &store, &Default::default(), now as f64)?;
+                Ok((summary, setup))
             })
             .await??;
+            profile.merge(&setup);
+            profile.merge(&summary.profile);
             if summary.ingested > 0 {
                 eprintln!("dbench collect: ingested {} story runs, {} requests placed ({:.1} s)", summary.ingested, summary.requests, summary.seconds);
             }
             // The analytics layer is derived from the warehouse; its failure never stops collection.
             let warehouse = cfg.db.clone();
             let ingested = summary.ingested;
-            match tokio::task::spawn_blocking(move || crate::analytics::after_ingest(&warehouse, ingested, now as f64)).await {
-                Ok(Some(line)) => eprintln!("dbench collect: {line}"),
-                Ok(None) => {}
+            match tokio::task::spawn_blocking(move || crate::analytics::after_ingest_profiled(&warehouse, ingested, now as f64)).await {
+                Ok((line, analysed)) => {
+                    profile.merge(&analysed);
+                    if let Some(line) = line {
+                        eprintln!("dbench collect: {line}");
+                    }
+                }
                 Err(e) => eprintln!("dbench collect: analytics: {e}"),
             }
         }
@@ -781,9 +805,12 @@ pub async fn cmd_collect(ctx: &Ctx, args: &CollectArgs) -> Result<()> {
     let mut last_fetch: Option<std::time::Instant> = None;
     loop {
         let fetch = last_fetch.is_none_or(|t| t.elapsed() >= fetch_every);
-        if let Err(e) = pass(ctx, &cfg, &cadence, fetch, now_secs()).await {
+        let started = std::time::Instant::now();
+        let mut profile = Profile::default();
+        if let Err(e) = pass_profiled(ctx, &cfg, &cadence, fetch, now_secs(), &mut profile).await {
             eprintln!("dbench collect: {e:#}");
         }
+        eprintln!("{}", pass_log_line(&profile, started.elapsed().as_secs_f64(), cadence.running_poll, crate::profile::LOG_TOP_PHASES));
         if fetch {
             last_fetch = Some(std::time::Instant::now());
         }

@@ -402,3 +402,35 @@ async fn the_activity_route_is_empty_when_nothing_has_been_assigned() {
     assert_eq!(v["themes"].as_array().unwrap().len(), 0);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn an_analysis_says_where_its_time_went_in_phases_that_do_not_overlap() {
+    let db = warehouse();
+    let mut s = Store::open_memory().unwrap();
+    let sum = run_on(&db.conn, &mut s, &Selection::default(), 1000.0).unwrap();
+    for phase in ["analytics.purge", "analytics.list_stories", "analytics.load_calls", "analytics.digest", "analytics.computed_lookup", "analytics.load_tools", "analytics.load_misc", "analytics.compute", "analytics.store_write"] {
+        assert!(sum.profile.get(phase).is_some_and(|p| p.calls > 0), "{phase} missing:\n{}", sum.profile.report(sum.seconds));
+    }
+    assert_eq!(sum.profile.get("analytics.load_calls").unwrap().calls, sum.stories as u64);
+    assert!(sum.profile.total() <= sum.seconds + 0.005, "{} s of phases in a {} s run", sum.profile.total(), sum.seconds);
+    // A second run changes nothing: the stories are looked up and none is loaded further or computed.
+    let again = run_on(&db.conn, &mut s, &Selection::default(), 2000.0).unwrap();
+    assert!(again.profile.get("analytics.compute").is_none() && again.profile.get("analytics.store_write").is_none(), "{}", again.profile.report(again.seconds));
+}
+
+#[test]
+fn the_line_after_an_ingest_carries_the_slowest_phases() {
+    use dbench::analytics::after_ingest;
+    let dir = std::env::temp_dir().join(format!("dbench-analytics-profile-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let wh = dir.join("conversations.db");
+    {
+        let db = Db::open(&wh).unwrap();
+        let sk = story(&db.conn, REL, 3);
+        call(&db.conn, sk, 0, 1.0, 2.0, Some("one thought two three"));
+    }
+    let msg = after_ingest(&wh, 0, 10.0).expect("computed");
+    assert!(msg.contains("1 story runs") && msg.contains("analytics.") && msg.contains("unaccounted"), "{msg}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}

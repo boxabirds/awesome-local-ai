@@ -21,6 +21,7 @@ pub mod ingest;
 pub mod job;
 pub mod label;
 pub mod node;
+pub mod profile;
 pub mod progress;
 pub mod recovery;
 pub mod release;

@@ -1483,3 +1483,113 @@ fn a_story_ingests_to_the_same_rows_from_its_raw_log_and_from_its_compact_copy()
         assert!(raw.1[0] > 0, "{client}: no calls ingested");
     }
 }
+
+/// A published run with story 1 (compact log) and a lake copy of story 2's full log: the smallest tree that reaches
+/// both ways an ingest reads a conversation.
+fn profile_tree(root: &std::path::Path) -> (PathBuf, PathBuf, PathBuf) {
+    let tree = root.join("repo");
+    let store = root.join("store");
+    let run = tree.join(RUN);
+    std::fs::create_dir_all(run.join("stories/01")).unwrap();
+    std::fs::write(run.join("stories/01/agent-events.compact.jsonl.gz"), gzip(&fixture("accounting__claude-slept"))).unwrap();
+    std::fs::write(run.join("run.json"), r#"{"pack_version": "vidi-v2", "model_id": "m", "started_at": "2026-10-02T09:00:00Z"}"#).unwrap();
+    std::fs::write(
+        run.join("metrics.json"),
+        r#"{"stories": {"1": {"title": "One", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000140.7},
+                        "2": {"title": "Two", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000122.0}}}"#,
+    )
+    .unwrap();
+    let lake = store.join("node-a").join(RUN);
+    std::fs::create_dir_all(lake.join("stories/02")).unwrap();
+    std::fs::write(lake.join("stories/02/agent-events.jsonl"), fixture("accounting__pi-nudged")).unwrap();
+    std::fs::write(lake.join("collection.json"), r#"{"node": "node-a", "complete": true, "collected_at": 1790001000.0}"#).unwrap();
+    (tree, store, root.join("insights/conversations.db"))
+}
+
+#[test]
+fn an_ingest_says_where_its_time_went_in_phases_that_do_not_overlap() {
+    let root = std::env::temp_dir().join(format!("dbench-ingest-profile-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let (tree, store, db_path) = profile_tree(&root);
+    let common = ["--db", db_path.to_str().unwrap(), "--repo", tree.to_str().unwrap(), "--store", store.to_str().unwrap(), "--worktree"];
+
+    let (ok, out) = ingest_cmd(&[&common[..], &["--rebuild"]].concat());
+    assert!(ok, "{out}");
+    let summary: Value = serde_json::from_str(&out).unwrap();
+    let profile = &summary["profile"];
+    let calls = |name: &str| profile[name]["calls"].as_u64();
+    assert_eq!(calls("story.parse_events"), Some(2), "{profile}");
+    assert_eq!(calls("story.db_collection"), Some(2), "{profile}");
+    assert_eq!(calls("inputs_for.read_lake"), Some(1), "story 2 is read from the lake: {profile}");
+    assert_eq!(calls("inputs_for.git_read"), Some(1), "story 1 is read from the published tree: {profile}");
+    assert_eq!(calls("inputs_for.gunzip"), Some(1), "{profile}");
+    for phase in ["purge_reference", "purge_archived", "published_paths", "lake_scan", "run_record", "digest_check", "story.parse_timing", "story.db_events"] {
+        assert!(profile[phase]["calls"].as_u64().unwrap_or(0) > 0, "{phase} missing from {profile}");
+    }
+    // The bytes of the lake file are what the read and the decode were charged.
+    let lake_bytes = std::fs::metadata(store.join("node-a").join(RUN).join("stories/02/agent-events.jsonl")).unwrap().len();
+    assert_eq!(profile["inputs_for.read_lake"]["bytes"].as_u64(), Some(lake_bytes), "{profile}");
+    assert_eq!(profile["inputs_for.decode_lake"]["bytes"].as_u64(), Some(lake_bytes), "{profile}");
+    // Phases are leaves: together they never exceed the wall time they are part of.
+    let sum: f64 = profile.as_object().unwrap().values().map(|p| p["seconds"].as_f64().unwrap()).sum();
+    let wall = summary["seconds"].as_f64().unwrap();
+    assert!(sum <= wall + 0.005, "phases add up to {sum} s, more than the {wall} s they are part of: {profile}");
+
+    // Nothing changed: the stories are checked and none is parsed.
+    let (ok, out) = ingest_cmd(&common);
+    assert!(ok, "{out}");
+    let summary: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(summary["profile"]["digest_check"]["calls"].as_u64(), Some(2), "{}", summary["profile"]);
+    assert!(summary["profile"].get("story.parse_events").is_none(), "{}", summary["profile"]);
+
+    // --profile prints the table under the usual line.
+    let (ok, stdout, stderr) = ingest_text(&root, &[&common[..], &["--profile"]].concat());
+    assert!(ok, "{stderr}");
+    assert!(stdout.starts_with("ingested 0 of 2 story runs"), "{stdout}");
+    for want in ["phase", "seconds", "digest_check", "unaccounted", "wall"] {
+        assert!(stdout.contains(want), "{want} missing from:\n{stdout}");
+    }
+    // ...and without it the output is the one line it always was.
+    let (ok, stdout, _) = ingest_text(&root, &common);
+    assert!(ok);
+    assert_eq!(stdout.lines().count(), 1, "{stdout}");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[tokio::test]
+async fn a_pass_says_where_its_time_went_across_the_fetch_the_ingest_and_the_analytics() {
+    use dbench::collector::pass_profiled;
+    use dbench::profile::Profile;
+    let root = std::env::temp_dir().join(format!("dbench-pass-profile-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let (_remote, work) = published_repo(&root);
+    let cfg = collect_config(&root, Some(work), false);
+    let now = 1_790_000_000;
+
+    let mut p = Profile::default();
+    let t = std::time::Instant::now();
+    pass_profiled(&no_nodes(), &cfg, &cadence(), true, now, &mut p).await.unwrap();
+    let wall = t.elapsed().as_secs_f64();
+    for phase in ["pass.nodes", "pass.git_fetch", "pass.db_open", "digest_check", "story.parse_events", "analytics.load_calls"] {
+        assert!(p.get(phase).is_some_and(|s| s.calls > 0), "{phase} missing:\n{}", p.report(wall));
+    }
+    assert!(p.total() <= wall + 0.005, "phases add up to {} s, more than the {wall} s pass:\n{}", p.total(), p.report(wall));
+
+    // Nothing pulled and no fetch due: only the node round was spent.
+    let mut idle = Profile::default();
+    pass_profiled(&no_nodes(), &cfg, &cadence(), false, now, &mut idle).await.unwrap();
+    assert!(idle.get("pass.nodes").is_some());
+    assert!(idle.get("pass.git_fetch").is_none() && idle.get("digest_check").is_none(), "{}", idle.report(1.0));
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn a_pass_logs_its_slowest_phases_and_how_busy_the_collector_is() {
+    use dbench::profile::Profile;
+    let mut p = Profile::default();
+    p.record("inputs_for.decode_lake", 6.0, 3 * 1024);
+    p.record("pass.nodes", 2.0, 0);
+    let line = dbench::collector::pass_log_line(&p, 10.0, std::time::Duration::from_secs(10), 1);
+    assert_eq!(line, "dbench collect: pass 10.0 s: inputs_for.decode_lake 6.0 s (1x, 3.0 KiB); unaccounted 2.0 s | idle 10 s, busy 50% of the time");
+}

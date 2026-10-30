@@ -7,6 +7,7 @@ pub mod store;
 pub mod text;
 
 use anyhow::{Context, Result};
+use crate::profile::{Profile, LOG_TOP_PHASES};
 use context::{CallIn, ToolIn};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::collections::HashSet;
@@ -111,6 +112,7 @@ pub struct Summary {
     pub calls: usize,
     pub think_blocks: usize,
     pub seconds: f64,
+    pub profile: crate::profile::Profile,
 }
 
 fn load_calls(wh: &Connection, sk: i64) -> Result<Vec<CallIn>> {
@@ -140,61 +142,81 @@ fn digest(wh: &Connection, sk: i64, n_calls: i64) -> Result<String> {
 pub fn run_on(wh: &Connection, store: &mut Store, sel: &Selection, now: f64) -> Result<Summary> {
     let started = std::time::Instant::now();
     let mut summary = Summary::default();
-    purge_references(store)?;
-    purge_orphans(wh, store)?;
-    let mut q = wh.prepare("select sk, rel, run_id, stack, run, story from stories where rel is not null and coalesce(stack, '') not like ?1 order by sk")?;
+    let mut prof = Profile::default();
+    prof.time("analytics.purge", || -> Result<()> {
+        purge_references(store)?;
+        purge_orphans(wh, store).map(drop)
+    })?;
     type Row = (i64, String, Option<String>, Option<String>, Option<String>, Option<i64>);
-    let stories: Vec<Row> = q.query_map(params![format!("{REFERENCE_STACK_PREFIX}%")], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?.collect::<std::result::Result<_, _>>()?;
+    let stories: Vec<Row> = prof.time("analytics.list_stories", || -> Result<Vec<Row>> {
+        let mut q = wh.prepare("select sk, rel, run_id, stack, run, story from stories where rel is not null and coalesce(stack, '') not like ?1 order by sk")?;
+        let rows = q.query_map(params![format!("{REFERENCE_STACK_PREFIX}%")], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?.collect::<std::result::Result<_, _>>()?;
+        Ok(rows)
+    })?;
     let only: HashSet<&str> = sel.only.iter().map(String::as_str).collect();
     for (sk, rel, run_id, stack, run, story) in stories {
         if !only.is_empty() && !only.contains(rel.as_str()) && !only.iter().any(|o| rel.starts_with(&format!("{o}/stories/"))) {
             continue;
         }
         summary.stories += 1;
-        let calls = load_calls(wh, sk)?;
-        let source_digest = digest(wh, sk, calls.len() as i64)?;
-        if !sel.all && store.computed(&rel)? == Some((source_digest.clone(), ANALYTICS_VERSION)) {
+        let calls = prof.time("analytics.load_calls", || load_calls(wh, sk))?;
+        let source_digest = prof.time("analytics.digest", || digest(wh, sk, calls.len() as i64))?;
+        let known = prof.time("analytics.computed_lookup", || store.computed(&rel))?;
+        if !sel.all && known == Some((source_digest.clone(), ANALYTICS_VERSION)) {
             summary.unchanged += 1;
             continue;
         }
-        let tools = load_tools(wh, sk)?;
-        let ends: Vec<f64> = {
-            let mut q = wh.prepare("select end from compactions where sk = ?1 and end is not null")?;
-            let v = q.query_map(params![sk], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?;
-            v
-        };
-        let prompt: String = wh
-            .query_row("select coalesce(text_full, text_head, '') from msgs where sk = ?1 order by idx limit 1", params![sk], |r| r.get(0))
-            .optional()?
-            .unwrap_or_default();
-        let recorded: Option<i64> = wh
-            .query_row("select conversation_json from stories where sk = ?1", params![sk], |r| r.get::<_, Option<String>>(0))?
-            .and_then(|j| serde_json::from_str::<serde_json::Value>(&j).ok())
-            .and_then(|v| v["thinking_chars"].as_i64());
-        let ctx = context::context_rows(&calls, &tools, &ends);
-        let think = think_rows(&calls, &tools, &prompt);
-        let meta = StoryMeta {
-            rel: rel.clone(), run_id, stack, run, story, n_calls: calls.len() as i64,
-            think_chars: think.iter().map(|t| t.features.chars).sum(), think_chars_recorded: recorded, source_digest, version: ANALYTICS_VERSION, computed_at: now,
-        };
-        store.replace_story(&meta, &ctx, &think).with_context(|| format!("store {rel}"))?;
+        let tools = prof.time("analytics.load_tools", || load_tools(wh, sk))?;
+        let (ends, prompt, recorded) = prof.time("analytics.load_misc", || -> Result<_> {
+            let ends: Vec<f64> = {
+                let mut q = wh.prepare("select end from compactions where sk = ?1 and end is not null")?;
+                let v = q.query_map(params![sk], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?;
+                v
+            };
+            let prompt: String = wh
+                .query_row("select coalesce(text_full, text_head, '') from msgs where sk = ?1 order by idx limit 1", params![sk], |r| r.get(0))
+                .optional()?
+                .unwrap_or_default();
+            let recorded: Option<i64> = wh
+                .query_row("select conversation_json from stories where sk = ?1", params![sk], |r| r.get::<_, Option<String>>(0))?
+                .and_then(|j| serde_json::from_str::<serde_json::Value>(&j).ok())
+                .and_then(|v| v["thinking_chars"].as_i64());
+            Ok((ends, prompt, recorded))
+        })?;
+        let (ctx, think, meta) = prof.time("analytics.compute", || {
+            let ctx = context::context_rows(&calls, &tools, &ends);
+            let think = think_rows(&calls, &tools, &prompt);
+            let meta = StoryMeta {
+                rel: rel.clone(), run_id, stack, run, story, n_calls: calls.len() as i64,
+                think_chars: think.iter().map(|t| t.features.chars).sum(), think_chars_recorded: recorded, source_digest, version: ANALYTICS_VERSION, computed_at: now,
+            };
+            (ctx, think, meta)
+        });
+        prof.time("analytics.store_write", || store.replace_story(&meta, &ctx, &think).with_context(|| format!("store {rel}")))?;
         summary.computed += 1;
         summary.calls += ctx.len();
         summary.think_blocks += think.len();
     }
+    summary.profile = prof;
     summary.seconds = started.elapsed().as_secs_f64();
     Ok(summary)
 }
 
 /// Compute from the warehouse file into the analytics file (read-only on the warehouse).
 pub fn run(warehouse: &Path, out: &Path, sel: &Selection, now: f64) -> Result<Summary> {
-    let wh = Connection::open_with_flags(warehouse, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX)
+    let started = std::time::Instant::now();
+    let mut opening = Profile::default();
+    let wh = opening
+        .time("analytics.open", || Connection::open_with_flags(warehouse, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX))
         .with_context(|| format!("open {} read-only", warehouse.display()))?;
     if let Some(dir) = out.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let mut store = Store::open(out)?;
-    run_on(&wh, &mut store, sel, now)
+    let mut store = opening.time("analytics.open", || Store::open(out))?;
+    let mut summary = run_on(&wh, &mut store, sel, now)?;
+    summary.profile.merge(&opening);
+    summary.seconds = started.elapsed().as_secs_f64();
+    Ok(summary)
 }
 
 const REBUILD_SUFFIX: &str = ".new";
@@ -205,14 +227,22 @@ pub const ANALYTICS_FILE: &str = "analytics.db";
 /// absent (the backfill, whatever was ingested) and otherwise only after something was ingested. Never fails the
 /// caller: the result is a line to log, or None when there is nothing to say.
 pub fn after_ingest(warehouse: &Path, ingested: usize, now: f64) -> Option<String> {
+    after_ingest_profiled(warehouse, ingested, now).0
+}
+
+/// `after_ingest`, and where the time went (empty when nothing was run).
+pub fn after_ingest_profiled(warehouse: &Path, ingested: usize, now: f64) -> (Option<String>, Profile) {
     let out = warehouse.with_file_name(ANALYTICS_FILE);
     if ingested == 0 && out.exists() {
-        return None;
+        return (None, Profile::default());
     }
     match run(warehouse, &out, &Selection::default(), now) {
-        Ok(s) if s.computed > 0 => Some(format!("analysed {} story runs, {} calls, {} thinking blocks ({:.1} s)", s.computed, s.calls, s.think_blocks, s.seconds)),
-        Ok(_) => None,
-        Err(e) => Some(format!("analytics: {e:#}")),
+        Ok(s) if s.computed > 0 => {
+            let line = format!("analysed {} story runs, {} calls, {} thinking blocks ({})", s.computed, s.calls, s.think_blocks, s.profile.line(s.seconds, LOG_TOP_PHASES));
+            (Some(line), s.profile)
+        }
+        Ok(s) => (None, s.profile),
+        Err(e) => (Some(format!("analytics: {e:#}")), Profile::default()),
     }
 }
 

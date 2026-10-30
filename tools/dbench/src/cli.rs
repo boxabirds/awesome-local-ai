@@ -292,6 +292,9 @@ pub struct IngestArgs {
     /// Only this story run (`<run dir>/stories/NN`) or every story of this run dir; repeatable.
     #[arg(long = "only")]
     pub only: Vec<String>,
+    /// Print where the time went, phase by phase, under the usual line.
+    #[arg(long)]
+    pub profile: bool,
     /// Print the schema and exit.
     #[arg(long)]
     pub schema: bool,

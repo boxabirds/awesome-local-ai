@@ -17,6 +17,8 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use serde_json::{json, Value};
 
+use crate::profile::Profile;
+
 /// One model call as the agent's client streamed it: request sent, prefill ends (first streamed
 /// chunk), decode ends; its prompt tokens (fresh and cached) and output tokens. accounting.Call.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -586,27 +588,34 @@ fn story_window(rec: &Value, rows: &events::Rows, timing: &timing::Parsed, now: 
 /// Ingest one story: its rows, its stream, its collection record. The run's requests are placed
 /// afterwards, from every story's calls (`ingest_run_requests`).
 pub fn ingest_story(db: &mut db::Db, parts: &RunParts, inp: &StoryInputs, now: f64) -> Result<StoryOutcome> {
+    ingest_story_profiled(db, parts, inp, now, &mut Profile::default())
+}
+
+/// `ingest_story`, charging where its time went to `prof`.
+pub fn ingest_story_profiled(db: &mut db::Db, parts: &RunParts, inp: &StoryInputs, now: f64, prof: &mut Profile) -> Result<StoryOutcome> {
     let started = std::time::Instant::now();
     let text = inp.events_text.as_deref().unwrap_or("");
-    let rows = events::parse(text);
+    let rows = prof.time("story.parse_events", || events::parse(text));
     let t_to_guess = inp.rec.get("agent_finished").and_then(Value::as_f64).unwrap_or(now);
-    let timing = timing::parse(text, t_to_guess);
-    db.upsert_run(&inp.run_dir, parts, &inp.run_json, &inp.status_json, inp.node.as_deref(), now)?;
-    let sk = db.upsert_story(&inp.rel, &inp.run_dir, inp.story, parts, &inp.rec, &inp.run_json, &rows, &inp.events_source)?;
-    db.replace_story_rows(sk, &rows, &timing, &inp.rec)?;
-    let timed = join_call_timing(&rows, &timing);
-    let conds = conditions(inp.conditions_text.as_deref(), &inp.rec, sk);
-    db.replace_conditions(&inp.run_dir, sk, &conds)?;
-    db.replace_memory(&inp.run_dir, sk, memory(&inp.rec).as_ref())?;
-    let stream = stream_events(&rows, &timing, &timed, &[], &conds);
-    let events_written = if inp.complete {
-        db.replace_events(sk, &stream)?;
-        stream.len()
-    } else {
-        db.append_events(sk, &stream)?
-    };
-    let (t_from, t_to) = story_window(&inp.rec, &rows, &timing, now);
-    db.set_collection(
+    let timing = prof.time("story.parse_timing", || timing::parse(text, t_to_guess));
+    prof.time("story.db_run", || db.upsert_run(&inp.run_dir, parts, &inp.run_json, &inp.status_json, inp.node.as_deref(), now))?;
+    let sk = prof.time("story.db_story", || db.upsert_story(&inp.rel, &inp.run_dir, inp.story, parts, &inp.rec, &inp.run_json, &rows, &inp.events_source))?;
+    prof.time("story.db_rows", || db.replace_story_rows(sk, &rows, &timing, &inp.rec))?;
+    let timed = prof.time("story.join_timing", || join_call_timing(&rows, &timing));
+    let conds = prof.time("story.build_conditions", || conditions(inp.conditions_text.as_deref(), &inp.rec, sk));
+    prof.time("story.db_conditions", || db.replace_conditions(&inp.run_dir, sk, &conds))?;
+    prof.time("story.db_memory", || db.replace_memory(&inp.run_dir, sk, memory(&inp.rec).as_ref()))?;
+    let stream = prof.time("story.build_stream", || stream_events(&rows, &timing, &timed, &[], &conds));
+    let events_written = prof.time("story.db_events", || -> Result<usize> {
+        Ok(if inp.complete {
+            db.replace_events(sk, &stream)?;
+            stream.len()
+        } else {
+            db.append_events(sk, &stream)?
+        })
+    })?;
+    let (t_from, t_to) = prof.time("story.window", || story_window(&inp.rec, &rows, &timing, now));
+    prof.time("story.db_collection", || db.set_collection(
         sk,
         &db::Collection {
             node: inp.node.clone(),
@@ -626,7 +635,7 @@ pub fn ingest_story(db: &mut db::Db, parts: &RunParts, inp: &StoryInputs, now: f
             ingest_version: INGEST_VERSION,
             ingest_s: started.elapsed().as_secs_f64(),
         },
-    )?;
+    ))?;
     let calls = StoryCalls {
         sk,
         t_from,
@@ -639,11 +648,20 @@ pub fn ingest_story(db: &mut db::Db, parts: &RunParts, inp: &StoryInputs, now: f
 /// The run's requests from its server log, placed in its stories; each placed request also joins
 /// its story's stream.
 pub fn ingest_run_requests(db: &mut db::Db, run_dir: &str, server_log: Option<&str>, stories: &[StoryCalls], complete: &std::collections::HashMap<i64, bool>) -> Result<usize> {
+    ingest_run_requests_profiled(db, run_dir, server_log, stories, complete, &mut Profile::default())
+}
+
+/// `ingest_run_requests`, charging where its time went to `prof`.
+pub fn ingest_run_requests_profiled(
+    db: &mut db::Db, run_dir: &str, server_log: Option<&str>, stories: &[StoryCalls], complete: &std::collections::HashMap<i64, bool>, prof: &mut Profile,
+) -> Result<usize> {
     let Some(text) = server_log else { return Ok(0) };
-    let llama = llama_requests(text, stories);
-    let engine = engine_requests(text, stories);
-    db.replace_requests(run_dir, SOURCE_LLAMA, &llama)?;
-    db.replace_requests(run_dir, SOURCE_ENGINE, &engine)?;
+    let llama = prof.time("requests.parse_llama", || llama_requests(text, stories));
+    let engine = prof.time("requests.parse_engine", || engine_requests(text, stories));
+    prof.time("requests.db_replace", || -> Result<()> {
+        db.replace_requests(run_dir, SOURCE_LLAMA, &llama)?;
+        db.replace_requests(run_dir, SOURCE_ENGINE, &engine)
+    })?;
     let mut n = 0;
     for s in stories {
         let mine: Vec<(usize, &RequestRow)> = llama.iter().enumerate().chain(engine.iter().enumerate()).filter(|(_, r)| r.sk == Some(s.sk)).collect();
@@ -652,11 +670,11 @@ pub fn ingest_run_requests(db: &mut db::Db, run_dir: &str, server_log: Option<&s
         }
         let empty = events::Rows::default();
         let none = timing::Parsed::default();
-        let stream = stream_events(&empty, &none, &[], &mine, &[]);
+        let stream = prof.time("requests.build_stream", || stream_events(&empty, &none, &[], &mine, &[]));
         // A finished story's stream was rebuilt whole by ingest_story; its requests are appended in time order after it,
         // which keeps ord append-only either way.
         let _ = complete;
-        n += db.append_events(s.sk, &stream)?;
+        n += prof.time("requests.db_append", || db.append_events(s.sk, &stream))?;
     }
     Ok(n)
 }
@@ -705,6 +723,9 @@ pub fn cmd_ingest(args: &crate::cli::IngestArgs, json: bool) -> Result<()> {
             "ingested {} of {} story runs in {} runs ({} unchanged), {} requests placed, {:.1} s",
             summary.ingested, summary.candidates, summary.runs, summary.unchanged, summary.requests, summary.seconds
         );
+        if args.profile {
+            print!("{}", summary.profile.report(summary.seconds));
+        }
     }
     let _ = std::io::stdout().flush();
     Ok(())

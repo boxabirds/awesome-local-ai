@@ -12,6 +12,7 @@ use std::io::{BufRead, Read, Write};
 use std::path::{Path, PathBuf};
 
 use super::{StoryInputs, EVENTS_COMPACT, EVENTS_FULL, EVENTS_NONE};
+use crate::profile::Profile;
 use crate::collect::{CONDITIONS_FILE, EVENTS_FILE, PROXY_LOG, SERVER_LOG, STORIES_DIR};
 
 pub const COMPACT_LOG: &str = "agent-events.compact.jsonl.gz";
@@ -269,24 +270,33 @@ fn lake_story_log(lake: &LakeRun, story: i64) -> Option<PathBuf> {
 /// Every story run id with a log anywhere: published (the compact log in git) or in the lake (the
 /// full log), the lake's path mapped to its published name where the combination was renamed.
 pub fn candidates(published: &dyn Published, lake: &BTreeMap<String, LakeRun>) -> Result<BTreeSet<String>> {
-    let archived = published.archived()?;
+    candidates_profiled(published, lake, &mut Profile::default())
+}
+
+/// `candidates`, charging where its time went to `prof`.
+pub fn candidates_profiled(published: &dyn Published, lake: &BTreeMap<String, LakeRun>, prof: &mut Profile) -> Result<BTreeSet<String>> {
+    let archived = prof.time("candidates.archived", || published.archived())?;
     let is_archived = |story: &str| super::split_story_rel(story).is_some_and(|(run, _)| archived.contains(run));
     let mut out = BTreeSet::new();
-    for path in published.paths()?.keys() {
-        if path.contains(RESCORE_DIR) {
-            continue;
+    let first_paths = prof.time("candidates.published_paths", || published.paths())?;
+    prof.time("candidates.compact_scan", || {
+        for path in first_paths.keys() {
+            if path.contains(RESCORE_DIR) {
+                continue;
+            }
+            if let Some(dir) = path.strip_suffix(&format!("/{COMPACT_LOG}")).filter(|d| !is_archived(d)) {
+                out.insert(dir.to_string());
+            }
         }
-        if let Some(dir) = path.strip_suffix(&format!("/{COMPACT_LOG}")).filter(|d| !is_archived(d)) {
-            out.insert(dir.to_string());
-        }
-    }
-    let published_paths = published.paths()?;
+    });
+    let published_paths = prof.time("candidates.published_paths", || published.paths())?;
     // A run under `-opencode/` is a pi run recorded before the rename only if nothing is published under that name: a real
     // OpenCode run publishes its records under its own.
     let renamed = |run: &str| -> String {
         let has_own = published_paths.keys().any(|p| p.starts_with(&format!("{run}/")));
         if has_own { run.to_string() } else { run.replace(RENAMED_FROM, RENAMED_TO) }
     };
+    prof.time("candidates.lake_scan", || {
     for (run, lr) in lake {
         if !under_published_root(run) || run.contains(RESCORE_DIR) || archived.contains(run) || archived.contains(&renamed(run)) {
             continue;
@@ -301,6 +311,7 @@ pub fn candidates(published: &dyn Published, lake: &BTreeMap<String, LakeRun>) -
             }
         }
     }
+    });
     Ok(out)
 }
 
@@ -312,12 +323,28 @@ fn gunzip(bytes: &[u8]) -> Result<String> {
 
 /// The text of a file, lossily (a log may hold bytes that aren't UTF-8); only its complete lines
 /// when `complete_lines_only` (a file still being appended to ends mid-line).
-pub fn read_text(path: &Path, complete_lines_only: bool) -> Result<Option<String>> {
-    let bytes = match std::fs::read(path) {
+/// The two phases a text file's time is charged to: reading its bytes, and turning them into a string.
+#[derive(Clone, Copy)]
+pub struct TextPhases {
+    pub read: &'static str,
+    pub decode: &'static str,
+}
+
+pub const LAKE_EVENTS_TEXT: TextPhases = TextPhases { read: "inputs_for.read_lake", decode: "inputs_for.decode_lake" };
+pub const CONDITIONS_TEXT: TextPhases = TextPhases { read: "inputs_for.read_conditions", decode: "inputs_for.decode_conditions" };
+pub const SERVER_LOG_TEXT: TextPhases = TextPhases { read: "run.read_server_log", decode: "run.decode_server_log" };
+
+pub fn read_text(path: &Path, complete_lines_only: bool, prof: &mut Profile, phases: TextPhases) -> Result<Option<String>> {
+    let started = std::time::Instant::now();
+    let read = std::fs::read(path);
+    let size = read.as_ref().map_or(0, |b| b.len() as u64);
+    prof.record(phases.read, started.elapsed().as_secs_f64(), size);
+    let bytes = match read {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(e.into()),
     };
+    let started = std::time::Instant::now();
     let mut text = String::from_utf8_lossy(&bytes).into_owned();
     if complete_lines_only && !text.ends_with('\n') {
         match text.rfind('\n') {
@@ -325,6 +352,7 @@ pub fn read_text(path: &Path, complete_lines_only: bool) -> Result<Option<String
             None => text.clear(),
         }
     }
+    prof.record(phases.decode, started.elapsed().as_secs_f64(), size);
     Ok(Some(text))
 }
 
@@ -355,21 +383,33 @@ pub fn run_record(published: &dyn Published, ids: &BTreeMap<String, String>, run
 
 /// Gather one story's inputs: the full log from the lake when the run is there and the story has
 /// one, else the compact log from git; the record from git; the lake's conditions and flags.
-pub fn inputs_for(published: &dyn Published, ids: &BTreeMap<String, String>, lake: Option<&LakeRun>, rel: &str, record: &RunRecord) -> Result<StoryInputs> {
+pub fn inputs_for(published: &dyn Published, ids: &BTreeMap<String, String>, lake: Option<&LakeRun>, rel: &str, record: &RunRecord, prof: &mut Profile) -> Result<StoryInputs> {
     let (run_dir, story) = super::split_story_rel(rel).with_context(|| format!("not a story run id: {rel}"))?;
     let mut inp = StoryInputs { rel: rel.to_string(), run_dir: run_dir.to_string(), story, ..Default::default() };
     let mut digest = vec![format!("record:{}", record.ids)];
     let compact_path = format!("{rel}/{COMPACT_LOG}");
-    let lake_log = lake.and_then(|l| lake_story_log(l, story));
+    let lake_log = prof.time("inputs_for.lake_lookup", || lake.and_then(|l| lake_story_log(l, story)));
     let lake_complete = lake.is_some_and(|l| l.record.complete);
+    // The published log is read only for a story the lake has no full log of.
+    let compact = if lake_log.is_some() {
+        None
+    } else {
+        let read = prof.time("inputs_for.git_read", || published.read(&compact_path))?;
+        prof.add_bytes("inputs_for.git_read", read.as_ref().map_or(0, |b| b.len() as u64));
+        read
+    };
     if let Some(p) = &lake_log {
-        inp.events_text = read_text(p, !lake_complete)?;
+        inp.events_text = read_text(p, !lake_complete, prof, LAKE_EVENTS_TEXT)?;
         inp.events_source = EVENTS_FULL.into();
         inp.events_path = Some(p.display().to_string());
-        inp.events_bytes = std::fs::metadata(p).map_or(0, |m| m.len() as i64);
-        digest.push(format!("full:{}", stamp_of(p)));
-    } else if let Some(bytes) = published.read(&compact_path)? {
-        inp.events_text = Some(gunzip(&bytes)?);
+        let stamp = prof.time("inputs_for.stat", || (std::fs::metadata(p).map_or(0, |m| m.len() as i64), stamp_of(p)));
+        inp.events_bytes = stamp.0;
+        digest.push(format!("full:{}", stamp.1));
+    } else if let Some(bytes) = compact {
+        let started = std::time::Instant::now();
+        let text = gunzip(&bytes)?;
+        prof.record("inputs_for.gunzip", started.elapsed().as_secs_f64(), text.len() as u64);
+        inp.events_text = Some(text);
         inp.events_source = EVENTS_COMPACT.into();
         inp.events_path = Some(compact_path.clone());
         inp.events_bytes = bytes.len() as i64;
@@ -379,19 +419,21 @@ pub fn inputs_for(published: &dyn Published, ids: &BTreeMap<String, String>, lak
     }
     if let Some(l) = lake {
         let cond = l.dir.join(STORIES_DIR).join(format!("{story:02}")).join(CONDITIONS_FILE);
-        if cond.is_file() {
-            inp.conditions_text = read_text(&cond, !lake_complete)?;
-            digest.push(format!("conditions:{}", stamp_of(&cond)));
+        if prof.time("inputs_for.stat", || cond.is_file()) {
+            inp.conditions_text = read_text(&cond, !lake_complete, prof, CONDITIONS_TEXT)?;
+            digest.push(format!("conditions:{}", prof.time("inputs_for.stat", || stamp_of(&cond))));
         }
-        inp.has_server_log = l.dir.join(SERVER_LOG).is_file();
-        inp.has_proxy_log = l.dir.join(PROXY_LOG).is_file();
-        inp.has_egress = l.dir.join(EGRESS_FILE).is_file();
-        inp.has_progress = l.dir.join(PROGRESS_FILE).is_file();
+        prof.time("inputs_for.stat", || {
+            inp.has_server_log = l.dir.join(SERVER_LOG).is_file();
+            inp.has_proxy_log = l.dir.join(PROXY_LOG).is_file();
+            inp.has_egress = l.dir.join(EGRESS_FILE).is_file();
+            inp.has_progress = l.dir.join(PROGRESS_FILE).is_file();
+        });
         inp.node = Some(l.node.clone());
         inp.collected_at = l.record.collected_at;
         inp.complete = l.record.complete;
         if inp.has_server_log {
-            digest.push(format!("server:{}", stamp_of(&l.dir.join(SERVER_LOG))));
+            digest.push(format!("server:{}", prof.time("inputs_for.stat", || stamp_of(&l.dir.join(SERVER_LOG)))));
         }
     } else {
         // Nothing to wait for from a machine: a published story is as complete as it will be.
@@ -422,17 +464,19 @@ pub struct Summary {
     pub requests: usize,
     pub runs: usize,
     pub seconds: f64,
+    pub profile: crate::profile::Profile,
 }
 
 /// Ingest what changed (or everything): each candidate story, then each run's requests.
 pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel: &Selection, now: f64) -> Result<Summary> {
     let started = std::time::Instant::now();
-    db.purge_reference()?;          // anything an earlier version ingested
-    db.purge_runs(&published.archived()?)?; // and any run archived since it was ingested
-    let ids = published.paths()?;
-    let lake = lake_runs(store)?;
+    let mut prof = Profile::default();
+    prof.time("purge_reference", || db.purge_reference())?;          // anything an earlier version ingested
+    prof.time("purge_archived", || -> Result<usize> { db.purge_runs(&published.archived()?) })?; // and any run archived since it was ingested
+    let ids = prof.time("published_paths", || published.paths())?;
+    let lake = prof.time("lake_scan", || lake_runs(store))?;
     let mut by_run: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for rel in candidates(published, &lake)? {
+    for rel in candidates_profiled(published, &lake, &mut prof)? {
         if !sel.only.is_empty() && !sel.only.iter().any(|o| rel == *o || rel.starts_with(&format!("{o}/"))) {
             continue;
         }
@@ -443,27 +487,30 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
     let mut summary = Summary { candidates: by_run.values().map(Vec::len).sum(), runs: by_run.len(), ..Default::default() };
     for (run_dir, stories) in &by_run {
         let Some(parts) = super::run_parts(run_dir) else { continue };
-        let record = run_record(published, &ids, run_dir)?;
+        let record = prof.time("run_record", || run_record(published, &ids, run_dir))?;
         let lr = lake.get(run_dir);
         let mut calls = Vec::new();
         let mut complete = HashMap::new();
         let mut changed = false;
         for rel in stories {
-            let inp = inputs_for(published, &ids, lr, rel, &record)?;
-            let sk = db.story_sk(rel)?;
-            let same = match sk {
-                Some(sk) => db.collection_digest(sk)?.is_some_and(|(d, c)| d == inp.inputs_digest && c),
-                None => false,
-            };
+            let inp = inputs_for(published, &ids, lr, rel, &record, &mut prof)?;
+            let (sk, same) = prof.time("digest_check", || -> Result<_> {
+                let sk = db.story_sk(rel)?;
+                let same = match sk {
+                    Some(sk) => db.collection_digest(sk)?.is_some_and(|(d, c)| d == inp.inputs_digest && c),
+                    None => false,
+                };
+                Ok((sk, same))
+            })?;
             if same && !sel.all {
                 summary.unchanged += 1;
                 if let Some(sk) = sk {
-                    calls.push(story_calls_from_db(db, sk)?);
+                    calls.push(prof.time("calls_from_db", || story_calls_from_db(db, sk))?);
                     complete.insert(sk, true);
                 }
                 continue;
             }
-            let out = super::ingest_story(db, &parts, &inp, now)?;
+            let out = super::ingest_story_profiled(db, &parts, &inp, now, &mut prof)?;
             complete.insert(out.sk, inp.complete);
             calls.push(out.calls);
             summary.ingested += 1;
@@ -471,15 +518,18 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
         }
         if changed || sel.all {
             let server_log = match lr {
-                Some(l) => read_text(&l.dir.join(SERVER_LOG), !l.record.complete)?,
+                Some(l) => read_text(&l.dir.join(SERVER_LOG), !l.record.complete, &mut prof, SERVER_LOG_TEXT)?,
                 None => None,
             };
-            summary.requests += super::ingest_run_requests(db, run_dir, server_log.as_deref(), &calls, &complete)?;
+            summary.requests += super::ingest_run_requests_profiled(db, run_dir, server_log.as_deref(), &calls, &complete, &mut prof)?;
         }
     }
-    db.set_meta("built_at", &format!("{now:.3}"))?;
-    db.set_meta("source", &published.describe())?;
-    db.set_meta("ingest_version", &super::INGEST_VERSION.to_string())?;
+    prof.time("set_meta", || -> Result<()> {
+        db.set_meta("built_at", &format!("{now:.3}"))?;
+        db.set_meta("source", &published.describe())?;
+        db.set_meta("ingest_version", &super::INGEST_VERSION.to_string())
+    })?;
+    summary.profile = prof;
     summary.seconds = started.elapsed().as_secs_f64();
     Ok(summary)
 }
