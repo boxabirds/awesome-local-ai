@@ -11,7 +11,7 @@ use dbench::client::Ctx;
 /// Pull what git never carries from every node into the lake, keep the conversation database current, and serve
 /// the conversation API. The same as `dbench collect`.
 #[derive(Parser, Debug)]
-#[command(name = "dbench-collector", version = env!("CARGO_PKG_VERSION"))]
+#[command(name = "dbench-collector", version = dbench::VERSION)]
 struct Args {
     /// Node list (default ~/.config/dbench/nodes.toml).
     #[arg(long)]

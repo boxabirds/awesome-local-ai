@@ -34,3 +34,14 @@ fn it_takes_the_same_options_as_dbench_collect_and_does_the_same_thing() {
     let (ok, out) = collector(&["--no-such-option"]);
     assert!(!ok, "{out}");
 }
+
+#[test]
+fn it_names_the_build_it_runs_as_dbench_does() {
+    // A service has to say which build it is: "0.1.0+<commit>", the same string as dbench's.
+    let (ok, mine) = collector(&["--version"]);
+    assert!(ok, "{mine}");
+    let theirs = Command::new(env!("CARGO_BIN_EXE_dbench")).arg("--version").output().unwrap();
+    let theirs = String::from_utf8_lossy(&theirs.stdout).replacen("dbench", "dbench-collector", 1);
+    assert_eq!(mine, theirs);
+    assert!(mine.contains('+'), "{mine}");
+}
