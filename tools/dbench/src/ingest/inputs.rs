@@ -383,45 +383,49 @@ pub fn run_record(published: &dyn Published, ids: &BTreeMap<String, String>, run
 
 /// Gather one story's inputs: the full log from the lake when the run is there and the story has
 /// one, else the compact log from git; the record from git; the lake's conditions and flags.
-pub fn inputs_for(published: &dyn Published, ids: &BTreeMap<String, String>, lake: Option<&LakeRun>, rel: &str, record: &RunRecord, prof: &mut Profile) -> Result<StoryInputs> {
+/// Where a story's texts are to be read from, once it is known to have changed.
+#[derive(Debug, Clone, Default)]
+pub struct Sources {
+    /// The full log in the lake, read to its last complete line while the run is not complete.
+    lake_log: Option<PathBuf>,
+    /// The compact log in git, when the lake has no full log.
+    compact: Option<String>,
+    /// The machine readings in the lake.
+    conditions: Option<PathBuf>,
+    lake_complete: bool,
+}
+
+/// A story's inputs without their texts: what they are, where they are and their digest, from file stamps and git ids
+/// alone. Deciding that a story is unchanged reads nothing (30 Oct 2026: reading every story's log first cost 25 GB a
+/// pass and a 2 GB peak, to learn nothing had changed). `load_texts` reads them for a story that has.
+pub fn plan_inputs(ids: &BTreeMap<String, String>, lake: Option<&LakeRun>, rel: &str, record: &RunRecord, prof: &mut Profile) -> Result<(StoryInputs, Sources)> {
     let (run_dir, story) = super::split_story_rel(rel).with_context(|| format!("not a story run id: {rel}"))?;
     let mut inp = StoryInputs { rel: rel.to_string(), run_dir: run_dir.to_string(), story, ..Default::default() };
+    let mut src = Sources { lake_complete: lake.is_some_and(|l| l.record.complete), ..Default::default() };
     let mut digest = vec![format!("record:{}", record.ids)];
     let compact_path = format!("{rel}/{COMPACT_LOG}");
     let lake_log = prof.time("inputs_for.lake_lookup", || lake.and_then(|l| lake_story_log(l, story)));
-    let lake_complete = lake.is_some_and(|l| l.record.complete);
     // The published log is read only for a story the lake has no full log of.
-    let compact = if lake_log.is_some() {
-        None
-    } else {
-        let read = prof.time("inputs_for.git_read", || published.read(&compact_path))?;
-        prof.add_bytes("inputs_for.git_read", read.as_ref().map_or(0, |b| b.len() as u64));
-        read
-    };
-    if let Some(p) = &lake_log {
-        inp.events_text = read_text(p, !lake_complete, prof, LAKE_EVENTS_TEXT)?;
+    if let Some(p) = lake_log {
         inp.events_source = EVENTS_FULL.into();
         inp.events_path = Some(p.display().to_string());
-        let stamp = prof.time("inputs_for.stat", || (std::fs::metadata(p).map_or(0, |m| m.len() as i64), stamp_of(p)));
+        let stamp = prof.time("inputs_for.stat", || (std::fs::metadata(&p).map_or(0, |m| m.len() as i64), stamp_of(&p)));
         inp.events_bytes = stamp.0;
         digest.push(format!("full:{}", stamp.1));
-    } else if let Some(bytes) = compact {
-        let started = std::time::Instant::now();
-        let text = gunzip(&bytes)?;
-        prof.record("inputs_for.gunzip", started.elapsed().as_secs_f64(), text.len() as u64);
-        inp.events_text = Some(text);
+        src.lake_log = Some(p);
+    } else if let Some(id) = ids.get(&compact_path) {
         inp.events_source = EVENTS_COMPACT.into();
         inp.events_path = Some(compact_path.clone());
-        inp.events_bytes = bytes.len() as i64;
-        digest.push(format!("compact:{}", ids.get(&compact_path).map_or("", String::as_str)));
+        digest.push(format!("compact:{id}"));
+        src.compact = Some(compact_path);
     } else {
         inp.events_source = EVENTS_NONE.into();
     }
     if let Some(l) = lake {
         let cond = l.dir.join(STORIES_DIR).join(format!("{story:02}")).join(CONDITIONS_FILE);
         if prof.time("inputs_for.stat", || cond.is_file()) {
-            inp.conditions_text = read_text(&cond, !lake_complete, prof, CONDITIONS_TEXT)?;
             digest.push(format!("conditions:{}", prof.time("inputs_for.stat", || stamp_of(&cond))));
+            src.conditions = Some(cond);
         }
         prof.time("inputs_for.stat", || {
             inp.has_server_log = l.dir.join(SERVER_LOG).is_file();
@@ -444,6 +448,41 @@ pub fn inputs_for(published: &dyn Published, ids: &BTreeMap<String, String>, lak
     inp.status_json = record.status_json.clone();
     digest.push(format!("complete:{}", inp.complete));
     inp.inputs_digest = format!("{:016x}", crate::collect::fnv1a64(digest.join("|").as_bytes()));
+    Ok((inp, src))
+}
+
+/// Read a planned story's texts: its log (full from the lake, else compact from git) and its machine readings.
+pub fn load_texts(published: &dyn Published, inp: &mut StoryInputs, src: &Sources, prof: &mut Profile) -> Result<()> {
+    if let Some(p) = &src.lake_log {
+        inp.events_text = read_text(p, !src.lake_complete, prof, LAKE_EVENTS_TEXT)?;
+    } else if let Some(path) = &src.compact {
+        let read = prof.time("inputs_for.git_read", || published.read(path))?;
+        prof.add_bytes("inputs_for.git_read", read.as_ref().map_or(0, |b| b.len() as u64));
+        match read {
+            Some(bytes) => {
+                let started = std::time::Instant::now();
+                let text = gunzip(&bytes)?;
+                prof.record("inputs_for.gunzip", started.elapsed().as_secs_f64(), text.len() as u64);
+                inp.events_text = Some(text);
+                inp.events_bytes = bytes.len() as i64;
+            }
+            // Listed in git but gone when read: as if there were no log.
+            None => {
+                inp.events_source = EVENTS_NONE.into();
+                inp.events_path = None;
+            }
+        }
+    }
+    if let Some(cond) = &src.conditions {
+        inp.conditions_text = read_text(cond, !src.lake_complete, prof, CONDITIONS_TEXT)?;
+    }
+    Ok(())
+}
+
+/// A story's inputs, texts and all.
+pub fn inputs_for(published: &dyn Published, ids: &BTreeMap<String, String>, lake: Option<&LakeRun>, rel: &str, record: &RunRecord, prof: &mut Profile) -> Result<StoryInputs> {
+    let (mut inp, src) = plan_inputs(ids, lake, rel, record, prof)?;
+    load_texts(published, &mut inp, &src, prof)?;
     Ok(inp)
 }
 
@@ -491,25 +530,29 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
         let lr = lake.get(run_dir);
         let mut calls = Vec::new();
         let mut complete = HashMap::new();
+        let mut unchanged_sks = Vec::new();
         let mut changed = false;
         for rel in stories {
-            let inp = inputs_for(published, &ids, lr, rel, &record, &mut prof)?;
+            let (mut inp, src) = plan_inputs(&ids, lr, rel, &record, &mut prof)?;
+            // The digest holds every input, the run's completeness included, so an equal one means nothing changed,
+            // complete or not: a run that never completes (its node gone, the run stopped) is not redone every pass.
             let (sk, same) = prof.time("digest_check", || -> Result<_> {
                 let sk = db.story_sk(rel)?;
                 let same = match sk {
-                    Some(sk) => db.collection_digest(sk)?.is_some_and(|(d, c)| d == inp.inputs_digest && c),
-                    None => false,
+                    Some(sk) => db.collection_digest(sk)?.filter(|(d, _)| *d == inp.inputs_digest).map(|(_, c)| c),
+                    None => None,
                 };
                 Ok((sk, same))
             })?;
-            if same && !sel.all {
+            if let (Some(was_complete), false) = (same, sel.all) {
                 summary.unchanged += 1;
                 if let Some(sk) = sk {
-                    calls.push(prof.time("calls_from_db", || story_calls_from_db(db, sk))?);
-                    complete.insert(sk, true);
+                    unchanged_sks.push(sk);
+                    complete.insert(sk, was_complete);
                 }
                 continue;
             }
+            load_texts(published, &mut inp, &src, &mut prof)?;
             let out = super::ingest_story_profiled(db, &parts, &inp, now, &mut prof)?;
             complete.insert(out.sk, inp.complete);
             calls.push(out.calls);
@@ -517,6 +560,10 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
             changed = true;
         }
         if changed || sel.all {
+            // The run's requests are placed among all its stories' calls; an unchanged story's come from the database.
+            for sk in unchanged_sks {
+                calls.push(prof.time("calls_from_db", || story_calls_from_db(db, sk))?);
+            }
             let server_log = match lr {
                 Some(l) => read_text(&l.dir.join(SERVER_LOG), !l.record.complete, &mut prof, SERVER_LOG_TEXT)?,
                 None => None,

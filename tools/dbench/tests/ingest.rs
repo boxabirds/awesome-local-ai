@@ -516,6 +516,28 @@ fn dbench_ingest_builds_the_database_from_the_published_tree_and_the_lake_and_re
     let summary: Value = serde_json::from_str(&out).unwrap();
     // The run's collection record is an input of both its stories.
     assert_eq!(summary["ingested"].as_u64(), Some(2));
+    // A run that never completes (its node is gone, or the run was stopped) is not redone while nothing changes: the
+    // digest holds every input, completeness included. (30 Oct 2026: 13 such stories, 540 MB of logs, were re-read and
+    // rewritten on every pass, about every 75 s, at up to a core and 2.2 GB.)
+    let (ok, out) = ingest_cmd(&common);
+    assert!(ok, "{out}");
+    let summary: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!((summary["ingested"].as_u64(), summary["unchanged"].as_u64()), (Some(0), Some(2)));
+    // Deciding that is done from the files' stamps: an unchanged story's log is not read, and with nothing changed in
+    // the run its stories' calls are not loaded either. (30 Oct 2026: every pass read all 599 stories' logs, 25 GB,
+    // peaking at 2 GB of memory, only to find nothing had changed.)
+    let phases = summary["profile"].as_object().unwrap();
+    for phase in ["inputs_for.read_lake", "inputs_for.git_read", "inputs_for.read_conditions", "calls_from_db"] {
+        assert!(!phases.contains_key(phase), "{phase} ran on a pass with nothing to do: {}", summary["profile"]);
+    }
+    // Its log growing is a change, and only that story is redone.
+    let mut log = std::fs::OpenOptions::new().append(true).open(lake.join("stories/02/agent-events.jsonl")).unwrap();
+    std::io::Write::write_all(&mut log, b"{}\n").unwrap();
+    drop(log);
+    let (ok, out) = ingest_cmd(&common);
+    assert!(ok, "{out}");
+    let summary: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!((summary["ingested"].as_u64(), summary["unchanged"].as_u64()), (Some(1), Some(1)));
     // --only narrows to one story; --schema prints the schema.
     let (ok, out) = ingest_cmd(&[&common[..], &["--all", "--only", &format!("{RUN}/stories/01")]].concat());
     assert!(ok, "{out}");
