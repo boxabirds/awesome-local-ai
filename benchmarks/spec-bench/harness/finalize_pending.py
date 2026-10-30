@@ -242,7 +242,9 @@ def pack_ref(name: str) -> str | None:
 def finalize_one(run: Path, pack: str, record: bool, timeout_s: float, action: str) -> dict:
     if action == REPAIR:
         return finalize.repair_run(run, pack, record)
-    return finalize.finalize_run(run, pack, record, timeout_s)
+    out = finalize.finalize_run(run, pack, record, timeout_s)
+    finalize.release_work(run)      # a run scored late is finished too; its dir goes only if it passes release_work's checks
+    return out
 
 
 def _label(run: Path, root: Path) -> str:

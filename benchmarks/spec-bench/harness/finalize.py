@@ -35,9 +35,11 @@ import argparse
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Callable
@@ -45,6 +47,7 @@ from typing import Callable
 HARNESS = Path(__file__).resolve().parent
 BUNDLE = "workspace.bundle"
 STATUS = "finalize.json"
+RUN_STATUS = "run-status.json"         # written by run.sh: state finished, failed or stopped
 SPOILED = "rescore-spoiled"
 SET_ASIDE = "set-aside.json"          # beside a set-aside re-score: why it was not recorded
 RAW_LOG = "agent-events.jsonl"        # a story's full log, kept only on the machine that ran it
@@ -130,6 +133,48 @@ def ensure_bundle(run: Path) -> None:
     elif not (run / BUNDLE).is_file():
         raise Unscored(KIND_NO_BUNDLE, "the run has no workspace.bundle and its work directory is gone from this "
                                        "machine: there is no code left to score", needs_person=True)
+
+
+def bundle_verifies(bundle_file: Path) -> bool:
+    """git can read the bundle and its history is complete (a bundle has no repository of its own to check against)."""
+    if not bundle_file.is_file():
+        return False
+    with tempfile.TemporaryDirectory() as scratch:
+        subprocess.run(["git", "init", "-q", scratch], check=True, capture_output=True)
+        return subprocess.run(["git", "-C", scratch, "bundle", "verify", str(bundle_file)], capture_output=True).returncode == 0
+
+
+def release_work(run: Path) -> str | None:
+    """Give back a finished, scored run's work dir (1.4 to 3.1 GB): its code is the run's workspace.bundle, which
+    rescore.py and a partial rerun read, so the dir is only weight. Kept for a run that has not finished (a stopped or
+    failed run resumes in it), whose final score is not recorded, or whose bundle does not verify. Only the harness's own
+    path for the run goes (drive.work_dir_for), never whatever work_dir.txt says. A note on what it did, else None."""
+    import drive
+    own = drive.work_dir_for(run)
+    if not own.is_dir() or read_run_status(run).get("state") != "finished":
+        return None
+    if read_status(run).get("rescore") != "done" or not bundle_verifies(run / BUNDLE):
+        return None
+    try:
+        named = Path((run / "work_dir.txt").read_text().strip()).expanduser()
+    except OSError:
+        return None
+    if named.resolve() != own.resolve():
+        return None
+    gone = sum(f.stat().st_size for f in own.rglob("*") if f.is_file() and not f.is_symlink())
+    shutil.rmtree(own)
+    link = drive.WORK_LINKS / drive.work_dir_name(run)
+    if link.is_symlink():
+        link.unlink()
+    return f"gave back its work dir ({gone / 2**30:.1f} GB): the code is in {BUNDLE}"
+
+
+def read_run_status(run: Path) -> dict:
+    try:
+        doc = json.loads((run / RUN_STATUS).read_text())
+    except (OSError, ValueError):
+        return {}
+    return doc if isinstance(doc, dict) else {}
 
 
 def bundle(workspace: Path, dest: Path) -> None:
@@ -606,8 +651,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("run", type=Path)
     ap.add_argument("--pack", default="benchmarks/vidi")
     ap.add_argument("--record", action="store_true", help="commit and push the result with the run's record")
+    ap.add_argument("--release-work", action="store_true",
+                    help="only give back a finished, scored run's work dir (release_work); no re-score")
     a = ap.parse_args(argv)
     run = a.run.resolve()
+    if a.release_work:
+        try:
+            if note := release_work(run):
+                print(f"finalize: {note}")
+        except (Exception, SystemExit) as e:        # never fails the run: the dir stays and the next sweep tries again
+            print(f"finalize: could not give back the work dir: {type(e).__name__}: {e}", file=sys.stderr)
+        return 0
     before = stop_on_sigterm()      # the re-score runs in a process group of its own: it is stopped with this process
     try:
         out = finalize_run(run, a.pack, a.record)

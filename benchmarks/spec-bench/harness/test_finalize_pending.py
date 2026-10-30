@@ -503,3 +503,31 @@ def test_run_sh_remembers_its_tools_for_later_rescores_before_it_sweeps():
     remember = _line(r"scoring_tools\.py\"? remember")
     assert RUN_SH.splitlines()[remember].rstrip().endswith("|| true")
     assert _line(r"playwright-platform\.sh") < remember < _line(SWEEP)
+
+
+# ---------- a run scored late gives back its work dir too ----------
+
+def test_a_run_scored_by_the_sweep_gives_back_its_work_dir_after_the_score(tmp_path, monkeypatch):
+    order = []
+    monkeypatch.setattr(finalize, "finalize_run", lambda run, pack, record, timeout_s: order.append("score") or {"rescore": "done"})
+    monkeypatch.setattr(finalize, "release_work", lambda run: order.append("release"))
+    out = fp.finalize_one(tmp_path / "run", PACK, False, 1.0, fp.SCORE)
+    assert order == ["score", "release"] and out == {"rescore": "done"}
+
+
+def test_a_repair_does_not_give_back_a_work_dir(tmp_path, monkeypatch):
+    order = []
+    monkeypatch.setattr(finalize, "repair_run", lambda run, pack, record: order.append("repair") or {})
+    monkeypatch.setattr(finalize, "release_work", lambda run: order.append("release"))
+    fp.finalize_one(tmp_path / "run", PACK, False, 1.0, fp.REPAIR)
+    assert order == ["repair"]
+
+
+def test_run_sh_gives_back_the_work_dir_only_after_the_finished_event():
+    """finalize.py runs before the finished event is recorded (run-status.json does not say finished yet), so the
+    release is its own step after it."""
+    lines = RUN_SH.splitlines()
+    finished = next(i for i, l in enumerate(lines) if l.strip() == "record_event finished")
+    release = next(i for i, l in enumerate(lines) if "finalize.py" in l and "--release-work" in l)
+    assert release > finished
+    assert "|| true" in lines[release]                            # never fails the run

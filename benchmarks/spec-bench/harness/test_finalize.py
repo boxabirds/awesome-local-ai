@@ -873,3 +873,103 @@ def test_repair_run_without_record_repairs_and_commits_nothing(tmp_path, monkeyp
     run, calls = stale_run_with_recorder(tmp_path, monkeypatch, [])
     new = finalize.repair_run(run, "benchmarks/vidi")
     assert new["repair"]["repaired"] == ["3"] and calls == []
+
+
+# ---------- giving the work dir back once a run is finished and scored ----------
+# A run's work dir (~/.w/<id>) holds the agent's whole workspace: 1.4 to 3.1 GB each. By 24 Oct 2026 the series had
+# left 50 GB on gruntus, 29 GB on tritus and 23 GB on quintus. Once a run is finished and scored its code is the
+# workspace.bundle in its record (rescore.py and a partial rerun both read the bundle), so the dir is only weight. A
+# stopped or failed run resumes in it, so it stays.
+
+def scored_run(tmp_path: Path, monkeypatch, state: str | None = "finished", fault: str | None = None):
+    """A run as run.sh leaves it: its work dir at the harness's own path for it (drive.work_dir_for) with the long-name
+    link beside it, finalized, and run-status.json saying `state`."""
+    import drive
+    monkeypatch.setattr(drive, "WORK_ROOT", tmp_path / "w")
+    monkeypatch.setattr(drive, "WORK_LINKS", tmp_path / "links")
+    run = tmp_path / "run"
+    run.mkdir()
+    own = drive.work_dir_for(run)
+    own.parent.mkdir(parents=True)
+    os.rename(workspace_with_history(tmp_path / "built"), own)
+    drive.link_work_dir(run, own)
+    (run / "work_dir.txt").write_text(str(own) + "\n")
+    if state:
+        (run / "run-status.json").write_text(json.dumps({"state": state}))
+    out = finalize.finalize(run, pack_ref=VERSION, version=VERSION, rescore=fake_rescore(74, 75, [], fault=fault), record=None)
+    return run, own, out
+
+
+def test_a_finished_and_scored_run_gives_back_its_work_dir_and_keeps_its_bundle(tmp_path, monkeypatch):
+    import drive
+    run, own, out = scored_run(tmp_path, monkeypatch)
+    assert out["rescore"] == "done" and own.is_dir()
+    note = finalize.release_work(run)
+    assert not own.exists()                                       # the 1.4 to 3.1 GB is gone
+    assert not os.path.lexists(drive.WORK_LINKS / drive.work_dir_name(run))     # and so is the link that pointed at it
+    heads = subprocess.run(["git", "bundle", "list-heads", str(run / "workspace.bundle")], capture_output=True, text=True).stdout
+    assert heads.strip()                                          # the code stays, in the record
+    assert note and "work dir" in note
+
+
+def test_the_work_dir_is_given_back_once_not_twice(tmp_path, monkeypatch):
+    run, own, _ = scored_run(tmp_path, monkeypatch)
+    assert finalize.release_work(run) is not None and not own.exists()
+    assert finalize.release_work(run) is None                     # already gone: nothing to do, no error
+
+
+@pytest.mark.parametrize("state", ["stopped", "failed", "running", None])
+def test_a_run_that_has_not_finished_keeps_its_work_dir_because_it_resumes_there(tmp_path, monkeypatch, state):
+    run, own, _ = scored_run(tmp_path, monkeypatch, state=state)
+    assert finalize.release_work(run) is None
+    assert (own / "workspace" / ".git").is_dir()
+
+
+def test_a_run_whose_final_score_was_not_recorded_keeps_its_work_dir(tmp_path, monkeypatch):
+    run, own, out = scored_run(tmp_path, monkeypatch, fault="runner crashed")
+    assert out["rescore"] != "done"
+    assert finalize.release_work(run) is None
+    assert (own / "workspace" / ".git").is_dir()
+
+
+def test_a_run_whose_bundle_does_not_verify_keeps_its_work_dir(tmp_path, monkeypatch):
+    run, own, _ = scored_run(tmp_path, monkeypatch)
+    (run / "workspace.bundle").write_bytes(b"not a bundle")
+    assert finalize.release_work(run) is None
+    assert (own / "workspace" / ".git").is_dir()
+
+
+def test_a_run_with_no_bundle_keeps_its_work_dir(tmp_path, monkeypatch):
+    run, own, _ = scored_run(tmp_path, monkeypatch)
+    (run / "workspace.bundle").unlink()
+    assert finalize.release_work(run) is None
+    assert (own / "workspace" / ".git").is_dir()
+
+
+def test_only_the_harnesss_own_path_for_the_run_is_ever_deleted(tmp_path, monkeypatch):
+    """work_dir.txt is a file a person or an old harness wrote: whatever it names, only drive.work_dir_for(run) goes."""
+    run, own, _ = scored_run(tmp_path, monkeypatch)
+    precious = tmp_path / "precious"
+    (precious / "workspace").mkdir(parents=True)
+    (precious / "workspace" / "keep.txt").write_text("mine")
+    (run / "work_dir.txt").write_text(str(precious) + "\n")
+    assert finalize.release_work(run) is None
+    assert (precious / "workspace" / "keep.txt").read_text() == "mine"
+    assert own.is_dir()
+
+
+def test_release_work_from_the_command_line_gives_back_the_dir_without_scoring_again(tmp_path, monkeypatch, capsys):
+    """run.sh calls this once the run has recorded its finished event; the score was already taken by then."""
+    run, own, _ = scored_run(tmp_path, monkeypatch)
+    before = (run / "finalize.json").read_text()
+    assert finalize.main([str(run), "--release-work"]) == 0
+    assert not own.exists()
+    assert (run / "finalize.json").read_text() == before          # no second re-score, no second attempt counted
+    assert "gave back its work dir" in capsys.readouterr().out
+
+
+def test_release_work_from_the_command_line_says_nothing_when_it_kept_the_dir(tmp_path, monkeypatch, capsys):
+    run, own, _ = scored_run(tmp_path, monkeypatch, state="stopped")
+    assert finalize.main([str(run), "--release-work"]) == 0
+    assert own.is_dir()
+    assert "gave back" not in capsys.readouterr().out

@@ -308,5 +308,8 @@ uv run --quiet report.py "$RUN_DIR"
 uv run --quiet finalize.py "$RUN_DIR" --pack "$PACK" ${RECORD:+--record} || true
 FINISHED=1
 record_event finished
+# A finished, scored run's work dir (1.4 to 3.1 GB) is given back: its code is workspace.bundle now. Only after the
+# finished event, because a stopped or failed run resumes in its work dir. Never fails the run.
+uv run --quiet finalize.py "$RUN_DIR" --release-work || true
 # And once more for any other run still waiting for its score (this one just had its own try, and is left out).
 uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${RECORD:+--record} 2>&1 || true
