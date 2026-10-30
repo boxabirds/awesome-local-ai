@@ -30,6 +30,7 @@ pub mod scope_collect;
 pub mod scopes;
 pub mod server;
 pub mod service_unit;
+pub mod stalls;
 pub mod store;
 pub mod sys;
 pub mod timefmt;

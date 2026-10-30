@@ -184,6 +184,8 @@ pub enum Cmd {
     Ingest(IngestArgs),
     /// Compute the thinking analytics (layers 0 and 1) from the conversation database into analytics.db.
     Analyse(AnalyseArgs),
+    /// Does an agent that repeats itself do worse? Longest run of identical tool calls against held-out results.
+    Stalls(StallsArgs),
     /// Validate pre-labels in a browser: accept or correct each, with blind items, agreement and kappa.
     Label(LabelArgs),
     #[command(name = "skip-story")]
@@ -317,6 +319,16 @@ pub struct AnalyseArgs {
     /// Only this story run (`<run dir>/stories/NN`) or every story of this run dir; repeatable.
     #[arg(long = "only")]
     pub only: Vec<String>,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct StallsArgs {
+    /// The conversation database to read (never written).
+    #[arg(long)]
+    pub db: PathBuf,
+    /// Also list every story, not only the summary.
+    #[arg(long)]
+    pub per_story: bool,
 }
 
 #[derive(Args, Debug, Clone)]
