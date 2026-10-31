@@ -548,8 +548,8 @@ pub struct StoryInputs {
     pub rel: String,
     pub run_dir: String,
     pub story: i64,
-    /// The event log's text, and where it came from (full | compact | none).
-    pub events_text: Option<String>,
+    /// The event log, read a line at a time when the story is ingested, and where it came from (full | compact | none).
+    pub events: EventsLog,
     pub events_source: String,
     pub events_path: Option<String>,
     pub events_bytes: i64,
@@ -567,6 +567,18 @@ pub struct StoryInputs {
     pub has_egress: bool,
     pub has_progress: bool,
     pub inputs_digest: String,
+}
+
+/// Where a story's event log is read from. A log is never held whole: it is read a line at a time into the parsers
+/// (30 Oct 2026: a 208 MB log read whole cost 433 MB, the bytes and their decoded copy, of a 465 MB peak).
+#[derive(Debug, Clone, Default)]
+pub enum EventsLog {
+    #[default]
+    None,
+    /// Text already in memory: a compact log from git, which is small.
+    Text(String),
+    /// The full log in the lake; only its complete lines while the run is still appending to it.
+    File { path: std::path::PathBuf, complete_lines_only: bool },
 }
 
 /// What ingesting one story left for the run-level pass (its calls, for placing the server's requests).
@@ -594,10 +606,24 @@ pub fn ingest_story(db: &mut db::Db, parts: &RunParts, inp: &StoryInputs, now: f
 /// `ingest_story`, charging where its time went to `prof`.
 pub fn ingest_story_profiled(db: &mut db::Db, parts: &RunParts, inp: &StoryInputs, now: f64, prof: &mut Profile) -> Result<StoryOutcome> {
     let started = std::time::Instant::now();
-    let text = inp.events_text.as_deref().unwrap_or("");
-    let rows = prof.time("story.parse_events", || events::parse(text));
+    // Both parsers take each line as it is read, so the log is never held whole.
+    let (mut ev, mut tm) = (events::Parser::new(), timing::Parser::new());
+    let (mut ev_s, mut tm_s) = (0.0, 0.0);
+    let consumed = inputs::for_each_line(&inp.events, prof, |line| {
+        let t = std::time::Instant::now();
+        ev.push_line(line);
+        let m = std::time::Instant::now();
+        tm.push_line(line);
+        ev_s += (m - t).as_secs_f64();
+        tm_s += m.elapsed().as_secs_f64();
+    })?;
+    let t = std::time::Instant::now();
+    let rows = ev.rows();
+    prof.record("story.parse_events", ev_s + t.elapsed().as_secs_f64(), 0);
     let t_to_guess = inp.rec.get("agent_finished").and_then(Value::as_f64).unwrap_or(now);
-    let timing = prof.time("story.parse_timing", || timing::parse(text, t_to_guess));
+    let t = std::time::Instant::now();
+    let timing = tm.finish(t_to_guess);
+    prof.record("story.parse_timing", tm_s + t.elapsed().as_secs_f64(), 0);
     prof.time("story.db_run", || db.upsert_run(&inp.run_dir, parts, &inp.run_json, &inp.status_json, inp.node.as_deref(), now))?;
     let sk = prof.time("story.db_story", || db.upsert_story(&inp.rel, &inp.run_dir, inp.story, parts, &inp.rec, &inp.run_json, &rows, &inp.events_source))?;
     prof.time("story.db_rows", || db.replace_story_rows(sk, &rows, &timing, &inp.rec))?;
@@ -624,7 +650,7 @@ pub fn ingest_story_profiled(db: &mut db::Db, parts: &RunParts, inp: &StoryInput
             events_source: inp.events_source.clone(),
             events_path: inp.events_path.clone(),
             events_bytes: inp.events_bytes,
-            events_consumed: text.len() as i64,
+            events_consumed: consumed as i64,
             has_server_log: inp.has_server_log,
             has_proxy_log: inp.has_proxy_log,
             has_egress: inp.has_egress,

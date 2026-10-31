@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::{BufRead, Read, Write};
 use std::path::{Path, PathBuf};
 
-use super::{StoryInputs, EVENTS_COMPACT, EVENTS_FULL, EVENTS_NONE};
+use super::{EventsLog, StoryInputs, EVENTS_COMPACT, EVENTS_FULL, EVENTS_NONE};
 use crate::profile::Profile;
 use crate::collect::{CONDITIONS_FILE, EVENTS_FILE, PROXY_LOG, SERVER_LOG, STORIES_DIR};
 
@@ -356,6 +356,60 @@ pub fn read_text(path: &Path, complete_lines_only: bool, prof: &mut Profile, pha
     Ok(Some(text))
 }
 
+/// How much of a log file is read into memory at a time.
+const LOG_READ_BUF_BYTES: usize = 256 * 1024;
+
+/// Each line of a story's log, as `str::lines` gives them from the text `read_text` would make (decoded lossily, only
+/// its complete lines for a file still being appended to), handed to `f` a line at a time so the log is never held
+/// whole. Returns the length of that text: the bytes consumed. A file gone by now is no lines.
+pub fn for_each_line(log: &EventsLog, prof: &mut Profile, mut f: impl FnMut(&str)) -> Result<u64> {
+    let (path, complete_lines_only) = match log {
+        EventsLog::None => return Ok(0),
+        EventsLog::Text(text) => {
+            text.lines().for_each(&mut f);
+            return Ok(text.len() as u64);
+        }
+        EventsLog::File { path, complete_lines_only } => (path, *complete_lines_only),
+    };
+    let started = std::time::Instant::now();
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            prof.record(LAKE_EVENTS_TEXT.read, started.elapsed().as_secs_f64(), 0);
+            return Ok(0);
+        }
+        Err(e) => return Err(e.into()),
+    };
+    let mut reader = std::io::BufReader::with_capacity(LOG_READ_BUF_BYTES, file);
+    let (mut buf, mut read_s, mut decode_s, mut bytes, mut consumed) = (Vec::new(), started.elapsed().as_secs_f64(), 0.0, 0u64, 0u64);
+    loop {
+        buf.clear();
+        let t = std::time::Instant::now();
+        let n = reader.read_until(b'\n', &mut buf)?;
+        read_s += t.elapsed().as_secs_f64();
+        if n == 0 {
+            break;
+        }
+        bytes += n as u64;
+        let ended = buf.last() == Some(&b'\n');
+        if !ended && complete_lines_only {
+            break;
+        }
+        let t = std::time::Instant::now();
+        let text = String::from_utf8_lossy(&buf);
+        decode_s += t.elapsed().as_secs_f64();
+        consumed += text.len() as u64;
+        let line = match text.strip_suffix('\n') {
+            Some(l) => l.strip_suffix('\r').unwrap_or(l),
+            None => &text,
+        };
+        f(line);
+    }
+    prof.record(LAKE_EVENTS_TEXT.read, read_s, bytes);
+    prof.record(LAKE_EVENTS_TEXT.decode, decode_s, bytes);
+    Ok(consumed)
+}
+
 /// The published record of a run: metrics.json, run.json, run-status.json (each `{}` when absent).
 #[derive(Debug, Clone, Default)]
 pub struct RunRecord {
@@ -454,7 +508,7 @@ pub fn plan_inputs(ids: &BTreeMap<String, String>, lake: Option<&LakeRun>, rel: 
 /// Read a planned story's texts: its log (full from the lake, else compact from git) and its machine readings.
 pub fn load_texts(published: &dyn Published, inp: &mut StoryInputs, src: &Sources, prof: &mut Profile) -> Result<()> {
     if let Some(p) = &src.lake_log {
-        inp.events_text = read_text(p, !src.lake_complete, prof, LAKE_EVENTS_TEXT)?;
+        inp.events = EventsLog::File { path: p.clone(), complete_lines_only: !src.lake_complete };
     } else if let Some(path) = &src.compact {
         let read = prof.time("inputs_for.git_read", || published.read(path))?;
         prof.add_bytes("inputs_for.git_read", read.as_ref().map_or(0, |b| b.len() as u64));
@@ -463,7 +517,7 @@ pub fn load_texts(published: &dyn Published, inp: &mut StoryInputs, src: &Source
                 let started = std::time::Instant::now();
                 let text = gunzip(&bytes)?;
                 prof.record("inputs_for.gunzip", started.elapsed().as_secs_f64(), text.len() as u64);
-                inp.events_text = Some(text);
+                inp.events = EventsLog::Text(text);
                 inp.events_bytes = bytes.len() as i64;
             }
             // Listed in git but gone when read: as if there were no log.

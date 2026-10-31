@@ -196,7 +196,7 @@ fn story_inputs(rel: &str, text: &str, rec: Value, complete: bool) -> ingest::St
         rel: rel.to_string(),
         run_dir: run_dir.to_string(),
         story,
-        events_text: Some(text.to_string()),
+        events: ingest::EventsLog::Text(text.to_string()),
         events_source: ingest::EVENTS_FULL.to_string(),
         events_path: Some("x".into()),
         events_bytes: text.len() as i64,
@@ -1614,4 +1614,146 @@ fn a_pass_logs_its_slowest_phases_and_how_busy_the_collector_is() {
     p.record("pass.nodes", 2.0, 0);
     let line = dbench::collector::pass_log_line(&p, 10.0, std::time::Duration::from_secs(10), 1);
     assert_eq!(line, "dbench collect: pass 10.0 s: inputs_for.decode_lake 6.0 s (1x, 3.0 KiB); unaccounted 2.0 s | idle 10 s, busy 50% of the time");
+}
+
+/// What one story left in the warehouse: its row counts, its tools' arguments (where text a log holds lands) and how
+/// many bytes of its log were consumed, from where.
+fn story_shape(db: &Db, sk: i64) -> (Vec<i64>, String, i64, String) {
+    let count = |t: &str| db.conn.query_row(&format!("select count(*) from {t} where sk = ?1"), [sk], |r| r.get(0)).unwrap();
+    let counts = ["calls", "tools", "msgs", "compactions", "events"].map(count).to_vec();
+    let args: String = db
+        .conn
+        .query_row("select coalesce(group_concat(arg || '|' || args_json, '/'), '') from (select arg, args_json from tools where sk = ?1 order by idx)", [sk], |r| r.get(0))
+        .unwrap();
+    let (consumed, source): (i64, String) =
+        db.conn.query_row("select events_consumed, events_source from collection where sk = ?1", [sk], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+    (counts, args, consumed, source)
+}
+
+const LOG_REC: &str = r#"{"title": "One", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000122.0}"#;
+
+/// Ingest story 1 of RUN from a lake log holding exactly `bytes`, by the collector's own path (plan, load, ingest).
+fn ingest_lake_log(case: &str, bytes: &[u8], complete: bool) -> (Vec<i64>, String, i64, String) {
+    use dbench::ingest::inputs::{lake_runs, load_texts, plan_inputs, RunRecord, TreeSource};
+    use dbench::profile::Profile;
+    let root = std::env::temp_dir().join(format!("dbench-ingest-log-{case}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let lake = root.join("store/node-a").join(RUN);
+    std::fs::create_dir_all(lake.join("stories/01")).unwrap();
+    std::fs::write(lake.join("stories/01/agent-events.jsonl"), bytes).unwrap();
+    std::fs::write(lake.join("collection.json"), format!(r#"{{"node": "node-a", "complete": {complete}, "collected_at": 1790001000.0}}"#)).unwrap();
+    let lakes = lake_runs(&root.join("store")).unwrap();
+    let record = RunRecord { metrics: json!({"stories": {"1": serde_json::from_str::<Value>(LOG_REC).unwrap()}}), ..Default::default() };
+    let mut prof = Profile::default();
+    let rel = format!("{RUN}/stories/01");
+    let (mut inp, src) = plan_inputs(&Default::default(), lakes.get(RUN), &rel, &record, &mut prof).unwrap();
+    load_texts(&TreeSource { root: root.join("repo") }, &mut inp, &src, &mut prof).unwrap();
+    let mut db = Db::open_memory().unwrap();
+    let out = ingest::ingest_story(&mut db, &ingest::run_parts(RUN).unwrap(), &inp, 1_790_001_000.0).unwrap();
+    std::fs::remove_dir_all(&root).unwrap();
+    story_shape(&db, out.sk)
+}
+
+/// The same story ingested from text already in memory: what the lake log should come to.
+fn ingest_text_shape(text: &str) -> (Vec<i64>, String) {
+    let mut db = Db::open_memory().unwrap();
+    let inp = story_inputs(&format!("{RUN}/stories/01"), text, serde_json::from_str(LOG_REC).unwrap(), true);
+    let out = ingest::ingest_story(&mut db, &ingest::run_parts(RUN).unwrap(), &inp, 1_790_001_000.0).unwrap();
+    let (counts, args, _, _) = story_shape(&db, out.sk);
+    (counts, args)
+}
+
+// A story's log in every shape a lake file takes, read by the collector's path, comes to the rows of its clean text, and
+// `events_consumed` counts exactly what was parsed. Pins the reading of the log before it changed from one whole string
+// to a line at a time (30 Oct 2026: the whole string, twice over, was 433 of a 465 MB peak for a 208 MB log).
+#[test]
+fn a_lake_log_in_every_shape_comes_to_the_rows_of_its_clean_text_and_counts_what_it_consumed() {
+    let text = fixture("events__pi__agent-events");
+    assert!(text.ends_with('\n') && !text.contains('\r'));
+    let clean = ingest_text_shape(&text);
+    assert!(clean.0[1] > 0 && clean.1.contains("drop-images"), "the fixture has tools with text arguments: {clean:?}");
+    let full = |s: (Vec<i64>, String, i64, String)| ((s.0, s.1), s.2, s.3);
+    let len = text.len() as i64;
+
+    // A live log ends mid-line: the partial line is neither parsed nor counted.
+    let partial = format!("{text}{{\"_rx\":1790000130.0,\"type\":\"mess");
+    assert_eq!(full(ingest_lake_log("partial", partial.as_bytes(), false)), (clean.clone(), len, "full".into()));
+    // A live log of one partial line has nothing complete in it.
+    assert_eq!(full(ingest_lake_log("one-partial", b"{\"_rx\":1790000130.0", false)), (ingest_text_shape(""), 0, "full".into()));
+    // A complete log keeps its last line though no newline ends it.
+    let unterminated = text.trim_end_matches('\n');
+    assert_eq!(full(ingest_lake_log("unterminated", unterminated.as_bytes(), true)), (clean.clone(), len - 1, "full".into()));
+    // CRLF endings parse as LF ones; every byte is consumed.
+    let crlf = text.replace('\n', "\r\n");
+    assert_eq!(full(ingest_lake_log("crlf", crlf.as_bytes(), true)), (clean.clone(), crlf.len() as i64, "full".into()));
+    // Blank lines are skipped, and counted.
+    let (first, rest) = text.split_once('\n').unwrap();
+    let blanks = format!("\n{first}\n\n\n{rest}");
+    assert_eq!(full(ingest_lake_log("blanks", blanks.as_bytes(), true)), (clean.clone(), blanks.len() as i64, "full".into()));
+    // Bytes that are not UTF-8 become U+FFFD, in the rows and in the count, as a lossy read of the whole file does.
+    let bad: Vec<u8> = text.split("drop-images").collect::<Vec<_>>().join("drop-\u{1}images").bytes().flat_map(|b| if b == 1 { vec![0xff, 0xfe] } else { vec![b] }).collect();
+    assert!(String::from_utf8(bad.clone()).is_err());
+    let lossy = String::from_utf8_lossy(&bad).into_owned();
+    let got = full(ingest_lake_log("not-utf8", &bad, true));
+    assert_eq!(got, (ingest_text_shape(&lossy), lossy.len() as i64, "full".into()));
+    assert!(got.0 .1.contains("drop-\u{fffd}\u{fffd}images"), "{:?}", got.0 .1);
+    // The same, in a live log's last complete line, with a partial line after it.
+    let live_bad = [&bad[..], b"{\"_rx\""].concat();
+    assert_eq!(full(ingest_lake_log("not-utf8-live", &live_bad, false)), (ingest_text_shape(&lossy), lossy.len() as i64, "full".into()));
+}
+
+// The log the plan saw can be gone, or unreadable, by the time it is read.
+#[test]
+fn a_log_gone_before_it_is_read_is_no_rows_and_one_that_cannot_be_read_is_an_error() {
+    use dbench::ingest::inputs::{lake_runs, load_texts, plan_inputs, RunRecord, TreeSource};
+    use dbench::profile::Profile;
+    let root = std::env::temp_dir().join(format!("dbench-ingest-log-gone-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let lake = root.join("store/node-a").join(RUN);
+    let log = lake.join("stories/01/agent-events.jsonl");
+    std::fs::create_dir_all(log.parent().unwrap()).unwrap();
+    std::fs::write(&log, fixture("accounting__pi-nudged")).unwrap();
+    std::fs::write(lake.join("collection.json"), r#"{"node": "node-a", "complete": true, "collected_at": 1790001000.0}"#).unwrap();
+    let lakes = lake_runs(&root.join("store")).unwrap();
+    let record = RunRecord { metrics: json!({"stories": {"1": serde_json::from_str::<Value>(LOG_REC).unwrap()}}), ..Default::default() };
+    let rel = format!("{RUN}/stories/01");
+    let published = TreeSource { root: root.join("repo") };
+    let mut prof = Profile::default();
+
+    // Gone from the lake between planning and reading: the story has no rows, and nothing was consumed.
+    let (mut inp, src) = plan_inputs(&Default::default(), lakes.get(RUN), &rel, &record, &mut prof).unwrap();
+    std::fs::remove_file(&log).unwrap();
+    load_texts(&published, &mut inp, &src, &mut prof).unwrap();
+    let mut db = Db::open_memory().unwrap();
+    let out = ingest::ingest_story(&mut db, &ingest::run_parts(RUN).unwrap(), &inp, 1_790_001_000.0).unwrap();
+    let (counts, _, consumed, source) = story_shape(&db, out.sk);
+    assert_eq!((counts, consumed, source.as_str()), (vec![0, 0, 0, 0, 0], 0, "full"));
+
+    // Something that cannot be read as a file: an error, not an empty story.
+    std::fs::create_dir_all(&log).unwrap();
+    let mut inp = inp.clone();
+    let err = load_texts(&published, &mut inp, &src, &mut prof).and_then(|_| {
+        ingest::ingest_story(&mut Db::open_memory().unwrap(), &ingest::run_parts(RUN).unwrap(), &inp, 1_790_001_000.0).map(|_| ())
+    });
+    assert!(err.is_err(), "a directory where the log was is an error");
+
+    // A compact log listed in git but gone when read: as if there were no log.
+    std::fs::remove_dir_all(&lake).unwrap();
+    let ids = std::collections::BTreeMap::from([(format!("{rel}/agent-events.compact.jsonl.gz"), "abc".to_string())]);
+    let (mut inp, src) = plan_inputs(&ids, None, &rel, &record, &mut prof).unwrap();
+    assert_eq!(inp.events_source, "compact");
+    load_texts(&published, &mut inp, &src, &mut prof).unwrap();
+    let mut db = Db::open_memory().unwrap();
+    let out = ingest::ingest_story(&mut db, &ingest::run_parts(RUN).unwrap(), &inp, 1_790_001_000.0).unwrap();
+    let (counts, _, consumed, source) = story_shape(&db, out.sk);
+    assert_eq!((counts, consumed, source.as_str()), (vec![0, 0, 0, 0, 0], 0, "none"));
+
+    // No log anywhere: no rows, and the source says so.
+    let (mut inp, src) = plan_inputs(&Default::default(), None, &rel, &record, &mut prof).unwrap();
+    load_texts(&published, &mut inp, &src, &mut prof).unwrap();
+    let mut db = Db::open_memory().unwrap();
+    let out = ingest::ingest_story(&mut db, &ingest::run_parts(RUN).unwrap(), &inp, 1_790_001_000.0).unwrap();
+    let (counts, _, consumed, source) = story_shape(&db, out.sk);
+    assert_eq!((counts, consumed, source.as_str()), (vec![0, 0, 0, 0, 0], 0, "none"));
+    std::fs::remove_dir_all(&root).unwrap();
 }
