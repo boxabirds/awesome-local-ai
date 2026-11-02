@@ -3,6 +3,11 @@
 Status: contract agreed with the owner on 17 Oct 2026. It replaces the older plan in `docs/design/git-refactor/`, which is
 dropped. Nothing here touches a live node until the migration step at the end.
 
+This is one stage of the epic `app-ops-data-separation`, not its end. The end state is unchanged: the design in
+`docs/designs/operational-data-separation.md`, decision 3 (the harness only writes files: no commit, no push) and
+decision 4 (the lake is the complete record and every reader reads it). Item 4 below is what this stage leaves in place,
+not a decision that records stay in git (owner, 2 Nov 2026).
+
 ## Purpose
 
 A node's `dbench` serves what a run has produced so far, in three scopes, each with an explicit statement of whether it
@@ -87,7 +92,8 @@ The harness no longer makes these copies or puts them in git. Each line is a tes
 2. No `agent-events.compact.jsonl.gz` is written (`drive.compact_events` is gone).
 3. Nothing under a run's `stories/*/agent-events*`, `workspace/`, or any `*.compact.jsonl.gz` is ever staged or committed
    (`.gitignore` rules, `publicise` rules, `record_story`).
-4. `metrics.json` and the other records are still committed and pushed at each story's end, as today. `workspace.bundle` is
+4. Interim, until the readers move to the lake (stories 6 to 9) and the harness stops pushing (stories 4 and 12):
+   `metrics.json` and the other records are still committed and pushed at each story's end. `workspace.bundle` is
    made at the end of each story and with each run event (started, stopped, failed, finished), from the run's work folder, and
    again by `finalize.py`; it goes in the same commit. One command makes it (`drive.make_bundle`, written beside its name and
    renamed into place). Until 17 Oct 2026 it was made only when the run was finalised, so a run stopped mid-way had no code
