@@ -37,3 +37,13 @@ def test_nvidia_is_described_from_nvidia_smi(tmp_path):
 def test_no_gpu_tool_at_all_still_describes_the_host(tmp_path):
     r = describe(tmp_path, {})
     assert r.returncode == 0 and r.stdout.startswith("AMD RYZEN AI MAX+ 395 122GB\n"), (r.stdout, r.stderr)
+
+
+def test_a_cpu_with_two_kinds_of_core_is_described_on_one_line(tmp_path):
+    # The DGX Spark's GB10: lscpu prints one "Model name:" per core cluster. The second name on a line of its own put a raw
+    # newline into run.json's "host", and every DGX Spark run (v2-iq4xs-r1 to r3, 30 Oct to 1 Nov 2026) failed at its
+    # summary with "JSONDecodeError: Invalid control character".
+    lscpu = "printf 'Architecture:  aarch64\\nModel name:    Cortex-X925\\nModel name:    Cortex-A725\\n'"
+    r = describe(tmp_path, {"lscpu": lscpu})
+    assert r.returncode == 0, r.stderr
+    assert r.stdout == "Cortex-X925 + Cortex-A725 122GB\nnext-line\n", r.stdout

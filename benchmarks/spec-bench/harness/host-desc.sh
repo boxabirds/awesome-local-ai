@@ -25,7 +25,8 @@ host_desc() {
     printf '%s %sGB' "$cpu" "$mem"
     return
   fi
-  cpu="$(lscpu 2>/dev/null | sed -n 's/^Model name: *//p')" || cpu=""
+  # one "Model name:" per kind of core (the GB10 has two); joined, as the description is one line of run.json
+  cpu="$(lscpu 2>/dev/null | sed -n 's/^Model name: *//p' | awk '!seen[$0]++ { printf "%s%s", (n++ ? " + " : ""), $0 }')" || cpu=""
   mem="$(( $(awk '/MemTotal/ {print $2}' "${MEMINFO:-/proc/meminfo}" 2>/dev/null || echo 0) / KIB_PER_GIB ))"
   gpu="$(host_gpu)"
   printf '%s %sGB%s' "$cpu" "$mem" "${gpu:+, $gpu}"
