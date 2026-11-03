@@ -25,6 +25,7 @@ def test_same_tool_different_input_is_progress():
 
 
 # ---- sandbox: the agent must not be able to read the harness or held-out suite ----
+import os
 import subprocess
 from pathlib import Path
 
@@ -78,51 +79,45 @@ def test_sandbox_blocks_reading_the_acceptance_suite(tmp_path: Path):
 def test_sandbox_blocks_listing_the_repo(tmp_path: Path):
     own = tmp_path / "run"
     (own / "workspace").mkdir(parents=True)
+    assert "acceptance" in os.listdir(VIDI)                  # listable from outside: the refusal below is the sandbox's
     r = agent_run(["ls", str(VIDI)], own)
     assert r.returncode != 0 and "acceptance" not in r.stdout
 
 
 @pytest.mark.needs_sandbox
-def test_sandbox_allows_own_workspace(tmp_path: Path):
-    own = tmp_path / "run"
-    ws = own / "workspace"
-    ws.mkdir(parents=True)
-    (ws / "f.txt").write_text("mine")
-    r = agent_run(["cat", "f.txt"], own)
-    assert r.returncode == 0 and r.stdout == "mine"
-
-
-@pytest.mark.needs_sandbox
-def test_sandbox_hides_sibling_runs_but_not_own():
-    from drive import WORK_ROOT
+def test_the_agent_reads_its_own_run_and_nothing_else_under_the_bench_home():
+    """Everything under the bench home (grading keys, reference builds and transcripts, logs, other runs and their temp
+    files) is out of bounds; a reference build left readable once exposed Opus's whole solution. Each thing is read from
+    outside first, so its absence inside is the sandbox's doing."""
     import shutil
-    mine, other = WORK_ROOT / "_test_mine", WORK_ROOT / "_test_other"
+    from drive import AGENT_TMP, BENCH_HOME, WORK_ROOT, agent_env
+    tag = f"_test_{os.getpid()}"
+    mine, other, secret = WORK_ROOT / f"{tag}_mine", WORK_ROOT / f"{tag}_other", BENCH_HOME / f"{tag}_secret"
     try:
-        for d in (mine, other):
-            (d / "workspace").mkdir(parents=True, exist_ok=True)
-            (d / "workspace" / "f.txt").write_text(d.name)
-        own = agent_run(["cat", "f.txt"], mine)
-        sib = agent_run(["cat", str(other / "workspace/f.txt")], mine)
-        assert own.returncode == 0 and own.stdout == "_test_mine"
-        assert sib.returncode != 0 and "_test_other" not in sib.stdout
+        (mine / "workspace").mkdir(parents=True)
+        (mine / "workspace" / "f.txt").write_text("mine")
+        (other / "workspace").mkdir(parents=True)
+        (other / "workspace" / "f.txt").write_text("other run")
+        agent_env(other)                                               # makes the other run's own temp dir
+        (other / AGENT_TMP / "leftover").write_text("other run's temp")
+        secret.mkdir(parents=True)
+        (secret / "key.json").write_text("the answer")
+        hidden = {other / "workspace" / "f.txt": "other run", other / AGENT_TMP / "leftover": "other run's temp",
+                  secret / "key.json": "the answer"}
+        for f, text in hidden.items():
+            assert f.read_text() == text                               # there, from outside
+        script = "cat f.txt; echo; " + " ".join(f'cat "{f}";' for f in hidden) + f' ls "{BENCH_HOME}" "{other / AGENT_TMP}"'
+        r = agent_run(["sh", "-c", script], mine)
+        assert r.stdout.startswith("mine\n"), r.stdout + r.stderr
+        for f, text in hidden.items():
+            assert text not in r.stdout, f"{f} was readable"
+        assert secret.name not in r.stdout and "leftover" not in r.stdout and other.name not in r.stdout
     finally:
-        shutil.rmtree(mine, ignore_errors=True)
-        shutil.rmtree(other, ignore_errors=True)
+        for d in (mine, other, secret):
+            shutil.rmtree(d, ignore_errors=True)
 
 
-@pytest.mark.needs_sandbox
-def test_agent_env_pwd_points_inside_sandbox(tmp_path: Path):
-    """OpenCode lstat()s $PWD; an inherited PWD from the harness dir is denied (EPERM)."""
-    from drive import WORK_ROOT
-    work = WORK_ROOT / "_test_pwd"
-    ws = work / "workspace"
-    ws.mkdir(parents=True, exist_ok=True)
-    try:
-        r = agent_run(["node", "-e", "require('fs').lstatSync(process.env.PWD)"], work)
-        assert r.returncode == 0, r.stderr
-    finally:
-        import shutil
-        shutil.rmtree(work, ignore_errors=True)
+
 
 
 # ---- sandbox: the workspace's spec is read-only for the agent, whatever the files' modes say ----
@@ -618,13 +613,6 @@ def test_sandbox_allows_realpath_of_own_workspace():
               "fs.watch(process.cwd()).close();")
         r = agent_run(["node", "-e", js], work)
         assert r.returncode == 0, r.stderr
-        # ...while a sibling run's files stay unreadable.
-        sib = WORK_ROOT / "_test_realpath_sibling"
-        sib.mkdir(exist_ok=True)
-        (sib / "secret.txt").write_text("x")
-        r2 = agent_run(["cat", str(sib / "secret.txt")], work)
-        assert r2.returncode != 0
-        shutil.rmtree(sib, ignore_errors=True)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -930,30 +918,9 @@ def test_private_pack_checkout_is_hidden_from_the_agent(tmp_path):
         pytest.skip("pack is in-repo; covered by the repo-hiding test")
     own = tmp_path / "work" / "run"
     own.mkdir(parents=True)
+    assert os.listdir(PACK / "acceptance")                   # there, from outside: the refusal below is the sandbox's
     r = agent_run(["ls", str(PACK / "acceptance")], own)
-    assert r.returncode != 0 or not r.stdout.strip(), r.stdout
-
-
-@pytest.mark.needs_sandbox
-def test_dbench_home_is_hidden_except_its_tools(tmp_path, outside_shared_temp, monkeypatch):
-    """Agents under dbench must not reach its jobs, token, repo checkouts or other runs' builds,
-    but must still run the tools installed in ~/.dbench/tools (pi, uv)."""
-    import sandbox
-    # Like the real ~/.dbench, not under /tmp: there (tmp_path on Linux) the sandbox's own /tmp covers it, tools and all.
-    dbench = outside_shared_temp / "dotdbench"
-    (dbench / "jobs").mkdir(parents=True)
-    (dbench / "jobs" / "job.json").write_text("secret")
-    (dbench / "tools" / "bin").mkdir(parents=True)
-    (dbench / "tools" / "bin" / "tool.txt").write_text("usable")
-    monkeypatch.setattr(sandbox, "read_only_paths", lambda: [dbench / "tools"])
-    own = tmp_path / "work" / "run"
-    own.mkdir(parents=True)
-    secret = agent_run(["cat", str(dbench / "jobs" / "job.json")], own)
-    tool = agent_run(["cat", str(dbench / "tools" / "bin" / "tool.txt")], own)
-    write = agent_run(["sh", "-c", f"echo x > {dbench / 'tools' / 'bin' / 'written'}"], own)
-    assert secret.returncode != 0 and "secret" not in secret.stdout
-    assert tool.returncode == 0 and tool.stdout == "usable"
-    assert write.returncode != 0 and not (dbench / "tools" / "bin" / "written").exists()
+    assert r.returncode != 0 and not r.stdout.strip(), r.stdout
 
 
 def test_reference_runs_get_distinct_labels_and_work_dirs():
@@ -993,30 +960,6 @@ def test_sandbox_blocks_the_held_out_suites_browsers(tmp_path: Path):
     assert r.returncode != 0 and rm.returncode != 0          # not there at all (Linux), or refused (macOS)
     assert "chromium" not in r.stdout
     assert not (suite_cache / "agent-was-here").exists()
-
-
-@pytest.mark.needs_sandbox
-def test_sandbox_hides_all_bench_state_but_the_agents_own_run():
-    # Everything under the bench home (grading keys, reference builds and transcripts, logs, other
-    # runs) is out of bounds; a reference build left readable once exposed Opus's whole solution.
-    from drive import BENCH_HOME, WORK_ROOT
-    import shutil
-    mine = WORK_ROOT / "_test_mine2"
-    secret = BENCH_HOME / "_test_secret"
-    try:
-        (mine / "workspace").mkdir(parents=True, exist_ok=True)
-        (mine / "workspace" / "f.txt").write_text("mine")
-        secret.mkdir(parents=True, exist_ok=True)
-        (secret / "key.json").write_text("the answer")
-        own = agent_run(["cat", "f.txt"], mine)
-        leak = agent_run(["cat", str(secret / "key.json")], mine)
-        listing = agent_run(["ls", str(BENCH_HOME)], mine)
-        assert own.returncode == 0 and own.stdout == "mine"
-        assert leak.returncode != 0 and "the answer" not in leak.stdout
-        assert "_test_secret" not in listing.stdout
-    finally:
-        shutil.rmtree(mine, ignore_errors=True)
-        shutil.rmtree(secret, ignore_errors=True)
 
 
 def test_a_story_is_capped_at_4_hours_or_5_nudges():

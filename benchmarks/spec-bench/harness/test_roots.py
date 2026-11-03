@@ -148,30 +148,26 @@ def test_a_results_root_that_is_not_a_directory_stops_the_harness(tmp_path):
     assert roots.ENV in r.stderr and "nowhere" in r.stderr
 
 
-@pytest.mark.needs_sandbox
-def test_the_sandbox_hides_both_roots_from_the_agent(tmp_path, outside_shared_temp):
-    results = outside_shared_temp / "checkout"
-    (results / "combinations").mkdir(parents=True)
-    (results / "combinations" / "other-run.json").write_text("another run's record")
-    own = outside_shared_temp / "work" / "run"
-    (own / "workspace").mkdir(parents=True)
-    (own / "workspace" / "mine.txt").write_text("mine")
-    script = ("import drive, json, sys\n"
-              "from pathlib import Path\n"
-              "from sandbox_testing import agent_run\n"
-              "own = Path(sys.argv[1])\n"
-              "out = {}\n"
-              "for name, f in (('results', sys.argv[2]), ('code', str(drive.HARNESS / 'drive.py')), ('own', 'mine.txt')):\n"
-              "    r = agent_run(['cat', f], own)\n"
-              "    out[name] = [r.returncode, r.stdout[:40]]\n"
-              "print(json.dumps(out))")
-    r = probe(script, results, tmp_path, str(own), str(results / "combinations" / "other-run.json"),
-              env={"VIDI_WORK_ROOT": str(outside_shared_temp / "work")})
-    assert r.returncode == 0, r.stderr
-    got = json.loads(r.stdout)
-    assert got["own"] == [0, "mine"]
-    assert got["results"][0] != 0 and "another run" not in got["results"][1]
-    assert got["code"][0] != 0 and got["code"][1] == ""
+GRANTS = ("--own-dir", "--own-at", "--ro")                      # the flags that give the agent a host path
+
+
+def granted(argv: list[str]) -> list[Path]:
+    return [Path(argv[i + 1]) for i, a in enumerate(argv[:-1]) if a in GRANTS]
+
+
+def test_the_sandbox_is_given_no_path_in_either_root():
+    """The sandbox denies every path it is not given, so what keeps the code and results roots from the agent is that
+    the harness gives it none of them: its own run directory is under the work root, its read-only paths are tools."""
+    import drive
+    import sandbox
+    own = drive.WORK_ROOT / "a-run"
+    argv = sandbox.launch(["pi"], own, sandbox.World(run=own.name), {}).argv
+    paths = granted(argv)
+    assert own in paths                                               # the reading of the flags finds what is given
+    for p in paths:
+        for root in (drive.CODE_ROOT, drive.REPO_ROOT):
+            assert not p.resolve().is_relative_to(root.resolve()), f"{p} is in {root}"
+    assert drive.CODE_ROOT in granted([*argv, "--ro", str(drive.CODE_ROOT)])     # and a root given would be caught
 
 
 # ---------- a release: code with a manifest and no .git ----------

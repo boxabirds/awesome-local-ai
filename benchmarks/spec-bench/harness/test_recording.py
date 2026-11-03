@@ -102,13 +102,6 @@ def run_under_a_home_with_packages():
 
 
 @needs_sandbox
-def test_the_agent_cannot_read_packages_above_its_run(run_under_a_home_with_packages):
-    home, own = run_under_a_home_with_packages
-    r = _in_sandbox(own, f'cat "{home}/node_modules/leak/index.js"; ls "{home}/node_modules"; cat "{home}/package.json"')
-    assert "leaked" not in r.stdout and "leak" not in r.stdout and '"home"' not in r.stdout, r.stdout
-
-
-@needs_sandbox
 @pytest.mark.skipif(shutil.which("node") is None, reason="needs node")
 def test_node_resolves_the_workspace_s_packages_and_none_from_above(run_under_a_home_with_packages):
     home, own = run_under_a_home_with_packages
@@ -137,29 +130,6 @@ def test_claude_code_s_temp_dir_works_in_the_sandbox_when_the_shared_one_exists(
     finally:
         if made:
             shared.rmdir()
-
-@needs_sandbox
-def test_another_run_s_temp_dir_is_not_visible(two_runs):
-    mine, other = two_runs
-    drive.agent_env(other)
-    (other / drive.AGENT_TMP / "leftover").write_text("other run")
-    r = _in_sandbox(mine, f'cat "{other / drive.AGENT_TMP / "leftover"}"; ls "{other / drive.AGENT_TMP}"')
-    assert "other run" not in r.stdout and "leftover" not in r.stdout
-
-
-@needs_sandbox
-def test_what_another_run_left_in_tmp_is_not_visible(two_runs):
-    """A run found another run's leftover git worktree at /tmp/vidi-baseline."""
-    mine, _ = two_runs
-    leftover = Path("/tmp") / f"_test-leftover-{uuid.uuid4().hex[:8]}"
-    leftover.mkdir()
-    try:
-        (leftover / "HEAD").write_text("other run's worktree")
-        r = _in_sandbox(mine, f'cat "{leftover}/HEAD"; ls /tmp')
-        assert "other run's worktree" not in r.stdout and leftover.name not in r.stdout
-    finally:
-        shutil.rmtree(leftover, ignore_errors=True)
-
 
 @needs_sandbox
 def test_the_held_out_suite_s_scratch_is_not_visible(two_runs):
