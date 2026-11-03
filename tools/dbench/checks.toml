@@ -55,21 +55,7 @@ command = [
   "pytest", "-q", "-rs", "-p", "no:cacheprovider",
   "--cov=drive", "--cov-branch", "--cov-fail-under=100", "--cov-report=term-missing:skip-covered",
 ]
-no_skips_of = ["test_pipeline.py"]
-
-# Every recorded log, replayed through the harness's parsers.
-[[check]]
-name = "harness real-log replay"
-dir = "benchmarks/spec-bench/harness"
-command = [
-  "uv", "run", "--quiet",
-  "--with", "pytest", "--with", "hypothesis", "--with", "httpx",
-  "--with", "uvicorn", "--with", "starlette", "--with", "fastapi",
-  "pytest", "-q", "-rs", "-p", "no:cacheprovider", "test_replay_real_logs.py",
-]
-env = { REPLAY_ALL = "1" }
-requires = ["test_replay_real_logs.py"]
-no_skips_of = ["test_replay_real_logs.py"]
+no_skips_of = ["test_pipeline.py", "test_replay_real_logs.py"]
 
 # The Rust ingest (tools/dbench/src/ingest) reads the same logs as the harness's Python parsers; its tests
 # compare it with their output on the fixture logs, kept in tools/dbench/tests/golden. This check fails when

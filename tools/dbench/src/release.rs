@@ -656,7 +656,6 @@ command = ["bash", "tests/run-tests.sh"]
         let names: Vec<&str> = list.checks.iter().map(|c| c.name.as_str()).collect();
         for want in [
             "harness unit suite",
-            "harness real-log replay",
             "rust tests (tools workspace)",
             "dbench clippy",
             "benchmarker unit tests",
@@ -708,13 +707,12 @@ command = ["bash", "tests/run-tests.sh"]
             .map(|w| w[1].as_str())
             .collect();
         assert!(with.contains(&"pytest-cov"), "{with:?}");
-        let replay = list
-            .checks
-            .iter()
-            .find(|c| c.name == "harness real-log replay")
-            .unwrap();
-        assert_eq!(replay.requires, ["test_replay_real_logs.py"]);
-        assert_eq!(replay.env["REPLAY_ALL"], "1");
+        // No full replay of every recorded log (the owner, 3 Nov 2026): the unit suite's class sample in
+        // test_replay_real_logs.py, which covers every event shape, run, client and combination, is the check.
+        assert!(
+            !list.checks.iter().any(|c| c.name == "harness real-log replay" || c.env.contains_key("REPLAY_ALL")),
+            "a full replay of every log is in the check list"
+        );
     }
 
     /// What a node runs is named by the release itself, is under the checked paths, and holds the

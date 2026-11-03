@@ -6,12 +6,12 @@ end of every story and ended three runs. The repo holds the logs of every record
 through each reader and checks that (1) none raises and (2) what must hold of its result does.
 
 Logs are found by glob from the repo root (LOG_GLOBS), so a new run is replayed as soon as its record is committed.
-The whole replay takes over two minutes, so a plain test run replays a sample (sample: every shape of event that
-any log holds, and a log of every run, so every client and every combination), and REPLAY_ALL=1 replays every log:
-the release gate.
+It replays a sample, chosen by class: every shape of event that any log holds, and a log of every run, so every
+client and every combination. There is no replay of every log (the owner, 3 Nov 2026: "I don't think we need to do a full
+replay ever").
 
-    REPLAY_ALL=1 uv run --with pytest pytest -q test_replay_real_logs.py
-    uv run --with pytest python test_replay_real_logs.py [--all]     # the same, printed: each log's problems, the totals
+    uv run --with pytest pytest -q test_replay_real_logs.py
+    uv run --with pytest python test_replay_real_logs.py     # the same, printed: each log's problems, the totals
 
 Readers replayed, each fed the log the way the harness feeds it (READERS): accounting (parse, time_split, check),
 conversation.profile, drive (final_reply_text, tool_call_as_text, last_session, _stamped_events,
@@ -77,7 +77,6 @@ from clients import CLIENTS, empty_state
 REPO = Path(__file__).resolve().parents[3]       # benchmarks/spec-bench/harness -> repo
 LOG_NAME = logscan.COMPACT_LOG
 LOG_GLOBS = (f"combinations/**/benchmarks/**/{LOG_NAME}", f"benchmarks/reference/**/{LOG_NAME}")
-REPLAY_ALL_ENV = "REPLAY_ALL"
 STORIES_DIR = "stories"                          # <run>/stories/NN/<log>: a log anywhere else has no record
 RUN_FILES = ("metrics.json", "run.json")         # what makes a directory a run's
 NO_WORK = Path("/nonexistent")                   # a client's work directory: scan never writes there
@@ -201,10 +200,6 @@ def sample(logs: list[Path]) -> list[Path]:
         by_run.setdefault(run_of(log), []).append(log)
     reached = {run_of(log) for log in chosen}
     return sorted(chosen + [of_run[len(of_run) // 2] for run, of_run in by_run.items() if run not in reached])
-
-
-def replay_all() -> bool:
-    return os.environ.get(REPLAY_ALL_ENV, "") not in ("", "0")
 
 
 def _number(v) -> bool:
@@ -765,7 +760,7 @@ def replay(s: Story) -> list[str]:
 
 
 LOGS = all_logs()
-REPLAYED = LOGS if replay_all() else sample(LOGS)
+REPLAYED = sample(LOGS)
 
 
 @pytest.mark.parametrize("log", REPLAYED, ids=lambda log: log.relative_to(REPO).as_posix())
@@ -797,7 +792,7 @@ def test_every_stale_record_is_still_a_recorded_story():
 
 
 def main(argv: list[str]) -> int:
-    logs = LOGS if "--all" in argv or replay_all() else sample(LOGS)
+    logs = sample(LOGS)
     t0, bad, kinds = time.monotonic(), 0, {}
     for log in logs:
         with tempfile.TemporaryDirectory() as tmp:

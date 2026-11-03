@@ -1955,7 +1955,7 @@ GUIDE_DATA.flows = [
       },
       {
         title: "Make the release", nodes: ["ci", "hr", "tag"], edges: ["ci>hr", "hr>tag"],
-        text: ["`dbench harness-release` runs every check itself and, if all pass, tags HEAD: the harness unit suite (with `drive.py` held at 100% of lines and branches), a replay of every recorded log through the harness's parsers, tests of dbench, vidi-gallery, power-collector and agent-sandbox, clippy for dbench and agent-sandbox, the benchmarker's unit and end-to-end tests, and the repo shell tests. A skipped self-test counts as a failure.", "It refuses when any check fails, when HEAD is not what `origin/main` points at, when a checked file has uncommitted or untracked changes, or when the tag cannot be pushed. The tag lists each check and its time."],
+        text: ["`dbench harness-release` runs every check itself and, if all pass, tags HEAD: the harness unit suite (with `drive.py` held at 100% of lines and branches), tests of dbench, vidi-gallery, power-collector and agent-sandbox, clippy for dbench and agent-sandbox, the benchmarker's unit and end-to-end tests, and the repo shell tests. A skipped self-test counts as a failure.", "It refuses when any check fails, when HEAD is not what `origin/main` points at, when a checked file has uncommitted or untracked changes, or when the tag cannot be pushed. The tag lists each check and its time."],
         cmd: "dbench harness-release",
         where: [["tools/dbench/README.md", "dbench README: releasing the harness"], ["tools/dbench/src/release.rs", "src/release.rs"], ["tools/dbench/checks.toml", "tools/dbench/checks.toml"]],
         state: "built",
