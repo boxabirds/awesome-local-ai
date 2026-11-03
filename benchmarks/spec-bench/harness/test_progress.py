@@ -203,20 +203,28 @@ class SleepyClient:
         return None
 
 
+SKIP_TEST_POLL_S = 0.1
+REQUEST_WAIT_S = 20
+
+
 @pytest.mark.needs_sandbox      # run_story_agent runs the stand-in agent in the real sandbox
 def test_operator_skip_stops_the_agent_with_no_resume_or_nudge(tmp_path, monkeypatch):
-    monkeypatch.setattr(drive, "SKIP_POLL_S", 0.2)
     monkeypatch.setattr(drive, "WORLD", sandbox.World(run="skip-test", kernel_picked_ports=False))
     run = tmp_path / "run"
     ws, _ = repo(tmp_path)
     (tmp_path / "workspace").symlink_to(ws.name)          # the sandbox starts the agent in <run dir>/workspace
     (run / "stories" / "03").mkdir(parents=True)
     drive.STORY_SKIP.clear()
-    skipper = drive.SkipWatcher(run, 3, ws)
+    # SkipWatcher binds its poll when the class is defined: patching drive.SKIP_POLL_S does not reach it (it polled
+    # every 5 s here until 3 Nov 2026).
+    skipper = drive.SkipWatcher(run, 3, ws, poll_s=SKIP_TEST_POLL_S)
     skipper.start()
+    events = run / "stories" / "03" / "agent-events.jsonl"
 
     def request():
-        time.sleep(1.5)
+        deadline = time.monotonic() + REQUEST_WAIT_S
+        while not (events.exists() and events.read_text().strip()) and time.monotonic() < deadline:
+            time.sleep(SKIP_TEST_POLL_S)                  # the request comes once the agent is running
         (run / "control").mkdir()
         (run / "control" / "skip-story.json").write_text(json.dumps({"story": 3, "reason": "too long", "by": "t"}))
     threading.Thread(target=request, daemon=True).start()

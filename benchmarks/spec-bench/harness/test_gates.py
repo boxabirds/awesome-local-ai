@@ -20,7 +20,8 @@ needs_held_out_suite = pytest.mark.skipif(
 
 
 @needs_held_out_suite
-def test_unstartable_app_counts_every_applicable_test_as_failed(tmp_path: Path):
+def test_unstartable_app_counts_every_applicable_test_as_failed(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(gates, "STOP_GRACE_S", 0)          # nothing is left running to give time to stop
     ws = tmp_path / "ws"
     ws.mkdir()
     (ws / "package.json").write_text('{"scripts": {"build": "exit 1"}}')

@@ -29,7 +29,7 @@ BENCH_PORT="${BENCH_PORT:-18010}"
 PROXY_PORT="${PROXY_PORT:-18100}"
 REASONING_EFFORT="${REASONING_EFFORT:-low}"
 SERVER_READY_TIMEOUT_S=900
-POLL_S=5
+POLL_S="${SPEC_BENCH_POLL_S:-5}"   # seconds between readiness checks (whole seconds); a test sets it lower
 THERMAL_TIMEOUT_S=1800
 
 usage() { sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }

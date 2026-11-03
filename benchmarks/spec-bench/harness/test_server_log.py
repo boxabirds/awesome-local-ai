@@ -5,6 +5,7 @@ import os
 import shutil
 import socket
 import subprocess
+import time
 from pathlib import Path
 
 import llama_log
@@ -22,6 +23,10 @@ class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
 http.server.HTTPServer(("127.0.0.1", int(os.environ["PORT"])), H).serve_forever()
 '''
+
+
+RUN_SH_DEFAULT_POLL_S = 5     # run.sh's POLL_S when the environment does not set it
+TEST_POLL_S = 1               # whole seconds: run.sh counts its wait in bash integers
 
 
 def free_port() -> int:
@@ -54,12 +59,16 @@ def test_each_server_start_is_appended_after_a_start_marker(tmp_path):
     for f in stubs.iterdir():
         f.chmod(0o755)
     env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack),
-           "PATH": f"{stubs}:{os.environ['PATH']}", "BENCH_PORT": str(free_port())}
+           "PATH": f"{stubs}:{os.environ['PATH']}", "BENCH_PORT": str(free_port()), "SPEC_BENCH_POLL_S": str(TEST_POLL_S)}
     log = repo / "runs/fake/r1/server.log"
+    t0 = time.monotonic()
     for _ in range(2):
         r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r1",
                             "--client", "pi"], env=env, capture_output=True, text=True, timeout=120)
         assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
+    # run.sh takes its readiness poll from the environment: the fake server is up at once, so two starts take less than
+    # two of run.sh's default polls (each start's first check comes before the server listens).
+    assert time.monotonic() - t0 < 2 * RUN_SH_DEFAULT_POLL_S
     text = log.read_text()
     assert text.count("fake llama-server says hello") == 2, text
     starts = llama_log.server_starts(text)
