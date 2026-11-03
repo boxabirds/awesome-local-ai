@@ -1115,56 +1115,123 @@ pub fn pick_times(run: &LakeRun, max: usize) -> Vec<(f64, Variant)> {
 
 // ---------------------------------------------------------------- the run set
 
-/// Per node, how many finished runs with raw logs are sampled; one node has no raw log at all in the lake.
-pub const FINISHED_PER_NODE: usize = 6;
-/// The run set covers at least this many nodes (the lake holds this many).
-pub const MIN_NODES: usize = 4;
-pub const FINISHED_NO_LOG_PER_NODE: usize = 2;
-/// In the big run, the agent logs of these stories (190k, 305k and 108k lines) are replayed UNCAPPED; all else is capped.
-pub const BIG_UNCAPPED_STORIES: [u32; 3] = [3, 4, 5];
+/// In the big run, the agent log of this story (108,666 lines, the shortest of its three logs over 100,000 lines) is
+/// replayed UNCAPPED; all else is capped. One long log is the class; three were the same class three times.
+pub const BIG_UNCAPPED_STORIES: [u32; 1] = [5];
 /// A run whose logs are replayed UNCAPPED (it holds logs of more than 100,000 lines).
 pub const BIG_RUN_MARK: &str = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1";
 
-/// The runs the backtest uses: every run that did not finish cleanly (failed, stopped, started, no status) and a spread
-/// of finished runs on every node; the big run is always in.
-pub fn select_runs(lake: &Path) -> Vec<LakeRun> {
-    let all = lake_runs(lake);
-    let mut odd: Vec<LakeRun> = Vec::new();
-    let mut finished_logs: BTreeMap<String, Vec<LakeRun>> = BTreeMap::new();
-    let mut finished_nologs: BTreeMap<String, Vec<LakeRun>> = BTreeMap::new();
-    // The same combination and run id can be on several nodes; the first copy found is the big run, the others are ordinary.
-    let mut big_taken = false;
-    for dir in all {
-        let big = !big_taken && dir.to_string_lossy().ends_with(BIG_RUN_MARK);
-        let rs = LakeRun::load_state_only(&dir, lake);
-        let has_raw = dir.join("stories").is_dir() && std::fs::read_dir(dir.join("stories")).map(|rd| rd.filter_map(|e| e.ok()).any(|e| e.path().join("agent-events.jsonl").is_file())).unwrap_or(false);
-        if rs != "finished" {
-            odd.push(LakeRun::load(&dir, lake, false));
-            continue;
-        }
-        let node = dir.strip_prefix(lake).unwrap().components().next().unwrap().as_os_str().to_string_lossy().to_string();
-        if big {
-            big_taken = true;
-            odd.push(LakeRun::load(&dir, lake, true));
-        } else if has_raw {
-            finished_logs.entry(node).or_default().push(LakeRun::load_lazy(dir));
-        } else {
-            finished_nologs.entry(node).or_default().push(LakeRun::load_lazy(dir));
-        }
+/// The classes of run the backtests must hold, one real run each at least (owner, 3 Nov 2026: one run per class, not a
+/// count per node). They are what the code under test can tell apart: how the run ended, whether its raw logs are
+/// there, how long a log is, which streams it has and whether its record exists. The node and the coding agent are not
+/// classes: the scope API and the scope collector read bytes, lines and `_rx` times, never the agent's event shapes.
+pub const RUN_CLASSES: [&str; 14] = [
+    "raw logs, finished",
+    "raw logs, failed",
+    "raw logs, stopped",
+    "raw logs, no status",
+    "no raw log (a git-carried copy)",
+    "a log of more than 100,000 lines",
+    "egress",
+    "no egress",
+    "conditions for every story",
+    "conditions for some stories",
+    "no conditions",
+    "metrics.json",
+    "no metrics.json",
+    "three or more stories",
+];
+const RAW_LOG: &str = "agent-events.jsonl";
+const CONDITIONS_LOG: &str = "conditions.jsonl";
+const EGRESS_LOG: &str = "egress.jsonl";
+const METRICS_FILE: &str = "metrics.json";
+const MANY_STORIES: usize = 3;
+
+/// The stories of a lake run that have a raw agent log, by number.
+fn stories_with_raw_logs(dir: &Path) -> Vec<PathBuf> {
+    let Ok(rd) = std::fs::read_dir(dir.join("stories")) else { return vec![] };
+    let mut out: Vec<PathBuf> = rd.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.join(RAW_LOG).is_file()).collect();
+    out.sort();
+    out
+}
+
+/// The classes (RUN_CLASSES) a lake run directory is in, read from its files without indexing a log.
+pub fn run_classes(dir: &Path) -> BTreeSet<&'static str> {
+    let mut out = BTreeSet::new();
+    let stories = stories_with_raw_logs(dir);
+    if stories.is_empty() {
+        out.insert("no raw log (a git-carried copy)");
+        return out;
     }
-    let mut out = odd;
-    for (map, per) in [(finished_logs, FINISHED_PER_NODE), (finished_nologs, FINISHED_NO_LOG_PER_NODE)] {
-        for (_node, runs) in map {
-            let n = runs.len();
-            let step = (n / per).max(1);
-            for (i, r) in runs.into_iter().enumerate() {
-                if i % step == 0 && i / step < per {
-                    out.push(LakeRun::load(&r.src, lake, false));
-                }
-            }
-        }
+    if dir.to_string_lossy().ends_with(BIG_RUN_MARK) {
+        // the big run stands for long logs; a finished run of ordinary length is a class of its own
+        out.insert("a log of more than 100,000 lines");
+    } else {
+        out.insert(match LakeRun::load_state_only(dir, dir).as_str() {
+            "finished" => "raw logs, finished",
+            "failed" => "raw logs, failed",
+            "stopped" => "raw logs, stopped",
+            _ => "raw logs, no status",
+        });
+    }
+    out.insert(if dir.join(EGRESS_LOG).is_file() { "egress" } else { "no egress" });
+    let with_conditions = stories.iter().filter(|s| s.join(CONDITIONS_LOG).is_file()).count();
+    out.insert(match with_conditions {
+        0 => "no conditions",
+        n if n == stories.len() => "conditions for every story",
+        _ => "conditions for some stories",
+    });
+    out.insert(if dir.join(METRICS_FILE).is_file() { "metrics.json" } else { "no metrics.json" });
+    if stories.len() >= MANY_STORIES {
+        out.insert("three or more stories");
     }
     out
+}
+
+/// The bytes of a run's raw agent logs: the cost of replaying it.
+fn raw_log_bytes(dir: &Path) -> u64 {
+    stories_with_raw_logs(dir).iter().filter_map(|s| s.join(RAW_LOG).metadata().ok()).map(|m| m.len()).sum()
+}
+
+/// The runs the backtests use: a smallest cover of RUN_CLASSES by real lake runs. Each step takes the run that adds the
+/// most classes still missing, the one with the fewest raw-log bytes among those, then the first by path, so the set is
+/// the same for the same lake. A class no run is in is left out here, and the run-set test fails on it.
+pub fn select_runs(lake: &Path) -> Vec<LakeRun> {
+    let candidates: Vec<(PathBuf, BTreeSet<&'static str>, u64)> = lake_runs(lake)
+        .into_iter()
+        .map(|dir| {
+            let classes = run_classes(&dir);
+            let bytes = raw_log_bytes(&dir);
+            (dir, classes, bytes)
+        })
+        .collect();
+    let mut need: BTreeSet<&'static str> = RUN_CLASSES.into_iter().collect();
+    let mut picked: Vec<&(PathBuf, BTreeSet<&'static str>, u64)> = Vec::new();
+    while !need.is_empty() {
+        let best = candidates
+            .iter()
+            .filter(|(_, c, _)| !c.is_disjoint(&need))
+            .min_by_key(|(dir, c, bytes)| (std::cmp::Reverse(c.intersection(&need).count()), *bytes, dir.clone()));
+        let Some(run) = best else { break };
+        need.retain(|k| !run.1.contains(k));
+        picked.push(run);
+    }
+    // A run picked early can end up holding nothing the later ones don't: drop it, the costliest first.
+    let mut by_cost: Vec<usize> = (0..picked.len()).collect();
+    by_cost.sort_by_key(|&i| std::cmp::Reverse(picked[i].2));
+    let mut keep = vec![true; picked.len()];
+    for i in by_cost {
+        let others: BTreeSet<&str> = (0..picked.len()).filter(|&j| j != i && keep[j]).flat_map(|j| picked[j].1.iter().copied()).collect();
+        if picked[i].1.is_subset(&others) {
+            keep[i] = false;
+        }
+    }
+    picked
+        .into_iter()
+        .zip(keep)
+        .filter(|(_, k)| *k)
+        .map(|((dir, classes, _), _)| LakeRun::load(dir, lake, classes.contains("a log of more than 100,000 lines")))
+        .collect()
 }
 
 impl LakeRun {
@@ -1172,25 +1239,6 @@ impl LakeRun {
     pub fn load_state_only(dir: &Path, _lake: &Path) -> String {
         let status = read_json(&dir.join("run-status.json")).or_else(|| read_json(&dir.join(COLLECTION_FILE)).and_then(|c| c.get("run_status").cloned()));
         status.and_then(|s| s.get("state").and_then(|x| x.as_str()).map(String::from)).unwrap_or_else(|| "none".to_string())
-    }
-
-    /// A placeholder that only remembers the directory (so a selection can be made before indexing).
-    fn load_lazy(dir: PathBuf) -> LakeRun {
-        LakeRun {
-            label: String::new(),
-            node: String::new(),
-            src: dir,
-            real_state: String::new(),
-            status_at: None,
-            stories: BTreeMap::new(),
-            egress: None,
-            run_files: vec![],
-            has_real_metrics: false,
-            run_json: None,
-            first_start: 0.0,
-            end: 0.0,
-            big: false,
-        }
     }
 }
 

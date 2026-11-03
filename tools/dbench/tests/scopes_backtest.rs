@@ -5,9 +5,10 @@
 //! The lake is `~/expts/awesome-local-ai-bench-private/state/collected`; it is only read. When it is absent every test prints
 //! a SKIPPED line and passes.
 //!
-//! RUN SET: every lake run that did not finish cleanly (failed, stopped, started, no status), plus per node a spread of
-//! finished runs with raw logs (FINISHED_PER_NODE) and without (one node has no raw log at all), plus one big run whose
-//! logs are replayed UNCAPPED (it holds logs of more than 100,000 lines). All other logs are cut to their first LINE_CAP
+//! RUN SET: one real run per class (support/replay.rs RUN_CLASSES: how the run ended, raw logs or a git-carried copy
+//! without them, one log over 100,000 lines, egress or not, conditions for every, some or no story, metrics.json or
+//! not, three or more stories), chosen as a smallest cover (`select_runs`); the_run_set_is_one_run_per_class holds it
+//! to that. The one long log is replayed UNCAPPED. All other logs are cut to their first LINE_CAP
 //! lines in a copy (runtime); the capped copy is "the original file" of the properties.
 //!
 //! CASE TABLE (one test per row; each row varies one dimension):
@@ -56,7 +57,6 @@ const BIG_RUN_POLLS: usize = 4;
 const FAILURES_SHOWN: usize = 12;
 const SLOWEST_SHOWN: usize = 3;
 const BIG_LOG_LINES: usize = 100_000;
-const BIG_LOGS_MIN: usize = 3;
 const NEVER_STORY: u32 = 99;
 
 struct Tally(Mutex<BTreeMap<&'static str, usize>>);
@@ -699,27 +699,32 @@ async fn p5_absent_is_not_an_error() {
 // ---------------------------------------------------------------- the run set itself
 
 #[test]
-fn the_run_set_covers_the_lake() {
+fn the_run_set_is_one_run_per_class() {
     let Some(runs) = runs() else {
-        eprintln!("SKIPPED the_run_set_covers_the_lake: the lake is absent on this machine");
+        eprintln!("SKIPPED the_run_set_is_one_run_per_class: the lake is absent on this machine");
         return;
     };
-    let count = |state: &str| runs.iter().filter(|r| r.real_state == state).count();
-    assert!(count("failed") >= 4, "failed runs: {}", count("failed"));
-    assert!(count("stopped") >= 8, "stopped runs: {}", count("stopped"));
-    assert!(runs.iter().filter(|r| r.never_settled()).count() >= 3);
-    assert!(count("finished") >= 15, "finished runs: {}", count("finished"));
-    let nodes: std::collections::BTreeSet<&str> = runs.iter().map(|r| r.node.as_str()).collect();
-    assert!(nodes.len() >= MIN_NODES, "nodes in the run set: {nodes:?}");
+    let classes: Vec<BTreeSet<&str>> = runs.iter().map(|r| run_classes(&r.src)).collect();
+    // every class is held by a run in the set
+    let held: BTreeSet<&str> = classes.iter().flatten().copied().collect();
+    for want in RUN_CLASSES {
+        assert!(held.contains(want), "no run in the set is of class {want:?}");
+    }
+    // and no run is there without a reason: each holds a class no other run in the set holds
+    for (i, r) in runs.iter().enumerate() {
+        let others: BTreeSet<&str> = classes.iter().enumerate().filter(|(j, _)| *j != i).flat_map(|(_, c)| c.iter().copied()).collect();
+        assert!(!classes[i].is_subset(&others), "{} adds no class: {:?}", r.label, classes[i]);
+    }
+    // a git-carried copy (no raw log) is in the set once, as its own class, and never stands in for a run that has logs
+    assert_eq!(runs.iter().filter(|r| !r.has_streams()).count(), 1, "runs with no raw log in the set");
     let big = runs
         .iter()
         .flat_map(|r| r.stories.values())
         .filter_map(|s| s.agent.as_ref())
         .filter(|a| !a.idx.capped && a.idx.ends.len() > BIG_LOG_LINES)
         .count();
-    assert!(big >= BIG_LOGS_MIN, "uncapped logs of more than {BIG_LOG_LINES} lines: {big}");
+    assert_eq!(big, 1, "uncapped logs of more than {BIG_LOG_LINES} lines: {big}");
 }
-
 
 // ---------------------------------------------------------------- negative controls
 

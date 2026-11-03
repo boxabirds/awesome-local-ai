@@ -4,8 +4,8 @@
 //! by cursor and files by scope) both collect it into scratch folders, and the results are compared. The lake is only read.
 //! When it is absent every test prints SKIPPED and passes.
 //!
-//! RUN SET: the replay's (every run that did not finish cleanly, a spread of finished runs per node with and without raw
-//! logs, and the one big run replayed uncapped).
+//! RUN SET: the replay's (support/replay.rs `select_runs`): one real run per class of RUN_CLASSES, the big run's one
+//! log over 100,000 lines replayed uncapped.
 //!
 //! | test | dimension | oracle |
 //! |---|---|---|
