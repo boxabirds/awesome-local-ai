@@ -84,7 +84,7 @@ fn tc15_raw_logs_rank_above_more_files() {
     let carried_by_git = note("a", true, true, 642, Some(2.0));
     assert_eq!(compare_copies(&ran_here, &carried_by_git), Ordering::Greater);
     // and above completeness: the node that ran a job holds its raw logs while a resumed job is still going
-    // (host's lake, 3 Nov 2026: vidi v2-strata0141-r2 on gruntus, -again1 queued, 6 raw logs, incomplete), while the
+    // (host's lake, 3 Nov 2026: vidi v2-strata0141-r2 on the node that ran it, -again1 queued, 6 raw logs, incomplete), while the
     // copies git carried to five other nodes call themselves complete.
     let still_running = CopyNote { complete: false, settled_at: None, ..ran_here.clone() };
     assert_eq!(compare_copies(&still_running, &carried_by_git), Ordering::Greater);

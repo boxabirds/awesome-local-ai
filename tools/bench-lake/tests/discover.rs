@@ -276,7 +276,7 @@ fn tc13_empty_root() {
 fn tc14_preferred_on_real_notes() {
     let lake = fixture_lake();
     let d = lake.discover();
-    // node-d's note lists the 11 raw story logs: it is the node that ran the job (tritus on the host's lake).
+    // node-d's note lists the 11 raw story logs: it is the node that ran the job, as on the host's lake.
     assert_eq!(lake.preferred(&d, ID_Q36).unwrap().node.as_deref(), Some("node-d"));
     assert_eq!(lake.preferred(&d, ID_REFV).unwrap().node, None);
     assert!(lake.preferred(&d, "combinations/nothing").is_none());
