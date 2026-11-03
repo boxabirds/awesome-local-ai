@@ -234,16 +234,72 @@ fn tc101_b_the_repository_lacks_a_file() {
 
 #[test]
 fn tc102_fixture_drop_list_is_recorded() {
-    // The builder needs the host's lake and a repository branch to compare with; it is not run here. What is checked:
-    // the drop list is a tab-separated file, every line has file and reason, and the builder writes it.
+    // The committed drop list is a tab-separated file, every line with file and reason.
     let dir = manifest_dir().join("tests/fixtures");
     let dropped = fs::read_to_string(dir.join("DROPPED.tsv")).unwrap();
     for l in dropped.lines().filter(|l| !l.is_empty()) {
         assert!(l.split('\t').count() >= 2, "{l}");
     }
-    let script = fs::read_to_string(dir.join("make-lake-fixture.sh")).unwrap();
-    assert!(script.contains("DROPPED.tsv") || script.contains("$dropped"));
-    not_run("TC-102", "the builder was not run with a file that differs: it needs the host's lake");
+}
+
+/// The real node names a scratch lake is laid out under; the builder maps them to the fixture's aliases.
+const SCRATCH_REAL_NODES: [(&str, &str); 4] = [("host-a", "node-a"), ("host-b", "node-b"), ("host-c", "node-c"), ("host-d", "node-d")];
+/// The ref the builder compares the lake with (REPO_REF in make-lake-fixture.sh).
+const BUILDER_REPO_REF: &str = "refs/remotes/origin/main";
+
+/// TC-102: the real builder, run on a lake where one tracked record differs from the repository, drops that file,
+/// writes it to DROPPED.tsv with its reason, and keeps a tracked record that is equal. The lake is a copy of the
+/// fixture laid out under real-looking node names; the repository is a scratch one. The builder is a macOS script
+/// (sed -i '', stat -f), so elsewhere this reports not run.
+#[test]
+fn tc102_the_builder_drops_a_file_that_differs_from_the_repository() {
+    if !cfg!(target_os = "macos") {
+        not_run("TC-102", "make-lake-fixture.sh is a macOS script");
+        return;
+    }
+    let s = Scratch::new("builder");
+    // the builder writes lake/, DROPPED.tsv and MANIFEST.sha256 next to itself: run a copy in the scratch folder
+    let here = s.join("fixtures");
+    fs::create_dir_all(&here).unwrap();
+    let script = here.join("make-lake-fixture.sh");
+    fs::copy(manifest_dir().join("tests/fixtures/make-lake-fixture.sh"), &script).unwrap();
+    // the lake: the fixture's runs under real-looking node names
+    let state = s.join("state");
+    let fixture = fixture_state();
+    copy_tree(&fixture.join("reference"), &state.join("reference"));
+    for (real, alias) in SCRATCH_REAL_NODES {
+        let from = fixture.join("collected").join(alias);
+        if from.exists() {
+            copy_tree(&from, &state.join("collected").join(real));
+        }
+    }
+    // the repository: run.json of ID_FRESH differs from the lake's, finalize.json is the same
+    let lake_run = state.join("collected/host-a").join(ID_FRESH);
+    let repo = s.join("repo");
+    fs::create_dir_all(&repo).unwrap();
+    git(&repo, &["init", "-q"]);
+    write(&repo.join(ID_FRESH).join("run.json"), b"{\"edited\":true}\n");
+    write(&repo.join(ID_FRESH).join("finalize.json"), &fs::read(lake_run.join("finalize.json")).unwrap());
+    git(&repo, &["add", "-A"]);
+    git(&repo, &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "records"]);
+    git(&repo, &["update-ref", BUILDER_REPO_REF, "HEAD"]);
+
+    let mut cmd = Command::new("bash");
+    cmd.arg(&script);
+    for (real, alias) in SCRATCH_REAL_NODES {
+        cmd.arg("--alias").arg(format!("{real}={alias}"));
+    }
+    let out = cmd.arg(&state).arg(&repo).output().unwrap();
+    assert!(out.status.success(), "builder failed: {}", String::from_utf8_lossy(&out.stderr));
+
+    let dropped = fs::read_to_string(here.join("DROPPED.tsv")).unwrap();
+    let want = format!("collected/node-a/{ID_FRESH}/run.json\t{ID_FRESH}\tdiffers from origin/main\n");
+    assert_eq!(dropped, want);
+    let built = here.join("lake/collected/node-a").join(ID_FRESH);
+    assert!(!built.join("run.json").exists(), "the differing file is not in the fixture");
+    assert_eq!(fs::read(built.join("finalize.json")).unwrap(), fs::read(lake_run.join("finalize.json")).unwrap());
+    // nothing in the lake was changed: its run.json is still there
+    assert!(lake_run.join("run.json").is_file());
 }
 
 #[test]
