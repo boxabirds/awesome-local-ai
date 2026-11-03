@@ -18,10 +18,12 @@ TEST_TIMEOUT_S = 300
 def agent_run(cmd: list[str], own_dir: Path, env: dict | None = None, world: sandbox.World | None = None,
               secrets: dict[str, str] | None = None, timeout: int = TEST_TIMEOUT_S) -> subprocess.CompletedProcess:
     """`cmd` in the real sandbox, as the agent runs it, with `own_dir` as the run's directory. Its working directory is
-    the run's workspace (made if missing), so a command names files relative to it, as the agent does."""
+    the run's workspace (made if missing), so a command names files relative to it, as the agent does. Unless a world
+    is given, the ports are fixed: macOS's kernel-picked range costs seconds at each start and only a test of serving
+    needs it (test_drive.py launches the production world once)."""
     own_dir = Path(own_dir)
     (own_dir / drive.WORKSPACE_DIR).mkdir(parents=True, exist_ok=True)
-    world = world or sandbox.World(run=own_dir.name)
+    world = world or sandbox.World(run=own_dir.name, kernel_picked_ports=False)
     launch = drive.launch_agent(cmd, own_dir, {**drive.agent_env(own_dir), **(env or {})}, secrets, world)
     try:
         return subprocess.run(launch.argv, cwd=own_dir / drive.WORKSPACE_DIR, env=launch.env, pass_fds=launch.fds,

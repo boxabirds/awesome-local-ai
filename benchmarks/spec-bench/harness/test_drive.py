@@ -35,6 +35,35 @@ VIDI = REPO_ROOT / "benchmarks" / "vidi"   # the in-repo copy of the pack, which
 SECRET = VIDI / "acceptance" / "package.json"
 
 
+# The tests launch the sandbox with fixed ports: on macOS, opening the kernel's ephemeral range for `wrangler dev`
+# (World.kernel_picked_ports) costs about 4.7 s at each start and none of them is about ports (31 tests: 238 s against
+# 14 s, 3 Nov 2026). The production world keeps it on, and the one test below launches with it, so it is still run.
+
+def test_agent_run_launches_with_fixed_ports_unless_asked(tmp_path: Path, monkeypatch):
+    import sandbox
+    seen = []
+    monkeypatch.setattr(subprocess, "run", lambda argv, **k: seen.append(argv) or subprocess.CompletedProcess(argv, 0, "", ""))
+    agent_run(["true"], tmp_path / "run")
+    agent_run(["true"], tmp_path / "run", world=sandbox.World(run="run"))
+    assert "--ephemeral-ports" not in seen[0]
+    assert ("--ephemeral-ports" in seen[1]) == sandbox.IS_MAC
+
+
+PORT_ZERO = ("require('net').createServer().on('error', e => { console.log('ERR', e.code); process.exit(3) })"
+             ".listen(0, '127.0.0.1', function () { console.log('PORT', this.address().port); this.close() })")
+
+
+@pytest.mark.needs_sandbox
+def test_the_production_world_lets_a_server_listen_on_a_port_the_kernel_picks(tmp_path: Path):
+    import sandbox
+    own = tmp_path / "run"
+    served = agent_run(["node", "-e", PORT_ZERO], own, world=sandbox.World(run=own.name))
+    assert served.returncode == 0 and served.stdout.startswith("PORT "), served.stdout + served.stderr
+    if sandbox.IS_MAC:                                    # and the fixed-port world the other tests use refuses it
+        refused = agent_run(["node", "-e", PORT_ZERO], own)
+        assert refused.returncode != 0 and "EPERM" in refused.stdout, refused.stdout + refused.stderr
+
+
 @pytest.mark.needs_sandbox
 def test_sandbox_blocks_reading_the_acceptance_suite(tmp_path: Path):
     own = tmp_path / "run"
