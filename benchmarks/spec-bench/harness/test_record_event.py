@@ -24,6 +24,26 @@ def last_pushed(remote: Path) -> str:
                           capture_output=True, text=True).stdout.strip()
 
 
+def remembered_scoring_env() -> bytes | None:
+    """The tool paths this test session's scoring home remembers (conftest.py gives the session one), or None."""
+    import scoring_tools
+    f = scoring_tools.home() / scoring_tools.ENV_FILE
+    return f.read_bytes() if f.is_file() else None
+
+
+def run_sh(argv: list[str], env: dict, **kw) -> subprocess.CompletedProcess:
+    """run.sh as a test runs it. run.sh remembers its PATH in the scoring home (scoring_tools.py remember), and a test's
+    PATH holds stub tools: remembered in the session's home, a later re-score in another test ran the stubs and found
+    no tests (test_pipeline after this file, 3 Nov 2026). The session's remembered environment must not change."""
+    import scoring_tools
+    import tempfile
+    before = remembered_scoring_env()
+    with tempfile.TemporaryDirectory(prefix="spec-bench-test-run-sh-scoring-") as own:      # what it remembers is its own
+        r = subprocess.run(argv, env={**env, scoring_tools.HOME_ENV: own}, **kw)
+    assert remembered_scoring_env() == before, "run.sh changed the session's remembered scoring environment"
+    return r
+
+
 def fake_pack(tmp_path: Path) -> Path:
     """The smallest real pack: one story, and a held-out suite directory."""
     pack = tmp_path / "pack"
@@ -61,7 +81,7 @@ def test_a_run_that_refuses_to_start_says_so_in_a_pushed_commit(tmp_path):
     pack = fake_pack(tmp_path)  # its acceptance/ has no package.json: npm ci fails
     env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack),
            "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv"))}
-    r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r9",
+    r = run_sh([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r9",
                         "--client", "claude", "--record"], env=env, capture_output=True, text=True)
     assert r.returncode != 0
     msg = last_pushed(remote)
@@ -95,7 +115,7 @@ def test_a_cloud_run_that_completes_exits_0(tmp_path):
         f.chmod(0o755)
     env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack),
            "PATH": f"{stubs}:{os.environ['PATH']}"}
-    r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r1",
+    r = run_sh([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r1",
                         "--client", "claude"], env=env, capture_output=True, text=True)
     assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
 
@@ -134,7 +154,7 @@ def test_a_run_stopped_for_missing_resources_exits_3_and_records_why(tmp_path):
     env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack),
            "PATH": f"{stubs}:{os.environ['PATH']}",
            "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv"))}
-    r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r4",
+    r = run_sh([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r4",
                         "--client", "claude", "--record"], env=env, capture_output=True, text=True)
     assert r.returncode == 3, r.stdout[-1500:] + r.stderr[-1500:]
     msg = last_pushed(remote)
@@ -166,7 +186,7 @@ def test_a_reference_stack_puts_each_packs_runs_under_that_pack(tmp_path):
     env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "PATH": f"{stubs}:{os.environ['PATH']}"}
     env.pop("SPEC_BENCH_PACK_DIR", None)
     env.pop("VIDI_PACK_DIR", None)
-    r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--pack", "benchmarks/todoodle",
+    r = run_sh([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--pack", "benchmarks/todoodle",
                         "--run-id", "r1", "--client", "claude"], env=env, capture_output=True, text=True)
     assert (repo / "benchmarks/reference/todoodle/fake-stack/r1").is_dir(), r.stdout[-1500:] + r.stderr[-1500:]
     assert not (repo / "benchmarks/reference/vidi/fake-stack/r1").exists()

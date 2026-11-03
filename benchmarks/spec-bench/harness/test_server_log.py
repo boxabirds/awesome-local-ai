@@ -10,7 +10,7 @@ from pathlib import Path
 
 import llama_log
 from sandbox_testing import fake_sandbox_env
-from test_record_event import HARNESS, IDENTITY, fake_pack, repo_with_remote
+from test_record_event import HARNESS, IDENTITY, fake_pack, repo_with_remote, run_sh
 
 FAKE_SERVER = '''#!/usr/bin/env python3
 import http.server, json, os
@@ -63,7 +63,7 @@ def test_each_server_start_is_appended_after_a_start_marker(tmp_path):
     log = repo / "runs/fake/r1/server.log"
     t0 = time.monotonic()
     for _ in range(2):
-        r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r1",
+        r = run_sh([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r1",
                             "--client", "pi"], env=env, capture_output=True, text=True, timeout=120)
         assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
     # run.sh takes its readiness poll from the environment: the fake server is up at once, so two starts take less than
