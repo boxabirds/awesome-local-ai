@@ -2,8 +2,9 @@
 
 The eight dimensions (run_kind, story_outcome, private_files, credential, heldout_title, size, results_root,
 run_position) make 1,024 combinations; 22 rows cover them, a row using "*" for a dimension the code ignores in that
-row. A row's test then runs EVERY value of each "*" dimension (one at a time, from a plain base), and asserts the same
-outcome each time:
+row. A row's test runs one scenario per code path the "*" dimensions can take, not every value of them (the owner,
+3 Nov 2026: tests are useful only when orthogonal; the full expansion of 141 scenarios covered no line or branch of
+drive.py that these do not), and asserts the same outcome on each:
 
 - run_kind (combination path vs benchmarks/reference path) and story_outcome change nothing inside record_story; the
   outcome only changes the commit message: done and partial are the string drive.main builds, stopped and failed are
@@ -39,8 +40,6 @@ import test_publish_gate as pg
 G = pg.G
 PACK = "vidi"                                  # record_event's default pack name
 RUN_ID = "r1"
-KINDS = ("combination", "reference")
-OUTCOMES = ("done", "partial", "stopped", "failed")
 STORY_ID = 3
 PARTIAL_TEXT = "partial (ended by operator)"   # the string drive.main builds for a PARTIAL story
 EVENT_REASON = "the operator asked for it"
@@ -73,15 +72,19 @@ class Flags(NamedTuple):
 BASE = Flags()
 
 
-def vary_kind_and_outcome(flags: Flags) -> list[Flags]:
-    """flags with each run_kind, then each story_outcome, one at a time (the base's own value counted once)."""
-    return [flags, flags._replace(kind="reference"), *(flags._replace(outcome=o) for o in OUTCOMES[1:])]
+def both_paths(flags: Flags) -> list[Flags]:
+    """flags recorded both ways the harness records: a story through drive.record_story (a combination's run, done), and
+    a run's end through record_event.record (a reference run, failed). The other outcomes take one of these two paths
+    with only the message changed; the kind matters only to publicise.is_private, which treats both roots alike."""
+    return [flags, flags._replace(kind="reference", outcome="failed")]
 
 
-def vary_everything(flags: Flags = BASE) -> list[Flags]:
-    """For a refusal: it ignores every dimension, so each value of each one is run, one at a time."""
-    return [*vary_kind_and_outcome(flags), flags._replace(private=True), flags._replace(credential=True),
-            flags._replace(title=True), flags._replace(big=True)]
+EVERYTHING = Flags(private=True, credential=True, title=True, big=True)
+
+
+def refusal_scenarios() -> list[Flags]:
+    """A refusal reads only run.json, so a run holding everything is refused the same as an empty one: both paths."""
+    return both_paths(EVERYTHING)
 
 
 def ident(flags: Flags) -> str:
@@ -217,7 +220,7 @@ def assert_refused(root: Path, scn: Scenario, why: str, capsys) -> None:
 
 
 def refused_everywhere(tmp_path, monkeypatch, capsys, mode: str, why: str, run_parent: str):
-    for n, flags in enumerate(vary_everything()):
+    for n, flags in enumerate(refusal_scenarios()):
         scn = scenario(tmp_path, n, flags, run_parent)
         root = point_roots(monkeypatch, mode, scn)
         assert_refused(root, scn, why, capsys)
@@ -228,7 +231,7 @@ def test_u1_a_checkout_the_process_may_not_record_in_is_refused(tmp_path, monkey
     # is refused for the checkout, not for being outside.
     n = 0
     for run_parent in ("repo", "outside"):
-        for flags in vary_everything():
+        for flags in refusal_scenarios():
             scn = scenario(tmp_path, n, flags, run_parent)
             n += 1
             assert_refused(point_roots(monkeypatch, "a git checkout", scn), scn, OFF_LIMITS, capsys)
@@ -322,11 +325,11 @@ def assert_recorded(root: Path, scn: Scenario, message: str, res: dict, before: 
     pytest.param(p, c, t, s, id=f"{p}-{c}-{t}-{s}")
     for p, c, t, s in itertools.product(("present", "absent"), ("present", "absent"), ("present", "absent"), ("under", "over"))])
 def test_u1_records_in_a_valid_root(tmp_path, monkeypatch, private, credential, title, size):
-    # R7..R22: the root is the top of a checkout with a bare origin and the run is inside it. Each run_kind and each
-    # story_outcome in turn (one at a time): the same result, and the pushed commit's subject is the message.
+    # R7..R22: the root is the top of a checkout with a bare origin and the run is inside it. Both ways of recording:
+    # the same result, and the pushed commit's subject is the message.
     base = Flags(private=private == "present", credential=credential == "present", title=title == "present",
                  big=size == "over")
-    for n, flags in enumerate(vary_kind_and_outcome(base)):
+    for n, flags in enumerate(both_paths(base)):
         scn = scenario(tmp_path, n, flags)
         root = point_roots(monkeypatch, "set and valid", scn)
         before = (head(scn.repo), remote_head(scn.remote))
@@ -336,8 +339,8 @@ def test_u1_records_in_a_valid_root(tmp_path, monkeypatch, private, credential, 
 
 def test_u1_with_the_root_unset_the_default_root_records_like_a_valid_one(tmp_path, monkeypatch):
     # R6: no $SPEC_BENCH_RESULTS_ROOT: the default root is the code's checkout. A plain run (no private file, no
-    # credential, no title, under the limit) is committed and pushed in it, for each kind and each outcome.
-    for n, flags in enumerate(vary_kind_and_outcome(BASE)):
+    # credential, no title, under the limit) is committed and pushed in it, both ways of recording.
+    for n, flags in enumerate(both_paths(BASE)):
         scn = scenario(tmp_path, n, flags)
         root = point_roots(monkeypatch, "unset", scn)
         assert os.environ.get(roots.ENV) is None and root == scn.repo
