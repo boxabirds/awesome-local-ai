@@ -41,10 +41,19 @@ Not copied: the 11 stories' logs of each run beyond the ones named below, `serve
   the scan refused them; the bundle used is `v2-q36fork-b-r2`'s (613 KB), a tracked run.
 - **No combination run without a note.** Every combination run in the lake has a note. TC-61 builds one from a copy of the
   first run by removing `collection.json`. The only real runs without a note are the hand-built reference runs (above).
-- **The dry run's raw log is left out**: the first 20 lines of its story 02 raw log hold a home path. `v2-q36fork-b-r2` has
-  no raw logs in the lake (compact only), so the raw-log cells use `v2-fresh-r1`.
+- **The dry run's raw log is left out**: the first 20 lines of its story 02 raw log hold a home path. node-a's copy of
+  `v2-q36fork-b-r2` has no raw logs (compact only; the 11 raw logs are in the copy of the node that ran it, which the
+  fixture keeps as a note only), so the raw-log cells use `v2-fresh-r1`.
 - **Empty folders.** Git cannot store an empty folder. The real empty `benchmarks` folder in a node folder (node-b and
   node-c have one) is created by the tests that need it (TC-05).
+
+## The repository's workspace at story 12 (TC-48, TC-109)
+
+`workspace-mirror-q36-story12.tsv` lists the workspace mirror the repository tracked for `v2-q36fork-b-r2` at story 12,
+one `<blob>\t<path>` line per file (129 files): `git ls-tree -r 8ba488994 -- <run>/workspace`, from commit
+`8ba488994` (8 October 2026, "story 12 done"). Main's history no longer tracks workspace mirrors, and that commit
+survives only in local tags, so the listing is kept here. TC-48 and TC-109 check that the working copy made from
+node-a's `workspace.bundle` at story 12 has each of these files with the same blob, and only `spec/` besides.
 
 ## Rebuilding
 

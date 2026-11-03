@@ -71,38 +71,32 @@ fn tree_of(dir: &Path, commit: &str) -> BTreeMap<String, String> {
         .collect()
 }
 
+/// The workspace mirror the repository tracked for ID_Q36 at story 12, as `<blob>\t<path>` lines: taken from
+/// commit 8ba488994 (8 Oct 2026, "story 12 done"), `git ls-tree -r 8ba488994 -- <id>/workspace`. Main's history no
+/// longer tracks workspace mirrors (they were removed from it), and that commit survives only in local tags, so the
+/// listing is kept here and the test runs everywhere.
+const REPO_WORKSPACE_AT_STORY_12: &str = "tests/fixtures/workspace-mirror-q36-story12.tsv";
+
 #[test]
 fn tc48_and_tc109_files_equal_the_repository_workspace() {
-    let root = repo_root();
-    if !root.join(".git").exists() {
-        not_run("TC-48, TC-109", "no repository next to the crate");
-        return;
-    }
-    let tracked = git(&root, &["ls-tree", "-r", "HEAD", "--", &format!("{ID_Q36}/workspace")]);
-    if tracked.trim().is_empty() {
-        not_run("TC-48, TC-109", "the repository does not track this run's workspace");
-        return;
-    }
+    let listing = fs::read_to_string(manifest_dir().join(REPO_WORKSPACE_AT_STORY_12)).unwrap();
+    let tracked: Vec<(&str, &str)> = listing.lines().map(|l| l.split_once('\t').unwrap()).collect();
     let (s, _state, lake) = scratch_lake("ws-repo");
     let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("last");
     let ws = lake.workspace(&run, LAST_STORY, &dest).unwrap();
     assert_eq!(git(&dest, &["rev-parse", "HEAD"]), ws.commit);
-    let prefix = format!("{ID_Q36}/workspace/");
     let mut compared = 0;
-    for l in tracked.lines() {
-        let (meta, path) = l.split_once('\t').unwrap();
-        let blob = meta.split(' ').nth(2).unwrap();
-        let rel = path.strip_prefix(&prefix).unwrap();
+    for (blob, rel) in &tracked {
         // bytes: the blob git computes for the working copy's file equals the repository's blob
         let hashed = git(&dest, &["hash-object", "--", rel]);
-        assert_eq!(hashed, blob, "{rel}");
+        assert_eq!(&hashed, blob, "{rel}");
         compared += 1;
     }
     assert!(compared > 100, "{compared} files compared");
     // the repository's file list is a subset of the working copy; the rest is spec/ (the repository does not keep it)
     let ours = tree_of(&dest, &ws.commit);
-    let repo_paths: Vec<&str> = tracked.lines().map(|l| l.split_once('\t').unwrap().1.strip_prefix(&prefix).unwrap()).collect();
+    let repo_paths: Vec<&str> = tracked.iter().map(|(_, p)| *p).collect();
     for p in &repo_paths {
         assert!(ours.contains_key(*p), "{p}");
     }
