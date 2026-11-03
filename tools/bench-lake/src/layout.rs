@@ -100,14 +100,20 @@ pub struct CopyNote {
     pub node: String,
     pub has_note: bool,
     pub complete: bool,
+    /// How many stories' raw logs the note lists. The node that ran a job holds them; a copy made from the
+    /// records git carried to another node's checkout does not, however many files it lists and even when its
+    /// note says complete while the run is still going on its own node.
+    pub raw_logs: usize,
     pub files: usize,
     pub settled_at: Option<f64>,
 }
 
-/// `Greater` when `a` is the better copy: note, complete, more files, later settled, smaller node.
+/// `Greater` when `a` is the better copy: note, more raw story logs, complete, more files, later settled,
+/// smaller node.
 pub fn compare_copies(a: &CopyNote, b: &CopyNote) -> Ordering {
     a.has_note
         .cmp(&b.has_note)
+        .then(a.raw_logs.cmp(&b.raw_logs))
         .then(a.complete.cmp(&b.complete))
         .then(a.files.cmp(&b.files))
         .then_with(|| match (a.settled_at, b.settled_at) {
@@ -342,17 +348,24 @@ impl Lake {
     /// The ranking facts of one copy, read from its note alone.
     pub fn copy_note(&self, run: &RunRef) -> CopyNote {
         let node = run.node.clone().unwrap_or_default();
-        let none = CopyNote { node: node.clone(), has_note: false, complete: false, files: 0, settled_at: None };
+        let none = CopyNote { node: node.clone(), has_note: false, complete: false, raw_logs: 0, files: 0, settled_at: None };
         let bytes = match read_regular(&run.dir, Path::new(MARKER_COLLECTION)) {
             Ok(b) => b,
             Err(FileProblem::Missing | FileProblem::NotAFile | FileProblem::Unreadable(_)) => return none,
         };
         let Ok(Value::Object(note)) = crate::records::parse_json(&bytes) else { return none };
+        let files = note.get("files").and_then(Value::as_object);
+        let is_raw_log = |name: &&String| {
+            let mut parts = name.split('/');
+            matches!((parts.next(), parts.next(), parts.next(), parts.next()),
+                (Some(crate::records::STORIES_DIR), Some(_), Some(crate::logs::RAW_LOG), None))
+        };
         CopyNote {
             node,
             has_note: true,
             complete: note.get("complete").and_then(Value::as_bool).unwrap_or(false),
-            files: note.get("files").and_then(Value::as_object).map_or(0, |f| f.len()),
+            raw_logs: files.map_or(0, |f| f.keys().filter(is_raw_log).count()),
+            files: files.map_or(0, |f| f.len()),
             settled_at: note.get("settled_at").and_then(Value::as_f64),
         }
     }

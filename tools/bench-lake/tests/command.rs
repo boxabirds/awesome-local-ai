@@ -64,7 +64,7 @@ fn copies_and_preferred() {
     let nodes: Vec<&str> = v["copies"].as_array().unwrap().iter().map(|c| c["node"].as_str().unwrap()).collect();
     assert_eq!(nodes, ["node-a", "node-c", "node-d"]);
     assert_eq!(json_of(&run(&["copies", "combinations/none"]))["copies"], serde_json::json!([]));
-    assert_eq!(json_of(&run(&["preferred", ID_Q36]))["preferred"]["node"], "node-a");
+    assert_eq!(json_of(&run(&["preferred", ID_Q36]))["preferred"]["node"], "node-d");
     let a = run(&["preferred", "combinations/none"]);
     assert_eq!(a.status.code(), Some(EXIT_OK));
     assert_eq!(json_of(&a)["absent"]["code"], "E-LAKE-NO-RUN");
@@ -169,12 +169,12 @@ fn a_damaged_record_and_a_damaged_log_are_absences() {
     fs::write(run_dir.join("stories/01/agent-events.compact.jsonl.gz"), &whole[..whole.len() / 2]).unwrap();
     fs::write(run_dir.join("run-status.json"), b"{\"cut\":").unwrap();
     let ask = |args: &[&str]| bench_lake_cmd().arg(&state).args(args).output().unwrap();
-    let l = ask(&["log", ID_Q36, "1"]);
+    let l = ask(&["log", ID_Q36_AT_NODE_A, "1"]);
     assert_eq!(l.status.code(), Some(EXIT_OK));
     assert_eq!(json_of(&l)["absent"]["detail"], "not valid gzip");
-    let r = ask(&["record", ID_Q36, "status"]);
+    let r = ask(&["record", ID_Q36_AT_NODE_A, "status"]);
     assert_eq!(json_of(&r)["absent"]["detail"], "not valid JSON");
-    assert_eq!(ask(&["complete", ID_Q36]).status.code(), Some(EXIT_OK));
+    assert_eq!(ask(&["complete", ID_Q36_AT_NODE_A]).status.code(), Some(EXIT_OK));
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn complete_command() {
 fn workspace_command_success_and_refusal() {
     let s = Scratch::new("cmd-ws");
     let dest = s.join("w");
-    let o = run(&["workspace", ID_Q36, "1", dest.to_str().unwrap()]);
+    let o = run(&["workspace", ID_Q36_AT_NODE_A, "1", dest.to_str().unwrap()]);
     assert_eq!(o.status.code(), Some(EXIT_OK), "{}", String::from_utf8_lossy(&o.stderr));
     let v = json_of(&o);
     assert_eq!(v["commit"], "59a592fca04af9fe2c8b667b3a784298795ccde9");
@@ -199,7 +199,7 @@ fn workspace_command_success_and_refusal() {
     assert_eq!(v["story"], 1);
     assert_eq!(git(&dest, &["rev-parse", "HEAD"]), v["commit"].as_str().unwrap());
     // the destination is no longer empty: refused, exit 2, the refusal on stdout
-    let o = run(&["workspace", ID_Q36, "1", dest.to_str().unwrap()]);
+    let o = run(&["workspace", ID_Q36_AT_NODE_A, "1", dest.to_str().unwrap()]);
     assert_eq!(o.status.code(), Some(EXIT_QUESTION));
     let v = json_of(&o);
     assert_eq!(v["status"], "refused");

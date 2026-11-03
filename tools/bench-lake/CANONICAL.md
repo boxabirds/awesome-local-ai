@@ -177,14 +177,16 @@ $ bench-lake <LAKE> copies combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB
 
     {"preferred":RunRef,"status":"found"}
 
-or the absence `E-LAKE-NO-RUN`. The ranking, in this order: a copy with a collection note ranks above one without; a copy
-whose note says `complete` true above one that says false; more entries in the note's `files` object; the larger
+or the absence `E-LAKE-NO-RUN`. The ranking, in this order: a copy with a collection note ranks above one without; more
+raw story logs (`stories/<NN>/agent-events.jsonl`) named in the note's `files` object, because the node that ran the job
+holds them and a copy of the records git carried to another node does not, even when that copy's note says complete;
+a copy whose note says `complete` true above one that says false; more entries in the note's `files` object; the larger
 `settled_at` (a missing or non-numeric one is lowest); the smaller node name (bytes). A note that cannot be read or parsed
 counts as no note.
 
 ```example
 $ bench-lake <LAKE> preferred combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2
-{"preferred":{"dir":"collected/node-a/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-a"},"status":"found"}
+{"preferred":{"dir":"collected/node-d/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-d"},"status":"found"}
 ```
 
 
@@ -266,7 +268,7 @@ $ bench-lake <LAKE> log combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/ll
 
 
 ```example
-$ bench-lake <LAKE> log combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1
+$ bench-lake <LAKE> log node-a@combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1
 {"form":"compact","length":3869372,"lines":2522,"node":"node-a","run":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","sha256":"f65e73473d0ea44f5ec38f8a1fa768347977281cb7113134fd6e87abd699f2f2","status":"found","story":1}
 ```
 
@@ -291,13 +293,13 @@ unusable metrics are those of the metrics record, a story without a commit or a 
 characters or not in the bundle is `E-LAKE-MALFORMED`); then git (refusal `E-LAKE-GIT-FAILED`).
 
 ```example
-$ bench-lake <LAKE> workspace combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1 <DEST>
+$ bench-lake <LAKE> workspace node-a@combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1 <DEST>
 {"commit":"59a592fca04af9fe2c8b667b3a784298795ccde9","node":"node-a","path":"<DEST>","run":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","status":"found","story":1}
 ```
 
 
 ```example
-$ bench-lake <LAKE> workspace combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1 <NONEMPTY-DEST>
+$ bench-lake <LAKE> workspace node-a@combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1 <NONEMPTY-DEST>
 {"refused":{"code":"E-LAKE-DEST-NOT-EMPTY","detail":"destination is not empty","item":"workspace:1","node":"node-a","run":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2"},"status":"refused"}
 ```
 

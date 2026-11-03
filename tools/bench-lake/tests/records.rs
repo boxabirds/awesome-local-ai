@@ -297,8 +297,8 @@ fn tc73_unreadable_record() {
 fn tc74_no_fallback_to_another_copy() {
     let lake = fixture_lake();
     let d = lake.discover();
-    let first = lake.find_run(&d, ID_Q36).unwrap();
-    assert!(lake.bytes(first, &Record::Finalize).is_ok(), "the preferred copy holds finalize.json");
+    let first = lake.find_run(&d, ID_Q36_AT_NODE_A).unwrap();
+    assert!(lake.bytes(first, &Record::Finalize).is_ok(), "node-a's copy holds finalize.json");
     let second = lake.find_run(&d, &format!("node-c@{ID_Q36}")).unwrap();
     let e = lake.bytes(second, &Record::Finalize).unwrap_err();
     assert_eq!(e.reason, Reason::NotCollected);

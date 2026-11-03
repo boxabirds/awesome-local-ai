@@ -11,8 +11,16 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub const ID_FRESH: &str =
     "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1";
-pub const ID_Q36: &str =
-    "combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2";
+macro_rules! id_q36 {
+    () => {
+        "combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2"
+    };
+}
+pub const ID_Q36: &str = id_q36!();
+/// node-a's copy of ID_Q36, by name: it holds the metrics, story 01's compact log and the bundle. The preferred
+/// copy is node-d's, whose note lists the raw story logs (the node that ran the job); the fixture keeps only its
+/// note and progress.
+pub const ID_Q36_AT_NODE_A: &str = concat!("node-a@", id_q36!());
 pub const ID_DRY: &str =
     "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2";
 pub const ID_FLASH: &str = "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1";

@@ -276,9 +276,15 @@ fn tc13_empty_root() {
 fn tc14_preferred_on_real_notes() {
     let lake = fixture_lake();
     let d = lake.discover();
-    assert_eq!(lake.preferred(&d, ID_Q36).unwrap().node.as_deref(), Some("node-a"));
+    // node-d's note lists the 11 raw story logs: it is the node that ran the job (tritus on the host's lake).
+    assert_eq!(lake.preferred(&d, ID_Q36).unwrap().node.as_deref(), Some("node-d"));
     assert_eq!(lake.preferred(&d, ID_REFV).unwrap().node, None);
     assert!(lake.preferred(&d, "combinations/nothing").is_none());
+}
+
+/// Take the raw story logs out of a copy's note.
+fn drop_raw_logs(v: &mut serde_json::Value) {
+    v["files"].as_object_mut().unwrap().retain(|k, _| !k.ends_with("/agent-events.jsonl"));
 }
 
 fn set_note(state: &Path, node: &str, f: impl Fn(&mut serde_json::Value)) {
@@ -288,6 +294,29 @@ fn set_note(state: &Path, node: &str, f: impl Fn(&mut serde_json::Value)) {
     fs::write(&p, serde_json::to_vec(&v).unwrap()).unwrap();
 }
 
+/// The real case behind TC-15 failing on the host's lake (3 Nov 2026, 6 of 61 ids, v2-r1 among them): the
+/// node that ran the job holds the raw story logs, and another node's copy, made from the records git carried
+/// to that node's checkout, is complete too and lists many more files but no raw log. The ranking chose the
+/// copy with more files, whose story logs are compact only.
+#[test]
+fn tc15_a_copy_holding_the_raw_logs_beats_a_complete_copy_with_more_files() {
+    const RAW_LOG: &str = "stories/01/agent-events.jsonl";
+    let (_s, state, lake) = scratch_lake("rawfirst");
+    set_note(&state, "node-d", drop_raw_logs);
+    set_note(&state, "node-a", |v| {
+        drop_raw_logs(v);
+        let files = v["files"].as_object_mut().unwrap();
+        for i in 0..1000 {
+            files.insert(format!("workspace/f{i}"), serde_json::json!({"bytes": 1}));
+        }
+    });
+    set_note(&state, "node-c", |v| {
+        v["files"].as_object_mut().unwrap().insert(RAW_LOG.into(), serde_json::json!({"bytes": 1}));
+    });
+    let d = lake.discover();
+    assert_eq!(lake.preferred(&d, ID_Q36).unwrap().node.as_deref(), Some("node-c"));
+}
+
 #[test]
 fn tc14_preferred_follows_the_ranking_on_scratch_notes() {
     let (_s, state, lake) = scratch_lake("rank");
@@ -295,6 +324,9 @@ fn tc14_preferred_follows_the_ranking_on_scratch_notes() {
         let d = lake.discover();
         lake.preferred(&d, ID_Q36).unwrap().node.clone().unwrap()
     };
+    assert_eq!(pref(&lake), "node-d", "node-d's note lists the raw story logs");
+    // with no copy listing raw logs, the later tiers decide.
+    set_note(&state, "node-d", drop_raw_logs);
     assert_eq!(pref(&lake), "node-a");
     // node-c settles later: it wins (same complete flag, same number of files).
     set_note(&state, "node-c", |v| v["settled_at"] = serde_json::json!(1792116938));
@@ -418,7 +450,7 @@ fn an_unlistable_folder_is_rejected_unreadable() {
 fn find_run_by_id_and_by_node() {
     let lake = fixture_lake();
     let d = lake.discover();
-    assert_eq!(lake.find_run(&d, ID_Q36).unwrap().node.as_deref(), Some("node-a"));
+    assert_eq!(lake.find_run(&d, ID_Q36).unwrap().node.as_deref(), Some("node-d"));
     let spec = format!("node-c@{ID_Q36}");
     assert_eq!(lake.find_run(&d, &spec).unwrap().node.as_deref(), Some("node-c"));
     let e = lake.find_run(&d, &format!("nonode@{ID_Q36}")).unwrap_err();

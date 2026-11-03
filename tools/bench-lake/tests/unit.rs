@@ -15,7 +15,7 @@ const SIXTY_FOUR: usize = 64;
 const SIXTY_FIVE: usize = 65;
 
 fn note(node: &str, has_note: bool, complete: bool, files: usize, settled: Option<f64>) -> CopyNote {
-    CopyNote { node: node.to_string(), has_note, complete, files, settled_at: settled }
+    CopyNote { node: node.to_string(), has_note, complete, raw_logs: 0, files, settled_at: settled }
 }
 
 // ---- layout: the part rule (TC-08, TC-09, TC-10) ----
@@ -76,6 +76,18 @@ fn tc14_a_copy_with_no_note_ranks_below_one_with_a_note() {
     let none = note("a", false, false, 0, None);
     let weak = note("z", true, false, 0, None);
     assert_eq!(compare_copies(&weak, &none), Ordering::Greater);
+}
+
+#[test]
+fn tc15_raw_logs_rank_above_more_files() {
+    let ran_here = CopyNote { raw_logs: 11, ..note("z", true, true, 82, Some(1.0)) };
+    let carried_by_git = note("a", true, true, 642, Some(2.0));
+    assert_eq!(compare_copies(&ran_here, &carried_by_git), Ordering::Greater);
+    // and above completeness: the node that ran a job holds its raw logs while a resumed job is still going
+    // (host's lake, 3 Nov 2026: vidi v2-strata0141-r2 on gruntus, -again1 queued, 6 raw logs, incomplete), while the
+    // copies git carried to five other nodes call themselves complete.
+    let still_running = CopyNote { complete: false, settled_at: None, ..ran_here.clone() };
+    assert_eq!(compare_copies(&still_running, &carried_by_git), Ordering::Greater);
 }
 
 #[test]
