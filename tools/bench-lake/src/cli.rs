@@ -196,8 +196,9 @@ fn answer(args: &[String], report: ReportSink) -> Result<Answer, Question> {
                 _ => return bad("records takes nothing, or --archived and the host checkout"),
             };
             let d = lake.discover();
-            let runs: Vec<Value> = lake.results(&d, archived).iter().map(|r| r.to_value()).collect();
-            Ok(found(json!({"runs": runs})))
+            let mut value = runs_value(&d);
+            value["runs"] = lake.results(&d, archived).iter().map(|r| r.to_value()).collect();
+            Ok(found(value))
         }
         "compare-git" => compare_command(&lake, &words[1..], report),
         other => bad(format!("unknown question {other}")),

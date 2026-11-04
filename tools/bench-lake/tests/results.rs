@@ -231,3 +231,24 @@ fn the_answer_is_canonical_and_reads_nothing_into_the_lake() {
     assert_eq!(text.trim_end(), bench_lake::canonical(&v));
     assert_eq!(snapshot(&state), before);
 }
+
+#[test]
+fn folders_that_are_not_runs_and_missing_roots_are_reported_as_runs_reports_them() {
+    if is_root() {
+        return not_run("records-rejected", "the super-user reads any folder");
+    }
+    let (s, state) = lake();
+    let locked = state.join("collected").join(NODE_COPY).join("combinations/fam/1.0/27b/ubuntu/box/llamacpp-pi/benchmarks/other");
+    fs::create_dir_all(locked.join("r9")).unwrap();
+    fs::set_permissions(&locked, fs::Permissions::from_mode(MODE_NONE)).unwrap();
+    let records = answer(&state, &[]);
+    let runs = bench_lake_cmd().arg(&state).arg("runs").output().unwrap();
+    make_writable(s.path());
+    let runs: Value = serde_json::from_slice(&runs.stdout).unwrap();
+    assert_eq!(records["rejected"], runs["rejected"]);
+    assert_eq!(records["rejected"][0]["code"], "E-LAKE-UNREADABLE");
+    assert_eq!(records["missing_roots"], json!([]));
+    let only_collected = s.join("only-collected");
+    fs::create_dir_all(only_collected.join("collected")).unwrap();
+    assert_eq!(answer(&only_collected, &[])["missing_roots"], json!(["reference"]));
+}

@@ -344,7 +344,7 @@ $ bench-lake <LAKE> complete benchmarks/reference/todoodle/opus-5.5/run-1
 
 ### records `[--archived <checkout>]` (not a question about one run)
 
-    {"runs":[{"bundle":B,"dir":P,"files":{REL:TEXT,...},"id":ID,"kind":K,"node":N,"unreadable":[REL,...]},...],"status":"found"}
+    {"missing_roots":[...],"rejected":[...],"runs":[{"bundle":B,"dir":P,"files":{REL:TEXT,...},"id":ID,"kind":K,"node":N,"unreadable":[REL,...]},...],"status":"found"}
 
 What a reader of results (the benchmarker) shows, in one answer (story 23). One entry per run id, the preferred copy
 (`preferred`), ordered by id. `files` maps a document's path relative to the run folder to its text as written: a JSON
@@ -354,7 +354,8 @@ document is not parsed, so one that does not parse is given as it is. The docume
 it (spelled as section 1 writes it), `rescore/V/stories/S/accept-summary.json` and `rescore/V/stories/S/accept.json`.
 A document that is there but cannot be read as text (refused, not a regular file, or not UTF-8) is left out of `files`
 and named in `unreadable` (sorted); one that is absent is in neither. `bundle` is true when `workspace.bundle` is a
-regular file in the run folder.
+regular file in the run folder. `missing_roots` and `rejected` are those of `runs`, so a reader can tell a lake folder
+it could not list from one that is not there.
 
 With `--archived <checkout>`, a run is left out when `<checkout>/<id>/archived.json` is a regular file (the owner's
 archived marker, kept in the host checkout); a folder or another name there is not a marker. A malformed question
