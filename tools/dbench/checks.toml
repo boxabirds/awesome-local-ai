@@ -20,6 +20,7 @@ paths = [
   "tools/**",
   "tests/**",
   "lib/**",
+  "ops/monitor/**",
   "*.sh",
   "combinations/*/*/*/*/*/*/config.sh",
   "combinations/*/*/*/*/*/*/profiles.tsv",
@@ -70,6 +71,13 @@ command = ["uv", "run", "--quiet", "export_goldens.py", "--check"]
 name = "rust tests (tools workspace)"
 dir = "tools"
 command = ["cargo", "test", "--workspace"]
+
+# The operations monitor (ops/monitor): it reads run records through bench-lake, so it runs after the workspace
+# tests, which build the debug bench-lake its tests use (they fail, never skip, without it).
+[[check]]
+name = "monitor tests"
+dir = "ops/monitor"
+command = ["uv", "run", "--quiet", "--with", "pytest", "pytest", "-q", "-p", "no:cacheprovider"]
 
 # Not in the workspace (tools/Cargo.toml says why).
 [[check]]
