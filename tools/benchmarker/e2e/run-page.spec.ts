@@ -12,7 +12,6 @@ const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const OPUS = "reference/opus-5.5";
 const GUFO = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi";
 const QWEN_27B = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi";
-const WEB = "https://github.com/boxabirds/awesome-local-ai";
 const enc = encodeURIComponent;
 const runPath = (stack: string, run: string) => `/#/vidi/r/${enc(stack)}/${enc(run)}`;
 const storyRunHref = (stack: string, run: string, story: string) => `#/vidi/r/${enc(stack)}/${enc(run)}/s/${story}`;
@@ -121,7 +120,7 @@ test.describe("header: the score of record", () => {
     await expect(s.locator(".stat-value .lead-n")).toHaveText("63/75");
     await expect(s.locator(".tag-record")).toHaveCount(0);
     await expect(s).not.toContainText(/re-scored|suite vidi/);
-    await expect(s.locator("a.record-link")).toHaveAttribute("href", `${WEB}/blob/main/combinations/${SWIFT}/benchmarks/vidi/v2-r5/rescore/vidi-v2.0-pre1/per-story.md`);
+    await expect(s.locator("a.record-link")).toHaveAttribute("href", `/record/combinations/${SWIFT}/benchmarks/vidi/v2-r5/rescore/vidi-v2.0-pre1/per-story.md`);
     await expect(s.locator(".tag-live")).toHaveCount(0);
   });
 
@@ -201,12 +200,14 @@ test.describe("header: agent time", () => {
 });
 
 test.describe("header: judge, record and summary", () => {
-  test("ready: Judge opens the gallery on this run; record and summary open GitHub", async ({ page }) => {
+  test("ready: Judge opens the gallery on this run; record and summary open in the app", async ({ page, request }) => {
     await open(page, SWIFT, "v2-r5");
     const l = section(page, "header").locator('[data-section="links"]');
     await expect(l.getByRole("link", { name: "Judge →" })).toHaveAttribute("href", `http://127.0.0.1:7800/review?setup=${enc(SWIFT)}&run=v2-r5`);
-    await expect(l.getByRole("link", { name: "record" })).toHaveAttribute("href", `${WEB}/tree/main/combinations/${SWIFT}/benchmarks/vidi/v2-r5`);
-    await expect(l.getByRole("link", { name: "summary" })).toHaveAttribute("href", `${WEB}/blob/main/combinations/${SWIFT}/benchmarks/vidi/v2-r5/summary.md`);
+    await expect(l.getByRole("link", { name: "record" })).toHaveAttribute("href", `/record/combinations/${SWIFT}/benchmarks/vidi/v2-r5/`);
+    await expect(l.getByRole("link", { name: "summary" })).toHaveAttribute("href", `/record/combinations/${SWIFT}/benchmarks/vidi/v2-r5/summary.md`);
+    const summary = await request.get((await l.getByRole("link", { name: "summary" }).getAttribute("href"))!);
+    expect([summary.status(), await summary.text()]).toEqual([200, "# v2-r5 summary\n"]);
   });
 
   // Judging is per story: the review page rebuilds the workspace story by story, and a judgement is about what

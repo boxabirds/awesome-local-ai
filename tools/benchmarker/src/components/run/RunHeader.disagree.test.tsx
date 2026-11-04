@@ -21,7 +21,7 @@ const { RunHeader } = await import("./RunHeader.tsx");
 const finishedWithNoScoreOfRecord = { pack: "vidi", stack: "s", runId: "r1", dir: "d", machine: "m", host: "h", label: "l", suite: "vidi-v2", status: "finished", state: "finished",
   stateAt: "2026-09-30T15:28:00Z", statusNote: "", stories: [], scores: {}, interventions: [], jobs: [], live: null, judgeReady: false, knownGood: false,
   storiesWorking: { working: 0, scope: 0, squares: [] } } as unknown as Row;
-const state = { web: "https://example.invalid/r", branch: "main", judgeUrl: "" } as State;
+const state = { judgeUrl: "" } as State;
 
 afterEach(() => { forced.lead = null; });
 

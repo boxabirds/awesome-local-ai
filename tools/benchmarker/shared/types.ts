@@ -322,9 +322,7 @@ export interface State {
   /** False when the last attempt to read either source failed: the data is as old as `updatedAt` says. */
   updating: boolean;
   suites: Record<string, string>;
-  web: string | null;
   judgeUrl: string;
-  branch: string;
   rows: Row[];
   /** Every node answered for, idle ones included. */
   machines: Machine[];

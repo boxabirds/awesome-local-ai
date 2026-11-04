@@ -1,7 +1,10 @@
 // benchmarker server: keeps the live state fresh in the background and serves the built React page.
 //
-//   node server/main.ts [--repo PATH] [--port 7760] [--judge-url URL]
-//   node server/main.ts --port 7769 --fixture e2e/fixture.json      (tests: fixed data, no git, no dbench)
+//   node server/main.ts [--repo PATH] [--lake STATE] [--bench-lake PATH] [--port 7760] [--judge-url URL]
+//   node server/main.ts --port 7769 --fixture e2e/fixture.json      (tests: fixed data, no lake, no dbench)
+//
+// The runs are read from the lake through bench-lake (`records`); the host checkout (--repo) gives the archived markers
+// and each pack's bench.json. No git process reads run data. A run's record is served by the app (/record/<dir>/...).
 //
 // GET /api/state is what the page shows; GET /api/faults is what it never shows: every internal-fault condition the
 // server knows of (server/faults.ts), for the monitor.
@@ -11,10 +14,11 @@ import { extname, join, normalize, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { State } from "../shared/types.ts";
 import { storyRunId } from "../shared/conversation.ts";
-import { buildFullRows, machines, publicRow, webBase, type DbenchJob, type RunRecord } from "./domain.ts";
+import { buildFullRows, machines, publicRow, type DbenchJob, type RunRecord } from "./domain.ts";
+import { RECORD_ROUTE, recordResponse } from "./recordRoutes.ts";
 import { fixtureStore, proxyStore, type ConversationStore } from "./conversations.ts";
 import { findFaults, type Fault } from "./faults.ts";
-import { BRANCH, git, loadFlowCounts, loadJobs, loadRuns } from "./sources.ts";
+import { loadFlowCounts, loadJobs, loadRuns, type LakeConfig } from "./sources.ts";
 import { fakeOps, realOps, type Ops } from "./ops.ts";
 
 const HERE = import.meta.dirname;
@@ -32,6 +36,10 @@ const TYPES: Record<string, string> = {
 const { values: args } = parseArgs({
   options: {
     repo: { type: "string", default: resolve(HERE, "../../..") },
+    // The lake's state folder (collected/ and reference/; default: in the private repository next to the checkout).
+    lake: { type: "string" },
+    // The bench-lake command (default: the checkout's release build).
+    "bench-lake": { type: "string" },
     port: { type: "string", default: String(DEFAULT_PORT) },
     "judge-url": { type: "string", default: "http://127.0.0.1:7800/review" },
     // The private held-out suite, for the number of flows in each suite version (default: next to the repo).
@@ -53,13 +61,14 @@ interface Sources {
   fetchError: string;
   dbenchAt: number;
   dbenchError: string;
-  web: string | null;
+  /** Every result document read from the lake, by checkout-relative path, for the record routes. */
+  documents: Map<string, string>;
   flowCounts: Record<string, Record<string, number>>;
   /** Which story runs the warehouse has a conversation for; null when it couldn't be asked. */
   conversations: { ids: Set<string>; complete: Set<string> } | null;
 }
 
-const src: Sources = { records: [], suites: {}, jobs: {}, fetchedAt: 0, fetchError: "", dbenchAt: 0, dbenchError: "", web: null, flowCounts: {}, conversations: null };
+const src: Sources = { records: [], suites: {}, jobs: {}, fetchedAt: 0, fetchError: "", dbenchAt: 0, dbenchError: "", documents: new Map(), flowCounts: {}, conversations: null };
 const now = () => Date.now() / 1000;
 const message = (e: unknown) => (e instanceof Error ? e.message.split("\n")[0] : String(e));
 
@@ -69,17 +78,19 @@ function buildId(): string {
   return existsSync(f) ? readFileSync(f, "utf8").trim() : "dev";
 }
 
-async function refreshRepo(repo: string, privateRepo: string) {
+async function refreshRepo(lake: LakeConfig, privateRepo: string) {
   try {
-    const { records, suites } = await loadRuns(repo);
+    const { records, suites, documents } = await loadRuns(lake);
     const versions = [
       ...records.map((r) => ({ pack: r.pack, version: r.packVersion })),
       ...Object.entries(suites).map(([pack, version]) => ({ pack, version })),
     ];
     const flowCounts = await loadFlowCounts(privateRepo, versions);
-    Object.assign(src, { records, suites, flowCounts, fetchError: "", fetchedAt: now() });
+    Object.assign(src, { records, suites, documents, flowCounts, fetchError: "", fetchedAt: now() });
   } catch (e) {
+    // The previous load stays; the fault goes to the log (and /api/faults), never to the page.
     src.fetchError = message(e);
+    console.error(`benchmarker: the lake could not be read; keeping the last load: ${src.fetchError}`);
   }
 }
 
@@ -112,7 +123,7 @@ function state(): State {
     buildId: buildId(), now: t,
     // The page says only how fresh its data is: the older of the two sources' reads, and whether the last reads worked.
     updatedAt: Math.min(src.fetchedAt, src.dbenchAt), updating: !src.fetchError && !src.dbenchError,
-    suites: src.suites, web: src.web, judgeUrl: args["judge-url"]!, branch: BRANCH,
+    suites: src.suites, judgeUrl: args["judge-url"]!,
     rows: full.filter((f) => !f.record.invalid).map(publicRow).map(withConversations), machines: machines(Object.keys(src.jobs), full),
   };
 }
@@ -147,7 +158,7 @@ function loadFixture() {
   const f = JSON.parse(readFileSync(resolve(args.fixture!), "utf8"));
   // A job with no updated_at was just updated, so it counts as recent however old the fixture is.
   for (const jobs of Object.values(f.jobs as Record<string, DbenchJob[]>)) for (const j of jobs) j.updated_at ??= now();
-  Object.assign(src, { records: f.records, suites: f.suites, jobs: f.jobs, web: f.web ?? null, flowCounts: f.flowCounts ?? {}, fetchedAt: now(), dbenchAt: now() });
+  Object.assign(src, { records: f.records, suites: f.suites, jobs: f.jobs, documents: new Map(Object.entries(f.documents ?? {})), flowCounts: f.flowCounts ?? {}, fetchedAt: now(), dbenchAt: now() });
   ops = fakeOps(src.jobs, f.machines ?? {});
   conversations = fixtureStore(f.conversations ?? {}, f.activity ?? null);
 }
@@ -158,9 +169,13 @@ if (args.fixture) {
   conversations = proxyStore(args["conversations-url"]!);
   every(CONVERSATIONS_EVERY_MS, refreshConversations);
   const repo = resolve(args.repo!);
-  src.web = webBase(await git(repo, "remote", "get-url", "origin").catch(() => ""));
   const privateRepo = resolve(args.private ?? join(repo, "../awesome-local-ai-bench-private"));
-  every(FETCH_EVERY_MS, () => refreshRepo(repo, privateRepo));
+  const lake: LakeConfig = {
+    checkout: repo,
+    state: resolve(args.lake ?? join(repo, "../awesome-local-ai-bench-private/state")),
+    benchLake: resolve(args["bench-lake"] ?? join(repo, "tools/target/release/bench-lake")),
+  };
+  every(FETCH_EVERY_MS, () => refreshRepo(lake, privateRepo));
   every(DBENCH_EVERY_MS, refreshDbench);
   ops = realOps();
 }
@@ -259,6 +274,12 @@ createServer(async (req, res) => {
     res.end(JSON.stringify(state()));
     return;
   }
+  if (path.startsWith(RECORD_ROUTE) && req.method === "GET") {
+    const r = recordResponse(src.documents, path);
+    if (!r) res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" }).end("not found");
+    else res.writeHead(200, { "Content-Type": r.contentType, "Cache-Control": "no-store" }).end(r.body);
+    return;
+  }
   if (path === "/api/faults") {
     res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
     res.end(JSON.stringify(await faults()));
@@ -276,5 +297,5 @@ createServer(async (req, res) => {
   });
   res.end(readFileSync(file));
 }).listen(Number(args.port), "127.0.0.1", () => {
-  console.log(`benchmarker: http://127.0.0.1:${args.port}  (build ${buildId()}${args.fixture ? ", fixture" : `, repo ${args.repo}`})`);
+  console.log(`benchmarker: http://127.0.0.1:${args.port}  (build ${buildId()}${args.fixture ? ", fixture" : `, repo ${args.repo}, lake ${args.lake ?? "default"}`})`);
 });

@@ -7,8 +7,6 @@ import { RunHeader } from "./RunHeader.tsx";
 
 const SUITE = "vidi-v2.0-pre1";
 const OLD_SUITE = "vidi-v1.1";
-const WEB = "https://github.com/example/awesome-local-ai";
-const BRANCH = "main";
 const DIR = "combinations/qwen/x/pi/benchmarks/vidi/v2-r1";
 const PASSED = 62;
 const TOTAL = 75;
@@ -26,7 +24,7 @@ const run = (over: Partial<Row> = {}): Row => ({
   judgeReady: false, live: null, jobs: [], interventions: [], knownGood: false, ...over,
 }) as Row;
 
-const state = (over: Partial<State> = {}) => ({ web: WEB, branch: BRANCH, judgeUrl: "http://judge.invalid", ...over }) as State;
+const state = (over: Partial<State> = {}) => ({ judgeUrl: "http://judge.invalid", ...over }) as State;
 const lead = (r: Row, s: State = state()) => {
   const html = renderToStaticMarkup(<RunHeader run={r} state={s} />);
   return html.slice(html.indexOf('<div class="lead-score"'), html.indexOf("</div></div>", html.indexOf('<div class="lead-score"')));
@@ -66,7 +64,7 @@ describe("RunHeader lead score", () => {
   it("a finished run leads with its score of record, linked to the per-story results", () => {
     const out = lead(run({ scores: { [SUITE]: score(PASSED, TOTAL) } }));
     expect(out).toContain('data-lead="record"');
-    expect(out).toContain(`href="${WEB}/blob/${BRANCH}/${DIR}/rescore/${SUITE}/per-story.md"`);
+    expect(out).toContain(`href="/record/${DIR}/rescore/${SUITE}/per-story.md"`);
     expect(out).toContain(`${PASSED} of ${TOTAL} held-out tests pass · per-story results`);
     expect(out).toContain(`>${PASSED}</strong><span class="record-of">/${TOTAL}</span>`);
     expect(out).not.toContain("flaky");
@@ -79,8 +77,8 @@ describe("RunHeader lead score", () => {
     const out = lead(run({ scores: { [OLD_SUITE]: score(PASSED, TOTAL) } }));
     expect(out).toContain(`/rescore/${OLD_SUITE}/per-story.md`);
   });
-  it("a record with no web address, or no directory, shows the score without a link", () => {
-    for (const out of [lead(run({ scores: { [SUITE]: score(PASSED, TOTAL) } }), state({ web: null })), lead(run({ dir: null, scores: { [SUITE]: score(PASSED, TOTAL) } }))]) {
+  it("a record with no directory shows the score without a link", () => {
+    for (const out of [lead(run({ dir: null, scores: { [SUITE]: score(PASSED, TOTAL) } }))]) {
       expect(out).toContain('data-lead="record"');
       expect(out).toContain(`>${PASSED}</strong>`);
       expect(out).not.toContain("<a ");

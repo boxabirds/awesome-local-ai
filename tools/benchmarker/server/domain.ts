@@ -272,11 +272,6 @@ export function rowFamily(row: { dir: string | null; packVersion: string }, suit
   return row.dir === null ? versionFamily(suite) : "unversioned";
 }
 
-export function webBase(remote: string): string | null {
-  const m = /^(?:git@github\.com:|https:\/\/github\.com\/)([^/]+\/[^/]+?)(?:\.git)?\/?$/.exec(remote.trim());
-  return m ? `https://github.com/${m[1]}` : null;
-}
-
 // ---------- dbench jobs ----------
 
 const jobKey = (stack: string, pack: string, runId: string) => [stack, pack, runId].join("\u0000");

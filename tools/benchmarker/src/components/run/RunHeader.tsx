@@ -7,6 +7,7 @@ import { GLOSSARY } from "../../../shared/glossary.ts";
 import { CombinationLink, MachineLink } from "../EntityLinks.tsx";
 import { JudgeCell } from "../JudgeCell.tsx";
 import { LinksCell } from "../LinksCell.tsx";
+import { recordHref } from "../../../shared/recordLinks.ts";
 import { duration, ordinal, qualityClass } from "../../format.ts";
 import { Missing, Stat, Term, utc } from "./bits.tsx";
 
@@ -51,7 +52,7 @@ function LeadScore({ run, state }: { run: Row; state: State }) {
     );
   }
   const rec = r.kind === "scored" ? r : null;
-  const link = state.web && run.dir && rec ? `${state.web}/blob/${state.branch}/${run.dir}/rescore/${rec.version}/per-story.md` : null;
+  const link = run.dir && rec ? recordHref(run.dir, `rescore/${rec.version}/per-story.md`) : null;
   return (
     <div className="lead-score" data-section="lead" data-lead="record">
       <Stat term="scoreOfRecord" sub={rec?.flaky ? `${rec.flaky} flaky` : undefined}>
@@ -107,7 +108,7 @@ export function RunHeader({ run, state }: { run: Row; state: State }) {
         <div className="run-links" data-section="links">
           {/* Judging opens once the run can be judged; until then there is nothing to open. */}
           {run.judgeReady ? <JudgeCell row={run} url={state.judgeUrl} /> : null}
-          <LinksCell row={run} web={state.web} branch={state.branch} />
+          <LinksCell row={run} />
         </div>
       </div>
     </div>

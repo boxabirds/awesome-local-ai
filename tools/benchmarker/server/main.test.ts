@@ -1,7 +1,7 @@
 // main.ts is the server entry point: importing it parses argv and starts listening. These tests start it in fixture
 // mode, as the end-to-end tests do (`--fixture`), on a free port, and drive it over HTTP.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import type { Server } from "node:http";
 import { createServer as listenOn } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -24,6 +24,8 @@ const j = (v: unknown) => JSON.stringify(v);
 
 const POLL_LIMIT_MS = 10_000;
 const POLL_EVERY_MS = 25;
+/** main.ts reads the lake this often (its FETCH_EVERY_MS). */
+const FETCH_EVERY_MS = 60_000;
 const OLD_UPDATE = 5; // seconds since 1970: long ago
 const job = (id: string, status: string, updated_at?: number) => ({ id, spec: { pack: "benchmarks/vidi", run_id: id, install_id: "i" }, progress: { combination: "c" }, state: { status }, submitted_at: 1, ...(updated_at === undefined ? {} : { updated_at }) });
 
@@ -31,7 +33,7 @@ const job = (id: string, status: string, updated_at?: number) => ({ id, spec: { 
 const BARE = { records: [], suites: { vidi: "vidi-v1" }, jobs: { "node-a": [job("fresh", "failed"), job("old", "failed", OLD_UPDATE), job("q", "queued")] } };
 // The same file, rewritten with every optional part present.
 const FULL = {
-  ...BARE, web: "https://github.com/example/repo", flowCounts: { "vidi-v1": { "1": 4, "2": 3 } },
+  ...BARE, documents: { "combinations/s/benchmarks/vidi/fresh/summary.md": "# fresh\n" }, flowCounts: { "vidi-v1": { "1": 4, "2": 3 } },
   machines: { "node-a": { hostname: "node-a-from-fixture", combinations: [] } },
   conversations: { "story-x": { fmt: "pi", complete: false, node: "node-a", events: [{ tMs: 1, kind: "msg", ord: 0, idx: 0 }] } },
   activity: { version: 9, themes: [], rows: [] },
@@ -71,10 +73,11 @@ describe("loadFixture(): the fixed inputs of fixture mode", () => {
     base = await startMain("--fixture", FIXTURE);
   });
 
-  it("at start, a fixture with only records, suites and jobs: no web link, no flow counts, default machine info, nothing to say about conversations", async () => {
+  it("at start, a fixture with only records, suites and jobs: no documents, no flow counts, default machine info, nothing to say about conversations", async () => {
     const state = await get("/api/state");
     expect(state.suites).toEqual({ vidi: "vidi-v1" });
-    expect(state.web).toBeNull();
+    expect(state).not.toHaveProperty("web");
+    expect((await fetch(`${base}/record/combinations/s/benchmarks/vidi/fresh/summary.md`)).status).toBe(404);
     expect(state.updating).toBe(true);
     expect(scopeOf(state, "fresh")).toBe(0); // no flow counts: the suite's stories are not known
     const machines = await get("/api/machines");
@@ -92,7 +95,8 @@ describe("loadFixture(): the fixed inputs of fixture mode", () => {
     writeFileSync(FIXTURE, j(FULL));
     expect((await fetch(`${base}/api/test/reset`, { method: "POST" })).status).toBe(204);
     const state = await get("/api/state");
-    expect(state.web).toBe("https://github.com/example/repo");
+    const doc = await fetch(`${base}/record/combinations/s/benchmarks/vidi/fresh/summary.md`);
+    expect([doc.status, doc.headers.get("content-type"), await doc.text()]).toEqual([200, "text/plain; charset=utf-8", "# fresh\n"]);
     expect(scopeOf(state, "fresh")).toBe(2); // the suite's flow counts name two stories
     expect((await get("/api/machines"))[0].node.hostname).toBe("node-a-from-fixture");
     expect(await get("/api/conversations")).toEqual({ ids: ["story-x"], complete: [] });
@@ -110,41 +114,35 @@ describe("loadFixture(): the fixed inputs of fixture mode", () => {
   });
 });
 
-// Started without --fixture, main.ts reads a repository and asks dbench. Here the repository is a temporary one, dbench
-// is not on the PATH (so no machine is contacted), the warehouse's address is a port nothing listens on, and the
-// timers that would repeat the reads are held (the first read of each still runs at once).
+// Started without --fixture, main.ts reads the lake through bench-lake and asks dbench. Here the lake and the checkout
+// are temporary folders, dbench is not on the PATH (so no machine is contacted), git on the PATH fails the read if it is
+// run for run data, the warehouse's address is a port nothing listens on, and the timers that would repeat the reads are
+// held (the first read of each still runs at once; a test moves them on by hand).
 describe("started without a fixture: the live sources", () => {
   const ROOT = mkdtempSync(join(tmpdir(), "benchmarker-main-live-"));
   const gitIn = (cwd: string, ...a: string[]) => execFileSync("git", ["-C", cwd, ...a], { encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.invalid", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.invalid", GIT_CONFIG_GLOBAL: "/dev/null" } });
-  const RUN = "combinations/stackA/benchmarks/vidi/r1";
-  let withOrigin = "", withoutOrigin = "", withWeb = "";
+  const RUN = "combinations/fam/1.0/27b/ubuntu/box/llamacpp-pi/benchmarks/vidi/r1";
+  const BENCH_LAKE = process.env.BENCH_LAKE ?? join(import.meta.dirname, "../../target/debug/bench-lake");
+  const FAIL_FLAG = join(ROOT, "bench-lake-fails");
+  let withPrivate = "", noGit = "", failing = "", lake = "", checkout = "";
 
   beforeAll(async () => {
-    // a PATH that has git and nothing else
-    const bin = join(ROOT, "bin");
-    mkdirSync(bin);
-    symlinkSync(execFileSync("which", ["git"], { encoding: "utf8" }).trim(), join(bin, "git"));
-    process.env.PATH = bin;
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     const unused = `http://127.0.0.1:${await freePort()}`;
+    // the lake: one run, on one node; the checkout: a plain folder (not a repository) with the pack's bench.json
+    lake = join(ROOT, "state");
+    mkdirSync(join(lake, "collected/node-a", RUN), { recursive: true });
+    writeFileSync(join(lake, "collected/node-a", RUN, "run.json"), j({ host: "hostA" }));
+    writeFileSync(join(lake, "collected/node-a", RUN, "summary.md"), "# r1\n");
+    checkout = join(ROOT, "checkout");
+    mkdirSync(join(checkout, "benchmarks/vidi"), { recursive: true });
+    writeFileSync(join(checkout, "benchmarks/vidi/bench.json"), j({ pack_ref: "vidi-v1" }));
+    // bench-lake, through a wrapper that fails while a flag file exists
+    const wrapper = join(ROOT, "bench-lake");
+    writeFileSync(wrapper, `#!/bin/sh\nif [ -e "${FAIL_FLAG}" ]; then echo "bench-lake: the lake is gone" >&2; exit 2; fi\nexec "${BENCH_LAKE}" "$@"\n`);
+    chmodSync(wrapper, 0o755);
 
-    const origin = join(ROOT, "origin.git"), repo = join(ROOT, "repo");
-    gitIn(ROOT, "init", "-q", "--bare", "-b", "main", origin);
-    gitIn(ROOT, "clone", "-q", origin, repo);
-    gitIn(repo, "checkout", "-q", "-B", "main");
-    mkdirSync(join(repo, RUN), { recursive: true });
-    writeFileSync(join(repo, RUN, "run.json"), j({ host: "hostA" }));
-    mkdirSync(join(repo, "benchmarks/vidi"), { recursive: true });
-    writeFileSync(join(repo, "benchmarks/vidi/bench.json"), j({ pack_ref: "vidi-v1" }));
-    gitIn(repo, "add", "-A");
-    gitIn(repo, "commit", "-q", "-m", "a run");
-    gitIn(repo, "push", "-q", "origin", "main");
-
-    const lone = join(ROOT, "lone");
-    mkdirSync(lone);
-    gitIn(lone, "init", "-q", "-b", "main");
-
-    // with an origin and a --private repository
+    // the private suite (flow counts come from its tags, with the real git)
     const priv = join(ROOT, "private");
     mkdirSync(priv);
     gitIn(priv, "init", "-q", "-b", "main");
@@ -155,19 +153,29 @@ describe("started without a fixture: the live sources", () => {
     gitIn(priv, "add", "-A");
     gitIn(priv, "commit", "-q", "-m", "suite");
     gitIn(priv, "tag", "vidi-v1");
-    withOrigin = await startMain("--repo", repo, "--private", priv, "--conversations-url", unused);
-    // no origin, and no --private: the default is a sibling that does not exist
-    withoutOrigin = await startMain("--repo", lone, "--conversations-url", unused);
-    // an origin on GitHub: the page links to it. No transport but file is allowed, so nothing is fetched from it.
-    const hosted = join(ROOT, "hosted");
-    mkdirSync(hosted);
-    gitIn(hosted, "init", "-q", "-b", "main");
-    gitIn(hosted, "remote", "add", "origin", "git@github.com:example/repo.git");
-    process.env.GIT_ALLOW_PROTOCOL = "file";
-    withWeb = await startMain("--repo", hosted, "--conversations-url", unused);
+
+    // a PATH that has git and nothing else
+    const bin = join(ROOT, "bin");
+    mkdirSync(bin);
+    symlinkSync(execFileSync("which", ["git"], { encoding: "utf8" }).trim(), join(bin, "git"));
+    // a PATH whose git fails, loudly, if anything runs it
+    const noGitBin = join(ROOT, "no-git-bin");
+    mkdirSync(noGitBin);
+    writeFileSync(join(noGitBin, "git"), "#!/bin/sh\necho git was run >&2\nexit 99\n");
+    chmodSync(join(noGitBin, "git"), 0o755);
+
+    // The PATH is the process's, shared by every server started here: the server without git reads first, alone.
+    const common = ["--repo", checkout, "--lake", lake, "--conversations-url", unused];
+    process.env.PATH = noGitBin;
+    noGit = await startMain(...common, "--bench-lake", BENCH_LAKE);
+    await until(noGit, (x) => x.rows.length > 0);
+    process.env.PATH = bin;
+    withPrivate = await startMain(...common, "--bench-lake", BENCH_LAKE, "--private", priv);
+    failing = await startMain(...common, "--bench-lake", wrapper);
   });
   afterAll(() => rmSync(ROOT, { recursive: true, force: true }));
 
+  const get2 = async (at: string) => (await fetch(`${at}/api/state`)).json() as Promise<any>;
   /** The state once `ready` holds of it (the reads run in the background after the server starts). */
   async function until(at: string, ready: (st: any) => boolean): Promise<any> {
     const deadline = Date.now() + POLL_LIMIT_MS;
@@ -178,28 +186,44 @@ describe("started without a fixture: the live sources", () => {
     }
   }
 
-  it("reads the runs pushed to the repository's origin/main", async () => {
-    const st = await until(withOrigin, (x) => x.rows.length > 0);
+  it("reads the runs in the lake, and the suite's flow counts from the --private repository", async () => {
+    const st = await until(withPrivate, (x) => x.rows.length > 0);
     expect(st.rows.map((r: any) => [r.runId, r.host])).toEqual([["r1", "hostA"]]);
-    expect(st.branch).toBe("main");
+    expect(st).not.toHaveProperty("branch");
     expect(scopeOf(st, "r1")).toBe(2); // the two story files of the suite at the tag, in the --private repository
     expect(st.updatedAt).toBe(0); // dbench could not be read, so the page is not told the data is fresh
   });
 
-  it("a repository with no origin has no web link and no rows, and the page is told it is not updating", async () => {
-    const st = await until(withoutOrigin, (x) => !x.updating);
-    expect(st.web).toBeNull();
-    expect(st.rows).toEqual([]);
-    expect(st.updating).toBe(false); // neither the fetch nor dbench worked
+  it("needs no git for the runs: the checkout is not a repository and git fails if run, and the runs are listed", async () => {
+    const st = await until(noGit, (x) => x.rows.length > 0);
+    expect(st.rows.map((r: any) => r.runId)).toEqual(["r1"]);
   });
 
-  it("the repository's origin on GitHub is the page's link to it, even when it cannot be fetched", async () => {
-    const st = await until(withWeb, (x) => !x.updating);
-    expect(st.web).toBe("https://github.com/example/repo");
-    expect(st.rows).toEqual([]);
+  it("serves the run's record from the lake at the app's own address", async () => {
+    await until(noGit, (x) => x.rows.length > 0);
+    const index = await fetch(`${noGit}/record/${RUN}/`);
+    expect(index.status).toBe(200);
+    expect(await index.text()).toContain(`<a href="/record/${RUN}/summary.md">summary.md</a>`);
+    expect(await (await fetch(`${noGit}/record/${RUN}/summary.md`)).text()).toBe("# r1\n");
+  });
+
+  it("bench-lake failing keeps the runs of the last load, and the page is told only that it is not updating", async () => {
+    const before = await until(failing, (x) => x.rows.length > 0);
+    expect(before.rows.map((r: any) => r.runId)).toEqual(["r1"]);
+    writeFileSync(FAIL_FLAG, "");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    await vi.advanceTimersByTimeAsync(FETCH_EVERY_MS);
+    const deadline = Date.now() + POLL_LIMIT_MS;
+    while (!errors.mock.calls.length && Date.now() < deadline) await sleep(POLL_EVERY_MS);
+    const after = await get2(failing);
+    expect(after.updating).toBe(false);
+    expect(after.rows.map((r: any) => r.runId)).toEqual(["r1"]);
+    expect(JSON.stringify(after)).not.toMatch(/bench-lake|the lake is gone/);
+    expect(errors.mock.calls.flat().join(" ")).toMatch(/the lake could not be read.*the lake is gone/);
+    errors.mockRestore();
   });
 
   it("the warehouse not answering is no conversations, not a failure", async () => {
-    expect(await (await fetch(`${withOrigin}/api/conversations`)).json()).toEqual({ ids: [], complete: [] });
+    expect(await (await fetch(`${withPrivate}/api/conversations`)).json()).toEqual({ ids: [], complete: [] });
   });
 });

@@ -1,49 +1,54 @@
-// Reading the two sources: the repo's fetched origin/main (git) and dbench.
-import { execFile, spawn } from "node:child_process";
+// Reading the two sources: the lake (through bench-lake) and dbench.
+import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import type { Intervention, Score } from "../shared/types.ts";
 import { countTests, finalScore, findRuns, normaliseByStory, parseExpertCache, parseFinalize, parseInterventions, parseInvalid, parseSandbox, rescoreFault, type ExpertCache, type Invalid, type RawFinalize, type RawAccept, type RunSandbox, type RawRescore, type RawUsage, storyEntry, builtUnderEarlierSuite, acceptUnderScoringSuite, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
-export const REF = "origin/main";
-export const BRANCH = "main";
-const RUN_ROOTS = ["combinations", "benchmarks/reference"];
 const GIT_TIMEOUT_MS = 120_000;
 const DBENCH_TIMEOUT_MS = 60_000;
-const MAX_BUFFER = 256 * 1024 * 1024;
+const BENCH_LAKE_TIMEOUT_MS = 120_000;
+const MAX_BUFFER = 1024 * 1024 * 1024;
+const BUNDLE_FILE = "workspace.bundle";
 
 export async function git(repo: string, ...args: string[]): Promise<string> {
   const { stdout } = await run("git", ["-C", repo, ...args], { timeout: GIT_TIMEOUT_MS, maxBuffer: MAX_BUFFER });
   return stdout;
 }
 
-/** Many files from origin/main in one `git cat-file --batch`. */
-export function readBlobs(repo: string, paths: string[]): Promise<Map<string, string>> {
-  return new Promise((resolve, reject) => {
-    const out = new Map<string, string>();
-    if (!paths.length) return resolve(out);
-    const p = spawn("git", ["-C", repo, "cat-file", "--batch"]);
-    const chunks: Buffer[] = [];
-    p.stdout.on("data", (c: Buffer) => chunks.push(c));
-    p.on("error", reject);
-    p.on("close", () => {
-      const data = Buffer.concat(chunks);
-      let pos = 0;
-      for (const path of paths) {
-        const nl = data.indexOf(10, pos);
-        if (nl < 0) break;
-        const header = data.subarray(pos, nl).toString();
-        pos = nl + 1;
-        if (header.endsWith("missing")) continue;
-        const size = Number(header.split(" ").at(-1));
-        out.set(path, data.subarray(pos, pos + size).toString("utf8"));
-        pos += size + 1;
-      }
-      resolve(out);
+/** Where the runs are read from: the bench-lake command, the lake's state folder, and the host checkout (its archived
+ * markers and each pack's bench.json). */
+export interface LakeConfig { benchLake: string; state: string; checkout: string }
+
+/** One run of bench-lake's `records` answer (tools/bench-lake/CANONICAL.md). */
+interface LakeRun { id: string; files: Record<string, string>; bundle: boolean }
+
+/** Every run's result documents, from bench-lake's `records` question, as checkout-relative paths: the file list
+ * (with the bundle, when the lake has one) and each document's text. Runs the checkout marks archived are left out
+ * by bench-lake. */
+export async function lakeRecords(cfg: LakeConfig): Promise<{ paths: string[]; blobs: Map<string, string> }> {
+  const { stdout } = await run(cfg.benchLake, [cfg.state, "records", "--archived", cfg.checkout], { timeout: BENCH_LAKE_TIMEOUT_MS, maxBuffer: MAX_BUFFER })
+    .catch((e: { code?: unknown; stderr?: string; message?: string }) => {
+      // bench-lake's own message (its standard error) says why; the first line of the error is only the command.
+      throw new Error(`bench-lake ${cfg.benchLake} failed (${String(e.code ?? "")}): ${(e.stderr ?? "").trim() || e.message}`);
     });
-    p.stdin.end(paths.map((x) => `${REF}:${x}\n`).join(""));
-  });
+  const runs = (JSON.parse(stdout) as { runs: LakeRun[] }).runs;
+  const blobs = new Map<string, string>();
+  const paths: string[] = [];
+  for (const r of runs) {
+    for (const [rel, text] of Object.entries(r.files)) {
+      blobs.set(`${r.id}/${rel}`, text);
+      paths.push(`${r.id}/${rel}`);
+    }
+    if (r.bundle) paths.push(`${r.id}/${BUNDLE_FILE}`);
+  }
+  return { paths, blobs };
 }
+
+/** A file of the checkout as text; undefined when it can't be read. */
+const checkoutFile = (cfg: LakeConfig, rel: string) => readFile(join(cfg.checkout, rel), "utf8").catch(() => undefined);
 
 const STORY_DIR_DIGITS = 2;
 // A re-scored story's counts: the public summary beside its result (the harness writes it since 30 Sep 2026,
@@ -103,25 +108,16 @@ export const isKnownGood = (metrics: { known_good?: unknown } | null): boolean =
 
 type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown; memory_start?: unknown; conditions?: { host?: unknown } | null } & RawUsage;
 
-/** Every pushed run record, and each pack's current version (bench.json pack_ref). */
-export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; suites: Record<string, string> }> {
-  await git(repo, "fetch", "-q", "origin", BRANCH);
-  const paths = (await git(repo, "ls-tree", "-r", "--name-only", REF, "--", ...RUN_ROOTS)).split("\n").filter(Boolean);
+/** Every run record in the lake, each pack's current version (bench.json pack_ref, from the checkout), and every
+ * result document read, by checkout-relative path (the app's record routes serve them). */
+export async function loadRuns(cfg: LakeConfig): Promise<{ records: RunRecord[]; suites: Record<string, string>; documents: Map<string, string> }> {
+  const { paths, blobs } = await lakeRecords(cfg);
   const runs = findRuns(paths);
   const packs = [...new Set(runs.map((r) => r.pack))].sort();
-  const wanted = runs.flatMap((r) => [
-    ...runNotePaths(r.dir), `${r.dir}/run-status.json`, `${r.dir}/metrics.json`, finalizePath(r.dir),
-    ...r.rescores.map((v) => `${r.dir}/rescore/${v}/rescore.json`),
-    ...Object.entries(r.rescoreLast).flatMap(([v, id]) => rescoreStoryPaths(r.dir, v, id)),
-  ]).concat(packs.map((p) => `benchmarks/${p}/bench.json`));
-  const blobs = await readBlobs(repo, wanted);
-  // A run built under an earlier suite shows the per-story figures of its re-score under the suite its score of record was made with.
-  const rescoredStories = runs.flatMap((r) => {
-    const suite = builtUnderEarlierSuite(runFinalize(blobs, r.dir));
-    return suite ? paths.filter((p) => p.startsWith(`${r.dir}/rescore/${suite}/stories/`) && p.endsWith("/accept-summary.json")) : [];
-  });
-  if (rescoredStories.length) for (const [path, text] of await readBlobs(repo, rescoredStories)) blobs.set(path, text);
-  const suites = Object.fromEntries(packs.map((p) => [p, json<{ pack_ref?: string }>(blobs.get(`benchmarks/${p}/bench.json`))?.pack_ref ?? ""]));
+  const suiteOf = async (p: string) => json<{ pack_ref?: string }>(await checkoutFile(cfg, `benchmarks/${p}/bench.json`))?.pack_ref ?? "";
+  // A run built under an earlier suite shows the per-story figures of its re-score under the suite its score of
+  // record was made with: bench-lake gives every re-scored story's documents, so they are already read.
+  const suites = Object.fromEntries(await Promise.all(packs.map(async (p) => [p, await suiteOf(p)])));
   const records = runs.map((r): RunRecord => {
     const meta = json<{ pack_version?: string; host?: string }>(blobs.get(`${r.dir}/run.json`)) ?? {};
     const status = json<{ state?: string; at?: string }>(blobs.get(`${r.dir}/run-status.json`)) ?? {};
@@ -152,7 +148,7 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
       stories: pairs.map(([id, s]) => storyEntry(id, scoringSuite ? acceptUnderScoringSuite(s, json<RawAccept>(blobs.get(`${r.dir}/rescore/${scoringSuite}/stories/${id.padStart(2, "0")}/accept-summary.json`))) : s)),
       scores, ...runNotes(blobs, r.dir), finalize, knownGood: isKnownGood(metrics) };
   });
-  return { records, suites };
+  return { records, suites, documents: blobs };
 }
 
 /** `dbench status --json`: jobs per node. */

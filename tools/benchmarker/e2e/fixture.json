@@ -1,5 +1,8 @@
 {
- "web": "https://github.com/boxabirds/awesome-local-ai",
+ "documents": {
+  "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/summary.md": "# v2-r5 summary\n",
+  "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/rescore/vidi-v2.0-pre1/per-story.md": "| story | passed |\n"
+ },
  "suites": {
   "vidi": "vidi-v2.0-pre1"
  },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
+  findRuns, versionFamily, rowFamily, indexJobs, queuePositions, liveFromJob, storyEntry,
   mergeStories, judgeReady, storyJudgeReady, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, rescoreFault, runUsage, RECENT_S, type DbenchJob,
   jobsByRun, jobReason, buildRows, buildFullRows, parseFinalize, publicStory, type FullRow, type RecordStory,
   builtUnderEarlierSuite, acceptUnderScoringSuite, hostOf,
@@ -76,14 +76,6 @@ describe("versions", () => {
     expect(rowFamily({ dir: "x", packVersion: "3f2a1bc" }, "vidi-v2.0-pre1")).toBe("unversioned");
     expect(rowFamily({ dir: "x", packVersion: "vidi-v1.1" }, "vidi-v2.0-pre1")).toBe("vidi-v1");
     expect(rowFamily({ dir: null, packVersion: "" }, "vidi-v2.0-pre1")).toBe("vidi-v2");
-  });
-});
-
-describe("links", () => {
-  it("point at the repo on GitHub whatever the remote form", () => {
-    expect(webBase("git@github.com:boxabirds/awesome-local-ai.git")).toBe("https://github.com/boxabirds/awesome-local-ai");
-    expect(webBase("https://github.com/boxabirds/awesome-local-ai")).toBe("https://github.com/boxabirds/awesome-local-ai");
-    expect(webBase("/some/local/path")).toBeNull();
   });
 });
 

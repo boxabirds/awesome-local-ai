@@ -11,13 +11,16 @@ cd tools/benchmarker
 bun install && bun run build
 bun start                                    # then open http://127.0.0.1:7760
 bun server/main.ts --repo /path/to/awesome-local-ai --port 7760 --judge-url http://127.0.0.1:7800/review
+# where the runs are read from (defaults shown): the lake's state folder and the bench-lake command
+bun server/main.ts --lake ../awesome-local-ai-bench-private/state --bench-lake tools/target/release/bench-lake
 ```
 
 Tests: `bun run test` (the domain logic, Vitest) and `bun run test:e2e` (Playwright against fixed data in
 `e2e/fixture.json`: running and queued rows, stories, the version filter, width at 1000 px, the stale
-warning, reload on a new build).
+warning, reload on a new build; and `e2e/lake.spec.ts` against bench-lake's fixture lake). Both run the tools
+workspace's debug build of bench-lake (`cargo build -p bench-lake` in `tools/`, or set `BENCH_LAKE`).
 
-Layout: `server/` reads git and dbench and serves `/api/state` plus the built page; `server/domain.ts`
+Layout: `server/` reads the lake (through bench-lake) and dbench and serves `/api/state` plus the built page; `server/domain.ts`
 turns records and jobs into rows (pure, unit-tested); `src/` is the page, one component per column;
 `shared/types.ts` is the state both sides agree on.
 
@@ -32,15 +35,17 @@ time split that failed its check is sent as none.
 
 ## Where the data comes from
 
-- **The repo's `origin/main`**, fetched every 60 seconds. The harness commits and pushes each run's
-  record after every story, so the pushed branch is always the latest. The page reads the fetched commit
-  directly (`git ls-tree`, `git cat-file`), so your working copy is never pulled, touched or blocked by
-  local edits.
+- **The lake**, read every 60 seconds through `bench-lake <state> records --archived <repo>`: every run's
+  result documents from its preferred copy (`tools/bench-lake/CANONICAL.md`). The collector pulls them from the
+  nodes; nothing is read from git. The checkout (`--repo`) gives only the archived markers (`archived.json` in a
+  run's folder) and each pack's `bench.json`. If bench-lake fails, the last load stays and the failure goes to the
+  log and `/api/faults`. A run's **record** and **summary** links open the app's own `/record/<run's folder>/`,
+  which lists and serves those documents (never a held-out result in full, `accept.json`).
 - **dbench** (`dbench status --json`), every 10 seconds, when `dbench` is on the PATH with a node list
   (`~/.config/dbench/nodes.toml`): queued and running jobs, the current story, and the last log line.
-  Without dbench the page shows the repo only.
+  Without dbench the page shows the lake only.
 
-The page itself refreshes every 5 seconds and says when the repo and dbench were last read. A running story's live numbers (agent minutes, calls, tokens, tasks) come from the harness, which writes them about once a minute, so they move in steps. When the benchmarker is rebuilt, open tabs reload themselves (each build has an id; the page reloads when the server's differs). If it can't refresh for 20 seconds (the server stopped, or an error), it greys out under a red bar saying how old the data is, so old data never passes for current.
+The page itself refreshes every 5 seconds and says when the lake and dbench were last read. A running story's live numbers (agent minutes, calls, tokens, tasks) come from the harness, which writes them about once a minute, so they move in steps. When the benchmarker is rebuilt, open tabs reload themselves (each build has an id; the page reloads when the server's differs). If it can't refresh for 20 seconds (the server stopped, or an error), it greys out under a red bar saying how old the data is, so old data never passes for current.
 
 ## One section per machine
 

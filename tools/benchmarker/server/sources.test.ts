@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { finalizePath, git, isKnownGood, loadFlowCounts, loadRuns, readBlobs, rescoreStoryPaths, rescoredStory, runFinalize, runNotes, runNotePaths } from "./sources.ts";
+import { finalizePath, git, isKnownGood, loadFlowCounts, loadRuns, rescoreStoryPaths, rescoredStory, runFinalize, runNotes, runNotePaths } from "./sources.ts";
 
 // A re-scored story's counts: since 30 Sep 2026 a record has only the public summary (accept-summary.json);
 // the full result (accept.json) is private. Older records have only the full result.
@@ -129,16 +129,23 @@ describe("git(): runs git in the given repository and gives its output", () => {
   });
 });
 
-describe("loadRuns(): every pushed run record, read from the fetched origin/main", () => {
+/** The bench-lake command the tests run: the tools workspace's build (the release checks build it before these run). */
+const BENCH_LAKE = process.env.BENCH_LAKE ?? join(import.meta.dirname, "../../target/debug/bench-lake");
+if (!existsSync(BENCH_LAKE)) throw new Error(`no bench-lake at ${BENCH_LAKE}: build it (cargo build -p bench-lake in tools/) or set BENCH_LAKE`);
+
+describe("loadRuns(): every run record in the lake, read through bench-lake, with no git", () => {
   const R1 = "combinations/stackA/benchmarks/vidi/r1";
   const R2 = "combinations/stackA/benchmarks/vidi/r2";
   const R3 = "combinations/stackA/benchmarks/vidi/r3";
   const R4 = "combinations/stackA/benchmarks/vidi/r4";
   const RREF = "benchmarks/reference/other/stackB/r9";
+  const GONE = "combinations/stackA/benchmarks/vidi/gone";
   const story = (title: string, passed: number, total: number) => ({ title, status: "DONE", accept: { passed, total, by_story: { "01": { passed: 1, total: 2 }, "02": { passed: 3, total: 4 } } } });
+  // A combination's id in the lake is the path below the node folder, nine levels: this is the stack the fixtures use.
+  const STACK = "combinations/fam/1.0/27b/ubuntu/box/llamacpp-pi/benchmarks/vidi";
+  const at = (run: string) => run.replace("combinations/stackA/benchmarks/vidi", STACK);
 
-  const files: Record<string, string> = {
-    "benchmarks/vidi/bench.json": j({ pack_ref: "vidi-v2" }),
+  const runs: Record<string, string> = {
     // r1: a finished run built under vidi-v1 and scored under vidi-v2; stories keyed by id, listed out of order.
     [`${R1}/run.json`]: j({ host: "hostA", pack_version: "vidi-v1", client: "pi" }),
     [`${R1}/run-status.json`]: j({ state: "finished", at: "2026-10-01T10:00:00Z" }),
@@ -148,53 +155,58 @@ describe("loadRuns(): every pushed run record, read from the fetched origin/main
     [`${R1}/rescore/vidi-v2/stories/01/accept-summary.json`]: j({ passed: 3, total: 4, by_story: { "01": { passed: 3, total: 4 } } }),
     [`${R1}/rescore/vidi-v2/stories/02/accept-summary.json`]: j({ passed: 7, total: 8, by_story: { "01": { passed: 3, total: 4 }, "02": { passed: 4, total: 4 } } }),
     [`${R1}/interventions.md`]: "- 2026-09-26T08:57:29Z story 3: restarted the engine\n",
+    [`${R1}/summary.md`]: "# r1\n",
+    [`${R1}/workspace.bundle`]: "bundle",
     // r2: stories as a list, no run-status, a spoiled re-score (harness_fault) and a re-scored story without per-story counts.
     [`${R2}/run.json`]: j({ host: "hostB" }),
     [`${R2}/metrics.json`]: j({ stories: [story("Only", 6, 6)] }),
     [`${R2}/rescore/vidi-v2/rescore.json`]: j({ results: [{ story: 1, passed: 0, total: 6, harness_fault: "  machine froze  " }] }),
     [`${R2}/rescore/vidi-v2/stories/01/accept.json`]: j({ passed: 6 }),
-    // r3: a run.json that doesn't parse, no metrics.
+    // r3: a run.json that doesn't parse, no metrics, a status.
     [`${R3}/run.json`]: "{not json",
+    [`${R3}/run-status.json`]: j({ state: "running", at: "2026-10-02T00:00:00Z" }),
     // r4: stories keyed "02" before "01" (zero-padded keys keep the order they were written in).
     [`${R4}/run.json`]: j({}),
     [`${R4}/metrics.json`]: j({ stories: { "02": story("Two", 1, 1), "01": story("One", 1, 1) } }),
-    // A reference run whose pack has no bench.json; and an archived run, which is not listed.
+    // A reference run whose pack has no bench.json; and a run the checkout marks archived, which is not listed.
     [`${RREF}/run.json`]: j({}),
-    "combinations/stackA/benchmarks/vidi/gone/run.json": j({}),
-    "combinations/stackA/benchmarks/vidi/gone/archived.json": j({}),
-    "README.md": "not a run",
+    [`${GONE}/run.json`]: j({}),
   };
-
-  const origin = join(SCRATCH, "runs-origin.git");
-  const repo = join(SCRATCH, "runs-clone");
+  const state = join(SCRATCH, "lake-state");
+  const checkout = join(SCRATCH, "lake-checkout");
+  const lakePath = (p: string) => (p.startsWith("benchmarks/reference/") ? join(state, "reference", p.slice("benchmarks/reference/".length)) : join(state, "collected", "node-a", at(p)));
+  for (const [p, text] of Object.entries(runs)) put(dirname(lakePath(p)), { [p.split("/").at(-1)!]: text });
+  put(checkout, {
+    "benchmarks/vidi/bench.json": j({ pack_ref: "vidi-v2" }),
+    [`${at(GONE)}/archived.json`]: j({}),
+  });
+  // A PATH whose git fails the test if anything runs it: run data is never read from git.
+  const bin = join(SCRATCH, "lake-bin");
+  put(bin, { git: "#!/bin/sh\necho git was run >&2\nexit 99\n" });
+  chmodSync(join(bin, "git"), 0o755);
+  const cfg = { benchLake: BENCH_LAKE, state, checkout };
   let loaded: Awaited<ReturnType<typeof loadRuns>>;
   const rec = (runId: string) => loaded.records.find((r) => r.runId === runId)!;
+  const PATH_BEFORE = process.env.PATH;
 
-  it("fetches origin/main and reads the records and each pack's current version", async () => {
-    g(SCRATCH, "init", "-q", "--bare", "-b", "main", origin);
-    const work = join(SCRATCH, "runs-work");
-    g(SCRATCH, "clone", "-q", origin, work);
-    g(work, "checkout", "-q", "-B", "main");
-    put(work, files);
-    g(work, "add", "-A");
-    g(work, "commit", "-q", "-m", "records");
-    g(work, "push", "-q", "origin", "main");
-    g(SCRATCH, "clone", "-q", origin, repo); // the clone is at the commit; push a newer one so only a fetch can see it
-    put(work, { [`${R3}/run-status.json`]: j({ state: "running", at: "2026-10-02T00:00:00Z" }) });
-    g(work, "add", "-A");
-    g(work, "commit", "-q", "-m", "later");
-    g(work, "push", "-q", "origin", "main");
-    loaded = await loadRuns(repo);
+  it("reads every run of the lake and each pack's current version from the checkout, with no git", async () => {
+    process.env.PATH = `${bin}:${PATH_BEFORE}`;
+    try {
+      loaded = await loadRuns(cfg);
+    } finally {
+      process.env.PATH = PATH_BEFORE;
+    }
     expect(loaded.records.map((r) => r.runId).sort()).toEqual(["r1", "r2", "r3", "r4", "r9"]);
     expect(loaded.suites).toEqual({ vidi: "vidi-v2", other: "" });
-    expect(rec("r3").state).toBe("running"); // seen only because loadRuns fetched first
+    expect(rec("r3").state).toBe("running");
   });
 
-  it("a finished run: host, version, state, client, notes, known_good", () => {
+  it("a finished run: host, version, state, client, notes, known_good, and the bundle the lake has", () => {
     const r = rec("r1");
-    expect(r).toMatchObject({ pack: "vidi", stack: "stackA", dir: R1, host: "hostA", packVersion: "vidi-v1", state: "finished", stateAt: "2026-10-01T10:00:00Z", client: "pi", knownGood: true });
+    expect(r).toMatchObject({ pack: "vidi", stack: STACK.replace("combinations/", "").replace("/benchmarks/vidi", ""), dir: at(R1), host: "hostA", packVersion: "vidi-v1", state: "finished", stateAt: "2026-10-01T10:00:00Z", client: "pi", knownGood: true, hasBundle: true });
     expect(r.interventions).toEqual([{ at: Date.parse("2026-09-26T08:57:29Z") / 1000, story: "3", text: "restarted the engine" }]);
     expect(r.finalize).toMatchObject({ rescore: "done" });
+    expect(rec("r2").hasBundle).toBe(false);
   });
 
   it("stories keyed by id are listed in numeric order, and take their figures from the later suite's re-score when the run was built under an earlier one", () => {
@@ -233,9 +245,22 @@ describe("loadRuns(): every pushed run record, read from the fetched origin/main
     expect(rec("r4").stories.map((x) => x.title)).toEqual(["One", "Two"]);
   });
 
-  it("reference runs are listed under their stack, and an archived run is not listed", () => {
+  it("reference runs are listed under their stack, and a run the checkout marks archived is not listed", () => {
     expect(rec("r9")).toMatchObject({ pack: "other", stack: "reference/stackB", dir: RREF });
     expect(loaded.records.some((r) => r.runId === "gone")).toBe(false);
+  });
+
+  it("every result document read is kept by its checkout-relative path, for the record routes", () => {
+    expect(loaded.documents.get(`${at(R1)}/summary.md`)).toBe("# r1\n");
+    expect(loaded.documents.get(`${RREF}/run.json`)).toBe(j({}));
+  });
+
+  it("bench-lake failing: loadRuns fails with its message, and nothing is made up", async () => {
+    await expect(loadRuns({ ...cfg, benchLake: join(SCRATCH, "no-such-bench-lake") })).rejects.toThrow(/ENOENT/);
+    const failing = join(bin, "failing-bench-lake");
+    put(bin, { "failing-bench-lake": "#!/bin/sh\necho 'bench-lake: no question' >&2\nexit 2\n" });
+    chmodSync(failing, 0o755);
+    await expect(loadRuns({ ...cfg, benchLake: failing })).rejects.toThrow(/bench-lake: no question/);
   });
 });
 
@@ -274,38 +299,5 @@ describe("loadFlowCounts(): tests per story in the private suite, by version tag
 
   it("a tag that was never read and is gone gives nothing", async () => {
     expect(await loadFlowCounts(priv, [{ pack: "vidi", version: "vidi-v7-other" }])).toEqual({});
-  });
-});
-
-describe("readBlobs(): many files of origin/main in one git call", () => {
-  const BLOB_REPO = join(SCRATCH, "blobs");
-  const PRESENT = "combinations/stackA/run.json";
-  const ABSENT = "combinations/stackA/never-pushed.json";
-  const UNICODE = "notes/caf\u00e9.md";
-
-  function repoWithOriginMain() {
-    mkdirSync(BLOB_REPO, { recursive: true });
-    g(BLOB_REPO, "init", "-q", "-b", "main");
-    put(BLOB_REPO, { [PRESENT]: j({ pack: "vidi" }), [UNICODE]: "na\u00efve caf\u00e9\n" });
-    g(BLOB_REPO, "add", PRESENT, UNICODE);
-    g(BLOB_REPO, "commit", "-q", "-m", "fixture");
-    g(BLOB_REPO, "update-ref", "refs/remotes/origin/main", "HEAD");
-  }
-
-  it("no paths: an empty map, without starting git", async () => {
-    expect(await readBlobs(join(SCRATCH, "no-such-repo-needed"), [])).toEqual(new Map());
-  });
-  it("gives each present file's text, keeps multibyte text whole, and leaves out a file that is missing", async () => {
-    repoWithOriginMain();
-    const got = await readBlobs(BLOB_REPO, [PRESENT, ABSENT, UNICODE]);
-    expect([...got.keys()]).toEqual([PRESENT, UNICODE]);
-    expect(got.get(PRESENT)).toBe(j({ pack: "vidi" }));
-    expect(got.get(UNICODE)).toBe("na\u00efve caf\u00e9\n");
-    expect(got.has(ABSENT)).toBe(false);
-  });
-  it("a folder that is not a repository: git prints nothing to read, so the map is empty", async () => {
-    const notRepo = join(SCRATCH, "blobs-not-a-repo");
-    mkdirSync(notRepo);
-    expect(await readBlobs(notRepo, [PRESENT, UNICODE])).toEqual(new Map());
   });
 });
