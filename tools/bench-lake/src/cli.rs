@@ -17,6 +17,7 @@ const PROGRAM: &str = "bench-lake";
 const FLAG_ROOTS: &str = "--roots";
 const FLAG_REV: &str = "--rev";
 const FLAG_REPORT: &str = "--report";
+const FLAG_ARCHIVED: &str = "--archived";
 
 /// Where `compare-git --report` puts its report. The library proper writes nothing; the program supplies the writer.
 pub type ReportSink<'a> = &'a mut dyn FnMut(&Path, &str) -> io::Result<()>;
@@ -187,6 +188,16 @@ fn answer(args: &[String], report: ReportSink) -> Result<Answer, Question> {
                 }
                 Err(a) => absent(&a),
             })
+        }
+        "records" => {
+            let archived = match &words[1..] {
+                [] => None,
+                [flag, checkout] if flag == FLAG_ARCHIVED => Some(Path::new(checkout)),
+                _ => return bad("records takes nothing, or --archived and the host checkout"),
+            };
+            let d = lake.discover();
+            let runs: Vec<Value> = lake.results(&d, archived).iter().map(|r| r.to_value()).collect();
+            Ok(found(json!({"runs": runs})))
         }
         "compare-git" => compare_command(&lake, &words[1..], report),
         other => bad(format!("unknown question {other}")),

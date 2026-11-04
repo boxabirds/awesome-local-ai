@@ -17,6 +17,7 @@ pub mod complete;
 pub mod layout;
 pub mod logs;
 pub mod records;
+pub mod results;
 
 use serde_json::Value;
 use std::fs::File;
@@ -30,6 +31,7 @@ pub use complete::Completeness;
 pub use layout::{Discovery, Kind, Lake, Rejected, RunRef};
 pub use logs::{Form, Log};
 pub use records::Record;
+pub use results::RunResults;
 
 /// Why a file could not be opened as a regular file.
 #[derive(Debug)]

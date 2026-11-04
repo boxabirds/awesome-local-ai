@@ -23,6 +23,7 @@ matches the command fails that test.
 | `log <run> <story>` | a story's log |
 | `workspace <run> <story> <dest>` | a working copy of the run's code at the story, made in `<dest>` |
 | `complete <run>` | whether the run is complete |
+| `records [--archived <checkout>]` | every run's result documents, from its preferred copy |
 
 `<id>` is a run id: for a combination run the path below its node folder
 (`combinations/<family>/<version>/<variant>/<os>/<machine>/<engine>-<client>/benchmarks/<pack>/<run>`), for a reference
@@ -340,6 +341,25 @@ $ bench-lake <LAKE> complete benchmarks/reference/todoodle/opus-5.5/run-1
 ```
 
 59a592fca04af9fe2c8b667b3a784298795ccde9
+
+### records `[--archived <checkout>]` (not a question about one run)
+
+    {"runs":[{"bundle":B,"dir":P,"files":{REL:TEXT,...},"id":ID,"kind":K,"node":N,"unreadable":[REL,...]},...],"status":"found"}
+
+What a reader of results (the benchmarker) shows, in one answer (story 23). One entry per run id, the preferred copy
+(`preferred`), ordered by id. `files` maps a document's path relative to the run folder to its text as written: a JSON
+document is not parsed, so one that does not parse is given as it is. The documents, when present: `run.json`,
+`run-status.json`, `metrics.json`, `finalize.json`, `interventions.md`, `summary.md`; for every rescore version folder
+`V` (a valid version name), `rescore/V/rescore.json` and `rescore/V/per-story.md`; and for every story folder `S` of
+it (spelled as section 1 writes it), `rescore/V/stories/S/accept-summary.json` and `rescore/V/stories/S/accept.json`.
+A document that is there but cannot be read as text (refused, not a regular file, or not UTF-8) is left out of `files`
+and named in `unreadable` (sorted); one that is absent is in neither. `bundle` is true when `workspace.bundle` is a
+regular file in the run folder.
+
+With `--archived <checkout>`, a run is left out when `<checkout>/<id>/archived.json` is a regular file (the owner's
+archived marker, kept in the host checkout); a folder or another name there is not a marker. A malformed question
+(another argument, or `--archived` without a checkout) prints nothing on standard output, one line on standard error,
+and exits 2. The answer reads nothing into the lake. Tests: `tests/results.rs`.
 
 ### compare-git (not a question about one run)
 
