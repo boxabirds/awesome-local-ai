@@ -24,6 +24,8 @@ matches the command fails that test.
 | `workspace <run> <story> <dest>` | a working copy of the run's code at the story, made in `<dest>` |
 | `complete <run>` | whether the run is complete |
 | `records [--archived <checkout>]` | every run's result documents, from its preferred copy |
+| `annotate set\|clear <kind> <run> ...` | record one of the operator's decisions about a run (the only question that writes) |
+| `annotations [--history]` | the operator's decisions in force, or every event |
 
 `<id>` is a run id: for a combination run the path below its node folder
 (`combinations/<family>/<version>/<variant>/<os>/<machine>/<engine>-<client>/benchmarks/<pack>/<run>`), for a reference
@@ -54,7 +56,7 @@ without them). A token too large for a signed 64-bit integer is clamped to 92233
 `[A-Za-z0-9._-]`, not only dots; anything else (including the empty string) is `E-LAKE-BAD-NAME`. A version token is
 never otherwise interpreted. Names that begin with a dot are never records (a file being transferred is never returned).
 
-Exit codes. 0 when the answer is a value or an absence. 2 when the answer is a refusal (it is still printed on standard
+Exit codes. 0 when the answer is a value or an absence. 1 when the annotation store cannot be read (section 5). 2 when the answer is a refusal (it is still printed on standard
 output), and 2 when the question itself is malformed: then nothing is printed on standard output and one line
 `bench-lake: <message>` is printed on standard error. A question is malformed when: the word is unknown, the number of
 arguments is wrong, a record name is unknown, a story does not match `^-?[0-9]+$`, an id is empty.
@@ -130,9 +132,9 @@ All paths in answers are labels relative to the root, never absolute: `collected
 
 ### runs
 
-    {"missing_roots":[...],"rejected":[{"code":C,"path":P},...],"runs":[{"dir":P,"id":ID,"kind":K,"node":N},...],"status":"found"}
+    {"missing_roots":[...],"rejected":[{"code":C,"path":P},...],"runs":[{"annotations":A,"dir":P,"id":ID,"kind":K,"node":N},...],"status":"found"}
 
-`kind` is `"combination"` or `"reference"`; `node` is `null` for a reference run. `runs` is ordered by `id`, then by `node`
+`annotations` is the operator's decisions in force about the run id (section 5), the same on every copy. `kind` is `"combination"` or `"reference"`; `node` is `null` for a reference run. `runs` is ordered by `id`, then by `node`
 (bytes; `null` first). `rejected` is ordered by `path` (bytes). `missing_roots` is `"collected"` and/or `"reference"` for a
 root that does not exist, in that order.
 
@@ -156,7 +158,7 @@ Example (the whole fixture lake):
 
 ```example
 $ bench-lake <LAKE> runs
-{"missing_roots":[],"rejected":[],"runs":[{"dir":"reference/todoodle/opus-5.5/run-1","id":"benchmarks/reference/todoodle/opus-5.5/run-1","kind":"reference","node":null},{"dir":"reference/vidi/sonnet-5.5/v2-r1","id":"benchmarks/reference/vidi/sonnet-5.5/v2-r1","kind":"reference","node":null},{"dir":"collected/node-a/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-a"},{"dir":"collected/node-c/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-c"},{"dir":"collected/node-d/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-d"},{"dir":"collected/node-a/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","id":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","kind":"combination","node":"node-a"},{"dir":"collected/node-a/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","id":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","kind":"combination","node":"node-a"},{"dir":"collected/node-d/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1","id":"combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1","kind":"combination","node":"node-d"}],"status":"found"}
+{"missing_roots":[],"rejected":[],"runs":[{"annotations":{"archived":null,"invalid":null,"not_comparable":{}},"dir":"reference/todoodle/opus-5.5/run-1","id":"benchmarks/reference/todoodle/opus-5.5/run-1","kind":"reference","node":null},{"annotations":{"archived":null,"invalid":null,"not_comparable":{}},"dir":"reference/vidi/sonnet-5.5/v2-r1","id":"benchmarks/reference/vidi/sonnet-5.5/v2-r1","kind":"reference","node":null},{"annotations":{"archived":null,"invalid":null,"not_comparable":{}},"dir":"collected/node-a/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-a"},{"annotations":{"archived":null,"invalid":null,"not_comparable":{}},"dir":"collected/node-c/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-c"},{"annotations":{"archived":null,"invalid":null,"not_comparable":{}},"dir":"collected/node-d/combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","id":"combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2","kind":"combination","node":"node-d"},{"annotations":{"archived":null,"invalid":null,"not_comparable":{}},"dir":"collected/node-a/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","id":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","kind":"combination","node":"node-a"},{"annotations":{"archived":null,"invalid":null,"not_comparable":{}},"dir":"collected/node-a/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","id":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","kind":"combination","node":"node-a"},{"annotations":{"archived":null,"invalid":null,"not_comparable":{}},"dir":"collected/node-d/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1","id":"combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1","kind":"combination","node":"node-d"}],"status":"found"}
 ```
 
 
@@ -344,7 +346,7 @@ $ bench-lake <LAKE> complete benchmarks/reference/todoodle/opus-5.5/run-1
 
 ### records `[--archived <checkout>]` (not a question about one run)
 
-    {"missing_roots":[...],"rejected":[...],"runs":[{"bundle":B,"dir":P,"files":{REL:TEXT,...},"id":ID,"kind":K,"node":N,"unreadable":[REL,...]},...],"status":"found"}
+    {"missing_roots":[...],"rejected":[...],"runs":[{"annotations":A,"bundle":B,"dir":P,"files":{REL:TEXT,...},"id":ID,"kind":K,"node":N,"unreadable":[REL,...]},...],"status":"found"}
 
 What a reader of results (the benchmarker) shows, in one answer (story 23). One entry per run id, the preferred copy
 (`preferred`), ordered by id. `files` maps a document's path relative to the run folder to its text as written: a JSON
@@ -357,7 +359,8 @@ and named in `unreadable` (sorted); one that is absent is in neither. `bundle` i
 regular file in the run folder. `missing_roots` and `rejected` are those of `runs`, so a reader can tell a lake folder
 it could not list from one that is not there.
 
-With `--archived <checkout>`, a run is left out when `<checkout>/<id>/archived.json` is a regular file (the owner's
+A run the operator's decisions archive (section 5) is left out; `annotations` carries the rest of its decisions.
+With `--archived <checkout>`, a run is also left out when `<checkout>/<id>/archived.json` is a regular file (the owner's
 archived marker, kept in the host checkout); a folder or another name there is not a marker. A malformed question
 (another argument, or `--archived` without a checkout) prints nothing on standard output, one line on standard error,
 and exits 2. The answer reads nothing into the lake. Tests: `tests/results.rs`.
@@ -381,3 +384,55 @@ direct read of the same file: a defect of the library, never of the data. Exit c
 missing root, or no run of the lake is tracked in the repository): nothing is printed on standard output, one line
 `bench-lake: not run: <reason>` is printed on standard error, and no report is written. A comparison that could not
 look is never a pass.
+
+## 5. The operator's decisions (annotations)
+
+Decisions about runs made after they ran: a run is `invalid` (an internal fault spoiled it), a run is `archived`
+(superseded, or not a benchmark result), a story of a run is `not_comparable` with the same story in other runs. They
+are kept apart from the records, which never change, in one append-only log beside the lake: `STATE_DIR/annotations/
+log.jsonl`, the folder mode 0700 and the file 0600 (private by design: nothing publishes it). Only the state-folder form
+of the command has a store: with `--roots`, `annotate` and `annotations` are malformed questions (exit 2), and every
+run's `annotations` is empty.
+
+One event per line, in canonical JSON:
+
+    {"at":"2026-11-04T15:02:11Z","by":NAME,"kind":K,"op":"set"|"clear","reason":TEXT,"run":ID,"seq":N,"story":S|null,"v":1}
+
+`seq` is 1 for the first line and one more on each line after. `at` is UTC. `run` is spelled as section 1 spells an id
+(not `<node>@<id>`), and need not be in the lake. `story` is a story number 0 to 999 for `not_comparable` and `null`
+for the others. `reason` is not empty. The decision in force for a (run, story, kind) is its last event; a `clear`
+withdraws it. Nothing in the log is rewritten or deleted.
+
+A decision in force, and the decisions about one run (`A` in `runs` and `records`):
+
+    {"archived":D|null,"invalid":D|null,"not_comparable":{"S":D,...}}        D = {"at":T,"by":NAME,"reason":TEXT,"seq":N}
+
+A log that is absent is an empty store. A log that cannot be read, is not UTF-8, or has a line that is not an event
+(not JSON, an unknown `op` or `kind`, a broken rule above, or a `seq` out of order) fails every question that reads it:
+`annotations`, `annotate`, `runs` and `records` print nothing on standard output, print one line naming the log's path
+and the line number on standard error, and exit 1. No question ever answers as if an unreadable store held no decisions.
+
+### annotate `set|clear <kind> <run> [--story N] --reason TEXT [--by NAME]`
+
+    {"event":EVENT,"status":"found"}
+
+Records one decision and prints the event appended. `--by` defaults to the login name (`USER`). Under an exclusive lock
+on `annotations/log.jsonl.lock`, the store is read, the decision checked against those in force, and one line appended
+and synced; concurrent writers get consecutive `seq` numbers. Refused, with nothing written, exit 2 and one line on
+standard error naming the rule: an unknown kind or op; a run id that is not one; a story missing for `not_comparable`,
+given for another kind, or outside 0 to 999; no `--reason` or an empty one; a `clear` with no decision in force
+("nothing to clear"); a `set` whose reason equals the decision in force ("already set"). A different reason replaces it.
+
+### annotations `[--history]`
+
+    {"runs":{ID:A,...},"status":"found"}                 the decisions in force, runs with none left out
+    {"events":[EVENT,...],"status":"found"}              with --history: every event, in order
+
+Example (the fixture lake has no store):
+
+```example
+$ bench-lake <LAKE> annotations
+{"runs":{},"status":"found"}
+```
+
+Tests: `tests/annotations.rs`.

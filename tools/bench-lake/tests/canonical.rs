@@ -7,7 +7,7 @@ use std::fs;
 const EXAMPLE_OPEN: &str = "```example";
 const EXIT_OK: i32 = 0;
 const EXIT_REFUSED: i32 = 2;
-const QUESTIONS: [&str; 7] = ["runs", "copies", "preferred", "record", "log", "workspace", "complete"];
+const QUESTIONS: [&str; 8] = ["runs", "copies", "preferred", "record", "log", "workspace", "complete", "annotations"];
 
 struct Example {
     args: Vec<String>,

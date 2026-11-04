@@ -1,7 +1,9 @@
-//! bench-lake: a read-only library that reads benchmark runs from the lake (story 21).
+//! bench-lake: a library that reads benchmark runs from the lake (story 21), and keeps the operator's decisions
+//! about them (story 23, annotations.rs).
 //!
 //! The lake is two folders, a collected folder and a reference folder (`Lake`). Nothing here writes into them; the
-//! one thing that creates files is `Lake::workspace` (bundle.rs), and only in a destination outside both roots.
+//! one thing that creates files there is `Lake::workspace` (bundle.rs), and only in a destination outside both
+//! roots. The decisions are the one thing bench-lake writes: `<state>/annotations`, beside the two roots.
 //! Every function answers with a value or an `Absent`/`Refused`; none stops the program (decision 7 of the design).
 //! The exact output of the command is in CANONICAL.md.
 
@@ -10,6 +12,7 @@
 #![allow(clippy::result_large_err)]
 
 pub mod absent;
+pub mod annotations;
 pub mod bundle;
 pub mod cli;
 pub mod compare;

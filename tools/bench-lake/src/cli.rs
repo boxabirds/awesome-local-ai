@@ -1,6 +1,7 @@
 //! The command: argument parsing and the canonical answer (lakelib.impl.rust). CANONICAL.md is the contract.
 
 use crate::absent::{Absent, Error};
+use crate::annotations::{self, AnnotateError, Kind, Op, Request, State, Store};
 use crate::compare::{compare_git, DEFAULT_REV};
 use crate::layout::{Discovery, Lake};
 use crate::records::{parse_story_arg, Record};
@@ -13,11 +14,17 @@ pub const EXIT_OK: i32 = 0;
 pub const EXIT_QUESTION: i32 = 2;
 pub const EXIT_NOT_RUN: i32 = 3;
 pub const EXIT_DEFECT: i32 = 1;
+/// The annotation store could not be read or written: nothing was answered.
+pub const EXIT_STORE: i32 = 1;
 const PROGRAM: &str = "bench-lake";
 const FLAG_ROOTS: &str = "--roots";
 const FLAG_REV: &str = "--rev";
 const FLAG_REPORT: &str = "--report";
 const FLAG_ARCHIVED: &str = "--archived";
+const FLAG_STORY: &str = "--story";
+const FLAG_REASON: &str = "--reason";
+const FLAG_BY: &str = "--by";
+const FLAG_HISTORY: &str = "--history";
 
 /// Where `compare-git --report` puts its report. The library proper writes nothing; the program supplies the writer.
 pub type ReportSink<'a> = &'a mut dyn FnMut(&Path, &str) -> io::Result<()>;
@@ -40,6 +47,10 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write, report: Re
             let _ = writeln!(err, "{PROGRAM}: not run: {reason}");
             EXIT_NOT_RUN
         }
+        Ok(Answer::StoreFailed(message)) => {
+            let _ = writeln!(err, "{PROGRAM}: {message}");
+            EXIT_STORE
+        }
         Err(Question(message)) => {
             let _ = writeln!(err, "{PROGRAM}: {message}");
             EXIT_QUESTION
@@ -50,6 +61,7 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write, report: Re
 enum Answer {
     Print(Value, i32),
     NotRun(String),
+    StoreFailed(String),
 }
 
 fn found(mut value: Value) -> Answer {
@@ -68,16 +80,60 @@ fn error_answer(e: Error) -> Answer {
     }
 }
 
-fn parse_roots(args: &[String]) -> Result<(Lake, &[String]), Question> {
+/// The lake, its annotation store (only in the state-folder form: `--roots` names no store), and the question.
+fn parse_roots(args: &[String]) -> Result<(Lake, Option<Store>, &[String]), Question> {
     match args.first().map(String::as_str) {
         None => bad("usage: bench-lake <STATE_DIR> <question...> | --roots <COLLECTED> <REFERENCE> <question...>"),
         Some(FLAG_ROOTS) => {
             if args.len() < 3 {
                 return bad("--roots takes the collected folder and the reference folder");
             }
-            Ok((Lake::new(Path::new(&args[1]), Path::new(&args[2])), &args[3..]))
+            Ok((Lake::new(Path::new(&args[1]), Path::new(&args[2])), None, &args[3..]))
         }
-        Some(state) => Ok((Lake::in_state_dir(Path::new(state)), &args[1..])),
+        Some(state) => Ok((Lake::in_state_dir(Path::new(state)), Some(Store::in_state_dir(Path::new(state))), &args[1..])),
+    }
+}
+
+/// The decisions in force: none without a store; an unreadable store is a failure, never an empty one.
+fn decisions(store: &Option<Store>) -> Result<State, Answer> {
+    match store {
+        None => Ok(State::default()),
+        Some(s) => s.state().map_err(|e| Answer::StoreFailed(e.to_string())),
+    }
+}
+
+fn need_store<'a>(store: &'a Option<Store>, question: &str) -> Result<&'a Store, Question> {
+    store.as_ref().ok_or_else(|| Question(format!("{question} needs the state folder: --roots names no annotation store")))
+}
+
+fn annotate_command(store: &Store, words: &[String]) -> Result<Answer, Question> {
+    const USAGE: &str = "annotate set|clear <kind> <run> [--story N] --reason TEXT [--by NAME]";
+    let [op, kind, run, flags @ ..] = words else { return bad(format!("usage: {USAGE}")) };
+    let op = Op::parse(op).ok_or_else(|| Question(format!("annotate takes set or clear, not {op:?} ({USAGE})")))?;
+    let kind = Kind::parse(kind).ok_or_else(|| {
+        let known: Vec<&str> = Kind::ALL.iter().map(Kind::as_str).collect();
+        Question(format!("unknown kind {kind:?}: one of {}", known.join(", ")))
+    })?;
+    let (mut story, mut reason, mut by) = (None, None, None);
+    let mut it = flags.iter();
+    while let Some(flag) = it.next() {
+        let mut value = || it.next().ok_or_else(|| Question(format!("{flag} takes a value")));
+        match flag.as_str() {
+            FLAG_STORY => {
+                let text = value()?;
+                story = Some(parse_story_arg(text).map_err(|e| Question(format!("--story: {e}")))?);
+            }
+            FLAG_REASON => reason = Some(value()?.clone()),
+            FLAG_BY => by = Some(value()?.clone()),
+            other => return bad(format!("annotate does not take {other} ({USAGE})")),
+        }
+    }
+    let Some(reason) = reason else { return bad("annotate needs --reason: a decision needs a reason") };
+    let req = Request { op, kind, run: run.clone(), story, reason, by: by.unwrap_or_else(annotations::default_by) };
+    match store.append(&req, &annotations::utc_now()) {
+        Ok(event) => Ok(found(json!({"event": event.to_value()}))),
+        Err(AnnotateError::Refused(why)) => bad(why),
+        Err(AnnotateError::Store(e)) => Ok(Answer::StoreFailed(e.to_string())),
     }
 }
 
@@ -90,12 +146,30 @@ fn expect(words: &[String], name: &str, min: usize, max: usize) -> Result<(), Qu
 }
 
 fn answer(args: &[String], report: ReportSink) -> Result<Answer, Question> {
-    let (lake, words) = parse_roots(args)?;
+    let (lake, store, words) = parse_roots(args)?;
     let Some(question) = words.first() else { return bad("no question") };
     match question.as_str() {
         "runs" => {
             expect(words, "runs", 0, 0)?;
-            Ok(found(runs_value(&lake.discover())))
+            let state = match decisions(&store) {
+                Ok(s) => s,
+                Err(failed) => return Ok(failed),
+            };
+            Ok(found(runs_value(&lake.discover(), &state)))
+        }
+        "annotate" => annotate_command(need_store(&store, "annotate")?, &words[1..]),
+        "annotations" => {
+            let history = match &words[1..] {
+                [] => false,
+                [flag] if flag == FLAG_HISTORY => true,
+                _ => return bad("annotations takes nothing, or --history"),
+            };
+            let store = need_store(&store, "annotations")?;
+            Ok(match store.events() {
+                Err(e) => Answer::StoreFailed(e.to_string()),
+                Ok(events) if history => found(json!({"events": events.iter().map(|e| e.to_value()).collect::<Vec<_>>()})),
+                Ok(events) => found(annotations::fold(&events).to_value()),
+            })
         }
         "copies" => {
             expect(words, "copies", 1, 1)?;
@@ -195,9 +269,13 @@ fn answer(args: &[String], report: ReportSink) -> Result<Answer, Question> {
                 [flag, checkout] if flag == FLAG_ARCHIVED => Some(Path::new(checkout)),
                 _ => return bad("records takes nothing, or --archived and the host checkout"),
             };
+            let state = match decisions(&store) {
+                Ok(s) => s,
+                Err(failed) => return Ok(failed),
+            };
             let d = lake.discover();
-            let mut value = runs_value(&d);
-            value["runs"] = lake.results(&d, archived).iter().map(|r| r.to_value()).collect();
+            let mut value = runs_value(&d, &state);
+            value["runs"] = lake.results(&d, archived, &state).iter().map(|r| r.to_value()).collect();
             Ok(found(value))
         }
         "compare-git" => compare_command(&lake, &words[1..], report),
@@ -205,11 +283,21 @@ fn answer(args: &[String], report: ReportSink) -> Result<Answer, Question> {
     }
 }
 
-fn runs_value(d: &Discovery) -> Value {
+/// Every copy of every run, each with the decisions in force about its run id.
+fn runs_value(d: &Discovery, state: &State) -> Value {
+    let runs: Vec<Value> = d
+        .runs
+        .iter()
+        .map(|r| {
+            let mut v = r.to_value();
+            v["annotations"] = state.of(&r.id).to_value();
+            v
+        })
+        .collect();
     json!({
         "missing_roots": d.missing_roots,
         "rejected": d.rejected.iter().map(|r| json!({"code": r.code, "path": r.label})).collect::<Vec<_>>(),
-        "runs": d.runs.iter().map(|r| r.to_value()).collect::<Vec<_>>(),
+        "runs": runs,
     })
 }
 

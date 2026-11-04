@@ -40,6 +40,25 @@ pub fn is_valid_part(part: &str) -> bool {
         && !part.bytes().all(|b| b == b'.')
 }
 
+/// Whether `id` is spelled as discovery names a run: `combinations/` and the nine levels of a combination run, or
+/// `benchmarks/reference/` and pack, stack and run; every part under the part rule. Says nothing about whether the
+/// run is in the lake.
+pub fn is_run_id(id: &str) -> bool {
+    if let Some(rest) = id.strip_prefix(REFERENCE_ID_PREFIX) {
+        let parts: Vec<&str> = rest.split('/').collect();
+        return parts.len() == REFERENCE_DEPTH && parts.iter().all(|p| is_valid_part(p));
+    }
+    let Some(rest) = id.strip_prefix(COMBINATIONS_DIR).and_then(|r| r.strip_prefix('/')) else { return false };
+    let parts: Vec<&str> = rest.split('/').collect();
+    parts.len() == COMBINATION_DEPTH
+        && parts.iter().enumerate().all(|(i, p)| {
+            let level = i + 1;
+            is_valid_part(p)
+                && (level != BENCHMARKS_LEVEL || *p == BENCHMARKS_DIR)
+                && (level != ENGINE_CLIENT_LEVEL || p.contains('-'))
+        })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lake {
     pub collected: PathBuf,

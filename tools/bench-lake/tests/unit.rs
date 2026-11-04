@@ -477,15 +477,20 @@ const WRITE_CALLS: [&str; 14] = [
     ".append(true)",
 ];
 
+/// The writers: bundle.rs makes a working copy outside the lake; annotations.rs appends the operator's decisions
+/// below `<state>/annotations` (story 23; tests/annotations.rs TC-C0 proves no run folder changes).
 #[test]
-fn tc83_rust_makes_no_writes_outside_bundle_rs() {
+fn tc83_rust_writes_only_in_bundle_rs_and_annotations_rs() {
     let mut seen_in_bundle = false;
+    let mut seen_in_annotations = false;
     for (name, text) in src_files() {
         let code: String = text.lines().filter(|l| !l.trim_start().starts_with("//")).collect::<Vec<_>>().join("\n");
         for call in WRITE_CALLS {
             if code.contains(call) {
                 if name == "bundle.rs" {
                     seen_in_bundle = true;
+                } else if name == "annotations.rs" {
+                    seen_in_annotations = true;
                 } else if name == "main.rs" {
                     // The program supplies the writer of the compare-git report: exactly one call, `fs::write`.
                     assert_eq!(call, "fs::write", "main.rs may only write the report, found {call}");
@@ -497,6 +502,7 @@ fn tc83_rust_makes_no_writes_outside_bundle_rs() {
         }
     }
     assert!(seen_in_bundle, "bundle.rs is where the working copy is made");
+    assert!(seen_in_annotations, "annotations.rs is where the decisions are appended");
 }
 
 #[test]
