@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { Intervention, Score } from "../shared/types.ts";
-import { countTests, finalScore, findRuns, normaliseByStory, parseExpertCache, parseFinalize, parseInterventions, parseInvalid, parseSandbox, rescoreFault, type ExpertCache, type Invalid, type RawFinalize, type RawAccept, type RunSandbox, type RawRescore, type RawUsage, storyEntry, builtUnderEarlierSuite, acceptUnderScoringSuite, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
+import { countTests, finalScore, findRuns, normaliseByStory, parseExpertCache, parseFinalize, parseInterventions, parseSandbox, invalidOf, notComparableOf, type RunDecisions, rescoreFault, type ExpertCache, type RawFinalize, type RawAccept, type RunSandbox, type RawRescore, type RawUsage, storyEntry, builtUnderEarlierSuite, acceptUnderScoringSuite, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
 const GIT_TIMEOUT_MS = 120_000;
@@ -18,33 +18,36 @@ export async function git(repo: string, ...args: string[]): Promise<string> {
   return stdout;
 }
 
-/** Where the runs are read from: the bench-lake command, the lake's state folder, and the host checkout (its archived
- * markers and each pack's bench.json). */
+/** Where the runs are read from: the bench-lake command, the lake's state folder (with the operator's decisions), and
+ * the host checkout (each pack's bench.json). */
 export interface LakeConfig { benchLake: string; state: string; checkout: string }
 
 /** One run of bench-lake's `records` answer (tools/bench-lake/CANONICAL.md). */
-interface LakeRun { id: string; files: Record<string, string>; bundle: boolean }
+interface LakeRun { id: string; files: Record<string, string>; bundle: boolean; annotations: RunDecisions }
 
 /** Every run's result documents, from bench-lake's `records` question, as checkout-relative paths: the file list
- * (with the bundle, when the lake has one) and each document's text. Runs the checkout marks archived are left out
- * by bench-lake. */
-export async function lakeRecords(cfg: LakeConfig): Promise<{ paths: string[]; blobs: Map<string, string> }> {
-  const { stdout } = await run(cfg.benchLake, [cfg.state, "records", "--archived", cfg.checkout], { timeout: BENCH_LAKE_TIMEOUT_MS, maxBuffer: MAX_BUFFER })
-    .catch((e: { code?: unknown; stderr?: string; message?: string }) => {
+ * (with the bundle, when the lake has one) and each document's text; and the operator's decisions about each run, by
+ * run id. Runs the decisions archive are left out by bench-lake. */
+export async function lakeRecords(cfg: LakeConfig): Promise<{ paths: string[]; blobs: Map<string, string>; decisions: Map<string, RunDecisions> }> {
+  const { stdout } = await run(cfg.benchLake, [cfg.state, "records"], { timeout: BENCH_LAKE_TIMEOUT_MS, maxBuffer: MAX_BUFFER })
+    .catch((e: { code?: unknown; stderr?: unknown; message?: string }) => {
       // bench-lake's own message (its standard error) says why; the first line of the error is only the command.
-      throw new Error(`bench-lake ${cfg.benchLake} failed (${String(e.code ?? "")}): ${(e.stderr ?? "").trim() || e.message}`);
+      // A command that could not be started has no standard error: Bun gives an empty Buffer, not text.
+      throw new Error(`bench-lake ${cfg.benchLake} failed (${String(e.code ?? "")}): ${String(e.stderr ?? "").trim() || e.message}`);
     });
   const runs = (JSON.parse(stdout) as { runs: LakeRun[] }).runs;
   const blobs = new Map<string, string>();
   const paths: string[] = [];
+  const decisions = new Map<string, RunDecisions>();
   for (const r of runs) {
+    decisions.set(r.id, r.annotations);
     for (const [rel, text] of Object.entries(r.files)) {
       blobs.set(`${r.id}/${rel}`, text);
       paths.push(`${r.id}/${rel}`);
     }
     if (r.bundle) paths.push(`${r.id}/${BUNDLE_FILE}`);
   }
-  return { paths, blobs };
+  return { paths, blobs, decisions };
 }
 
 /** A file of the checkout as text; undefined when it can't be read. */
@@ -78,18 +81,17 @@ function json<T>(text: string | undefined): T | null {
   }
 }
 
-/** The files a run's notes are read from: its run.json (the client, the "invalid" mark, what the engine settled on)
- * and interventions.md. */
+/** The files a run's notes are read from: its run.json (the client, what its agent ran in, what the engine settled
+ * on) and interventions.md. */
 export const runNotePaths = (dir: string) => [`${dir}/run.json`, `${dir}/interventions.md`];
 
-/** What the record says about the run itself: the client that ran it, whether it is invalid, what its agent ran in, and
- * what was done to it by hand. */
-export function runNotes(blobs: Map<string, string>, dir: string): { client: string; invalid: Invalid | null; sandbox: RunSandbox | null; expertCache: ExpertCache | null; interventions: Intervention[] } {
+/** What the record says about the run itself: the client that ran it, what its agent ran in, and what was done to it
+ * by hand. Whether it is invalid is the operator's decision, not the record's (loadRuns). */
+export function runNotes(blobs: Map<string, string>, dir: string): { client: string; sandbox: RunSandbox | null; expertCache: ExpertCache | null; interventions: Intervention[] } {
   const [meta, notes] = runNotePaths(dir);
-  const run = json<{ client?: unknown; invalid?: unknown; sandbox?: unknown; engine_settings?: unknown }>(blobs.get(meta));
+  const run = json<{ client?: unknown; sandbox?: unknown; engine_settings?: unknown }>(blobs.get(meta));
   return {
     client: typeof run?.client === "string" ? run.client : "",
-    invalid: parseInvalid(run?.invalid),
     sandbox: parseSandbox(run?.sandbox),
     expertCache: parseExpertCache(run?.engine_settings),
     interventions: parseInterventions(blobs.get(notes)),
@@ -106,12 +108,12 @@ export const runFinalize = (blobs: Map<string, string>, dir: string): RawFinaliz
 export const isKnownGood = (metrics: { known_good?: unknown } | null): boolean =>
   typeof metrics?.known_good === "object" && metrics.known_good !== null;
 
-type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown; memory_start?: unknown; conditions?: { host?: unknown } | null } & RawUsage;
+type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; memory_start?: unknown; conditions?: { host?: unknown } | null } & RawUsage;
 
 /** Every run record in the lake, each pack's current version (bench.json pack_ref, from the checkout), and every
  * result document read, by checkout-relative path (the app's record routes serve them). */
 export async function loadRuns(cfg: LakeConfig): Promise<{ records: RunRecord[]; suites: Record<string, string>; documents: Map<string, string> }> {
-  const { paths, blobs } = await lakeRecords(cfg);
+  const { paths, blobs, decisions } = await lakeRecords(cfg);
   const runs = findRuns(paths);
   const packs = [...new Set(runs.map((r) => r.pack))].sort();
   const suiteOf = async (p: string) => json<{ pack_ref?: string }>(await checkoutFile(cfg, `benchmarks/${p}/bench.json`))?.pack_ref ?? "";
@@ -144,9 +146,10 @@ export async function loadRuns(cfg: LakeConfig): Promise<{ records: RunRecord[];
       const acc = rescoredStory(blobs, r.dir, v, id);
       if (acc?.by_story) rescored[v] = { after: id, byStory: normaliseByStory(acc.by_story) };
     }
+    const decided = decisions.get(r.dir);
     return { ...r, rescored, rescoreFaults, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
-      stories: pairs.map(([id, s]) => storyEntry(id, scoringSuite ? acceptUnderScoringSuite(s, json<RawAccept>(blobs.get(`${r.dir}/rescore/${scoringSuite}/stories/${id.padStart(2, "0")}/accept-summary.json`))) : s)),
-      scores, ...runNotes(blobs, r.dir), finalize, knownGood: isKnownGood(metrics) };
+      stories: pairs.map(([id, s]) => storyEntry(id, scoringSuite ? acceptUnderScoringSuite(s, json<RawAccept>(blobs.get(`${r.dir}/rescore/${scoringSuite}/stories/${id.padStart(2, "0")}/accept-summary.json`))) : s, notComparableOf(decided, id))),
+      scores, ...runNotes(blobs, r.dir), invalid: invalidOf(decided?.invalid), finalize, knownGood: isKnownGood(metrics) };
   });
   return { records, suites, documents: blobs };
 }

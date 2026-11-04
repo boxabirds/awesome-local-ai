@@ -2,7 +2,7 @@
 // what the operator or the harness's watchdog did to it by hand (interventions.md); and when each dbench job ended.
 // Each parser by the shapes its input takes in the records: present, absent, every real line format, and malformed.
 import { describe, expect, it } from "vitest";
-import { buildFullRows, buildRows, jobEndedAt, jobsByRun, parseExpertCache, parseInterventions, parseInvalid, type DbenchJob, type RunRecord } from "./domain.ts";
+import { buildFullRows, buildRows, jobEndedAt, jobsByRun, parseExpertCache, parseInterventions, invalidOf, notComparableOf, type DbenchJob, type RunRecord } from "./domain.ts";
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const at = (iso: string) => Date.parse(iso) / 1000;
@@ -35,26 +35,25 @@ describe("run.json's engine_settings.expert_cache", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-describe("run.json's invalid", () => {
-  it("reason and since, as written", () => {
-    expect(parseInvalid({ reason: "read the reference build in story 7", since: "2026-09-30" }))
-      .toEqual({ reason: "read the reference build in story 7", since: "2026-09-30" });
+describe("the invalid mark, from the operator's decision (story 23)", () => {
+  const d = { reason: "read the reference build in story 7", at: "2026-09-30T08:15:00Z", by: "julian", seq: 4 };
+  it("its reason, and the date it was made", () => expect(invalidOf(d)).toEqual({ reason: "read the reference build in story 7", since: "2026-09-30" }));
+  it("no decision: a valid run", () => {
+    expect(invalidOf(null)).toBeNull();
+    expect(invalidOf(undefined)).toBeNull();
   });
-  it("absent or null: a valid run", () => {
-    expect(parseInvalid(undefined)).toBeNull();
-    expect(parseInvalid(null)).toBeNull();
+});
+
+describe("a story's not-comparable reason, from the run's decisions", () => {
+  const nc = (stories: Record<string, string>) => ({ invalid: null, archived: null, not_comparable: Object.fromEntries(Object.entries(stories).map(([k, reason]) => [k, { reason, at: "2026-10-02T09:00:00Z", by: "t", seq: 1 }])) });
+  it("by story number, whether the record pads the id or not", () => {
+    expect(notComparableOf(nc({ "10": "built twice" }), "10")).toBe("built twice");
+    expect(notComparableOf(nc({ "1": "built twice" }), "01")).toBe("built twice");
   });
-  it("false: a valid run (the mark taken off)", () => expect(parseInvalid(false)).toBeNull());
-  it("reason trimmed; since missing or not a string: empty, never a guess", () => {
-    expect(parseInvalid({ reason: "  sandbox leak  " })).toEqual({ reason: "sandbox leak", since: "" });
-    expect(parseInvalid({ reason: "x", since: 20260930 })).toEqual({ reason: "x", since: "" });
-  });
-  it("a bare string is its reason", () => expect(parseInvalid("sandbox leak")).toEqual({ reason: "sandbox leak", since: "" }));
-  it("marked but with no usable reason (true, an empty reason, an object without one): still invalid, and says so", () => {
-    for (const raw of [true, { reason: "" }, { reason: "   " }, { since: "2026-09-30" }, "", 1]) {
-      expect(parseInvalid(raw)).toMatchObject({ reason: "marked invalid with no reason given" });
-    }
-    expect(parseInvalid({ since: "2026-09-30" })).toEqual({ reason: "marked invalid with no reason given", since: "2026-09-30" });
+  it("none for another story, a run with no decisions, or none at all", () => {
+    expect(notComparableOf(nc({ "10": "built twice" }), "11")).toBeNull();
+    expect(notComparableOf(nc({}), "10")).toBeNull();
+    expect(notComparableOf(undefined, "10")).toBeNull();
   });
 });
 

@@ -35,10 +35,13 @@ time split that failed its check is sent as none.
 
 ## Where the data comes from
 
-- **The lake**, read every 60 seconds through `bench-lake <state> records --archived <repo>`: every run's
-  result documents from its preferred copy (`tools/bench-lake/CANONICAL.md`). The collector pulls them from the
-  nodes; nothing is read from git. The checkout (`--repo`) gives only the archived markers (`archived.json` in a
-  run's folder) and each pack's `bench.json`. If bench-lake fails, the last load stays and the failure goes to the
+- **The lake**, read every 60 seconds through `bench-lake <state> records`: every run's result documents from its
+  preferred copy (`tools/bench-lake/CANONICAL.md`), with the operator's decisions about it (invalid, archived, which
+  stories are not comparable) from the lake's annotation store (`<state>/annotations/log.jsonl`, written with
+  `bench-lake <state> annotate`). Archived runs are left out by bench-lake; invalid ones are not shown. The collector
+  pulls the documents from the nodes; nothing is read from git, and the records' own old marks (`invalid` in
+  run.json, `not_comparable` in metrics.json, `archived.json` markers) are not read. The checkout (`--repo`) gives
+  only each pack's `bench.json`. If bench-lake fails, the last load stays and the failure goes to the
   log and `/api/faults`. A run's **record** and **summary** links open the app's own `/record/<run's folder>/`,
   which lists and serves those documents (never a held-out result in full, `accept.json`).
 - **dbench** (`dbench status --json`), every 10 seconds, when `dbench` is on the PATH with a node list

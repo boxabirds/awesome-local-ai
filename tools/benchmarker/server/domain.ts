@@ -82,13 +82,29 @@ export type RecordStory = Omit<Story, "usage"> & {
   usage?: RecordUsage | null; harnessFaults?: unknown[]; skippedOutput?: SkippedOutput; credentialsRedacted?: CredentialsRedacted;
 };
 
-/** A run marked invalid in its run.json (`"invalid": {"reason": …, "since": "2026-09-30"}`): its result can't stand (it
- * saw the reference build, say). The page never shows it; the faults feed names it. */
+/** A run the operator marked invalid (story 23: a decision in the lake's annotation store, read through bench-lake): its
+ * result can't stand (it saw the reference build, say). The page never shows it; the faults feed names it. */
 export interface Invalid {
   reason: string;
-  /** The date it was marked, as written; "" when the mark gives none. */
+  /** The date it was marked (YYYY-MM-DD, UTC). */
   since: string;
 }
+
+/** One of the operator's decisions in force, as bench-lake gives it (tools/bench-lake/CANONICAL.md section 5). */
+export interface Decision { reason: string; at: string; by: string; seq: number }
+
+/** The decisions in force about one run: invalid, archived (bench-lake leaves archived runs out of `records`), and
+ * the stories not comparable, keyed by story number ("10"). */
+export interface RunDecisions { invalid: Decision | null; archived: Decision | null; not_comparable: Record<string, Decision> }
+
+const DATE_LEN = 10;
+
+/** The run's invalid mark from its decision: the reason, and the date it was made. */
+export const invalidOf = (d: Decision | null | undefined): Invalid | null => (d ? { reason: d.reason, since: d.at.slice(0, DATE_LEN) } : null);
+
+/** A story's not-comparable reason from the run's decisions; the story's id may be zero-padded ("01"). */
+export const notComparableOf = (d: RunDecisions | undefined, storyId: string): string | null =>
+  d?.not_comparable[/^\d+$/.test(storyId) ? String(Number(storyId)) : storyId]?.reason ?? null;
 
 /** run.json's "sandbox": what the run's agent ran in (harness/sandbox.py identity): its mode ("enforced", or "permissive"
  * for a run that had no sandbox at all), and for an enforced one agent-sandbox's version, platform and policy hash, so runs
@@ -170,21 +186,6 @@ export function parseFinalize(raw: unknown): RawFinalize | null {
   if (typeof raw !== "object" || raw === null) return null;
   const o = raw as Record<string, unknown>;
   return typeof o.rescore === "string" && o.rescore ? (o as RawFinalize) : null;
-}
-
-const NO_REASON = "marked invalid with no reason given";
-
-/** run.json's "invalid": {"reason", "since"} (a bare string is its reason). Absent, null or false: valid. Any other
- * mark still makes the run invalid, saying it gave no reason: a mark is never silently dropped. */
-export function parseInvalid(raw: unknown): Invalid | null {
-  if (raw === undefined || raw === null || raw === false) return null;
-  if (typeof raw === "string") return { reason: raw.trim() || NO_REASON, since: "" };
-  if (typeof raw === "object") {
-    const o = raw as { reason?: unknown; since?: unknown };
-    const reason = typeof o.reason === "string" ? o.reason.trim() : "";
-    return { reason: reason || NO_REASON, since: typeof o.since === "string" ? o.since.trim() : "" };
-  }
-  return { reason: NO_REASON, since: "" };
 }
 
 // interventions.md lines, as the operator writes them ("- 2026-09-26T08:57:29Z story 3: the M5 Max froze …", or a heading
@@ -549,16 +550,6 @@ function conversationOf(c: RawConversation | undefined | null): ConversationProf
   };
 }
 
-const NO_COMPARABLE_REASON = "no reason recorded";
-
-/** metrics.json's per-story "not_comparable": the reason, in plain words, the story run is left out of story-by-story
- * comparisons. Absent, null, false or blank: compared. Any other mark still takes effect, saying it gave no reason:
- * a mark is never silently dropped. */
-function notComparableOf(mark: unknown): string | null {
-  if (typeof mark === "string") return mark.trim() || null;
-  return mark ? NO_COMPARABLE_REASON : null;
-}
-
 /** The record's skipped_output where it is what the harness writes (a count above none, and its samples). */
 function skippedOutputOf(raw: unknown): SkippedOutput | null {
   if (typeof raw !== "object" || raw === null) return null;
@@ -617,8 +608,11 @@ export function acceptUnderScoringSuite<T extends { accept?: RawAccept | null }>
   return { ...raw, accept: rescored };
 }
 
+/** A story of the record; `notComparable` is the operator's reason it is left out of story-by-story comparisons
+ * (a decision in the store, not a field of the record), or null. */
 export function storyEntry(
-  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown; memory_start?: unknown; conditions?: { host?: unknown } | null } & RawUsage,
+  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; memory_start?: unknown; conditions?: { host?: unknown } | null } & RawUsage,
+  notComparable: string | null = null,
 ): RecordStory {
   const skipped = skippedOutputOf(raw.skipped_output);
   const redacted = credentialsRedactedOf(raw.record?.credentials_redacted);
@@ -637,7 +631,7 @@ export function storyEntry(
     memory: memoryOf(raw.memory_start),
     host: hostOf(raw.conditions?.host),
     conversation: conversationOf(raw.conversation),
-    notComparable: notComparableOf(raw.not_comparable),
+    notComparable,
     ...(Array.isArray(raw.harness_faults) && raw.harness_faults.length ? { harnessFaults: raw.harness_faults } : {}),
     ...(skipped ? { skippedOutput: skipped } : {}),
     ...(redacted ? { credentialsRedacted: redacted } : {}),

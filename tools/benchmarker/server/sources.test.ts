@@ -44,20 +44,21 @@ describe("a re-scored story's counts", () => {
 
 // ---------- what the record says about the run itself ----------
 
-describe("a run's notes: its client and invalid mark (run.json), and interventions (interventions.md)", () => {
+describe("a run's notes: its client and sandbox (run.json), and interventions (interventions.md)", () => {
   const RUN = `${DIR}/run.json`;
   const IV = `${DIR}/interventions.md`;
   const meta = (extra: Record<string, unknown>) => JSON.stringify({ pack: "vidi", pack_version: V, ...extra }, null, 2);
 
   it("are read from run.json and interventions.md beside it", () => expect(runNotePaths(DIR)).toEqual([RUN, IV]));
-  it("both present", () => {
-    const n = runNotes(new Map([[RUN, meta({ invalid: { reason: "read the reference build in story 7", since: "2026-09-30" } })], [IV, "- 2026-09-26T08:57:29Z story 3: node-c froze"]]), DIR);
-    expect(n.invalid).toEqual({ reason: "read the reference build in story 7", since: "2026-09-30" });
+  it("both present; an invalid mark left in run.json is not the record's to say (the operator's decisions are, story 23)", () => {
+    const n = runNotes(new Map([[RUN, meta({ client: "pi", invalid: { reason: "read the reference build in story 7", since: "2026-09-30" } })], [IV, "- 2026-09-26T08:57:29Z story 3: node-c froze"]]), DIR);
+    expect(n).not.toHaveProperty("invalid");
+    expect(n.client).toBe("pi");
     expect(n.interventions).toEqual([{ at: Date.parse("2026-09-26T08:57:29Z") / 1000, story: "3", text: "node-c froze" }]);
   });
-  it("neither: a valid run with no interventions", () => {
-    expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ client: "", invalid: null, sandbox: null, expertCache: null, interventions: [] });
-    expect(runNotes(new Map(), DIR)).toEqual({ client: "", invalid: null, sandbox: null, expertCache: null, interventions: [] });
+  it("neither: a run with no interventions", () => {
+    expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ client: "", sandbox: null, expertCache: null, interventions: [] });
+    expect(runNotes(new Map(), DIR)).toEqual({ client: "", sandbox: null, expertCache: null, interventions: [] });
   });
   it("the hot-expert cache the engine settled on, where its settings record one", () => {
     const settings = { engine_settings: { expert_cache: { value: { requested: "auto", experts: 9094, vram_gib: 14.73 }, source: "engine startup", evidence: "server log: …" } } };
@@ -77,8 +78,8 @@ describe("a run's notes: its client and invalid mark (run.json), and interventio
       expect(runNotes(new Map([[RUN, meta({ sandbox: raw })]]), DIR).sandbox).toBeNull();
     }
   });
-  it("a run.json that doesn't parse says nothing about validity", () => {
-    expect(runNotes(new Map([[RUN, "{not json"]]), DIR).invalid).toBeNull();
+  it("a run.json that doesn't parse: no client, no sandbox", () => {
+    expect(runNotes(new Map([[RUN, "{not json"]]), DIR)).toEqual({ client: "", sandbox: null, expertCache: null, interventions: [] });
   });
 });
 
@@ -147,7 +148,8 @@ describe("loadRuns(): every run record in the lake, read through bench-lake, wit
 
   const runs: Record<string, string> = {
     // r1: a finished run built under vidi-v1 and scored under vidi-v2; stories keyed by id, listed out of order.
-    [`${R1}/run.json`]: j({ host: "hostA", pack_version: "vidi-v1", client: "pi" }),
+    // r1's run.json carries an old invalid mark: the record's own marks are not read (story 23), only the store's.
+    [`${R1}/run.json`]: j({ host: "hostA", pack_version: "vidi-v1", client: "pi", invalid: { reason: "an old mark", since: "2026-09-01" } }),
     [`${R1}/run-status.json`]: j({ state: "finished", at: "2026-10-01T10:00:00Z" }),
     [`${R1}/metrics.json`]: j({ stories: { "2": story("Second", 5, 8), "1": story("First", 2, 4) }, known_good: { run: "x" } }),
     [`${R1}/finalize.json`]: j({ rescore: "done", built_under: { version: "vidi-v1", scored_under: "vidi-v2" } }),
@@ -167,8 +169,9 @@ describe("loadRuns(): every run record in the lake, read through bench-lake, wit
     [`${R3}/run-status.json`]: j({ state: "running", at: "2026-10-02T00:00:00Z" }),
     // r4: stories keyed "02" before "01" (zero-padded keys keep the order they were written in).
     [`${R4}/run.json`]: j({}),
-    [`${R4}/metrics.json`]: j({ stories: { "02": story("Two", 1, 1), "01": story("One", 1, 1) } }),
-    // A reference run whose pack has no bench.json; and a run the checkout marks archived, which is not listed.
+    // r4's story 1 carries an old not_comparable field: the record's own marks are not read, only the store's.
+    [`${R4}/metrics.json`]: j({ stories: { "02": story("Two", 1, 1), "01": { ...story("One", 1, 1), not_comparable: "an old mark" } } }),
+    // A reference run whose pack has no bench.json; and a run the operator archived, which is not listed.
     [`${RREF}/run.json`]: j({}),
     [`${GONE}/run.json`]: j({}),
   };
@@ -178,7 +181,18 @@ describe("loadRuns(): every run record in the lake, read through bench-lake, wit
   for (const [p, text] of Object.entries(runs)) put(dirname(lakePath(p)), { [p.split("/").at(-1)!]: text });
   put(checkout, {
     "benchmarks/vidi/bench.json": j({ pack_ref: "vidi-v2" }),
-    [`${at(GONE)}/archived.json`]: j({}),
+    // A checkout marker is no longer read (story 23): the store archives runs.
+    [`${at(R1)}/archived.json`]: j({ reason: "an old marker" }),
+  });
+  // The operator's decisions, in the store's own format (tools/bench-lake/CANONICAL.md section 5).
+  const decision = (seq: number, kind: string, run: string, story: number | null, reason: string, atTime: string) =>
+    j({ at: atTime, by: "t", kind, op: "set", reason, run, seq, story, v: 1 });
+  put(join(state, "annotations"), {
+    "log.jsonl": [
+      decision(1, "invalid", at(R2), null, "read the reference build", "2026-09-30T08:00:00Z"),
+      decision(2, "not_comparable", at(R4), 1, "built during story 2", "2026-10-02T09:00:00Z"),
+      decision(3, "archived", at(GONE), null, "superseded", "2026-10-03T23:13:17Z"),
+    ].join("\n") + "\n",
   });
   // A PATH whose git fails the test if anything runs it: run data is never read from git.
   const bin = join(SCRATCH, "lake-bin");
@@ -245,9 +259,17 @@ describe("loadRuns(): every run record in the lake, read through bench-lake, wit
     expect(rec("r4").stories.map((x) => x.title)).toEqual(["One", "Two"]);
   });
 
-  it("reference runs are listed under their stack, and a run the checkout marks archived is not listed", () => {
+  it("the operator's decisions, from the store: a run marked invalid carries its reason and date; a story marked not comparable its reason; the record's own old marks are not read", () => {
+    expect(rec("r2").invalid).toEqual({ reason: "read the reference build", since: "2026-09-30" });
+    for (const r of ["r1", "r3", "r4", "r9"]) expect(rec(r).invalid, r).toBeNull();
+    expect(rec("r4").stories.map((x) => [x.id, x.notComparable])).toEqual([["01", "built during story 2"], ["02", null]]);
+    expect(rec("r1").stories.every((x) => x.notComparable === null)).toBe(true);
+  });
+
+  it("reference runs are listed under their stack; a run the operator archived is not listed, and a checkout marker no longer hides one", () => {
     expect(rec("r9")).toMatchObject({ pack: "other", stack: "reference/stackB", dir: RREF });
     expect(loaded.records.some((r) => r.runId === "gone")).toBe(false);
+    expect(loaded.records.some((r) => r.runId === "r1")).toBe(true);
   });
 
   it("every result document read is kept by its checkout-relative path, for the record routes", () => {

@@ -1,0 +1,3 @@
+{"at":"2026-10-01T00:00:00Z","by":"import","kind":"invalid","op":"set","reason":"its build used packages the sandbox exposed","run":"benchmarks/reference/vidi/sonnet-5.5/v2-r1","seq":1,"story":null,"v":1}
+{"at":"2026-11-04T14:09:26Z","by":"import","kind":"archived","op":"set","reason":"not a benchmark result: a dry run of the harness","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/dryrun-v2r2-s2","seq":2,"story":null,"v":1}
+{"at":"2026-11-04T21:00:00Z","by":"julian","kind":"not_comparable","op":"set","reason":"This story run also built story 3.","run":"combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1","seq":3,"story":2,"v":1}
