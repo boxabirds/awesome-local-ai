@@ -25,6 +25,7 @@ const FLAG_STORY: &str = "--story";
 const FLAG_REASON: &str = "--reason";
 const FLAG_BY: &str = "--by";
 const FLAG_HISTORY: &str = "--history";
+const IMPORT: &str = "import";
 
 /// Where `compare-git --report` puts its report. The library proper writes nothing; the program supplies the writer.
 pub type ReportSink<'a> = &'a mut dyn FnMut(&Path, &str) -> io::Result<()>;
@@ -107,7 +108,20 @@ fn need_store<'a>(store: &'a Option<Store>, question: &str) -> Result<&'a Store,
 }
 
 fn annotate_command(store: &Store, words: &[String]) -> Result<Answer, Question> {
-    const USAGE: &str = "annotate set|clear <kind> <run> [--story N] --reason TEXT [--by NAME]";
+    const USAGE: &str = "annotate set|clear <kind> <run> [--story N] --reason TEXT [--by NAME] | annotate import <checkout>";
+    if let [import, rest @ ..] = words {
+        if import == IMPORT {
+            let [checkout] = rest else { return bad("annotate import takes the host checkout") };
+            return Ok(match store.import(Path::new(checkout), &annotations::utc_now()) {
+                Ok(done) => found(json!({
+                    "appended": done.appended.iter().map(|e| e.to_value()).collect::<Vec<_>>(),
+                    "skipped": done.skipped.iter().map(|(path, why)| json!({"path": path, "why": why})).collect::<Vec<_>>(),
+                })),
+                Err(AnnotateError::Refused(why)) => return bad(why),
+                Err(AnnotateError::Store(e)) => Answer::StoreFailed(e.to_string()),
+            });
+        }
+    }
     let [op, kind, run, flags @ ..] = words else { return bad(format!("usage: {USAGE}")) };
     let op = Op::parse(op).ok_or_else(|| Question(format!("annotate takes set or clear, not {op:?} ({USAGE})")))?;
     let kind = Kind::parse(kind).ok_or_else(|| {

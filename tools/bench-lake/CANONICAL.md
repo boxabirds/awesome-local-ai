@@ -423,6 +423,27 @@ standard error naming the rule: an unknown kind or op; a run id that is not one;
 given for another kind, or outside 0 to 999; no `--reason` or an empty one; a `clear` with no decision in force
 ("nothing to clear"); a `set` whose reason equals the decision in force ("already set"). A different reason replaces it.
 
+### annotate import `<checkout>` (one-off, story 23)
+
+    {"appended":[EVENT,...],"skipped":[{"path":P,"why":TEXT},...],"status":"found"}
+
+Brings into the store the decisions a host checkout's working tree holds, read as the benchmarker read them, from every
+folder at run depth below `<checkout>/combinations` (nine levels) and `<checkout>/benchmarks/reference` (three), links
+not followed:
+
+- `run.json` `invalid`: a string is the reason; an object's `reason` is; absent, `null` or `false` is no decision; any
+  other mark, or an empty reason, is `"marked invalid with no reason given"`. Its `since` is the event's `at`.
+- `archived.json`, a regular file (a folder of that name is not a marker): its `reason` (else `"archived with no reason
+  given"`), its `archived_at` the event's `at`.
+- `metrics.json` stories (an object keyed by story number, or a list with `id`): a non-empty string `not_comparable` is
+  the reason; any other true mark is `"no reason recorded"`.
+
+`at` is converted to UTC (`YYYY-MM-DD` is midnight UTC; an offset is applied); without one, it is the time of the
+import. `by` is `"import"`. A decision whose (run, story, kind) has any event in the store already is not imported, so
+the import can be repeated and never brings back a decision the operator withdrew. A folder whose decisions cannot be
+taken is listed in `skipped` with the reason: a document that is not JSON (its path), a folder name that is not a run
+id, a story number outside 0 to 999. A checkout that is not a folder is a malformed question (exit 2, nothing written).
+
 ### annotations `[--history]`
 
     {"runs":{ID:A,...},"status":"found"}                 the decisions in force, runs with none left out

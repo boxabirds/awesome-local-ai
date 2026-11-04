@@ -688,3 +688,205 @@ fn the_store_reads_a_missing_log_as_empty_and_names_the_line_of_a_bad_one() {
     let p: PathBuf = store.log_path();
     assert!(p.ends_with(LOG));
 }
+
+// TC-C6: the one-off import of the decisions the checkout holds (run.json "invalid", archived.json markers,
+// metrics.json "not_comparable"), read as the benchmarker read them.
+
+const SONNET: &str = "benchmarks/reference/vidi/sonnet-5.5/v2-r1";
+const OPUS_R2: &str = "benchmarks/reference/vidi/opus-5.5/run-2";
+const CANVAS: &str =
+    "combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/canvas-mlx-03";
+const BARE: &str = "benchmarks/reference/todoodle/opus-5.5/bare";
+const MARKED: &str = "benchmarks/reference/todoodle/opus-5.5/marked";
+const GUFO_STACK: &str =
+    "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi";
+
+fn import_checkout() -> PathBuf {
+    manifest_dir().join("tests/fixtures/annotations-checkout")
+}
+
+fn import(state: &Path, checkout: &Path) -> Output {
+    let mut cmd = bench_lake_cmd();
+    cmd.arg(state).args(["annotate", "import"]).arg(checkout);
+    cmd.output().unwrap()
+}
+
+/// (kind, run, story, reason, at) of each event, sorted.
+fn decisions_of(events: &[Value]) -> Vec<(String, String, Option<i64>, String, String)> {
+    let mut out: Vec<_> = events
+        .iter()
+        .map(|e| {
+            (
+                e["kind"].as_str().unwrap().to_string(),
+                e["run"].as_str().unwrap().to_string(),
+                e["story"].as_i64(),
+                e["reason"].as_str().unwrap().to_string(),
+                e["at"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect();
+    out.sort();
+    out
+}
+
+#[test]
+fn tc_c6_the_checkouts_decisions_are_imported_once_as_the_benchmarker_read_them() {
+    let (_s, state, _lake) = scratch_lake("ann-c6");
+    let o = import(&state, &import_checkout());
+    assert_eq!(o.status.code(), Some(EXIT_OK), "{}", stderr(&o));
+    let answer = json_of(&o);
+    let appended = answer["appended"].as_array().unwrap().clone();
+    assert!(appended
+        .iter()
+        .all(|e| e["by"] == "import" && e["op"] == "set"));
+    let got: Vec<_> = decisions_of(&appended)
+        .into_iter()
+        .map(|(k, r, s, reason, at)| {
+            // a run without a time of its own is stamped with the time of the import
+            let at = if r == BARE || r == MARKED {
+                "<import>".to_string()
+            } else {
+                at
+            };
+            (k, r, s, reason, at)
+        })
+        .collect();
+    let sonnet_reason = "its build used @types/node from the machine's home node_modules, which the sandbox exposed; it never declared the package, so the build fails from a clean clone and the run has no score of record. Rerun on the fixed sandbox as v2-r4 to v2-r6";
+    let superseded = "superseded: built against vidi spec v1 and scored by the v1 held-out suite";
+    let flash = format!("{GUFO_STACK}/v2-r1");
+    let mut want = vec![
+        (
+            "archived".to_string(),
+            OPUS_R2.to_string(),
+            None,
+            superseded.to_string(),
+            "2026-10-03T23:13:17Z".to_string(),
+        ),
+        (
+            "archived".into(),
+            CANVAS.into(),
+            None,
+            superseded.into(),
+            "2026-10-03T23:13:17Z".into(),
+        ),
+        (
+            "invalid".into(),
+            BARE.into(),
+            None,
+            "a bare reason".into(),
+            "<import>".into(),
+        ),
+        (
+            "invalid".into(),
+            MARKED.into(),
+            None,
+            "marked invalid with no reason given".into(),
+            "<import>".into(),
+        ),
+        (
+            "invalid".into(),
+            SONNET.into(),
+            None,
+            sonnet_reason.into(),
+            "2026-10-01T00:00:00Z".into(),
+        ),
+        (
+            "not_comparable".into(),
+            flash.clone(),
+            Some(10),
+            "This story run also built stories 11 and 12.".into(),
+            "<import>".into(),
+        ),
+        (
+            "not_comparable".into(),
+            flash.clone(),
+            Some(11),
+            "Most of this story was built during story 10 of this run.".into(),
+            "<import>".into(),
+        ),
+        (
+            "not_comparable".into(),
+            flash.clone(),
+            Some(12),
+            "Most of this story was built during story 10 of this run.".into(),
+            "<import>".into(),
+        ),
+    ];
+    want.sort();
+    // metrics.json carries no time of its own either
+    let got: Vec<_> = got
+        .into_iter()
+        .map(|(k, r, s, reason, at)| {
+            let at = if k == "not_comparable" {
+                "<import>".to_string()
+            } else {
+                at
+            };
+            (k, r, s, reason, at)
+        })
+        .collect();
+    assert_eq!(got, want);
+
+    let skipped: Vec<String> = answer["skipped"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["path"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        skipped,
+        vec![
+            format!("{GUFO_STACK}/bad name"),
+            format!("{GUFO_STACK}/bad-metrics/metrics.json")
+        ]
+    );
+    let now = current(&state);
+    assert!(
+        now["runs"]
+            .get(format!("{GUFO_STACK}/folder-marker"))
+            .is_none(),
+        "a folder named archived.json is no marker"
+    );
+    assert!(
+        now["runs"]
+            .get("benchmarks/reference/todoodle/opus-5.5/valid")
+            .is_none(),
+        "invalid: false is valid"
+    );
+
+    // Idempotent: a second import appends nothing.
+    let before = log_bytes(&state).unwrap();
+    let again = json_of(&import(&state, &import_checkout()));
+    assert_eq!(again["appended"], json!([]));
+    assert_eq!(log_bytes(&state).unwrap(), before);
+
+    // A decision the operator withdrew after the import is not brought back by another.
+    let o = bl(
+        &state,
+        &[
+            "annotate",
+            "clear",
+            "invalid",
+            MARKED,
+            "--reason",
+            "it was valid after all",
+        ],
+    );
+    assert_eq!(o.status.code(), Some(EXIT_OK));
+    let after_clear = log_bytes(&state).unwrap();
+    assert_eq!(
+        json_of(&import(&state, &import_checkout()))["appended"],
+        json!([])
+    );
+    assert_eq!(log_bytes(&state).unwrap(), after_clear);
+    assert_eq!(current(&state)["runs"].get(MARKED), None);
+}
+
+#[test]
+fn the_import_refuses_a_checkout_that_is_not_there_and_writes_nothing() {
+    let (_s, state, _lake) = scratch_lake("ann-c6-missing");
+    let o = import(&state, &state.join("no-such-checkout"));
+    assert_eq!(o.status.code(), Some(EXIT_QUESTION), "{}", stderr(&o));
+    assert!(stderr(&o).contains("no-such-checkout"));
+    assert!(log_bytes(&state).is_none());
+}
