@@ -139,3 +139,18 @@ fn it_describes_itself_as_the_lake() {
     let root = tmp("describe");
     assert_eq!(source(&root).describe(), format!("lake {}", root.join("state/collected").display()));
 }
+
+#[test]
+fn a_malformed_record_in_the_lake_is_read_as_an_empty_record_and_the_other_runs_are_untouched() {
+    use dbench::ingest::inputs::run_record;
+    let root = tmp("malformed");
+    copy(&root.join("state"), OWN_NODE, RUN, "{not json", 1);
+    copy(&root.join("state"), OWN_NODE, OTHER, "{\"stories\": {}}", 1);
+    let src = source(&root);
+    let ids = src.paths().unwrap();
+    let bad = run_record(&src, &ids, RUN).unwrap();
+    assert_eq!(bad.metrics, serde_json::json!({}), "as from git: unparseable is empty, never an error that stops the pass");
+    assert_eq!(bad.run_json, serde_json::json!({"pack_version": "v2"}), "the run's other records are still read");
+    let good = run_record(&src, &ids, OTHER).unwrap();
+    assert_eq!(good.metrics, serde_json::json!({"stories": {}}));
+}
