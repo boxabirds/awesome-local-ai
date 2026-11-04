@@ -177,8 +177,8 @@ pub enum Cmd {
     Collect(CollectArgs),
     /// Build or update the conversation database from the published records and the collected logs.
     ///
-    /// Reads each story's record and compact log from the repo's origin/main (never the working copy)
-    /// and its full log, server log and conditions from the lake (`--store`, what `dbench collect` pulled),
+    /// Reads each story's record, compact log, full log, server log and conditions from the lake (`--store`, what
+    /// `dbench collect` pulled), and the archived markers from the host checkout (`--repo`), as files: no git,
     /// and writes conversations.db (`--db`). By default only stories whose inputs changed are redone.
     Ingest(IngestArgs),
     /// Compute the thinking analytics (layers 0 and 1) from the conversation database into analytics.db.
@@ -235,10 +235,12 @@ pub struct CollectArgs {
     /// The conversation database. Default: nodes.toml `[collect] db`.
     #[arg(long)]
     pub db: Option<PathBuf>,
-    /// The repository whose origin/main holds the published records. Default: nodes.toml `[collect] repo`.
+    /// The host checkout, whose archived.json markers say which runs are archived (read as files). Default: nodes.toml
+    /// `[collect] repo`.
     #[arg(long)]
     pub repo: Option<PathBuf>,
-    /// Read the published records from the working tree at --repo instead of git (for tests).
+    /// Read the published records from a directory tree laid out like the repository at --repo instead of the lake
+    /// (for tests).
     #[arg(long)]
     pub worktree: bool,
     /// Serve the conversation API on this address. Default: nodes.toml `[collect] api`, else 127.0.0.1:7761; "none" for no API.
@@ -275,21 +277,17 @@ pub struct IngestArgs {
     /// The conversation database to write.
     #[arg(long)]
     pub db: PathBuf,
-    /// The repository whose origin/main holds the published records.
+    /// The host checkout: its working tree's archived.json markers say which runs are archived. Nothing else is read
+    /// from it (with --worktree, the published records are read from it too).
     #[arg(long)]
     pub repo: PathBuf,
-    /// The lake: where `dbench collect` puts each node's run directories.
+    /// The lake: where `dbench collect` puts each node's run directories. The published records are read from it.
     #[arg(long)]
     pub store: PathBuf,
-    /// The git rev to read the published records from. Default origin/main (fetched first).
-    #[arg(long, default_value = "origin/main")]
-    pub rev: String,
-    /// Read the published records from the working tree at --repo instead of a git rev (for tests).
+    /// Read the published records from a directory tree laid out like the repository at --repo instead of the lake
+    /// (for tests).
     #[arg(long)]
     pub worktree: bool,
-    /// Don't fetch before reading the rev.
-    #[arg(long)]
-    pub no_fetch: bool,
     /// Build a fresh database beside --db and rename it over the old one.
     #[arg(long)]
     pub rebuild: bool,

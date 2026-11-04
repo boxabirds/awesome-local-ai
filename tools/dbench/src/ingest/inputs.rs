@@ -1,5 +1,5 @@
-//! Where a story's inputs come from: the published record and compact log from git (origin/main,
-//! read without touching the working copy, or a plain directory tree for tests), and the
+//! Where a story's inputs come from: the published record and compact log from the lake (each run's
+//! preferred copy, `LakeSource`, or a plain directory tree laid out like the repository for tests), and the
 //! machine-only files from the lake (`<store>/<node>/<run path>/`, as `dbench collect` lays them
 //! out). `candidates` is every story with a log in either; `inputs_for` gathers one story's inputs
 //! and the digest that says whether they changed since it was last ingested.
@@ -60,77 +60,6 @@ pub trait Published {
     fn describe(&self) -> String;
 }
 
-/// origin/main (or any rev) of a git repository, read with `git ls-tree` and `git cat-file`.
-pub struct GitSource {
-    pub repo: PathBuf,
-    pub rev: String,
-    ids: std::cell::RefCell<Option<BTreeMap<String, String>>>,
-}
-
-impl GitSource {
-    pub fn new(repo: &Path, rev: &str) -> Self {
-        GitSource { repo: repo.to_path_buf(), rev: rev.to_string(), ids: std::cell::RefCell::new(None) }
-    }
-
-    fn git(&self, args: &[&str]) -> Result<Vec<u8>> {
-        let out = std::process::Command::new("git").arg("-C").arg(&self.repo).args(args).output().context("run git")?;
-        anyhow::ensure!(out.status.success(), "git {}: {}", args.join(" "), String::from_utf8_lossy(&out.stderr).trim());
-        Ok(out.stdout)
-    }
-
-    pub fn fetch(&self) -> Result<()> {
-        if let Some((remote, _)) = self.rev.split_once('/') {
-            self.git(&["fetch", "--quiet", remote, "main"])?;
-        }
-        Ok(())
-    }
-
-    fn ids(&self) -> Result<BTreeMap<String, String>> {
-        if let Some(ids) = self.ids.borrow().as_ref() {
-            return Ok(ids.clone());
-        }
-        let mut args = vec!["ls-tree", "-r", "-z", self.rev.as_str(), "--"];
-        args.extend(PUBLISHED_ROOTS);
-        let out = self.git(&args)?;
-        let mut ids = BTreeMap::new();
-        for entry in out.split(|&b| b == 0).filter(|e| !e.is_empty()) {
-            let line = String::from_utf8_lossy(entry);
-            let (meta, path) = match line.split_once('\t') {
-                Some(x) => x,
-                None => continue,
-            };
-            let id = meta.split_whitespace().nth(2).unwrap_or("");
-            ids.insert(path.to_string(), id.to_string());
-        }
-        *self.ids.borrow_mut() = Some(ids.clone());
-        Ok(ids)
-    }
-}
-
-impl Published for GitSource {
-    fn paths(&self) -> Result<BTreeMap<String, String>> {
-        self.ids()
-    }
-
-    fn read(&self, path: &str) -> Result<Option<Vec<u8>>> {
-        let ids = self.ids()?;
-        let Some(id) = ids.get(path) else { return Ok(None) };
-        Ok(Some(self.git(&["cat-file", "blob", id])?))
-    }
-
-    fn archived(&self) -> Result<BTreeSet<String>> {
-        let mut args = vec!["ls-tree", "-r", "-z", "--name-only", self.rev.as_str(), "--"];
-        args.extend(ARCHIVE_ROOTS);
-        let out = self.git(&args)?;
-        let names = out.split(|&b| b == 0).filter(|e| !e.is_empty()).map(|e| String::from_utf8_lossy(e).into_owned()).collect::<Vec<_>>();
-        Ok(marked(names.iter().map(String::as_str)))
-    }
-
-    fn describe(&self) -> String {
-        format!("git {} {}", self.repo.display(), self.rev)
-    }
-}
-
 /// A directory tree with the same layout (a checkout, or a test's fixture); a file's id is its size and mtime.
 pub struct TreeSource {
     pub root: PathBuf,
@@ -163,6 +92,77 @@ impl Published for TreeSource {
 
     fn describe(&self) -> String {
         format!("tree {}", self.root.display())
+    }
+}
+
+/// The lake: each combination run's preferred copy (bench-lake's ranking, the one every reader uses), its record files
+/// only (the collector's allow-list, class Record, without the workspace bundle), read as files; a file's id is the
+/// sha256 of its content. The archived markers are the owner's, in the host checkout, read as plain files. No git.
+pub struct LakeSource {
+    lake: bench_lake::Lake,
+    store: PathBuf,
+    checkout: PathBuf,
+    files: std::cell::RefCell<Option<BTreeMap<String, (PathBuf, String)>>>,
+}
+
+/// The workspace bundle is a Record in the collector's allow-list but not a record the ingest reads.
+const NOT_A_PUBLISHED_RECORD: &str = "workspace.bundle";
+
+impl LakeSource {
+    /// `store` is the collected lake (`<state>/collected`), `reference` the reference models' folder, `checkout` the host
+    /// checkout whose working tree holds the archived markers.
+    pub fn new(store: &Path, reference: &Path, checkout: &Path) -> Self {
+        LakeSource {
+            lake: bench_lake::Lake::new(store, reference),
+            store: store.to_path_buf(),
+            checkout: checkout.to_path_buf(),
+            files: std::cell::RefCell::new(None),
+        }
+    }
+
+    fn files(&self) -> Result<BTreeMap<String, (PathBuf, String)>> {
+        if let Some(f) = self.files.borrow().as_ref() {
+            return Ok(f.clone());
+        }
+        let d = self.lake.discover();
+        let ids: BTreeSet<&str> = d.runs.iter().filter(|r| r.kind == bench_lake::Kind::Combination).map(|r| r.id.as_str()).collect();
+        let mut out = BTreeMap::new();
+        for id in ids {
+            let Some(run) = self.lake.preferred(&d, id) else { continue };
+            let mut names = BTreeMap::new();
+            walk(&run.dir, &run.dir, &mut names)?;
+            for name in names.into_keys() {
+                let is_record = crate::collect::parse_name(&name).is_some_and(|f| f.class() == crate::collect::Class::Record);
+                if !is_record || name == NOT_A_PUBLISHED_RECORD {
+                    continue;
+                }
+                let path = run.dir.join(&name);
+                let bytes = std::fs::read(&path).with_context(|| format!("read {}", path.display()))?;
+                out.insert(format!("{id}/{name}"), (path, bench_lake::sha256_hex(&bytes)));
+            }
+        }
+        *self.files.borrow_mut() = Some(out.clone());
+        Ok(out)
+    }
+}
+
+impl Published for LakeSource {
+    fn paths(&self) -> Result<BTreeMap<String, String>> {
+        Ok(self.files()?.into_iter().map(|(k, (_, id))| (k, id)).collect())
+    }
+
+    fn read(&self, path: &str) -> Result<Option<Vec<u8>>> {
+        let files = self.files()?;
+        let Some((file, _)) = files.get(path) else { return Ok(None) };
+        Ok(Some(std::fs::read(file).with_context(|| format!("read {}", file.display()))?))
+    }
+
+    fn archived(&self) -> Result<BTreeSet<String>> {
+        TreeSource { root: self.checkout.clone() }.archived()
+    }
+
+    fn describe(&self) -> String {
+        format!("lake {}", self.store.display())
     }
 }
 

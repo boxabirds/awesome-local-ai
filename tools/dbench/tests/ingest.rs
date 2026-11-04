@@ -772,113 +772,6 @@ fn an_archived_run_is_found_by_its_marker_and_is_never_a_candidate_even_while_th
 }
 
 #[test]
-fn the_published_git_tree_names_its_archived_runs_reference_ones_included() {
-    use dbench::ingest::inputs::{GitSource, Published, ARCHIVED_MARKER};
-    use std::collections::BTreeSet;
-    let repo = std::env::temp_dir().join(format!("dbench-ingest-archived-git-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&repo);
-    let gone = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/canvas-01";
-    let reference = "benchmarks/reference/vidi/opus-5.5/run-2";
-    let kept = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1";
-    for dir in [gone, reference] {
-        std::fs::create_dir_all(repo.join(dir)).unwrap();
-        std::fs::write(repo.join(dir).join(ARCHIVED_MARKER), "{}").unwrap();
-    }
-    std::fs::create_dir_all(repo.join(kept)).unwrap();
-    std::fs::write(repo.join(kept).join("run.json"), "{}").unwrap();
-    let git = |args: &[&str]| assert!(std::process::Command::new("git").arg("-C").arg(&repo).args(args).output().unwrap().status.success(), "git {args:?}");
-    git(&["init", "-q"]);
-    git(&["add", "-A"]);
-    git(&["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "fixture"]);
-    let src = GitSource::new(&repo, "HEAD");
-    assert_eq!(src.archived().unwrap(), BTreeSet::from([gone.to_string(), reference.to_string()]));
-    std::fs::remove_dir_all(&repo).unwrap();
-}
-
-/// An origin, a clone of it, and a second clone that plays the machine that pushes records: `push_from_machine` publishes a file from it.
-struct Origin {
-    root: std::path::PathBuf,
-}
-
-impl Origin {
-    const PUBLISHED_FILE: &'static str = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1/metrics.json";
-
-    fn git(dir: &std::path::Path, args: &[&str]) {
-        let out = std::process::Command::new("git")
-            .arg("-C")
-            .arg(dir)
-            .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
-    }
-
-    fn new(tag: &str) -> Origin {
-        let root = std::env::temp_dir().join(format!("dbench-ingest-origin-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(root.join("origin.git")).unwrap();
-        Origin::git(&root.join("origin.git"), &["init", "-q", "--bare", "-b", "main"]);
-        Origin::git(&root, &["clone", "-q", "origin.git", "reader"]);
-        Origin::git(&root, &["clone", "-q", "origin.git", "machine"]);
-        let origin = Origin { root };
-        origin.push_from_machine("{\"first\": true}");
-        Origin::git(&origin.root.join("reader"), &["pull", "-q", "--ff-only", "origin", "main"]);
-        origin
-    }
-
-    fn reader(&self) -> std::path::PathBuf {
-        self.root.join("reader")
-    }
-
-    fn push_from_machine(&self, text: &str) {
-        let machine = self.root.join("machine");
-        let path = machine.join(Origin::PUBLISHED_FILE);
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(path, text).unwrap();
-        Origin::git(&machine, &["add", "."]);
-        Origin::git(&machine, &["commit", "-q", "-m", "record"]);
-        Origin::git(&machine, &["push", "-q", "origin", "HEAD:main"]);
-    }
-}
-
-impl Drop for Origin {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.root);
-    }
-}
-
-#[test]
-fn fetching_origin_main_brings_in_what_a_machine_pushed_and_fetching_a_local_revision_does_nothing() {
-    use dbench::ingest::inputs::{GitSource, Published};
-    let origin = Origin::new("fetch");
-    let remote = GitSource::new(&origin.reader(), "origin/main");
-    remote.fetch().unwrap();
-    assert_eq!(remote.read(Origin::PUBLISHED_FILE).unwrap(), Some(b"{\"first\": true}".to_vec()));
-    origin.push_from_machine("{\"second\": true}");
-    // The reader's copy of origin/main is behind until the fetch; a source built before it has not read anything yet.
-    let behind = GitSource::new(&origin.reader(), "origin/main");
-    assert_eq!(behind.read(Origin::PUBLISHED_FILE).unwrap(), Some(b"{\"first\": true}".to_vec()));
-    let ahead = GitSource::new(&origin.reader(), "origin/main");
-    ahead.fetch().unwrap();
-    assert_eq!(ahead.read(Origin::PUBLISHED_FILE).unwrap(), Some(b"{\"second\": true}".to_vec()));
-    // A revision with no remote in its name is read as it is: nothing is fetched.
-    let local = GitSource::new(&origin.reader(), "HEAD");
-    local.fetch().unwrap();
-    assert_eq!(local.read(Origin::PUBLISHED_FILE).unwrap(), Some(b"{\"first\": true}".to_vec()), "HEAD did not move");
-    assert_eq!(local.read("combinations/not/published.json").unwrap(), None);
-}
-
-#[test]
-fn fetching_from_a_remote_that_is_gone_is_an_error_that_names_the_git_command() {
-    use dbench::ingest::inputs::GitSource;
-    let origin = Origin::new("fetch-gone");
-    std::fs::remove_dir_all(origin.root.join("origin.git")).unwrap();
-    let err = GitSource::new(&origin.reader(), "origin/main").fetch().unwrap_err().to_string();
-    assert!(err.starts_with("git fetch --quiet origin main:"), "{err}");
-}
-
-#[test]
 fn a_tree_source_reads_a_file_gives_none_for_a_missing_one_and_an_error_for_what_cannot_be_read() {
     use dbench::ingest::inputs::{Published, TreeSource};
     let root = std::env::temp_dir().join(format!("dbench-ingest-tree-read-{}", std::process::id()));
@@ -1130,60 +1023,50 @@ fn ingest_text(cwd: &std::path::Path, args: &[&str]) -> (bool, String, String) {
     (out.status.success(), String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
 }
 
-fn git_in(dir: &std::path::Path, args: &[&str]) -> String {
-    let out = std::process::Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
-        .args(args)
-        .output()
-        .unwrap();
-    assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
-    String::from_utf8_lossy(&out.stdout).into_owned()
-}
-
 #[test]
-fn dbench_ingest_reads_origin_main_fetching_first_unless_told_not_to_and_prints_a_line_of_text() {
-    let root = std::env::temp_dir().join(format!("dbench-ingest-git-{}", std::process::id()));
+fn dbench_ingest_reads_the_published_records_from_the_lake_with_no_git_and_prints_a_line_of_text() {
+    let root = std::env::temp_dir().join(format!("dbench-ingest-lake-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
-    std::fs::create_dir_all(&root).unwrap();
-    let (remote, work, clone) = (root.join("remote.git"), root.join("work"), root.join("clone"));
-    let (store, db_path) = (root.join("store"), root.join("insights/conversations.db"));
-    std::fs::create_dir_all(&work).unwrap();
-    git_in(&root, &["init", "--bare", "-q", remote.to_str().unwrap()]);
-    git_in(&work, &["init", "-q"]);
-    git_in(&work, &["remote", "add", "origin", remote.to_str().unwrap()]);
+    let (state, checkout) = (root.join("state"), root.join("checkout"));
+    let (store, db_path) = (state.join("collected"), root.join("insights/conversations.db"));
+    std::fs::create_dir_all(&checkout).unwrap();
+    // The run as the collector lays it out on the node that ran it: its records, and a note naming its raw log.
+    let run = store.join("gruntus").join(RUN);
     let publish = |story: &str| {
-        let dir = work.join(RUN).join("stories").join(story);
+        let dir = run.join("stories").join(story);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("agent-events.compact.jsonl.gz"), gzip(&fixture("accounting__claude-slept"))).unwrap();
-        std::fs::write(work.join(RUN).join("run.json"), r#"{"pack_version": "vidi-v2", "model_id": "m", "started_at": "2026-10-02T09:00:00Z"}"#).unwrap();
-        git_in(&work, &["add", "-A"]);
-        git_in(&work, &["commit", "-q", "-m", &format!("story {story}")]);
-        git_in(&work, &["push", "-q", "origin", "HEAD:main"]);
     };
     publish("01");
-    git_in(&root, &["clone", "-q", remote.to_str().unwrap(), clone.to_str().unwrap()]);
-    publish("02"); // pushed after the clone: origin/main in the clone does not have it until a fetch
-    let common = ["--db", db_path.to_str().unwrap(), "--repo", clone.to_str().unwrap(), "--store", store.to_str().unwrap()];
-
-    // --no-fetch reads the clone's origin/main as it is: one story.
-    let (ok, stdout, stderr) = ingest_text(&root, &[&common[..], &["--no-fetch"]].concat());
+    std::fs::write(run.join("run.json"), r#"{"pack_version": "vidi-v2", "model_id": "m", "started_at": "2026-10-02T09:00:00Z"}"#).unwrap();
+    std::fs::write(run.join("collection.json"), r#"{"node": "gruntus", "complete": false, "files": {}}"#).unwrap();
+    // No git anywhere: a git on the PATH that fails proves none is run.
+    let bin = root.join("bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    let fake_git = bin.join("git");
+    std::fs::write(&fake_git, "#!/bin/sh\necho git was run >&2\nexit 97\n").unwrap();
+    std::fs::set_permissions(&fake_git, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    let path = format!("{}:{}", bin.display(), std::env::var("PATH").unwrap_or_default());
+    let common = ["--db", db_path.to_str().unwrap(), "--repo", checkout.to_str().unwrap(), "--store", store.to_str().unwrap()];
+    let ingest = |args: &[&str]| {
+        let out = std::process::Command::new(env!("CARGO_BIN_EXE_dbench")).current_dir(&root).env("PATH", &path).arg("ingest").args(args).output().unwrap();
+        (out.status.success(), String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
+    };
+    let (ok, stdout, stderr) = ingest(&common);
     assert!(ok, "{stderr}");
+    assert!(!stderr.contains("git was run"), "{stderr}");
     assert!(stdout.starts_with("ingested 1 of 1 story runs in 1 runs (0 unchanged), 0 requests placed, "), "{stdout}");
-    // The default fetches origin first and so sees the second story; the first is unchanged.
-    let (ok, stdout, stderr) = ingest_text(&root, &common);
+    // A story the collector brings later is ingested at the next run; the first is unchanged.
+    publish("02");
+    let (ok, stdout, stderr) = ingest(&common);
     assert!(ok, "{stderr}");
     assert!(stdout.starts_with("ingested 1 of 2 story runs in 1 runs (1 unchanged), 0 requests placed, "), "{stdout}");
     assert!(stdout.ends_with(" s\n"), "{stdout}");
     let db = Db::open_read_only(&db_path).unwrap();
     let n: i64 = db.conn.query_row("select count(*) from stories", [], |r| r.get(0)).unwrap();
     assert_eq!(n, 2);
-    assert_eq!(db.meta("source").unwrap().unwrap(), format!("git {} origin/main", clone.display()));
+    assert_eq!(db.meta("source").unwrap().unwrap(), format!("lake {}", store.display()));
     drop(db);
-    // A fetch that cannot happen is an error, not a quiet read of a stale rev.
-    let (ok, _, stderr) = ingest_text(&root, &["--db", db_path.to_str().unwrap(), "--repo", root.join("nowhere").to_str().unwrap(), "--store", store.to_str().unwrap()]);
-    assert!(!ok && stderr.contains("git fetch"), "{stderr}");
     std::fs::remove_dir_all(&root).unwrap();
 }
 
@@ -1229,38 +1112,35 @@ fn stories_in(db: &std::path::Path) -> i64 {
     Db::open_read_only(db).unwrap().conn.query_row("select count(*) from stories", [], |r| r.get(0)).unwrap()
 }
 
-/// A work repo with origin/main holding one published story, and the bare remote it was pushed to.
-fn published_repo(root: &std::path::Path) -> (PathBuf, PathBuf) {
-    let (remote, work) = (root.join("remote.git"), root.join("work"));
-    std::fs::create_dir_all(&work).unwrap();
-    git_in(root, &["init", "--bare", "-q", remote.to_str().unwrap()]);
-    git_in(&work, &["init", "-q"]);
-    git_in(&work, &["remote", "add", "origin", remote.to_str().unwrap()]);
-    let dir = work.join(RUN).join("stories/01");
+/// The lake (`<root>/store`, the collector's store) holding one story of RUN as the node that ran it left it, and the
+/// host checkout (`<root>/checkout`, where archived markers would be), which holds no run data.
+fn published_lake(root: &std::path::Path) -> PathBuf {
+    let run = root.join("store/gruntus").join(RUN);
+    let dir = run.join("stories/01");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("agent-events.compact.jsonl.gz"), gzip(&fixture("accounting__claude-slept"))).unwrap();
-    git_in(&work, &["add", "-A"]);
-    git_in(&work, &["commit", "-q", "-m", "story 1"]);
-    git_in(&work, &["push", "-q", "origin", "HEAD:main"]);
-    (remote, work)
+    std::fs::write(run.join("collection.json"), r#"{"node": "gruntus", "complete": false, "files": {}}"#).unwrap();
+    let checkout = root.join("checkout");
+    std::fs::create_dir_all(&checkout).unwrap();
+    checkout
 }
 
 #[tokio::test]
-async fn a_pass_ingests_from_origin_main_only_when_something_was_pulled_or_a_fetch_is_due() {
+async fn a_pass_ingests_from_the_lake_only_when_something_was_pulled_or_a_recheck_is_due() {
     use dbench::collector::pass;
-    let root = std::env::temp_dir().join(format!("dbench-pass-git-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("dbench-pass-lake-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
-    let (remote, work) = published_repo(&root);
-    let cfg = collect_config(&root, Some(work.clone()), false);
+    let checkout = published_lake(&root);
+    let cfg = collect_config(&root, Some(checkout.clone()), false);
     let now = 1_790_000_000;
-    // Nothing pulled and no fetch due: the published tree is not read, and no database is made.
+    // Nothing pulled and no recheck due: the lake is not read, and no database is made.
     assert!(pass(&no_nodes(), &cfg, &cadence(), false, now).await.unwrap().is_empty());
     assert!(!cfg.db.exists());
-    // A fetch is due: origin is fetched, origin/main is read and the story is in the database.
+    // A recheck is due: the lake's records are read and the story is in the database.
     assert!(pass(&no_nodes(), &cfg, &cadence(), true, now).await.unwrap().is_empty());
     assert_eq!(stories_in(&cfg.db), 1);
-    // Pull-only: the same due fetch ingests nothing.
+    // Pull-only: the same due recheck ingests nothing.
     let pull_only = dbench::collector::Config { no_ingest: true, db: root.join("pull-only.db"), ..cfg.clone() };
     pass(&no_nodes(), &pull_only, &cadence(), true, now).await.unwrap();
     assert!(!pull_only.db.exists());
@@ -1274,11 +1154,7 @@ async fn a_pass_ingests_from_origin_main_only_when_something_was_pulled_or_a_fet
     assert_eq!(summaries.len(), 1);
     assert_eq!((summaries[0].node.as_str(), summaries[0].reachable), ("ghost", false));
     assert!(summaries[0].problems.iter().any(|p| p.contains("no node \"ghost\" in the config")), "{:?}", summaries[0].problems);
-    // A fetch that fails fails the pass: the rev read is never a stale one by accident.
-    std::fs::remove_dir_all(&remote).unwrap();
-    let err = pass(&no_nodes(), &cfg, &cadence(), true, now).await.unwrap_err();
-    assert!(format!("{err:#}").contains("git fetch"), "{err:#}");
-    // ...and one that is not due does not touch origin at all.
+    // A recheck that is not due does not read the lake.
     assert!(pass(&no_nodes(), &cfg, &cadence(), false, now).await.is_ok());
     std::fs::remove_dir_all(&root).unwrap();
 }
@@ -1351,7 +1227,7 @@ async fn a_failure_inside_the_analytics_layer_never_fails_the_pass() {
 
 #[test]
 fn candidates_leave_out_re_scores_reference_runs_archived_twins_and_what_has_no_story_log() {
-    use dbench::ingest::inputs::{candidates, lake_runs, GitSource, Published, TreeSource, ARCHIVED_MARKER};
+    use dbench::ingest::inputs::{candidates, lake_runs, Published, TreeSource, ARCHIVED_MARKER};
     use std::collections::BTreeSet;
     let root = std::env::temp_dir().join(format!("dbench-ingest-cand-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
@@ -1385,9 +1261,8 @@ fn candidates_leave_out_re_scores_reference_runs_archived_twins_and_what_has_no_
         candidates(&src, &lake).unwrap(),
         BTreeSet::from([format!("{base}/v2-r1/stories/01"), format!("{base}/v2-r4/stories/01")])
     );
-    // A source says what it is: its kind and where it reads from, and for git the revision.
+    // A source says what it is: its kind and where it reads from.
     assert_eq!(src.describe(), format!("tree {}", root.display()));
-    assert_eq!(GitSource::new(&root, "origin/main").describe(), format!("git {} origin/main", root.display()));
     std::fs::remove_dir_all(&root).unwrap();
 }
 
@@ -1579,30 +1454,30 @@ fn an_ingest_says_where_its_time_went_in_phases_that_do_not_overlap() {
 }
 
 #[tokio::test]
-async fn a_pass_says_where_its_time_went_across_the_fetch_the_ingest_and_the_analytics() {
+async fn a_pass_says_where_its_time_went_across_the_ingest_and_the_analytics() {
     use dbench::collector::pass_profiled;
     use dbench::profile::Profile;
     let root = std::env::temp_dir().join(format!("dbench-pass-profile-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
-    let (_remote, work) = published_repo(&root);
-    let cfg = collect_config(&root, Some(work), false);
+    let checkout = published_lake(&root);
+    let cfg = collect_config(&root, Some(checkout), false);
     let now = 1_790_000_000;
 
     let mut p = Profile::default();
     let t = std::time::Instant::now();
     pass_profiled(&no_nodes(), &cfg, &cadence(), true, now, &mut p).await.unwrap();
     let wall = t.elapsed().as_secs_f64();
-    for phase in ["pass.nodes", "pass.git_fetch", "pass.db_open", "digest_check", "story.parse_events", "analytics.load_calls"] {
+    for phase in ["pass.nodes", "pass.db_open", "digest_check", "story.parse_events", "analytics.load_calls"] {
         assert!(p.get(phase).is_some_and(|s| s.calls > 0), "{phase} missing:\n{}", p.report(wall));
     }
     assert!(p.total() <= wall + 0.005, "phases add up to {} s, more than the {wall} s pass:\n{}", p.total(), p.report(wall));
 
-    // Nothing pulled and no fetch due: only the node round was spent.
+    // Nothing pulled and no recheck due: only the node round was spent.
     let mut idle = Profile::default();
     pass_profiled(&no_nodes(), &cfg, &cadence(), false, now, &mut idle).await.unwrap();
     assert!(idle.get("pass.nodes").is_some());
-    assert!(idle.get("pass.git_fetch").is_none() && idle.get("digest_check").is_none(), "{}", idle.report(1.0));
+    assert!(idle.get("digest_check").is_none(), "{}", idle.report(1.0));
     std::fs::remove_dir_all(&root).unwrap();
 }
 

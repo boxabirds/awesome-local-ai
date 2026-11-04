@@ -513,16 +513,11 @@ pub fn wanted(run: &str, only_runs: &[String], archived: &BTreeSet<String>) -> b
     !archived.contains(run) && (only_runs.is_empty() || only_runs.iter().any(|r| r == run))
 }
 
-/// The archived runs, from the same published tree the ingest reads. None known (no repo, or it can't be read) means
-/// none skipped: the ingest still leaves them out, reading the tree itself.
+/// The archived runs: the owner's archived.json markers in the host checkout's working tree, read as files, the same
+/// ones the ingest reads. None known (no repo, or it can't be read) means none skipped: the ingest still leaves them out.
 fn archived_runs(cfg: &Config) -> BTreeSet<String> {
     let Some(repo) = cfg.repo.as_ref() else { return BTreeSet::new() };
-    let published: Box<dyn crate::ingest::inputs::Published> = if cfg.worktree {
-        Box::new(crate::ingest::inputs::TreeSource { root: repo.clone() })
-    } else {
-        Box::new(crate::ingest::inputs::GitSource::new(repo, "origin/main"))
-    };
-    published.archived().unwrap_or_else(|e| {
+    crate::ingest::inputs::Published::archived(&crate::ingest::inputs::TreeSource { root: repo.clone() }).unwrap_or_else(|e| {
         eprintln!("dbench collect: the archived runs can't be read: {e:#}");
         BTreeSet::new()
     })
@@ -651,17 +646,14 @@ pub async fn pass_profiled(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bo
             let store = cfg.store.clone();
             let db_path = cfg.db.clone();
             let repo = repo.clone();
+            let reference = cfg.reference.clone();
             let worktree = cfg.worktree;
             let (summary, setup) = tokio::task::spawn_blocking(move || -> Result<(crate::ingest::inputs::Summary, Profile)> {
                 let mut setup = Profile::default();
                 let published: Box<dyn crate::ingest::inputs::Published> = if worktree {
                     Box::new(crate::ingest::inputs::TreeSource { root: repo })
                 } else {
-                    let g = crate::ingest::inputs::GitSource::new(&repo, "origin/main");
-                    if fetch {
-                        setup.time("pass.git_fetch", || g.fetch())?;
-                    }
-                    Box::new(g)
+                    Box::new(crate::ingest::inputs::LakeSource::new(&store, &reference, &repo))
                 };
                 if let Some(dir) = db_path.parent() {
                     std::fs::create_dir_all(dir)?;
@@ -739,7 +731,7 @@ pub fn resolve(ctx: &Ctx, args: &CollectArgs) -> Result<Config> {
     let store = args.store.clone().or_else(|| ctx.collect.store.clone()).context("--store, or [collect] store in nodes.toml: where the lake is")?;
     let db = args.db.clone().or_else(|| ctx.collect.db.clone()).context("--db, or [collect] db in nodes.toml: the conversation database")?;
     let repo = args.repo.clone().or_else(|| ctx.collect.repo.clone());
-    anyhow::ensure!(repo.is_some() || args.no_ingest, "--repo, or [collect] repo in nodes.toml: the repository whose origin/main holds the records (or --no-ingest)");
+    anyhow::ensure!(repo.is_some() || args.no_ingest, "--repo, or [collect] repo in nodes.toml: the host checkout, whose archived markers the ingest reads (or --no-ingest)");
     let api = args.api.clone().or_else(|| ctx.collect.api.clone()).unwrap_or_else(|| crate::cli::DEFAULT_API_BIND.to_string());
     let reference = args
         .reference
@@ -950,16 +942,6 @@ mod tests {
         d
     }
 
-    fn git(dir: &Path, args: &[&str]) {
-        let out = std::process::Command::new("git")
-            .arg("-C")
-            .arg(dir)
-            .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
-    }
 
     const ARCHIVED_COMBINATION_RUN: &str = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/canvas-01";
     const ARCHIVED_REFERENCE_RUN: &str = "benchmarks/reference/vidi/opus-5.5/run-2";
@@ -975,34 +957,22 @@ mod tests {
     }
 
     #[test]
-    fn the_archived_runs_come_from_the_working_tree_or_from_origin_main_and_none_known_means_none_skipped() {
+    fn the_archived_runs_are_the_markers_in_the_host_checkout_as_files_and_none_known_means_none_skipped() {
         let both = BTreeSet::from([ARCHIVED_COMBINATION_RUN.to_string(), ARCHIVED_REFERENCE_RUN.to_string()]);
         // No repository configured: nothing is known, nothing is skipped.
         assert_eq!(archived_runs(&config(None, false)), BTreeSet::new());
-        // The working tree (--worktree), combinations and reference runs alike.
-        let tree = scratch("archived-tree");
-        mark_archived(&tree);
-        assert_eq!(archived_runs(&config(Some(tree.clone()), true)), both);
-        // origin/main of a git repository: only what is committed there counts, and the working tree's own marker does not.
-        let remote = scratch("archived-remote");
-        let work = scratch("archived-work");
-        git(&remote, &["init", "--bare", "-q"]);
-        git(&work, &["init", "-q"]);
-        git(&work, &["remote", "add", "origin", remote.to_str().unwrap()]);
-        mark_archived(&work);
-        git(&work, &["add", "-A"]);
-        git(&work, &["commit", "-q", "-m", "archive two runs"]);
-        git(&work, &["push", "-q", "origin", "HEAD:main"]);
-        let unpushed = work.join(KEPT_RUN).join(crate::ingest::inputs::ARCHIVED_MARKER);
-        std::fs::write(&unpushed, "{}").unwrap();
-        assert_eq!(archived_runs(&config(Some(work.clone()), false)), both);
-        assert_eq!(archived_runs(&config(Some(work.clone()), true)), BTreeSet::from([ARCHIVED_COMBINATION_RUN.to_string(), ARCHIVED_REFERENCE_RUN.to_string(), KEPT_RUN.to_string()]));
-        // A directory that is not a repository cannot be read: none known (the message goes to stderr), none skipped.
+        // The checkout's working tree, combinations and reference runs alike, with or without --worktree: the markers
+        // are the owner's files on the host, not run data, and no git is run to read them.
+        for worktree in [true, false] {
+            let tree = scratch(&format!("archived-tree-{worktree}"));
+            mark_archived(&tree);
+            assert_eq!(archived_runs(&config(Some(tree.clone()), worktree)), both);
+            std::fs::remove_dir_all(tree).unwrap();
+        }
+        // A directory with no markers: none known, none skipped.
         let plain = scratch("archived-plain");
         assert_eq!(archived_runs(&config(Some(plain.clone()), false)), BTreeSet::new());
-        for d in [tree, remote, work, plain] {
-            std::fs::remove_dir_all(d).unwrap();
-        }
+        std::fs::remove_dir_all(plain).unwrap();
     }
 
     fn collect_args(extra: &[&str]) -> CollectArgs {

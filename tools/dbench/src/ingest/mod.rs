@@ -716,11 +716,8 @@ pub fn cmd_ingest(args: &crate::cli::IngestArgs, json: bool) -> Result<()> {
     let published: Box<dyn inputs::Published> = if args.worktree {
         Box::new(inputs::TreeSource { root: args.repo.clone() })
     } else {
-        let g = inputs::GitSource::new(&args.repo, &args.rev);
-        if !args.no_fetch {
-            g.fetch()?;
-        }
-        Box::new(g)
+        let reference = args.store.parent().unwrap_or(std::path::Path::new("")).join(crate::cli::DEFAULT_REFERENCE_DIR);
+        Box::new(inputs::LakeSource::new(&args.store, &reference, &args.repo))
     };
     let target = if args.rebuild {
         let mut p = args.db.clone().into_os_string();

@@ -434,6 +434,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "bench-lake",
  "clap",
  "flate2",
  "futures-util",

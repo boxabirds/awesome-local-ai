@@ -16,6 +16,9 @@ path = "src/bin/dbench-collector.rs"
 
 [dependencies]
 anyhow = "1"
+# The shared lake reader (story 21): which copy of a run is preferred, and content ids. The ingest reads the lake
+# through it, so the choice of copy is made once, for every reader.
+bench-lake = { path = "../bench-lake" }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
 clap = { version = "4", features = ["derive"] }
 # Already a transitive dependency of axum; used for the streaming log body and join_all.
