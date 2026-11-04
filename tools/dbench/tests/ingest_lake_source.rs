@@ -154,3 +154,20 @@ fn a_malformed_record_in_the_lake_is_read_as_an_empty_record_and_the_other_runs_
     let good = run_record(&src, &ids, OTHER).unwrap();
     assert_eq!(good.metrics, serde_json::json!({"stories": {}}));
 }
+
+#[test]
+fn a_record_that_cannot_be_read_is_an_error_naming_its_path() {
+    use dbench::ingest::inputs::run_record;
+    use std::os::unix::fs::PermissionsExt;
+    const NO_ACCESS: u32 = 0o000;
+    const READ_WRITE: u32 = 0o644;
+    let root = tmp("unreadable");
+    let dir = copy(&root.join("state"), OWN_NODE, RUN, "{}", 1);
+    let src = source(&root);
+    let ids = src.paths().unwrap();
+    let metrics = dir.join("metrics.json");
+    fs::set_permissions(&metrics, fs::Permissions::from_mode(NO_ACCESS)).unwrap();
+    let err = run_record(&src, &ids, RUN).unwrap_err();
+    fs::set_permissions(&metrics, fs::Permissions::from_mode(READ_WRITE)).unwrap();
+    assert!(format!("{err:#}").contains(&metrics.display().to_string()), "{err:#}");
+}
