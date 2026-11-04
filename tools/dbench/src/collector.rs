@@ -513,14 +513,17 @@ pub fn wanted(run: &str, only_runs: &[String], archived: &BTreeSet<String>) -> b
     !archived.contains(run) && (only_runs.is_empty() || only_runs.iter().any(|r| r == run))
 }
 
-/// The archived runs: the owner's archived.json markers in the host checkout's working tree, read as files, the same
-/// ones the ingest reads. None known (no repo, or it can't be read) means none skipped: the ingest still leaves them out.
+/// The archived runs: the operator's decisions in the lake's annotation store (story 23), the same ones the ingest reads.
+/// None known (the store can't be read) means none skipped: the ingest, which does not run on an unreadable store,
+/// still leaves them out.
 fn archived_runs(cfg: &Config) -> BTreeSet<String> {
-    let Some(repo) = cfg.repo.as_ref() else { return BTreeSet::new() };
-    crate::ingest::inputs::Published::archived(&crate::ingest::inputs::TreeSource { root: repo.clone() }).unwrap_or_else(|e| {
-        eprintln!("dbench collect: the archived runs can't be read: {e:#}");
-        BTreeSet::new()
-    })
+    match crate::ingest::inputs::decisions(&cfg.store) {
+        Ok(decided) => crate::ingest::inputs::archived_of(&decided),
+        Err(e) => {
+            eprintln!("dbench collect: the archived runs can't be read: {e:#}");
+            BTreeSet::new()
+        }
+    }
 }
 
 /// Where a pass puts what it pulls: the lake for a node's runs, the reference folder for a reference model's.
@@ -653,7 +656,7 @@ pub async fn pass_profiled(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bo
                 let published: Box<dyn crate::ingest::inputs::Published> = if worktree {
                     Box::new(crate::ingest::inputs::TreeSource { root: repo })
                 } else {
-                    Box::new(crate::ingest::inputs::LakeSource::new(&store, &reference, &repo))
+                    Box::new(crate::ingest::inputs::LakeSource::new(&store, &reference))
                 };
                 if let Some(dir) = db_path.parent() {
                     std::fs::create_dir_all(dir)?;
@@ -945,34 +948,38 @@ mod tests {
 
     const ARCHIVED_COMBINATION_RUN: &str = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/canvas-01";
     const ARCHIVED_REFERENCE_RUN: &str = "benchmarks/reference/vidi/opus-5.5/run-2";
-    const KEPT_RUN: &str = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1";
+    const INVALID_RUN: &str = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1";
 
-    fn mark_archived(root: &Path) {
-        for run in [ARCHIVED_COMBINATION_RUN, ARCHIVED_REFERENCE_RUN] {
-            std::fs::create_dir_all(root.join(run)).unwrap();
-            std::fs::write(root.join(run).join(crate::ingest::inputs::ARCHIVED_MARKER), "{}").unwrap();
+    /// A lake state whose annotation store archives two runs and marks a third invalid.
+    fn decide(state: &Path) {
+        use bench_lake::annotations::{Kind, Op, Request, Store};
+        let store = Store::in_state_dir(state);
+        for (kind, run) in [(Kind::Archived, ARCHIVED_COMBINATION_RUN), (Kind::Archived, ARCHIVED_REFERENCE_RUN), (Kind::Invalid, INVALID_RUN)] {
+            let req = Request { op: Op::Set, kind, run: run.to_string(), story: None, reason: "r".into(), by: "t".into() };
+            store.append(&req, "2026-11-04T00:00:00Z").unwrap();
         }
-        std::fs::create_dir_all(root.join(KEPT_RUN)).unwrap();
-        std::fs::write(root.join(KEPT_RUN).join("run.json"), "{}").unwrap();
+    }
+
+    fn config_at(state: &Path) -> Config {
+        Config { store: state.join("collected"), ..config(None, false) }
     }
 
     #[test]
-    fn the_archived_runs_are_the_markers_in_the_host_checkout_as_files_and_none_known_means_none_skipped() {
+    fn the_archived_runs_are_the_operators_decisions_beside_the_lake_and_an_unreadable_store_means_none_skipped() {
+        // No store beside the lake: nothing is known, nothing is skipped.
+        let empty = scratch("archived-none");
+        assert_eq!(archived_runs(&config_at(&empty)), BTreeSet::new());
+        // The store's archived runs, combination and reference alike; an invalid run is not archived. No checkout is read.
+        let state = scratch("archived-store");
+        decide(&state);
         let both = BTreeSet::from([ARCHIVED_COMBINATION_RUN.to_string(), ARCHIVED_REFERENCE_RUN.to_string()]);
-        // No repository configured: nothing is known, nothing is skipped.
-        assert_eq!(archived_runs(&config(None, false)), BTreeSet::new());
-        // The checkout's working tree, combinations and reference runs alike, with or without --worktree: the markers
-        // are the owner's files on the host, not run data, and no git is run to read them.
-        for worktree in [true, false] {
-            let tree = scratch(&format!("archived-tree-{worktree}"));
-            mark_archived(&tree);
-            assert_eq!(archived_runs(&config(Some(tree.clone()), worktree)), both);
-            std::fs::remove_dir_all(tree).unwrap();
+        assert_eq!(archived_runs(&config_at(&state)), both);
+        // A store that cannot be read: none known, none skipped (the ingest refuses to run on it, so leaves none in).
+        std::fs::write(state.join("annotations/log.jsonl"), "not json\n").unwrap();
+        assert_eq!(archived_runs(&config_at(&state)), BTreeSet::new());
+        for d in [empty, state] {
+            std::fs::remove_dir_all(d).unwrap();
         }
-        // A directory with no markers: none known, none skipped.
-        let plain = scratch("archived-plain");
-        assert_eq!(archived_runs(&config(Some(plain.clone()), false)), BTreeSet::new());
-        std::fs::remove_dir_all(plain).unwrap();
     }
 
     fn collect_args(extra: &[&str]) -> CollectArgs {

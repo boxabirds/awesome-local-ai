@@ -2148,25 +2148,17 @@ async fn collect_refetches_a_file_the_node_rewrote_and_backfills_a_run_that_has_
     assert_eq!(read_collection(&store, GROW_RUN)["files"]["stories/01/agent-events.jsonl"]["refetches"], 2);
 }
 
-/// `git -C dir args`, for the temp repos these tests make.
-fn git_run(dir: &std::path::Path, args: &[&str]) {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"])
-        .args(args)
-        .output()
-        .unwrap();
-    assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
-}
-
 #[tokio::test(flavor = "multi_thread")]
-async fn a_collect_pass_in_git_mode_skips_runs_archived_on_origin_main_and_ingests_what_it_pulled_without_a_fetch() {
+async fn a_collect_pass_skips_runs_the_operator_archived_and_ingests_what_it_pulled_without_a_fetch() {
     use dbench::collector::{pass, Cadence, Config};
     let env = setup();
     let store = env.root.0.join("lake");
     let db = env.root.0.join("insights/conversations.db");
-    let base = "combinations/test/combo/fake/benchmarks/growpack";
+    // A run id as the lake spells one (nine levels): the store keeps decisions only about well-formed run ids.
+    let base = "combinations/test/1/2/os/m/combo-fake/benchmarks/growpack";
+    // The node lists runs only under a combination, a folder holding config.sh.
+    std::fs::create_dir_all(env.repo.join("combinations/test/1/2/os/m/combo-fake")).unwrap();
+    std::fs::write(env.repo.join("combinations/test/1/2/os/m/combo-fake/config.sh"), "").unwrap();
     let (kept, archived) = (format!("{base}/run-keep"), format!("{base}/run-old"));
     for run in [&kept, &archived] {
         let dir = env.repo.join(run);
@@ -2175,15 +2167,12 @@ async fn a_collect_pass_in_git_mode_skips_runs_archived_on_origin_main_and_inges
         std::fs::write(dir.join("run-status.json"), r#"{"state": "finished", "at": "2026-10-01T00:00:00Z"}"#).unwrap();
         std::fs::write(dir.join("stories/01/agent-events.jsonl"), "{\"_rx\": 1790000000.0, \"type\": \"x\"}\n").unwrap();
     }
-    // The archived run's marker is published on origin/main; the node's checkout is the repository the collector reads.
-    std::fs::write(env.repo.join(&archived).join(dbench::ingest::inputs::ARCHIVED_MARKER), "{}").unwrap();
-    let remote = env.root.0.join("remote.git");
-    git_run(&env.root.0, &["init", "--bare", "-q", remote.to_str().unwrap()]);
-    git_run(&env.repo, &["init", "-q"]);
-    git_run(&env.repo, &["remote", "add", "origin", remote.to_str().unwrap()]);
-    git_run(&env.repo, &["add", &format!("{archived}/{}", dbench::ingest::inputs::ARCHIVED_MARKER)]);
-    git_run(&env.repo, &["commit", "-q", "-m", "archive run-old"]);
-    git_run(&env.repo, &["push", "-q", "origin", "HEAD:main"]);
+    // The operator archived run-old: a decision in the store beside the lake (`store` is <root>/lake, so <root>/annotations).
+    let req = bench_lake::annotations::Request {
+        op: bench_lake::annotations::Op::Set, kind: bench_lake::annotations::Kind::Archived, run: archived.clone(), story: None,
+        reason: "superseded".into(), by: "t".into(),
+    };
+    bench_lake::annotations::Store::in_state_dir(&env.root.0).append(&req, "2026-10-01T00:00:00Z").unwrap();
 
     let srv = start(&env, false);
     let ctx = dbench::client::Ctx {
@@ -2194,7 +2183,7 @@ async fn a_collect_pass_in_git_mode_skips_runs_archived_on_origin_main_and_inges
     let cfg = Config { store: store.clone(), db: db.clone(), repo: Some(env.repo.clone()), worktree: false, api: None, nodes: vec![], runs: vec![], no_ingest: false, ..Default::default() };
     let zero = Duration::from_millis(0);
     let cadence = Cadence { running_poll: zero, finished_recheck: zero, settle_grace: zero };
-    // fetch = false: the ingest happens because a run changed, and reads origin/main as the checkout has it.
+    // fetch = false: the ingest happens because a run changed.
     let summaries = pass(&ctx, &cfg, &cadence, false, 1_790_000_100).await.unwrap();
     let pulled: Vec<&str> = summaries[0].runs.iter().map(|r| r.run.as_str()).collect();
     assert_eq!(pulled, [kept.as_str()], "the archived run is not pulled: {summaries:?}");

@@ -697,7 +697,7 @@ fn ingest_never_sees_a_reference_models_runs() {
     }
     let src = TreeSource { root: root.clone() };
     assert!(src.paths().unwrap().keys().all(|p| !p.contains("reference")), "the published tree must not list reference runs");
-    let got = candidates(&src, &Default::default()).unwrap();
+    let got = candidates(&src, &Default::default(), &Default::default()).unwrap();
     assert_eq!(got.len(), 1, "{got:?}");
     assert!(got.iter().next().unwrap().starts_with("combinations/"));
     std::fs::remove_dir_all(&root).unwrap();
@@ -741,8 +741,9 @@ fn a_reference_models_rows_already_in_the_warehouse_are_purged_from_every_table(
 // ---- an archived run: superseded, kept out of the lake and the databases (owner, 4 Oct 2026) ----
 
 #[test]
-fn an_archived_run_is_found_by_its_marker_and_is_never_a_candidate_even_while_the_lake_holds_it() {
-    use dbench::ingest::inputs::{candidates, lake_runs, Published, TreeSource, ARCHIVED_MARKER};
+fn an_archived_run_in_the_operators_decisions_is_never_a_candidate_even_while_the_lake_holds_it() {
+    use bench_lake::annotations::{Kind, Op, Request, Store};
+    use dbench::ingest::inputs::{archived_of, candidates, decisions, lake_runs, TreeSource};
     use std::collections::BTreeSet;
     let root = std::env::temp_dir().join(format!("dbench-ingest-archived-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
@@ -753,9 +754,10 @@ fn an_archived_run_is_found_by_its_marker_and_is_never_a_candidate_even_while_th
         std::fs::create_dir_all(root.join(dir).join("stories/01")).unwrap();
         std::fs::write(root.join(dir).join("stories/01/agent-events.compact.jsonl.gz"), b"").unwrap();
     }
-    std::fs::create_dir_all(root.join(reference)).unwrap();
-    for dir in [gone, reference] {
-        std::fs::write(root.join(dir).join(ARCHIVED_MARKER), r#"{"archived_at": "2026-10-04"}"#).unwrap();
+    // The decisions beside the lake (`store` is <state>/collected, here root/store, so the store is root/annotations).
+    for run in [gone, reference] {
+        let req = Request { op: Op::Set, kind: Kind::Archived, run: run.to_string(), story: None, reason: "superseded".into(), by: "t".into() };
+        Store::in_state_dir(&root).append(&req, "2026-10-04T00:00:00Z").unwrap();
     }
     // The lake still holds raw files of the archived run, pulled before it was archived.
     let lake_dir = root.join("store/node-x").join(gone);
@@ -763,11 +765,16 @@ fn an_archived_run_is_found_by_its_marker_and_is_never_a_candidate_even_while_th
     std::fs::write(lake_dir.join("stories/02/agent-events.jsonl"), "{}\n").unwrap();
     std::fs::write(lake_dir.join("collection.json"), r#"{"node": "node-x", "complete": true, "collected_at": 1.0, "files": {"stories/02/agent-events.jsonl": {"bytes": 3}}}"#).unwrap();
 
+    let archived = archived_of(&decisions(&root.join("store")).unwrap());
+    assert_eq!(archived, BTreeSet::from([gone.to_string(), reference.to_string()]));
     let src = TreeSource { root: root.clone() };
-    assert_eq!(src.archived().unwrap(), BTreeSet::from([gone.to_string(), reference.to_string()]));
     let lake = lake_runs(&root.join("store")).unwrap();
     assert!(lake.contains_key(gone), "the fixture's lake must hold the archived run");
-    assert_eq!(candidates(&src, &lake).unwrap(), BTreeSet::from([format!("{kept}/stories/01")]));
+    assert_eq!(candidates(&src, &archived, &lake).unwrap(), BTreeSet::from([format!("{kept}/stories/01")]));
+    // A store that cannot be read is an error, never "nothing archived".
+    std::fs::write(root.join("annotations/log.jsonl"), "not json\n").unwrap();
+    let err = decisions(&root.join("store")).unwrap_err();
+    assert!(format!("{err:#}").contains("line 1"), "{err:#}");
     std::fs::remove_dir_all(&root).unwrap();
 }
 
@@ -843,7 +850,7 @@ fn a_reference_run_in_the_lake_is_not_a_candidate_either() {
     let lake = lake_runs(&root.join("store")).unwrap();
     assert!(lake.contains_key(reference), "the fixture's lake must hold the reference run");
     let src = TreeSource { root: root.clone() };
-    assert_eq!(candidates(&src, &lake).unwrap(), BTreeSet::from([format!("{kept}/stories/01")]));
+    assert_eq!(candidates(&src, &BTreeSet::new(), &lake).unwrap(), BTreeSet::from([format!("{kept}/stories/01")]));
     std::fs::remove_dir_all(&root).unwrap();
 }
 
@@ -996,7 +1003,7 @@ fn an_opencode_run_named_like_a_pi_run_is_its_own_run_not_the_pi_one_renamed() {
     published_story(&root, oc, "01");              // the OpenCode run has published its first story, so it is a real run
     lake_story(&root, oc, "02");                   // its second is only in the lake so far
     let lake = lake_runs(&root.join("store")).unwrap();
-    let got = candidates(&TreeSource { root: root.clone() }, &lake).unwrap();
+    let got = candidates(&TreeSource { root: root.clone() }, &BTreeSet::new(), &lake).unwrap();
     assert_eq!(got, BTreeSet::from([format!("{pi}/stories/01"), format!("{pi}/stories/02"), format!("{oc}/stories/01"), format!("{oc}/stories/02")]));
     std::fs::remove_dir_all(&root).unwrap();
 }
@@ -1012,7 +1019,7 @@ fn a_run_recorded_before_the_rename_still_maps_from_opencode_to_pi() {
     published_story(&root, pi, "03");              // published only under the new name
     lake_story(&root, old, "03");
     let lake = lake_runs(&root.join("store")).unwrap();
-    let got = candidates(&TreeSource { root: root.clone() }, &lake).unwrap();
+    let got = candidates(&TreeSource { root: root.clone() }, &BTreeSet::new(), &lake).unwrap();
     assert_eq!(got, BTreeSet::from([format!("{pi}/stories/03")]), "the lake's old name is the published pi story, not a second one");
     std::fs::remove_dir_all(&root).unwrap();
 }
@@ -1227,7 +1234,7 @@ async fn a_failure_inside_the_analytics_layer_never_fails_the_pass() {
 
 #[test]
 fn candidates_leave_out_re_scores_reference_runs_archived_twins_and_what_has_no_story_log() {
-    use dbench::ingest::inputs::{candidates, lake_runs, Published, TreeSource, ARCHIVED_MARKER};
+    use dbench::ingest::inputs::{candidates, lake_runs, Published, TreeSource};
     use std::collections::BTreeSet;
     let root = std::env::temp_dir().join(format!("dbench-ingest-cand-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
@@ -1238,8 +1245,6 @@ fn candidates_leave_out_re_scores_reference_runs_archived_twins_and_what_has_no_
     published_story(&root, &format!("{base}/v2-r1/rescore/copy"), "01");
     // A run archived under its new name, which the lake still knows by the old (-opencode) name: archived either way.
     let archived = format!("{base}/canvas-pi-09");
-    std::fs::create_dir_all(root.join(&archived)).unwrap();
-    std::fs::write(root.join(&archived).join(ARCHIVED_MARKER), "{}").unwrap();
     lake_story(&root, &format!("{old_base}/canvas-pi-09"), "01");
     // Lake runs that are not candidates: a re-score copy, a reference model's run, a run with no stories directory.
     lake_story(&root, &format!("{base}/v2-r2/rescore/copy"), "01");
@@ -1258,7 +1263,7 @@ fn candidates_leave_out_re_scores_reference_runs_archived_twins_and_what_has_no_
     let lake = lake_runs(&root.join("store")).unwrap();
     assert!(lake.contains_key(&format!("{base}/v2-r3")) && lake.contains_key(&format!("{old_base}/canvas-pi-09")), "the fixture's lake holds them: {:?}", lake.keys());
     assert_eq!(
-        candidates(&src, &lake).unwrap(),
+        candidates(&src, &BTreeSet::from([archived.clone()]), &lake).unwrap(),
         BTreeSet::from([format!("{base}/v2-r1/stories/01"), format!("{base}/v2-r4/stories/01")])
     );
     // A source says what it is: its kind and where it reads from.
@@ -1672,5 +1677,96 @@ fn a_story_the_operator_ended_gets_a_queryable_verdict_judged_against_the_runs_t
         .map(Result::unwrap)
         .collect();
     assert_eq!(rows, vec![(format!("{base}/v2-r2/stories/01"), "amber".to_string(), 0.5, 0, 1)], "only the ended story, judged against v2-r1 alone");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+/// The operator's decisions in the warehouse (story 23, annotations.store): which runs are invalid, which stories are not
+/// comparable, and which runs are archived and so not there at all. Written first against the records' own marks
+/// (run.json invalid, metrics.json not_comparable, a checkout marker); the decisions then moved to the lake's store,
+/// and the rows asserted stayed the same.
+#[test]
+fn the_warehouse_carries_the_operators_decisions_invalid_not_comparable_and_archived() {
+    let root = std::env::temp_dir().join(format!("dbench-ingest-decisions-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let (store, checkout, db_path) = (root.join("state/collected"), root.join("checkout"), root.join("conversations.db"));
+    std::fs::create_dir_all(&checkout).unwrap();
+    let base = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi";
+    let put = |run: &str, run_json: serde_json::Value, story_extra: serde_json::Value| {
+        let dir = store.join("gruntus").join(base).join(run);
+        for s in ["01", "02"] {
+            std::fs::create_dir_all(dir.join("stories").join(s)).unwrap();
+            std::fs::write(dir.join("stories").join(s).join("agent-events.compact.jsonl.gz"), gzip(&fixture("accounting__claude-slept"))).unwrap();
+        }
+        std::fs::write(dir.join("collection.json"), r#"{"node": "gruntus", "complete": true, "files": {}}"#).unwrap();
+        std::fs::write(dir.join("run.json"), run_json.to_string()).unwrap();
+        let mut one = serde_json::json!({"title": "One"});
+        one.as_object_mut().unwrap().extend(story_extra.as_object().unwrap().clone());
+        std::fs::write(dir.join("metrics.json"), serde_json::json!({"stories": {"1": one, "2": {"title": "Two"}}}).to_string()).unwrap();
+    };
+    // The records' own old marks are not read: v2-r3's run.json says invalid, its story 1 says not comparable, and the
+    // checkout holds a marker for v2-r2. Only the store beside the lake decides.
+    put("v2-r1", serde_json::json!({}), serde_json::json!({}));
+    put("v2-r2", serde_json::json!({}), serde_json::json!({}));
+    put("v2-r3", serde_json::json!({"invalid": {"reason": "an old mark"}}), serde_json::json!({"not_comparable": "an old mark"}));
+    std::fs::create_dir_all(checkout.join(base).join("v2-r2")).unwrap();
+    std::fs::write(checkout.join(base).join("v2-r2/archived.json"), "{}").unwrap();
+    use bench_lake::annotations::{Kind, Op, Request, Store};
+    let decide = |op: Op, kind: Kind, run: &str, story: Option<i64>, reason: &str| {
+        let req = Request { op, kind, run: format!("{base}/{run}"), story, reason: reason.into(), by: "t".into() };
+        Store::in_state_dir(&root.join("state")).append(&req, "2026-11-04T00:00:00Z").unwrap();
+    };
+    decide(Op::Set, Kind::Invalid, "v2-r1", None, "read the reference build");
+    decide(Op::Set, Kind::NotComparable, "v2-r2", Some(1), "built during story 2");
+    decide(Op::Set, Kind::Archived, "v2-r3", None, "superseded");
+    let ingest = || {
+        let out = std::process::Command::new(env!("CARGO_BIN_EXE_dbench"))
+            .args(["ingest", "--db", db_path.to_str().unwrap(), "--repo", checkout.to_str().unwrap(), "--store", store.to_str().unwrap()])
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    };
+    ingest();
+    let db = Db::open_read_only(&db_path).unwrap();
+    let runs: Vec<(String, i64)> = db.conn.prepare("select run, invalid from runs order by run").unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().map(Result::unwrap).collect();
+    assert_eq!(runs, vec![("v2-r1".to_string(), 1), ("v2-r2".to_string(), 0)], "v2-r3 is archived: not in the warehouse");
+    let stories: Vec<(String, i64, i64, Option<String>)> = db.conn.prepare("select run, story, invalid, not_comparable from stories order by run, story").unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).unwrap().map(Result::unwrap).collect();
+    assert_eq!(
+        stories,
+        vec![
+            ("v2-r1".to_string(), 1, 1, None),
+            ("v2-r1".to_string(), 2, 1, None),
+            ("v2-r2".to_string(), 1, 0, Some("built during story 2".to_string())),
+            ("v2-r2".to_string(), 2, 0, None),
+        ]
+    );
+    drop(db);
+    // A decision made later changes no input of the stories, so no story is ingested again; every row still follows it.
+    decide(Op::Clear, Kind::Invalid, "v2-r1", None, "rescored cleanly");
+    decide(Op::Set, Kind::NotComparable, "v2-r1", Some(2), "built twice");
+    decide(Op::Clear, Kind::NotComparable, "v2-r2", Some(1), "compared after all");
+    ingest();
+    let db = Db::open_read_only(&db_path).unwrap();
+    let later: Vec<(String, i64, i64, Option<String>)> = db.conn.prepare("select s.run, s.story, s.invalid + r.invalid, s.not_comparable from stories s join runs r on r.id = s.run_id order by s.run, s.story").unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).unwrap().map(Result::unwrap).collect();
+    assert_eq!(
+        later,
+        vec![
+            ("v2-r1".to_string(), 1, 0, None),
+            ("v2-r1".to_string(), 2, 0, Some("built twice".to_string())),
+            ("v2-r2".to_string(), 1, 0, None),
+            ("v2-r2".to_string(), 2, 0, None),
+        ]
+    );
+    drop(db);
+    // A store that cannot be read stops the pass: nothing is ingested as if no run were archived or invalid.
+    std::fs::write(root.join("state/annotations/log.jsonl"), "not json\n").unwrap();
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_dbench"))
+        .args(["ingest", "--db", db_path.to_str().unwrap(), "--repo", checkout.to_str().unwrap(), "--store", store.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("annotations/log.jsonl"), "{}", String::from_utf8_lossy(&out.stderr));
     std::fs::remove_dir_all(&root).unwrap();
 }

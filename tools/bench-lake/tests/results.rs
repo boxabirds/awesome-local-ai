@@ -1,5 +1,5 @@
 //! The `records` question (story 23, readers.benchmarker): every run's result documents in one answer, read from the
-//! preferred copy, with the runs the host checkout marks archived left out.
+//! preferred copy, with the runs the operator's decisions archive left out.
 
 mod common;
 use common::*;
@@ -165,22 +165,16 @@ fn a_record_that_does_not_parse_is_given_as_written_and_a_run_without_a_bundle_s
 }
 
 #[test]
-fn a_run_marked_archived_in_the_checkout_is_left_out_and_nothing_else_is_a_marker() {
+fn records_takes_no_checkout_and_a_marker_in_one_hides_nothing() {
+    // Story 23, task 23.32: archived runs are the operator's decisions in the lake's store (tests/annotations.rs TC-C5);
+    // the host checkout's archived.json markers were imported into it once and are no longer read.
     let (s, state) = lake();
     let checkout = s.join("checkout");
     write(&checkout.join(id("r1")).join("archived.json"), b"{}");
-    fs::create_dir_all(checkout.join(id("r2")).join("archived.json")).unwrap(); // a folder is not a marker
-    write(&checkout.join(REF_ID).join("archived.md"), b"{}"); // another name is not a marker
-    let v = answer(&state, &["--archived", checkout.to_str().unwrap()]);
-    assert_eq!(ids(&v), vec![REF_ID.to_string(), id("r2")]);
-    assert_eq!(
-        ids(&answer(&state, &[])).len(),
-        3,
-        "without --archived nothing is left out"
-    );
-    let empty = s.join("empty-checkout");
-    fs::create_dir_all(&empty).unwrap();
-    assert_eq!(ids(&answer(&state, &["--archived", empty.to_str().unwrap()])).len(), 3);
+    let o = ask(&state, &["--archived", checkout.to_str().unwrap()]);
+    assert_eq!(o.status.code(), Some(EXIT_QUESTION));
+    assert!(o.stdout.is_empty());
+    assert_eq!(ids(&answer(&state, &[])).len(), 3, "a marker in a checkout leaves nothing out");
 }
 
 #[test]
@@ -213,7 +207,7 @@ fn a_document_that_cannot_be_read_or_is_not_utf8_is_named_unreadable_and_the_res
 fn an_empty_lake_has_no_runs_and_a_malformed_question_prints_nothing() {
     let s = Scratch::new("results-empty");
     assert_eq!(answer(&s.join("none"), &[])["runs"], json!([]));
-    for bad in [&["--archived"][..], &["extra"][..], &["--archived", "a", "b"][..]] {
+    for bad in [&["--archived"][..], &["extra"][..], &["--archived", "a"][..]] {
         let o = ask(&s.join("none"), bad);
         assert_eq!(o.status.code(), Some(EXIT_QUESTION), "{bad:?}");
         assert!(o.stdout.is_empty());

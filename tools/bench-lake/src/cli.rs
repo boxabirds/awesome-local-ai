@@ -20,7 +20,6 @@ const PROGRAM: &str = "bench-lake";
 const FLAG_ROOTS: &str = "--roots";
 const FLAG_REV: &str = "--rev";
 const FLAG_REPORT: &str = "--report";
-const FLAG_ARCHIVED: &str = "--archived";
 const FLAG_STORY: &str = "--story";
 const FLAG_REASON: &str = "--reason";
 const FLAG_BY: &str = "--by";
@@ -278,18 +277,14 @@ fn answer(args: &[String], report: ReportSink) -> Result<Answer, Question> {
             })
         }
         "records" => {
-            let archived = match &words[1..] {
-                [] => None,
-                [flag, checkout] if flag == FLAG_ARCHIVED => Some(Path::new(checkout)),
-                _ => return bad("records takes nothing, or --archived and the host checkout"),
-            };
+            expect(words, "records", 0, 0)?;
             let state = match decisions(&store) {
                 Ok(s) => s,
                 Err(failed) => return Ok(failed),
             };
             let d = lake.discover();
             let mut value = runs_value(&d, &state);
-            value["runs"] = lake.results(&d, archived, &state).iter().map(|r| r.to_value()).collect();
+            value["runs"] = lake.results(&d, &state).iter().map(|r| r.to_value()).collect();
             Ok(found(value))
         }
         "compare-git" => compare_command(&lake, &words[1..], report),

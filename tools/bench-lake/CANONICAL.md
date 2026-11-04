@@ -23,7 +23,7 @@ matches the command fails that test.
 | `log <run> <story>` | a story's log |
 | `workspace <run> <story> <dest>` | a working copy of the run's code at the story, made in `<dest>` |
 | `complete <run>` | whether the run is complete |
-| `records [--archived <checkout>]` | every run's result documents, from its preferred copy |
+| `records` | every run's result documents, from its preferred copy, with the operator's decisions |
 | `annotate set\|clear <kind> <run> ...` | record one of the operator's decisions about a run (the only question that writes) |
 | `annotations [--history]` | the operator's decisions in force, or every event |
 
@@ -344,7 +344,7 @@ $ bench-lake <LAKE> complete benchmarks/reference/todoodle/opus-5.5/run-1
 
 59a592fca04af9fe2c8b667b3a784298795ccde9
 
-### records `[--archived <checkout>]` (not a question about one run)
+### records (not a question about one run)
 
     {"missing_roots":[...],"rejected":[...],"runs":[{"annotations":A,"bundle":B,"dir":P,"files":{REL:TEXT,...},"id":ID,"kind":K,"node":N,"unreadable":[REL,...]},...],"status":"found"}
 
@@ -359,11 +359,9 @@ and named in `unreadable` (sorted); one that is absent is in neither. `bundle` i
 regular file in the run folder. `missing_roots` and `rejected` are those of `runs`, so a reader can tell a lake folder
 it could not list from one that is not there.
 
-A run the operator's decisions archive (section 5) is left out; `annotations` carries the rest of its decisions.
-With `--archived <checkout>`, a run is also left out when `<checkout>/<id>/archived.json` is a regular file (the owner's
-archived marker, kept in the host checkout); a folder or another name there is not a marker. A malformed question
-(another argument, or `--archived` without a checkout) prints nothing on standard output, one line on standard error,
-and exits 2. The answer reads nothing into the lake. Tests: `tests/results.rs`.
+A run the operator's decisions archive (section 5) is left out; `annotations` carries the rest of its decisions. The
+host checkout's `archived.json` markers are not read (they were imported into the store once, `annotate import`). Any
+argument is a malformed question: nothing on standard output, one line on standard error, exit 2. The answer reads nothing into the lake. Tests: `tests/results.rs`.
 
 ### compare-git (not a question about one run)
 

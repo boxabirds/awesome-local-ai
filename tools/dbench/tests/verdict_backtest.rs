@@ -3,7 +3,7 @@
 //! A recorded verdict was made on a machine from the runs its checkout held then, without the before-it-ended filter, so
 //! a floor may differ; the parts that need no other run (gate, tasks, own score) must match exactly.
 
-use dbench::ingest::inputs::{verdict_runs, LakeSource};
+use dbench::ingest::inputs::{archived_of, decisions, verdict_runs, LakeSource};
 use dbench::ingest::verdict::{baselines, ended_at, ended_early, verdict};
 use serde_json::Value;
 use std::path::PathBuf;
@@ -15,9 +15,9 @@ const MAX_LISTED: usize = 30;
 #[ignore]
 fn the_verdicts_computed_at_ingest_match_the_ones_the_machines_recorded() {
     let state = PathBuf::from(std::env::var("BENCH_LAKE_STATE").expect("BENCH_LAKE_STATE: the lake's state dir"));
-    let checkout = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let src = LakeSource::new(&state.join("collected"), &state.join("reference"), &checkout);
-    let runs = verdict_runs(&src, PACK).unwrap();
+    let src = LakeSource::new(&state.join("collected"), &state.join("reference"));
+    let archived = archived_of(&decisions(&state.join("collected")).unwrap());
+    let runs = verdict_runs(&src, &archived, PACK).unwrap();
     let (mut total, mut same, mut local_mismatch, mut floor_only) = (0, 0, Vec::new(), Vec::new());
     for r in runs.iter().filter(|r| !r.reference) {
         let Some(stories) = r.metrics.get("stories").and_then(Value::as_object) else { continue };
@@ -66,9 +66,9 @@ fn the_verdicts_computed_at_ingest_match_the_ones_the_machines_recorded() {
 #[ignore]
 fn explain_the_floors_that_differ() {
     let state = PathBuf::from(std::env::var("BENCH_LAKE_STATE").unwrap());
-    let checkout = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let src = LakeSource::new(&state.join("collected"), &state.join("reference"), &checkout);
-    let runs = verdict_runs(&src, PACK).unwrap();
+    let src = LakeSource::new(&state.join("collected"), &state.join("reference"));
+    let archived = archived_of(&decisions(&state.join("collected")).unwrap());
+    let runs = verdict_runs(&src, &archived, PACK).unwrap();
     for (run, story) in [("gufo-pi/benchmarks/vidi/v2-r1", 10), ("gufo-pi/benchmarks/vidi/v2-r4", 4), ("mlxserve-pi/benchmarks/vidi/v2-mlx26101-r1", 11)] {
         let r = runs.iter().find(|r| r.id.ends_with(run)).unwrap();
         let rec = &r.metrics["stories"][story.to_string()];
@@ -88,9 +88,9 @@ fn explain_the_floors_that_differ() {
 fn without_the_before_it_ended_filter_every_recorded_floor_is_reproduced() {
     use dbench::ingest::verdict::floor;
     let state = PathBuf::from(std::env::var("BENCH_LAKE_STATE").unwrap());
-    let checkout = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let src = LakeSource::new(&state.join("collected"), &state.join("reference"), &checkout);
-    let runs = verdict_runs(&src, PACK).unwrap();
+    let src = LakeSource::new(&state.join("collected"), &state.join("reference"));
+    let archived = archived_of(&decisions(&state.join("collected")).unwrap());
+    let runs = verdict_runs(&src, &archived, PACK).unwrap();
     let (mut n, mut bad) = (0, Vec::new());
     for r in runs.iter().filter(|r| !r.reference) {
         let Some(stories) = r.metrics.get("stories").and_then(Value::as_object) else { continue };

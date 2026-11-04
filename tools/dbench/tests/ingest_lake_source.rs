@@ -1,7 +1,7 @@
 //! The ingest's published side read from the lake (story 23, ingest.lake_source): each combination run's preferred
-//! copy, its record files only, and the archived markers from the host checkout as plain files. No git.
+//! copy, its record files only; the archived runs from the operator's decisions beside the lake. No git.
 
-use dbench::ingest::inputs::{LakeSource, Published, ARCHIVED_MARKER};
+use dbench::ingest::inputs::{archived_of, decisions, LakeSource, Published};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -50,7 +50,7 @@ fn copy(state: &Path, node: &str, run: &str, metrics: &str, raw_logs: usize) -> 
 }
 
 fn source(root: &Path) -> LakeSource {
-    LakeSource::new(&root.join("state/collected"), &root.join("state/reference"), &root.join("checkout"))
+    LakeSource::new(&root.join("state/collected"), &root.join("state/reference"))
 }
 
 #[test]
@@ -113,13 +113,18 @@ fn reference_runs_are_not_published_records() {
 }
 
 #[test]
-fn archived_runs_come_from_markers_in_the_host_checkout_read_as_files() {
+fn archived_runs_come_from_the_operators_decisions_beside_the_lake_not_from_markers_in_a_checkout() {
+    use bench_lake::annotations::{Kind, Op, Request, Store};
     let root = tmp("archived");
     copy(&root.join("state"), OWN_NODE, RUN, "{}", 1);
-    write(&root.join("checkout").join(OTHER).join(ARCHIVED_MARKER), b"{}");
-    write(&root.join("checkout/benchmarks/reference/vidi/opus-5.5/run-1").join(ARCHIVED_MARKER), b"{}");
-    write(&root.join("checkout").join(RUN).join("archived.txt"), b"not a marker");
-    let archived = source(&root).archived().unwrap();
+    for run in [OTHER, "benchmarks/reference/vidi/opus-5.5/run-1"] {
+        let req = Request { op: Op::Set, kind: Kind::Archived, run: run.into(), story: None, reason: "superseded".into(), by: "t".into() };
+        Store::in_state_dir(&root.join("state")).append(&req, "2026-10-04T00:00:00Z").unwrap();
+    }
+    let req = Request { op: Op::Set, kind: Kind::Invalid, run: RUN.into(), story: None, reason: "spoiled".into(), by: "t".into() };
+    Store::in_state_dir(&root.join("state")).append(&req, "2026-10-04T00:00:00Z").unwrap();
+    write(&root.join("checkout").join(RUN).join("archived.json"), b"{}"); // a checkout marker is not read
+    let archived = archived_of(&decisions(&root.join("state/collected")).unwrap());
     assert_eq!(
         archived.into_iter().collect::<Vec<_>>(),
         vec!["benchmarks/reference/vidi/opus-5.5/run-1".to_string(), OTHER.to_string()]
@@ -131,7 +136,7 @@ fn an_empty_or_missing_lake_lists_nothing_and_is_not_an_error() {
     let root = tmp("empty");
     let src = source(&root);
     assert!(src.paths().unwrap().is_empty());
-    assert!(src.archived().unwrap().is_empty());
+    assert!(archived_of(&decisions(&root.join("state/collected")).unwrap()).is_empty(), "no store: nothing archived");
 }
 
 #[test]
@@ -196,7 +201,7 @@ fn the_verdict_reads_every_run_of_the_pack_and_the_reference_runs_named_run_n() 
     write(&reference.join("run-1/accept.json"), br#"{"by_story": {"03": {"passed": 2, "total": 7}}}"#);
     write(&reference.join("v2-r1/metrics.json"), br#"{"stories": {"3": {"finished": 1}}}"#);
     let src = TreeSource { root: root.clone() };
-    let all = verdict_runs(&src, "vidi").unwrap();
+    let all = verdict_runs(&src, &Default::default(), "vidi").unwrap();
     let ids: Vec<&str> = all.iter().map(|r| r.id.rsplit('/').next().unwrap()).collect();
     assert_eq!(ids, ["a-this-run", "b-corrupt", "c-unfinished", "d-other-story", "e-partial", "f-known-good", "g-void", "run-1"],
         "one level under the pack, this pack only, and reference runs named run-N");

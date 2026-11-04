@@ -626,7 +626,7 @@ pub fn ingest_story_profiled(db: &mut db::Db, parts: &RunParts, inp: &StoryInput
     let timing = tm.finish(t_to_guess);
     prof.record("story.parse_timing", tm_s + t.elapsed().as_secs_f64(), 0);
     prof.time("story.db_run", || db.upsert_run(&inp.run_dir, parts, &inp.run_json, &inp.status_json, inp.node.as_deref(), now))?;
-    let sk = prof.time("story.db_story", || db.upsert_story(&inp.rel, &inp.run_dir, inp.story, parts, &inp.rec, &inp.run_json, &rows, &inp.events_source))?;
+    let sk = prof.time("story.db_story", || db.upsert_story(&inp.rel, &inp.run_dir, inp.story, parts, &inp.rec, &rows, &inp.events_source))?;
     prof.time("story.db_rows", || db.replace_story_rows(sk, &rows, &timing, &inp.rec))?;
     let timed = prof.time("story.join_timing", || join_call_timing(&rows, &timing));
     let conds = prof.time("story.build_conditions", || conditions(inp.conditions_text.as_deref(), &inp.rec, sk));
@@ -718,7 +718,7 @@ pub fn cmd_ingest(args: &crate::cli::IngestArgs, json: bool) -> Result<()> {
         Box::new(inputs::TreeSource { root: args.repo.clone() })
     } else {
         let reference = args.store.parent().unwrap_or(std::path::Path::new("")).join(crate::cli::DEFAULT_REFERENCE_DIR);
-        Box::new(inputs::LakeSource::new(&args.store, &reference, &args.repo))
+        Box::new(inputs::LakeSource::new(&args.store, &reference))
     };
     let target = if args.rebuild {
         let mut p = args.db.clone().into_os_string();

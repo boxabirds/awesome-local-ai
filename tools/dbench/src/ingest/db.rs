@@ -100,6 +100,10 @@ fn num_i64(v: &Value) -> Option<i64> {
     v.as_i64().or_else(|| v.as_f64().map(|f| f as i64))
 }
 
+/// A new row is valid and comparable until the pass applies the operator's decisions (`apply_decisions`); an existing
+/// row keeps what the last pass gave it, so a re-ingested story is never shown as valid in between.
+const NOT_INVALID: i64 = 0;
+
 fn text_or_null(v: &Value) -> Option<String> {
     match v {
         Value::Null => None,
@@ -238,17 +242,37 @@ impl Db {
                 node = coalesce(excluded.node, runs.node), host = excluded.host, pack_version = excluded.pack_version,
                 harness_commit = excluded.harness_commit, harness_release = excluded.harness_release, model_id = excluded.model_id,
                 started_at = excluded.started_at, ended_at = excluded.ended_at, state = excluded.state, state_at = excluded.state_at,
-                invalid = excluded.invalid, known_good = excluded.known_good, run_json = excluded.run_json,
+                known_good = excluded.known_good, run_json = excluded.run_json,
                 run_status_json = excluded.run_status_json, ingested_at = excluded.ingested_at",
             params![
                 id, parts.pack, parts.stack, parts.family, parts.variant, parts.engine, parts.client, parts.machine, parts.run, node,
                 run_json.get("host").map(|h| h.to_string()), g("pack_version"), g("harness_commit"), g("harness_release"), g("model_id"),
                 started_at, status_json.get("at").and_then(Value::as_str).and_then(super::epoch_of),
                 status_json.get("state").and_then(Value::as_str), status_json.get("at").and_then(Value::as_str),
-                i64::from(super::py::truthy(run_json.get("invalid"))), i64::from(g("known_good_from").is_some_and(|s| !s.is_empty())),
+                NOT_INVALID, i64::from(g("known_good_from").is_some_and(|s| !s.is_empty())),
                 run_json.to_string(), status_json.to_string(), now
             ],
         )?;
+        Ok(())
+    }
+
+    /// The operator's decisions on every row (story 23, annotations.store): `runs.invalid` and `stories.invalid` are 1 for
+    /// a run marked invalid and 0 otherwise; `stories.not_comparable` is the reason for a story marked not comparable and
+    /// null otherwise. Run at the end of every pass, in one transaction.
+    pub fn apply_decisions(&mut self, decided: &bench_lake::annotations::State) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        tx.execute("update runs set invalid = 0 where invalid is not 0", [])?;
+        tx.execute("update stories set invalid = 0, not_comparable = null where invalid is not 0 or not_comparable is not null", [])?;
+        for (run, d) in &decided.runs {
+            if d.invalid.is_some() {
+                tx.execute("update runs set invalid = 1 where id = ?1", params![run])?;
+                tx.execute("update stories set invalid = 1 where run_id = ?1", params![run])?;
+            }
+            for (story, nc) in &d.not_comparable {
+                tx.execute("update stories set not_comparable = ?1 where run_id = ?2 and story = ?3", params![nc.reason, run, story])?;
+            }
+        }
+        tx.commit()?;
         Ok(())
     }
 
@@ -258,7 +282,7 @@ impl Db {
 
     /// The story's row, inserted or updated; its sk never changes once given.
     #[allow(clippy::too_many_arguments)]
-    pub fn upsert_story(&self, rel: &str, run_id: &str, story: i64, parts: &super::RunParts, rec: &Value, run_json: &Value, rows: &super::events::Rows, source: &str) -> Result<i64> {
+    pub fn upsert_story(&self, rel: &str, run_id: &str, story: i64, parts: &super::RunParts, rec: &Value, rows: &super::events::Rows, source: &str) -> Result<i64> {
         let acc = rec.get("accept").cloned().unwrap_or(Value::Null);
         let agent = rec.get("agent").cloned().unwrap_or(Value::Null);
         let tokens = agent.get("tokens").cloned().unwrap_or(Value::Null);
@@ -274,22 +298,22 @@ impl Db {
                 ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38)
              on conflict(rel) do update set status = excluded.status, passed = excluded.passed, total = excluded.total, wall = excluded.wall,
                 fmt = excluded.fmt, source = excluded.source, truncated_strings = excluded.truncated_strings, truncated_chars = excluded.truncated_chars,
-                v2 = excluded.v2, invalid = excluded.invalid, nudges = excluded.nudges, started = excluded.started, finished = excluded.finished,
+                v2 = excluded.v2, nudges = excluded.nudges, started = excluded.started, finished = excluded.finished,
                 run_id = excluded.run_id, title = excluded.title, ended_by = excluded.ended_by, attempts = excluded.attempts,
                 first_started = excluded.first_started, agent_seconds = excluded.agent_seconds, out_tok = excluded.out_tok, in_tok = excluded.in_tok,
-                cache_tok = excluded.cache_tok, not_comparable = excluded.not_comparable, time_split_json = excluded.time_split_json,
+                cache_tok = excluded.cache_tok, time_split_json = excluded.time_split_json,
                 conversation_json = excluded.conversation_json, conditions_json = excluded.conditions_json, requests_json = excluded.requests_json,
                 provenance_json = excluded.provenance_json",
             params![
                 parts.pack, parts.stack, parts.family, parts.variant, parts.engine, parts.client, parts.machine, parts.run, story, rel,
                 rec.get("status").and_then(Value::as_str), n(acc.get("passed")), n(acc.get("total")),
                 f(rec.get("time_split").and_then(|t| t.get("wall_s"))), rows.fmt, source,
-                rows.truncated_strings, rows.truncated_chars, i64::from(parts.run.starts_with("v2-")), i64::from(super::py::truthy(run_json.get("invalid"))),
+                rows.truncated_strings, rows.truncated_chars, i64::from(parts.run.starts_with("v2-")), NOT_INVALID,
                 n(agent.get("nudges")), f(rec.get("first_started")).or_else(|| f(rec.get("started"))), f(rec.get("agent_finished")),
                 run_id, rec.get("title").and_then(Value::as_str), rec.get("ended_by").and_then(Value::as_str),
                 agent.get("attempts").and_then(Value::as_array).map(|a| a.len() as i64), f(rec.get("first_started")), f(agent.get("seconds")),
                 n(tokens.get("output")), n(tokens.get("input")), n(tokens.get("cache_read")),
-                rec.get("not_comparable").and_then(text_or_null),
+                Option::<String>::None,
                 json_or_null("time_split"), json_or_null("conversation"), json_or_null("conditions"), json_or_null("requests"), json_or_null("provenance")
             ],
         )?;

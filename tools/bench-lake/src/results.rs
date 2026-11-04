@@ -1,5 +1,6 @@
 //! Every run's result documents in one answer (story 23, readers.benchmarker): what a reader of results (the
-//! benchmarker) shows, read from each run's preferred copy, with the runs the host checkout marks archived left out.
+//! benchmarker) shows, read from each run's preferred copy, with the operator's decisions about it, and without the
+//! runs those decisions archive.
 
 use crate::annotations::{RunAnnotations, State};
 use crate::bundle::BUNDLE_FILE;
@@ -10,8 +11,6 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-/// A file of this name in the run's folder of the host checkout marks the run archived (owner, 4 Oct 2026).
-pub const ARCHIVED_MARKER: &str = "archived.json";
 /// The run's own result documents, relative to the run folder.
 pub const RUN_DOCUMENTS: [&str; 6] = [
     "run.json",
@@ -54,12 +53,11 @@ impl RunResults {
 
 impl Lake {
     /// The preferred copy of every run id, ordered by id, with the decisions in force about it; without the runs
-    /// the decisions archive, nor those `archived_in` (a checkout) marks archived.
-    pub fn results(&self, d: &Discovery, archived_in: Option<&Path>, decisions: &State) -> Vec<RunResults> {
+    /// the decisions archive.
+    pub fn results(&self, d: &Discovery, decisions: &State) -> Vec<RunResults> {
         let ids: BTreeSet<&str> = d.runs.iter().map(|r| r.id.as_str()).collect();
         ids.into_iter()
             .filter(|id| decisions.archived(id).is_none())
-            .filter(|id| !archived_in.is_some_and(|checkout| is_archived(checkout, id)))
             .filter_map(|id| self.preferred(d, id))
             .map(|run| {
                 let mut r = self.run_results(run);
@@ -124,10 +122,6 @@ fn story_folders(dir: &Path) -> Vec<String> {
         .collect();
     out.sort();
     out
-}
-
-fn is_archived(checkout: &Path, id: &str) -> bool {
-    std::fs::symlink_metadata(checkout.join(id).join(ARCHIVED_MARKER)).is_ok_and(|m| m.file_type().is_file())
 }
 
 fn read_regular_exists(dir: &Path, name: &str) -> bool {

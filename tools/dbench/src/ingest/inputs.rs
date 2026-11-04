@@ -38,11 +38,19 @@ const PUBLISHED_ROOTS: [&str; 1] = ["combinations"];
 fn under_published_root(rel: &str) -> bool {
     PUBLISHED_ROOTS.iter().any(|root| rel.starts_with(&format!("{root}/")))
 }
-/// A run directory holding this file is archived (owner, 4 Oct 2026): superseded, its record removed from the published
-/// tree, and kept out of the lake, the warehouse and the analytics file. Only the marker stays, saying what it was.
-pub const ARCHIVED_MARKER: &str = "archived.json";
-/// Where archived runs are looked for: the published roots, and the reference models' runs, which are archived too.
-const ARCHIVE_ROOTS: [&str; 2] = ["combinations", REFERENCE_ROOT];
+/// The operator's decisions about runs (story 23, annotations.store): the lake's annotation store, beside the collected
+/// folder (`<state>/annotations`, `store` being `<state>/collected`), read through bench-lake's library. A store that
+/// cannot be read is an error: no pass runs as if nothing were archived or invalid.
+pub fn decisions(store: &Path) -> Result<bench_lake::annotations::State> {
+    let state = store.parent().unwrap_or(Path::new(""));
+    bench_lake::annotations::Store::in_state_dir(state).state().map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// The runs the decisions archive (superseded, or not a benchmark result: owner, 4 Oct 2026): kept out of the lake's
+/// pulls, the warehouse and the analytics file, and never a baseline.
+pub fn archived_of(decided: &bench_lake::annotations::State) -> BTreeSet<String> {
+    decided.runs.iter().filter(|(_, r)| r.archived.is_some()).map(|(id, _)| id.clone()).collect()
+}
 /// Where the reference models' runs are, relative to the repository.
 const REFERENCE_ROOT: &str = "benchmarks/reference";
 /// The held-out results a verdict reads, and the summaries that stand in for them where the detail is not kept.
@@ -66,11 +74,10 @@ fn accept_of(read: &dyn Fn(&str) -> Result<Option<Vec<u8>>>, dir: &str) -> Resul
 
 /// Every run of `pack` with its records, as the verdict reads them: the published combination runs and the reference
 /// runs named `run-N`.
-pub fn verdict_runs(published: &dyn Published, pack: &str) -> Result<Vec<super::verdict::RunRecords>> {
+pub fn verdict_runs(published: &dyn Published, archived: &BTreeSet<String>, pack: &str) -> Result<Vec<super::verdict::RunRecords>> {
     let mut out = Vec::new();
     let ids = published.paths()?;
     // An archived run's records left the published tree, so the harness never saw it as a baseline.
-    let archived = published.archived()?;
     let marker = format!("/benchmarks/{pack}/");
     // A run is exactly one level under its pack (the harness's glob was `benchmarks/<pack>/*/metrics.json`): a re-score's
     // copy of the records under the run (rescore/, rescore-spoiled/) is not another run.
@@ -113,18 +120,11 @@ fn records_of(run: &str, reference: bool, read: &dyn Fn(&str) -> Result<Option<V
     Ok(super::verdict::RunRecords { id: run.to_string(), reference, metrics, run_accept, story_accepts })
 }
 
-/// The run directories these paths mark as archived.
-fn marked<'a>(paths: impl Iterator<Item = &'a str>) -> BTreeSet<String> {
-    paths.filter_map(|p| p.strip_suffix(&format!("/{ARCHIVED_MARKER}"))).map(String::from).collect()
-}
-
 /// The published side: a path's bytes, and the blob id that names its content.
 pub trait Published {
     /// Every published path under the roots, with the id of its content.
     fn paths(&self) -> Result<BTreeMap<String, String>>;
     fn read(&self, path: &str) -> Result<Option<Vec<u8>>>;
-    /// Every archived run directory, reference models' included.
-    fn archived(&self) -> Result<BTreeSet<String>>;
     /// The reference models' runs (`benchmarks/reference/<pack>/<model>/<run>` -> their folder): not ingested, but
     /// baselines for the verdict on a story ended early. None by default.
     fn reference_runs(&self) -> Result<BTreeMap<String, PathBuf>> {
@@ -156,14 +156,6 @@ impl Published for TreeSource {
         }
     }
 
-    fn archived(&self) -> Result<BTreeSet<String>> {
-        let mut all = BTreeMap::new();
-        for root in ARCHIVE_ROOTS {
-            walk(&self.root, &self.root.join(root), &mut all)?;
-        }
-        Ok(marked(all.keys().map(String::as_str)))
-    }
-
     fn reference_runs(&self) -> Result<BTreeMap<String, PathBuf>> {
         let mut out = BTreeMap::new();
         let mut files = BTreeMap::new();
@@ -183,11 +175,10 @@ impl Published for TreeSource {
 
 /// The lake: each combination run's preferred copy (bench-lake's ranking, the one every reader uses), its record files
 /// only (the collector's allow-list, class Record, without the workspace bundle), read as files; a file's id is the
-/// sha256 of its content. The archived markers are the owner's, in the host checkout, read as plain files. No git.
+/// sha256 of its content. No git.
 pub struct LakeSource {
     lake: bench_lake::Lake,
     store: PathBuf,
-    checkout: PathBuf,
     files: std::cell::RefCell<Option<BTreeMap<String, (PathBuf, String)>>>,
 }
 
@@ -195,15 +186,9 @@ pub struct LakeSource {
 const NOT_A_PUBLISHED_RECORD: &str = "workspace.bundle";
 
 impl LakeSource {
-    /// `store` is the collected lake (`<state>/collected`), `reference` the reference models' folder, `checkout` the host
-    /// checkout whose working tree holds the archived markers.
-    pub fn new(store: &Path, reference: &Path, checkout: &Path) -> Self {
-        LakeSource {
-            lake: bench_lake::Lake::new(store, reference),
-            store: store.to_path_buf(),
-            checkout: checkout.to_path_buf(),
-            files: std::cell::RefCell::new(None),
-        }
+    /// `store` is the collected lake (`<state>/collected`), `reference` the reference models' folder.
+    pub fn new(store: &Path, reference: &Path) -> Self {
+        LakeSource { lake: bench_lake::Lake::new(store, reference), store: store.to_path_buf(), files: std::cell::RefCell::new(None) }
     }
 
     fn files(&self) -> Result<BTreeMap<String, (PathBuf, String)>> {
@@ -241,10 +226,6 @@ impl Published for LakeSource {
         let files = self.files()?;
         let Some((file, _)) = files.get(path) else { return Ok(None) };
         Ok(Some(std::fs::read(file).with_context(|| format!("read {}", file.display()))?))
-    }
-
-    fn archived(&self) -> Result<BTreeSet<String>> {
-        TreeSource { root: self.checkout.clone() }.archived()
     }
 
     fn reference_runs(&self) -> Result<BTreeMap<String, PathBuf>> {
@@ -360,13 +341,13 @@ fn lake_story_log(lake: &LakeRun, story: i64) -> Option<PathBuf> {
 
 /// Every story run id with a log anywhere: published (the compact log in git) or in the lake (the
 /// full log), the lake's path mapped to its published name where the combination was renamed.
-pub fn candidates(published: &dyn Published, lake: &BTreeMap<String, LakeRun>) -> Result<BTreeSet<String>> {
-    candidates_profiled(published, lake, &mut Profile::default())
+/// The archived runs (`archived`, from the decisions) are never candidates.
+pub fn candidates(published: &dyn Published, archived: &BTreeSet<String>, lake: &BTreeMap<String, LakeRun>) -> Result<BTreeSet<String>> {
+    candidates_profiled(published, archived, lake, &mut Profile::default())
 }
 
 /// `candidates`, charging where its time went to `prof`.
-pub fn candidates_profiled(published: &dyn Published, lake: &BTreeMap<String, LakeRun>, prof: &mut Profile) -> Result<BTreeSet<String>> {
-    let archived = prof.time("candidates.archived", || published.archived())?;
+pub fn candidates_profiled(published: &dyn Published, archived: &BTreeSet<String>, lake: &BTreeMap<String, LakeRun>, prof: &mut Profile) -> Result<BTreeSet<String>> {
     let is_archived = |story: &str| super::split_story_rel(story).is_some_and(|(run, _)| archived.contains(run));
     let mut out = BTreeSet::new();
     let first_paths = prof.time("candidates.published_paths", || published.paths())?;
@@ -656,11 +637,13 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
     let started = std::time::Instant::now();
     let mut prof = Profile::default();
     prof.time("purge_reference", || db.purge_reference())?;          // anything an earlier version ingested
-    prof.time("purge_archived", || -> Result<usize> { db.purge_runs(&published.archived()?) })?; // and any run archived since it was ingested
+    let decided = prof.time("decisions", || decisions(store))?;
+    let archived = archived_of(&decided);
+    prof.time("purge_archived", || db.purge_runs(&archived))?; // and any run archived since it was ingested
     let ids = prof.time("published_paths", || published.paths())?;
     let lake = prof.time("lake_scan", || lake_runs(store))?;
     let mut by_run: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for rel in candidates_profiled(published, &lake, &mut prof)? {
+    for rel in candidates_profiled(published, &archived, &lake, &mut prof)? {
         if !sel.only.is_empty() && !sel.only.iter().any(|o| rel == *o || rel.starts_with(&format!("{o}/"))) {
             continue;
         }
@@ -716,7 +699,10 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
             summary.requests += super::ingest_run_requests_profiled(db, run_dir, server_log.as_deref(), &calls, &complete, &mut prof)?;
         }
     }
-    prof.time("verdicts", || update_verdicts(db, published))?;
+    prof.time("verdicts", || update_verdicts(db, published, &archived))?;
+    // Every row, every pass: a decision made after a story was ingested changes none of its inputs, so it would never
+    // reach that row through the story's digest.
+    prof.time("decisions_apply", || db.apply_decisions(&decided))?;
     prof.time("set_meta", || -> Result<()> {
         db.set_meta("built_at", &format!("{now:.3}"))?;
         db.set_meta("source", &published.describe())?;
@@ -729,7 +715,7 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
 
 /// The verdict on every story the operator ended early that the warehouse holds, worked out again from every run's
 /// records (story 23, ingest.verdict), and stored in place of the last pass's.
-pub fn update_verdicts(db: &mut super::db::Db, published: &dyn Published) -> Result<usize> {
+pub fn update_verdicts(db: &mut super::db::Db, published: &dyn Published, archived: &BTreeSet<String>) -> Result<usize> {
     use super::verdict::{baselines, ended_at, ended_early, verdict};
     let mut rows = Vec::new();
     let packs: BTreeSet<String> = published
@@ -738,7 +724,7 @@ pub fn update_verdicts(db: &mut super::db::Db, published: &dyn Published) -> Res
         .filter_map(|p| p.split_once("/benchmarks/").and_then(|(_, rest)| rest.split('/').next()).map(String::from))
         .collect();
     for pack in packs {
-        let runs = verdict_runs(published, &pack)?;
+        let runs = verdict_runs(published, archived, &pack)?;
         for r in runs.iter().filter(|r| !r.reference) {
             let Some(stories) = r.metrics.get("stories").and_then(Value::as_object) else { continue };
             for (key, rec) in stories.iter().filter(|(_, rec)| ended_early(rec)) {
