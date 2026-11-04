@@ -53,3 +53,11 @@ test("TC-C8: a story the operator marked not comparable says so on its own page,
   await expect(page.locator('[data-page="storyRun"] [data-section="header"] [data-fact="notCompared"]'))
     .toHaveText("Not compared with other runs: This story run also built story 3.");
 });
+
+test("an invalid run's record is not found at its address, like the rest of it (the app shows no spoiled run)", async ({ request }) => {
+  const invalid = "benchmarks/reference/vidi/sonnet-5.5/v2-r1";
+  expect((await request.get(`${BASE}/record/${invalid}/`)).status()).toBe(404);
+  expect((await request.get(`${BASE}/record/${invalid}/run.json`)).status()).toBe(404);
+  // A valid run's record is still served.
+  expect((await request.get(`${BASE}/record/${FRESH}/`)).status()).toBe(200);
+});

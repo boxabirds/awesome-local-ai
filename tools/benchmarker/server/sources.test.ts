@@ -277,6 +277,11 @@ describe("loadRuns(): every run record in the lake, read through bench-lake, wit
     expect(loaded.documents.get(`${RREF}/run.json`)).toBe(j({}));
   });
 
+  it("an invalid run's documents are not kept for the record routes: the app serves nothing of it", () => {
+    expect([...loaded.documents.keys()].filter((k) => k.startsWith(`${at(R2)}/`))).toEqual([]);
+    expect(loaded.documents.has(`${at(R1)}/run.json`)).toBe(true);
+  });
+
   it("bench-lake failing: loadRuns fails with its message, and nothing is made up", async () => {
     await expect(loadRuns({ ...cfg, benchLake: join(SCRATCH, "no-such-bench-lake") })).rejects.toThrow(/ENOENT/);
     const failing = join(bin, "failing-bench-lake");

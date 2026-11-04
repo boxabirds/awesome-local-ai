@@ -151,7 +151,10 @@ export async function loadRuns(cfg: LakeConfig): Promise<{ records: RunRecord[];
       stories: pairs.map(([id, s]) => storyEntry(id, scoringSuite ? acceptUnderScoringSuite(s, json<RawAccept>(blobs.get(`${r.dir}/rescore/${scoringSuite}/stories/${id.padStart(2, "0")}/accept-summary.json`))) : s, notComparableOf(decided, id))),
       scores, ...runNotes(blobs, r.dir), invalid: invalidOf(decided?.invalid), finalize, knownGood: isKnownGood(metrics) };
   });
-  return { records, suites, documents: blobs };
+  // An invalid run is not in the app at all: its record is not served at its address either.
+  const spoiled = [...decisions].filter(([, d]) => d?.invalid).map(([id]) => `${id}/`);
+  const documents = new Map([...blobs].filter(([path]) => !spoiled.some((dir) => path.startsWith(dir))));
+  return { records, suites, documents };
 }
 
 /** `dbench status --json`: jobs per node. */
