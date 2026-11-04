@@ -2,7 +2,9 @@
 """The monitor's detector: one cheap, read-only pass over the benchmark's own signals. No LLM.
 
 Each tick it reads the benchmarker's fault feed and state (127.0.0.1:7760), `dbench` status across the nodes, the
-records that changed on origin/main, and (for a Mac that serves a model) the server's memory. Whatever
+run records that changed in the lake (through `bench-lake records`; never git), the commits on origin/main (source
+code: another author, a test's fixture path, a harness that no longer imports), and (for a Mac that serves a model)
+the server's memory. Whatever
 is new since the last tick is appended to ops/monitor-log.jsonl, one JSON object per line; ops/monitor-status.json
 is rewritten every tick; the owner gets one macOS notification per change of state. Judging a detection (which
 bucket, what to fix) is not done here: triage.py hands the new lines to Claude and ops/anomaly-tracking.md gets the
@@ -39,6 +41,13 @@ STATE = STATE_DIR / "detector.json"
 # What ops/backup/backup.py writes after every run (the private bench repository's state folder); BENCH_BACKUP_STATUS overrides it.
 BACKUP_STATUS = Path(os.environ.get("BENCH_BACKUP_STATUS") or Path.home() / "expts" / "awesome-local-ai-bench-private" / "state" / "backups" / "status.json")
 SECONDS_PER_DAY = 86400
+# The lake's state folder (collected/ and reference/) and the command that reads it; BENCH_LAKE_STATE and BENCH_LAKE
+# override them.
+LAKE_STATE = Path(os.environ.get("BENCH_LAKE_STATE") or Path.home() / "expts" / "awesome-local-ai-bench-private" / "state")
+BENCH_LAKE = Path(os.environ.get("BENCH_LAKE") or REPO / "tools" / "target" / "release" / "bench-lake")
+# The documents record_detections reads; a run is read again when any of them changes.
+WATCHED_RECORDS = ("metrics.json", "finalize.json", "run-status.json")
+UNREADABLE_CODE = "E-LAKE-UNREADABLE"
 TRIAGE_STATE = STATE_DIR / "triage.json"     # written by triage.py
 MEMORY_LOG = STATE_DIR / "memory.jsonl"
 
@@ -484,21 +493,6 @@ def fetch_json(path: str):
         return json.loads(r.read())
 
 
-def git_json(path: str):
-    rc, out, _ = sh(["git", "show", f"origin/main:{path}"])
-    if rc != 0:
-        return None
-    try:
-        return json.loads(out)
-    except ValueError:
-        return None
-
-
-def run_dir_of(path: str) -> str | None:
-    m = re.match(r"^(combinations/.*?/benchmarks/[^/]+/[^/]+)/", path) or re.match(r"^(benchmarks/reference/[^/]+/[^/]+/[^/]+)/", path)
-    return m.group(1) if m else None
-
-
 def collect_repo(st: dict, dets: list[dict]) -> None:
     rc, _, err = sh(["git", "fetch", "-q", "origin", "main"], 120)
     if rc != 0:
@@ -519,11 +513,50 @@ def collect_repo(st: dict, dets: list[dict]) -> None:
                           f"uv run -q python -c 'import drive' 2>&1 | tail -3", 300)
         if rc != 0 or "Error" in out or "Traceback" in out:
             dets.append(det("harness_import_fails", f"harness_import_fails:{head[:8]}", (out or err)[-300:], urgent=True))
-    for d in sorted({run_dir_of(f) for f in files} - {None}):
-        metrics = git_json(f"{d}/metrics.json")
+
+
+def _json_or_none(text: str | None):
+    try:
+        return json.loads(text) if text is not None else None
+    except ValueError:
+        return None
+
+
+def collect_lake(st: dict, dets: list[dict]) -> None:
+    """The runs whose records changed in the lake since the last tick, read through bench-lake (story 23): each run's
+    watched records get a content id, and a run is read when its id is new. The first sight is the baseline. A lake
+    bench-lake cannot answer for, a folder it cannot list or a record it cannot read is a detection; the tick goes on."""
+    rc, out, err = sh([str(BENCH_LAKE), str(LAKE_STATE), "records"], 120)
+    try:
+        answer = json.loads(out) if rc == 0 else None
+    except ValueError:
+        answer = None
+    hour = int(time.time() // 3600)
+    if answer is None:
+        dets.append(det("lake_unreadable", f"lake_unreadable:bench-lake:{hour}",
+                        f"bench-lake {BENCH_LAKE} exited {rc}: {(err or out).strip()[:200]}"))
+        return
+    for root in answer.get("missing_roots") or []:
+        dets.append(det("lake_unreadable", f"lake_unreadable:{root}:{hour}", f"the lake's {root} folder is missing"))
+    for r in answer.get("rejected") or []:
+        if r.get("code") == UNREADABLE_CODE:
+            dets.append(det("lake_unreadable", f"lake_unreadable:{r.get('path')}", f"cannot list {r.get('path')}"))
+    prev = st.get("lake")
+    ids: dict[str, str] = {}
+    for run in answer.get("runs") or []:
+        files = run.get("files") or {}
+        for name in run.get("unreadable") or []:
+            dets.append(det("lake_unreadable", f"lake_unreadable:{run['dir']}/{name}", f"cannot read {run['dir']}/{name}"))
+        watched = {name: files.get(name) for name in WATCHED_RECORDS}
+        ids[run["id"]] = hashlib.sha256(json.dumps(watched, sort_keys=True).encode()).hexdigest()
+        if prev is None or prev.get(run["id"]) == ids[run["id"]]:
+            continue
+        metrics = _json_or_none(watched["metrics.json"])
         if metrics is None:
             continue
-        dets += record_detections(d, metrics, git_json(f"{d}/finalize.json"), git_json(f"{d}/run-status.json") or {})
+        dets += record_detections(run["id"], metrics, _json_or_none(watched["finalize.json"]),
+                                  _json_or_none(watched["run-status.json"]) or {})
+    st["lake"] = ids
 
 
 MEMORY_SCRIPT = f"""P=$(pgrep -x mlx-serve | head -1)
@@ -590,6 +623,7 @@ def tick(now: float, dry_run: bool = False) -> dict:
     except Exception as e:                       # noqa: BLE001 — any failure to read the feed is the detection
         dets.append(det("benchmarker_unreachable", f"benchmarker_unreachable:{int(now // 3600)}", str(e)[:200]))
     collect_repo(st, dets)
+    collect_lake(st, dets)
     dets += backup_detections(read_backup_status(), now)
     seen = st.setdefault("seen", {})
     fresh = new_only(dets, seen, now)

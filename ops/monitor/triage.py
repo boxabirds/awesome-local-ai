@@ -21,6 +21,8 @@ import sys
 import time
 from pathlib import Path
 
+from monitor import BENCH_LAKE, LAKE_STATE
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 OPS = REPO / "ops"
@@ -45,11 +47,18 @@ USAGE_LIMIT = re.compile(
 
 ALLOWED_TOOLS = ",".join([
     "Read", "Grep", "Glob", f"Edit({TRACKING})",
-    "Bash(git fetch -q origin main)", "Bash(git show *)", "Bash(git log *)", "Bash(git diff *)",
+    # Run records are read from the lake through bench-lake (story 23); git only for the source code's history.
+    f"Bash({BENCH_LAKE} *)", "Bash(git log *)", "Bash(git diff *)",
     "Bash(dbench status*)", "Bash(dbench --json status*)", "Bash(dbench nodes*)", "Bash(dbench logs *)",
     "Bash(dbench events *)", "Bash(curl -s localhost:7760/api/*)", "Bash(curl -s 127.0.0.1:7760/api/*)",
     "Bash(date*)",
 ])
+
+
+def prompt_text(count: int) -> str:
+    """The prompt, with the pending file, the count, and the bench-lake command and lake filled in."""
+    return (PROMPT.read_text().replace("{PENDING}", str(PENDING.relative_to(REPO))).replace("{COUNT}", str(count))
+            .replace("{BENCH_LAKE}", str(BENCH_LAKE)).replace("{LAKE_STATE}", str(LAKE_STATE)))
 
 
 def classify(exit_code: int, stdout: str, stderr: str) -> tuple[str, str]:
@@ -130,7 +139,7 @@ def main(argv: list[str]) -> int:
         return 0
     batch = todo[:MAX_PENDING]
     PENDING.write_text("".join(json.dumps(d) + "\n" for d in batch))
-    prompt = PROMPT.read_text().replace("{PENDING}", str(PENDING.relative_to(REPO))).replace("{COUNT}", str(len(batch)))
+    prompt = prompt_text(len(batch))
     cmd = ["claude", "-p", prompt, "--output-format", "json", "--allowedTools", ALLOWED_TOOLS,
            "--permission-mode", "dontAsk", "--max-budget-usd", MAX_BUDGET_USD, "--no-session-persistence"]
     try:

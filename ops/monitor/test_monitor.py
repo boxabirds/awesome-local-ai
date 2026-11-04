@@ -489,7 +489,7 @@ def test_the_detail_names_no_machine_and_no_home_directory_after_the_ticks_redac
     assert "node-a" not in text and "/srv/backup" not in text
 
 
-# ---- real git repositories: the commit detector, git_json, collect_repo, triage.commit_and_push ------------------------
+# ---- real git repositories: the commit detector, collect_repo, triage.commit_and_push ------------------------
 
 OWNER = "The Owner"
 RUN_DIR = "combinations/x/benchmarks/vidi/r1"
@@ -548,15 +548,6 @@ def test_two_fixture_paths_in_one_commit_are_one_detection():
     assert dets[0]["detail"] == "aaaaaaa1 adds combinations/kat/a/benchmarks/kat/r1/metrics.json"
 
 
-def test_git_json_reads_a_file_of_origin_main_and_gives_none_when_missing_or_not_json(tmp_path, monkeypatch):
-    repo = make_clone(tmp_path)
-    commit_files(repo, {"good.json": '{"a": 1}', "bad.json": "not json"}, "records")
-    in_repo(monkeypatch, repo)
-    assert monitor.git_json("good.json") == {"a": 1}
-    assert monitor.git_json("bad.json") is None
-    assert monitor.git_json("absent.json") is None
-
-
 def test_collect_repo_reports_a_failed_fetch_and_stops(tmp_path, monkeypatch):
     repo = tmp_path / "repo"
     git(tmp_path, "init", "-q", str(repo))               # no origin to fetch from
@@ -592,15 +583,14 @@ def test_collect_repo_a_change_outside_the_harness_and_the_records_checks_nothin
     assert not (tmp_path / "state" / "export").exists()  # no import check for a non-harness change
 
 
-def test_collect_repo_checks_a_harness_change_imports_and_reads_the_changed_runs(tmp_path, monkeypatch):
+def test_collect_repo_checks_a_harness_change_imports_and_reads_no_run_record(tmp_path, monkeypatch):
     repo = make_clone(tmp_path)
     before = git(repo, "rev-parse", "HEAD").strip()
     harness = "benchmarks/spec-bench/harness/drive.py"
     commit_files(repo, {harness: "VALUE = 1\n",
                         f"{RUN_DIR}/metrics.json": json.dumps({"stories": {}}),
                         f"{RUN_DIR}/finalize.json": json.dumps({"rescore": "failed", "attempts": 2, "reason_kind": "tool",
-                                                                 "needs_person": True, "reason": "no uv"}),
-                        "combinations/x/benchmarks/vidi/r2/metrics.json": "not json"}, "story done")
+                                                                 "needs_person": True, "reason": "no uv"})}, "story done")
     after = git(repo, "rev-parse", "HEAD").strip()
     fake_uv(tmp_path, monkeypatch, f'shift 3\nexec "{sys.executable}" "$@"')
     monkeypatch.setattr(monitor, "STATE_DIR", tmp_path / "state")
@@ -608,8 +598,7 @@ def test_collect_repo_checks_a_harness_change_imports_and_reads_the_changed_runs
     st, dets = {"head": before}, []
     monitor.collect_repo(st, dets)
     assert st["head"] == after
-    assert [d["kind"] for d in dets] == ["run_not_scored"]       # the import worked; r2's unreadable metrics are skipped
-    assert dets[0]["id"] == f"run_not_scored:{RUN_DIR}:failed:2" and dets[0]["urgent"] is True
+    assert dets == []          # the import worked; run records are the lake's (collect_lake), not read from git here
     assert (tmp_path / "state" / "export" / "benchmarks/spec-bench/harness/drive.py").is_file()
 
 
@@ -624,6 +613,128 @@ def test_collect_repo_flags_a_harness_that_no_longer_imports(tmp_path, monkeypat
     monitor.collect_repo(st, dets)
     assert [d["kind"] for d in dets] == ["harness_import_fails"] and dets[0]["urgent"] is True
     assert dets[0]["id"] == f"harness_import_fails:{after[:8]}" and "broken" in dets[0]["detail"]
+
+
+# ---- the lake, through the real bench-lake: collect_lake (story 23, readers.monitor) ---------------------------------
+
+BENCH_LAKE = Path(os.environ.get("BENCH_LAKE") or Path(__file__).resolve().parents[2] / "tools/target/debug/bench-lake")
+LAKE_RUN = "combinations/fam/1.0/27b/ubuntu/box/llamacpp-pi/benchmarks/vidi/r1"
+LAKE_RUN2 = "combinations/fam/1.0/27b/ubuntu/box/llamacpp-pi/benchmarks/vidi/r2"
+UNSCORED = {"rescore": "failed", "attempts": 2, "reason_kind": "tool", "needs_person": True, "reason": "no uv"}
+MODE_NONE = 0o000
+MODE_DIR = 0o755
+
+
+def lake_run(state: Path, run: str, files: dict[str, object], node: str = "node-a") -> Path:
+    d = state / "collected" / node / run
+    d.mkdir(parents=True, exist_ok=True)
+    for name, value in files.items():
+        (d / name).write_text(value if isinstance(value, str) else json.dumps(value))
+    return d
+
+
+@pytest.fixture
+def lake(tmp_path, monkeypatch):
+    """A lake with one run, the real bench-lake, and a git first on the PATH that fails if anything runs it."""
+    if not BENCH_LAKE.is_file():
+        pytest.fail(f"no bench-lake at {BENCH_LAKE}: build it (cargo build -p bench-lake in tools/) or set BENCH_LAKE")
+    state = tmp_path / "state"
+    (state / "reference").mkdir(parents=True)
+    lake_run(state, LAKE_RUN, {"run.json": {}, "metrics.json": {"stories": {}}, "run-status.json": {"state": "running"}})
+    spy = tmp_path / "spy-bin"
+    spy.mkdir()
+    (spy / "git").write_text(f"#!/bin/sh\necho \"$@\" >> '{tmp_path / 'git-calls'}'\nexit 99\n")
+    (spy / "git").chmod(MODE_DIR)
+    monkeypatch.setenv("PATH", f"{spy}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(monitor, "BENCH_LAKE", BENCH_LAKE)
+    monkeypatch.setattr(monitor, "LAKE_STATE", state)
+    return state
+
+
+def test_tc60_a_record_new_in_the_lake_is_reported_in_the_next_cycle_and_not_again(lake, tmp_path):
+    st: dict = {}
+    dets: list[dict] = []
+    monitor.collect_lake(st, dets)
+    assert dets == [] and set(st["lake"]) == {LAKE_RUN}            # the first sight is the baseline
+    lake_run(lake, LAKE_RUN2, {"run.json": {}, "metrics.json": {"stories": {}}, "finalize.json": UNSCORED})
+    monitor.collect_lake(st, dets)
+    assert [d["id"] for d in dets] == [f"run_not_scored:{LAKE_RUN2}:failed:2"] and dets[0]["urgent"] is True
+    assert set(st["lake"]) == {LAKE_RUN, LAKE_RUN2}
+    third: list[dict] = []
+    monitor.collect_lake(st, third)
+    assert third == []
+    assert not (tmp_path / "git-calls").exists()                    # TC-61: no git, in any cycle
+
+
+def test_a_changed_record_is_read_again_and_an_unchanged_one_with_a_new_mtime_is_not(lake):
+    st: dict = {}
+    monitor.collect_lake(st, [])
+    metrics = lake / "collected/node-a" / LAKE_RUN / "metrics.json"
+    os.utime(metrics, (NOW, NOW))                                   # same bytes, another time: not a change
+    dets: list[dict] = []
+    monitor.collect_lake(st, dets)
+    assert dets == []
+    (lake / "collected/node-a" / LAKE_RUN / "run-status.json").write_text(json.dumps({"state": "failed", "reason": "oom", "at": "t1"}))
+    monitor.collect_lake(st, dets)
+    assert [d["id"] for d in dets] == [f"run_ended_early:{LAKE_RUN}:t1"]
+
+
+def test_a_run_whose_metrics_do_not_parse_is_skipped_as_before(lake):
+    st: dict = {}
+    monitor.collect_lake(st, [])
+    lake_run(lake, LAKE_RUN2, {"run.json": {}, "metrics.json": "not json", "finalize.json": UNSCORED})
+    dets: list[dict] = []
+    monitor.collect_lake(st, dets)
+    assert dets == []
+
+
+def test_tc62_a_lake_folder_that_cannot_be_read_is_one_log_entry_and_the_cycle_goes_on(lake):
+    if os.geteuid() == 0:
+        pytest.skip("the super-user reads any folder")
+    st: dict = {}
+    monitor.collect_lake(st, [])
+    locked = lake / "collected/node-a/combinations/fam/1.0/27b/ubuntu/box/llamacpp-pi/benchmarks/other"
+    (locked / "r9").mkdir(parents=True)
+    locked.chmod(MODE_NONE)
+    lake_run(lake, LAKE_RUN2, {"run.json": {}, "metrics.json": {"stories": {}}, "finalize.json": UNSCORED})
+    dets: list[dict] = []
+    try:
+        monitor.collect_lake(st, dets)
+    finally:
+        locked.chmod(MODE_DIR)
+    assert kinds(dets) == ["lake_unreadable", "run_not_scored"]
+    unreadable = next(d for d in dets if d["kind"] == "lake_unreadable")
+    assert "collected/node-a/combinations/fam/1.0/27b/ubuntu/box/llamacpp-pi/benchmarks/other" in unreadable["detail"]
+    assert unreadable["urgent"] is False
+
+
+def test_a_missing_lake_root_is_reported(lake):
+    (lake / "reference").rmdir()
+    dets: list[dict] = []
+    monitor.collect_lake({}, dets)
+    assert [d["detail"] for d in dets] == ["the lake's reference folder is missing"]
+
+
+def test_bench_lake_failing_is_one_log_entry_and_the_last_state_is_kept(lake, tmp_path, monkeypatch):
+    st: dict = {}
+    monitor.collect_lake(st, [])
+    before = copy.deepcopy(st)
+    monkeypatch.setattr(monitor, "BENCH_LAKE", tmp_path / "no-such-bench-lake")
+    dets: list[dict] = []
+    monitor.collect_lake(st, dets)
+    assert kinds(dets) == ["lake_unreadable"] and "no-such-bench-lake" in dets[0]["detail"]
+    assert st == before
+
+
+def test_triage_reads_run_records_through_bench_lake_never_from_git():
+    tools = triage.ALLOWED_TOOLS.split(",")
+    assert not [t for t in tools if t.startswith("Bash(git fetch") or t.startswith("Bash(git show")]
+    assert f"Bash({monitor.BENCH_LAKE} *)" in tools
+    assert {"Bash(git log *)", "Bash(git diff *)"} <= set(tools)      # the source code's history stays readable
+    prompt = triage.prompt_text(3)
+    assert "git show origin/main" not in prompt and "git fetch" not in prompt
+    assert f"{monitor.BENCH_LAKE} {monitor.LAKE_STATE} record <run> metrics" in prompt
+    assert "{" not in prompt.replace("{}", "")                        # every placeholder filled
 
 
 # ---- triage.commit_and_push -----------------------------------------------------------------------------------------
