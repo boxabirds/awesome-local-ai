@@ -11,6 +11,9 @@ existed once, on one disk.
   may clear a run's folder, so the lake is often the only full copy.
 - **The warehouse and analytics databases** (`insights/`) are built from the lake and the public records. The benchmarker's
   conversation pages and our analyses read them. They can be rebuilt, slowly, except for anything made in them by hand (labels, reviews).
+- **The operator's decisions about runs** (`annotations/`, story 23): which runs are invalid or archived, and which stories are not
+  comparable. One append-only log, written by `bench-lake annotate`; since 4 Nov 2026 it is the only place they are kept, and they cannot
+  be rebuilt from anything else. Backed up once the folder exists.
 - **Recordings, judging, annotate and keys** are the rest of that folder.
 
 This job copies all of it, every day, to two places: a repository on this Mac and one on another machine (the RTX 4090 box, over ssh), so

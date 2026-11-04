@@ -59,6 +59,9 @@ If the databases are lost but the lake (`state/collected/`) and the public repos
 (`dbench ingest`, see `ops/RUNBOOK-lake-warehouse.md`), though that is slow and anything hand-made in them (labels, reviews) is not
 rebuildable. Analytics is rebuilt with `dbench analyse`.
 
+The operator's decisions (`state/annotations/log.jsonl`) cannot be rebuilt: restore the folder as it was. Check it reads with
+`bench-lake <state> annotations`, which fails, naming the line, if the log is damaged.
+
 ## After a total loss, in this order
 
 1. Install restic and put the password file back.

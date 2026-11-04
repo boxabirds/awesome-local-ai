@@ -80,6 +80,25 @@ def test_a_machine_that_has_no_reference_folder_yet_is_still_backed_up_without_i
         assert str(cfg.state / "reference") not in b and str(cfg.state / "collected") in b
 
 
+def test_the_operators_decisions_about_runs_are_in_every_backup(tmp_path):
+    # Story 23 (4 Nov 2026): the decisions (invalid, archived, not comparable) live in state/annotations, with no other
+    # copy once git stops carrying them. bench-lake creates the folder with the first decision.
+    cfg, fake = config(tmp_path), FakeRestic({})
+    (cfg.state / "annotations").mkdir()
+    backup.run(cfg, fake, now=NOW)
+    for repo in cfg.repos:
+        b = next(c for c in fake.calls if c[c.index("-r") + 1] == repo and "backup" in c)
+        assert str(cfg.state / "annotations") in b
+
+
+def test_a_machine_with_no_decisions_yet_is_still_backed_up_without_the_folder(tmp_path):
+    cfg, fake = config(tmp_path), FakeRestic({})
+    backup.run(cfg, fake, now=NOW)
+    for repo in cfg.repos:
+        b = next(c for c in fake.calls if c[c.index("-r") + 1] == repo and "backup" in c)
+        assert str(cfg.state / "annotations") not in b and str(cfg.state / "collected") in b
+
+
 def test_old_snapshots_are_forgotten_by_policy_after_each_backup(tmp_path):
     cfg, fake = config(tmp_path), FakeRestic({})
     backup.run(cfg, fake, now=NOW)
