@@ -25,7 +25,6 @@ import time
 from collections import deque
 from pathlib import Path
 
-import heldout
 
 TASK_ROW_RE = re.compile(r"^\|\s*(\d+)\s*\|\s*(.+?)\s*\|\s*[^|]*\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|\s*$")
 TASK_HEAD_RE = re.compile(r"^###\s+(\d+)\.")
@@ -33,6 +32,7 @@ TC_RE = re.compile(r"TC-(\d+)")
 TC_RANGE_RE = re.compile(r"TC-(\d+)\s*(?:to|–|-|\.\.)\s*TC-(\d+)")
 TASK_MENTION_RE = re.compile(r"\btasks?\s+(\d+(?:\s*(?:,|and|&|-|–|to)\s*\d+)*)", re.I)
 STATUS_ORDER = ["not-started", "written", "committed", "verified"]
+VERIFIED = STATUS_ORDER[-1]
 IMPLEMENTATION = "implementation"
 # Which gate step proves a test task of each type.
 GATE_STEP_FOR_TYPE = {"test:unit": "test:unit", "test:ui-component": "test:component",
@@ -198,85 +198,6 @@ class EventTally:
                     self.recent.append(c)
         return {"calls": self.st["steps"], "output_tokens": self.st["tokens"]["output"],
                 "compactions": self.st["compactions"], "recent_activity": list(self.recent)}
-
-
-def _story_minutes(s: dict) -> float | None:
-    if "agent_minutes" in s:
-        return s["agent_minutes"]
-    if s.get("agent", {}).get("seconds") is not None:
-        return round(s["agent"]["seconds"] / 60, 1)
-    return None
-
-
-def _void(acc: dict) -> bool:
-    """A held-out score the machine couldn't produce (gates.harness_fault), e.g. no browser. From the result
-    itself where its detail is at hand, else from its public summary's harness_fault."""
-    import gates
-    return bool(acc.get("harness_fault") or gates.harness_fault(acc.get("tests", []), acc.get("runner_tail", "")))
-
-
-def baselines(repo_root: Path, story_id: int, exclude: Path) -> list[dict]:
-    """The same story in every other recorded run: other harness runs and the reference builds."""
-    out = []
-    runs = [*(repo_root / "combinations").glob("**/benchmarks/vidi/*/metrics.json"),
-            *(repo_root / "benchmarks" / "reference" / "vidi").glob("*/run-*/metrics.json")]
-    for mf in sorted(runs):
-        if mf.parent.resolve() == exclude.resolve():
-            continue
-        try:
-            m = json.loads(mf.read_text())
-        except (OSError, json.JSONDecodeError):
-            continue
-        if m.get("known_good"):
-            continue  # diagnostic, built on another run's code: never a baseline for full runs
-        s = m.get("stories", {}).get(str(story_id))
-        if not s or not s.get("finished"):
-            continue
-        status = next((p["status"] for p in m.get("processed", []) if p["id"] == story_id), "DONE")
-        own = (s.get("accept") or {}).get("by_story", {}).get(f"{story_id:02d}")
-        if own is None:
-            # A reference build is scored once at the end, all stories built (not at each story's end).
-            own = (heldout.accept_or_summary(mf.parent, "accept.json") or {}).get("by_story", {}).get(f"{story_id:02d}")
-        story_accept = heldout.accept_or_summary(mf.parent, f"stories/{story_id:02d}/accept.json")
-        if own is not None and story_accept is not None and _void(story_accept):
-            own = None  # scored without a working browser: says nothing about the build
-        rel = mf.parent.relative_to(repo_root)
-        label = (" ".join([str(Path(*rel.parts[1:-3])), rel.parts[-1]]) if rel.parts[0] == "combinations"
-                 else " ".join(["reference", *rel.parts[3:]]))  # reference <stack> <run-id>
-        # Reference builds have no harness gate; their agents' own build and tests passed (README).
-        gate_green = (s.get("gate") or {}).get("all_green", True if rel.parts[0] != "combinations" else None)
-        out.append({"source": label, "status": status, "gate_green": gate_green, "agent_minutes": _story_minutes(s),
-                    "calls": s.get("agent", {}).get("steps") or s.get("api_calls"),
-                    "output_tokens": (s.get("agent", {}).get("tokens") or {}).get("output") or s.get("output_tokens"),
-                    "accept": own})
-    return out
-
-
-def base_health(gate: dict, table: list[dict], own_accept: dict | None, base: list[dict]) -> dict:
-    """The verdict on a PARTIAL story: can later stories build on it? Never stops the run.
-
-    green: gate green, every task that isn't verified is a test task, and the story's own held-out
-           tests do no worse than the worst healthy baseline for the story: DONE with a green gate
-           (all must pass if there is none).
-    amber: gate green, but an implementation task isn't verified or the held-out tests fall short.
-    red:   the gate is red."""
-    unverified = [r for r in table if r["status"] != "verified"]
-    impl_gap = [r["n"] for r in unverified if r["type"] == IMPLEMENTATION]
-    rates = [b["accept"]["passed"] / b["accept"]["total"] for b in base
-             if b["status"] == "DONE" and b.get("gate_green") and b.get("accept") and b["accept"].get("total")]
-    floor = min(rates) if rates else 1.0
-    own = own_accept or {}
-    rate = own["passed"] / own["total"] if own.get("total") else None
-    heldout_ok = rate is None or rate >= floor
-    if not gate.get("all_green"):
-        verdict = "red"
-    elif impl_gap or not heldout_ok:
-        verdict = "amber"
-    else:
-        verdict = "green"
-    return {"verdict": verdict, "gate_green": bool(gate.get("all_green")),
-            "unverified_tasks": [r["n"] for r in unverified], "unverified_implementation_tasks": impl_gap,
-            "heldout": own or None, "heldout_floor": round(floor, 3), "heldout_ok": heldout_ok}
 
 
 def stub_markers(ws: Path, base: str) -> list[str]:

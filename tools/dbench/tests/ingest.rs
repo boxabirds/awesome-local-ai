@@ -1632,3 +1632,45 @@ fn a_log_gone_before_it_is_read_is_no_rows_and_one_that_cannot_be_read_is_an_err
     assert_eq!((counts, consumed, source.as_str()), (vec![0, 0, 0, 0, 0], 0, "none"));
     std::fs::remove_dir_all(&root).unwrap();
 }
+
+#[test]
+fn a_story_the_operator_ended_gets_a_queryable_verdict_judged_against_the_runs_that_finished_it_before() {
+    let root = std::env::temp_dir().join(format!("dbench-ingest-verdict-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let (store, checkout, db_path) = (root.join("state/collected"), root.join("checkout"), root.join("conversations.db"));
+    std::fs::create_dir_all(&checkout).unwrap();
+    const ENDED: f64 = 1_790_000_200.0;
+    const EARLIER: f64 = 1_790_000_100.0;
+    const LATER: f64 = 1_790_000_300.0;
+    let base = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi";
+    let put = |run: &str, story: serde_json::Value| {
+        let dir = store.join("gruntus").join(base).join(run);
+        std::fs::create_dir_all(dir.join("stories/01")).unwrap();
+        std::fs::write(dir.join("stories/01/agent-events.compact.jsonl.gz"), gzip(&fixture("accounting__claude-slept"))).unwrap();
+        std::fs::write(dir.join("collection.json"), r#"{"node": "gruntus", "complete": true, "files": {}}"#).unwrap();
+        std::fs::write(dir.join("metrics.json"), serde_json::json!({"stories": {"1": story}}).to_string()).unwrap();
+    };
+    let done = |finished: f64, passed: i64| serde_json::json!({"finished": finished, "gate": {"all_green": true},
+        "accept": {"by_story": {"01": {"passed": passed, "total": 4}}}});
+    put("v2-r1", done(EARLIER, 2)); // the floor: 2 of 4
+    put("v2-r3", done(LATER, 0)); // finished after: not a baseline
+    put("v2-r2", serde_json::json!({"skip": {"by": "owner"}, "finished": ENDED, "gate": {"all_green": true},
+        "tasks": [{"n": 1, "type": "implementation", "status": "verified"}],
+        "accept": {"by_story": {"01": {"passed": 1, "total": 4}}}}));
+    let db = || Db::open_read_only(&db_path).unwrap();
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_dbench"))
+        .args(["ingest", "--db", db_path.to_str().unwrap(), "--repo", checkout.to_str().unwrap(), "--store", store.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let rows: Vec<(String, String, f64, i64, i64)> = db()
+        .conn
+        .prepare("select s.rel, v.verdict, v.heldout_floor, v.heldout_ok, v.baselines from verdicts v join stories s on s.sk = v.sk")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(rows, vec![(format!("{base}/v2-r2/stories/01"), "amber".to_string(), 0.5, 0, 1)], "only the ended story, judged against v2-r1 alone");
+    std::fs::remove_dir_all(&root).unwrap();
+}

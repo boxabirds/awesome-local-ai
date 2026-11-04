@@ -723,22 +723,6 @@ def test_E8_judge_prep_and_annotate_take_the_results_from_the_private_copy(tmp_p
     assert [f["title"] for f in attempt["behaviour"]["failed"]] == [f"{OTHER} {ANCHOR}"]
 
 
-def test_E9_baselines_use_the_summaries_and_their_harness_fault(tmp_path):
-    import progress
-    runs = tmp_path / "combinations/some/stack/benchmarks/vidi"
-    story = {"3": {"finished": 1, "accept": {"by_story": {"03": {"passed": 0, "total": 7}}}}}
-    write(runs / "void/metrics.json", {"stories": story})
-    write(runs / "void/stories/03/accept-summary.json", {"harness_fault": "missing resources: no browser"})
-    write(runs / "fine/metrics.json", {"stories": story})
-    write(runs / "fine/stories/03/accept-summary.json", {"harness_fault": None, "passed": 0, "total": 7})
-    ref = tmp_path / "benchmarks/reference/vidi/opus-5.5/run-1"
-    write(ref / "metrics.json", {"stories": {"3": {"finished": 1}}})
-    write(ref / "accept-summary.json", {"by_story": {"03": {"passed": 7, "total": 7}}})
-    got = {b["source"]: b["accept"] for b in progress.baselines(tmp_path, 3, tmp_path / "elsewhere")}
-    assert got == {"some/stack fine": {"passed": 0, "total": 7}, "some/stack void": None,
-                   "reference opus-5.5 run-1": {"passed": 7, "total": 7}}
-
-
 # ---------- F. every writer of results goes through the same path ----------
 
 def test_F1_a_rescore_writes_each_result_with_its_summary(tmp_path, monkeypatch):

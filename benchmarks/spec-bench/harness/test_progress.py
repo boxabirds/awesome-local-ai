@@ -107,32 +107,6 @@ def _table(statuses: dict[int, str]) -> list[dict]:
             for t in progress.parse_tasks(STORY3)]
 
 
-def test_verdict_green_when_only_test_tasks_are_open():
-    h = progress.base_health({"all_green": True}, _table({8: "written", 9: "committed"}),
-                             {"passed": 5, "total": 7},
-                             [{"status": "DONE", "gate_green": True, "accept": {"passed": 5, "total": 7}},
-                              {"status": "DONE", "gate_green": True, "accept": {"passed": 6, "total": 7}},
-                              # An unhealthy completion (red gate) doesn't lower the bar.
-                              {"status": "DONE", "gate_green": False, "accept": {"passed": 0, "total": 7}}])
-    assert h["verdict"] == "green" and h["unverified_tasks"] == [8, 9]
-
-
-def test_verdict_amber_when_an_implementation_task_is_open_or_heldout_falls_short():
-    assert progress.base_health({"all_green": True}, _table({3: "committed"}), {"passed": 7, "total": 7},
-                                [])["verdict"] == "amber"
-    assert progress.base_health({"all_green": True}, _table({}), {"passed": 3, "total": 7},
-                                [{"status": "DONE", "gate_green": True, "accept": {"passed": 5, "total": 7}}])["verdict"] == "amber"
-    # No baseline: every own held-out test must pass.
-    assert progress.base_health({"all_green": True}, _table({}), {"passed": 6, "total": 7}, [])["verdict"] == "amber"
-    assert progress.base_health({"all_green": True}, _table({}), {"passed": 3, "total": 7},
-                                [{"status": "DONE", "gate_green": False, "accept": {"passed": 0, "total": 7}}]
-                                )["verdict"] == "amber"
-
-
-def test_verdict_red_when_the_gate_is_red():
-    assert progress.base_health({"all_green": False}, _table({}), {"passed": 7, "total": 7}, [])["verdict"] == "red"
-
-
 def test_prompt_is_unchanged_while_every_story_is_done():
     story = {"id": 3, "dir": "003-see-other-people-s-edits-appear-live-on-the-same-b"}
     scope = {"out_of_scope_note": "NOTE"}
@@ -288,50 +262,6 @@ def test_gates_env_carries_story_status():
     assert gates.processed_env([{"id": 1, "status": DONE}, {"id": 3, "status": PARTIAL}]) == "1:DONE,3:PARTIAL"
     assert gates.processed_env([1, 2]) == "1:DONE,2:DONE"
     assert gates.parse_processed("1,3:PARTIAL") == [{"id": 1, "status": DONE}, {"id": 3, "status": PARTIAL}]
-
-
-def _write(p: Path, doc: dict) -> None:
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(doc))
-
-
-def test_baselines_find_every_reference_run_and_ignore_void_scores(tmp_path):
-    ref = tmp_path / "benchmarks" / "reference" / "vidi" / "opus-5.5"
-    # run-1: a subagent build, scored once at the end (accept.json next to metrics.json).
-    _write(ref / "run-1" / "metrics.json", {"stories": {"3": {"finished": 1, "api_calls": 70}}})
-    _write(ref / "run-1" / "accept.json", {"by_story": {"03": {"passed": 7, "total": 7}}})
-    # run-2: a harness run whose story 3 score is void (the browser was missing when it was scored).
-    _write(ref / "run-2" / "metrics.json", {"stories": {"3": {"finished": 1, "agent": {"steps": 68},
-                                            "accept": {"by_story": {"03": {"passed": 0, "total": 7}}}}}})
-    _write(ref / "run-2" / "stories" / "03" / "accept.json",
-           {"tests": [{"status": "failed", "error": "browserType.launch: Executable doesn't exist at x"}]})
-    got = {b["source"]: b["accept"] for b in progress.baselines(tmp_path, 3, tmp_path / "elsewhere")}
-    assert got == {"reference opus-5.5 run-1": {"passed": 7, "total": 7}, "reference opus-5.5 run-2": None}
-
-
-
-def test_baselines_leave_out_known_good_runs(tmp_path):
-    """EVALUATION-POLICY rule 7: a partial rerun started from someone else's code, so its story
-    says nothing about what a stack does in a full run."""
-    runs = tmp_path / "combinations" / "some" / "stack" / "benchmarks" / "vidi"
-    story = {"3": {"finished": 1, "accept": {"by_story": {"03": {"passed": 7, "total": 7}}}}}
-    _write(runs / "full-01" / "metrics.json", {"stories": story})
-    _write(runs / "kg-3" / "metrics.json", {"stories": story, "known_good": {"from_run": "x", "commit": "c", "story": 3}})
-    got = [b["source"] for b in progress.baselines(tmp_path, 3, tmp_path / "elsewhere")]
-    assert got == ["some/stack full-01"]
-
-def test_baselines_leave_out_the_run_itself_unreadable_records_and_stories_that_did_not_finish(tmp_path):
-    runs = tmp_path / "combinations" / "some" / "stack" / "benchmarks" / "vidi"
-    finished = {"3": {"finished": 1, "accept": {"by_story": {"03": {"passed": 7, "total": 7}}}}}
-    _write(runs / "a-this-run" / "metrics.json", {"stories": finished})       # the run being asked about
-    (runs / "b-corrupt").mkdir(parents=True)
-    (runs / "b-corrupt" / "metrics.json").write_text("{not json")
-    _write(runs / "c-unfinished" / "metrics.json", {"stories": {"3": {"finished": 0}}})
-    _write(runs / "d-other-story" / "metrics.json", {"stories": {"4": {"finished": 1}}})
-    _write(runs / "e-good" / "metrics.json", {"stories": finished, "processed": [{"id": 3, "status": "PARTIAL"}]})
-    got = progress.baselines(tmp_path, 3, runs / "a-this-run")
-    assert [(b["source"], b["status"], b["accept"]) for b in got] == [
-        ("some/stack e-good", "PARTIAL", {"passed": 7, "total": 7})]
 
 
 def test_evidence_survives_bytes_that_are_not_utf8(tmp_path):

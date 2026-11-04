@@ -55,7 +55,6 @@ RECORDING = {            # only with --record
     "record": (drive, "record_story"),
 }
 ENDED_BY_OPERATOR = {    # only for a story the operator ended, and the stories after it
-    "verdict": (progress, "base_health"),
     "stub markers": (progress, "stub_markers"),
     "held-out changes": (progress, "heldout_changes"),
 }

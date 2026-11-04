@@ -113,6 +113,13 @@ create table if not exists memory(
 create index if not exists mem_run on memory(run_id, at);
 
 -- What each story run was ingested from, and how far.
+-- The verdict on a story the operator ended early (story 23): can later stories build on it? Worked out at ingest from
+-- every run's records, against only the runs that finished the story before it ended; all rows are rewritten each pass.
+create table if not exists verdicts(
+  sk integer primary key, verdict text, gate_green integer, heldout_floor real, heldout_ok integer,
+  unverified_tasks text, unverified_implementation_tasks text, heldout_json text, baselines integer
+);
+
 create table if not exists collection(
   sk integer primary key, node text, collected_at real, complete integer,
   events_source text,                      -- full | compact | none

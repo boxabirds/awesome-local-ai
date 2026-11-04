@@ -317,7 +317,7 @@ def keep_pack(mp: pytest.MonkeyPatch) -> None:
 
 
 def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str = AGENT_SCRIPT,
-              extra_args: tuple[str, ...] = (), run: Path | None = None, baselines=lambda *a, **k: []) -> Path:
+              extra_args: tuple[str, ...] = (), run: Path | None = None) -> Path:
     """Both stories through drive.py's own main loop, with the scripted pi agent unless told otherwise. Returns the
     run directory (root/run unless one is given)."""
     client = client or ScriptedClient
@@ -335,7 +335,6 @@ def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str 
     no_sandbox(mp)                                                  # the sandbox is the real one's own tests'; this runs anywhere
     mp.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
     mp.setattr(drive, "ConditionSampler", QuietSampler)
-    mp.setattr(progress, "baselines", baselines)                   # other runs of this repo: not this test's
     mp.setattr(containment, "StoryContainment", _Uncontained)
     run = run or root / "run"
     mp.setattr(sys, "argv", ["drive.py", "--pack", PACK, "--run-dir", str(run), "--base-url", "http://127.0.0.1:9/v1",
@@ -640,7 +639,7 @@ HARNESS = Path(__file__).resolve().parent
 SPLIT_COMBINATION = "kat/combo"
 SPLIT_RUN_BASE = f"combinations/{SPLIT_COMBINATION}/benchmarks/{PACK}"
 SPLIT_RUN_ID_CHARS = 8
-# Another run's record in the results checkout, which the live progress shows as story 1's baseline.
+# Another run's record in the results checkout: the run must leave it alone.
 OTHER_RUN = "combinations/other/stack/benchmarks/vidi/r0"
 OTHER_RUN_METRICS = {"stories": {"1": {"finished": 2.0, "started": 1.0, "agent": {"seconds": 60, "steps": 7}}},
                      "processed": [{"id": 1, "status": "DONE"}]}
@@ -678,21 +677,13 @@ def split_roots_main(root: str, results: str, run_id: str) -> None:
     root = Path(root)
     refuse_unless_throwaway(root.resolve(), Path(results).resolve())
     run = roots.RESULTS_ROOT / SPLIT_RUN_BASE / run_id
-    seen: list = []
-    real_baselines = progress.baselines
-
-    def baselines(repo_root, story_id, exclude):
-        found = real_baselines(repo_root, story_id, exclude)
-        seen.append({"repo_root": str(repo_root), "story": story_id, "sources": [b["source"] for b in found]})
-        return found
-
     with pytest.MonkeyPatch.context() as mp:
         mp.setenv("SPEC_BENCH_PACK_NAME", PACK)                      # run.sh exports it for record_event
         run.mkdir(parents=True)
         (run / "run.json").write_text(json.dumps({"pack": PACK, "pack_version": PACK_REF}))    # as run.sh writes it
         mp.setattr(sys, "argv", ["record_event.py", str(run), "started", "by the self-test"])
         record_event.main()
-        drive_run(root, mp, extra_args=("--record",), run=run, baselines=baselines)
+        drive_run(root, mp, extra_args=("--record",), run=run)
         # The run's own finalize can't find a tool: the run ends unscored, and its record says it will be retried.
         with mp.context() as m:
             m.setattr(scoring_tools, "TOOLS", (*scoring_tools.TOOLS, MISSING_TOOL))
@@ -704,14 +695,14 @@ def split_roots_main(root: str, results: str, run_id: str) -> None:
         mp.setattr(finalize_pending, "busy", lambda: [])
         finalize_pending.main(["--record"])
     (root / SPLIT_OUT).write_text(json.dumps({
-        "results_root": str(drive.REPO_ROOT), "code_root": str(drive.CODE_ROOT), "baselines": seen,
+        "results_root": str(drive.REPO_ROOT), "code_root": str(drive.CODE_ROOT),
         "label": drive.combination_label(run)}))
 
 
 def test_the_story_loop_with_the_results_in_another_checkout(tmp_path):
     """A node runs the harness of a release from its own directory and keeps results in its checkout of main
     (dbench sets $SPEC_BENCH_RESULTS_ROOT). The run's directory, every record commit and push, the combination's
-    label, the other runs' baselines, finalize and its score all belong to the results checkout; the harness's
+    label, finalize and its score all belong to the results checkout; the harness's
     commit and release are those of the code."""
     remote = tmp_path / "remote.git"
     repo = tmp_path / "checkout"
@@ -760,9 +751,6 @@ def test_the_story_loop_with_the_results_in_another_checkout(tmp_path):
         # ...and each story names the harness that ran it: this code's commit and release (null in a checkout).
         p = m["stories"][sid]["provenance"]
         assert p["harness_commit"] == roots.harness_commit() and p["harness_release"] == roots.release_tag()
-    # Other runs' records are read from the checkout too.
-    first = next(b for b in seen["baselines"] if b["story"] == 1)
-    assert first["repo_root"] == str(repo) and first["sources"] == ["other/stack r0"]
 
 
 def test_the_split_run_refuses_to_record_anywhere_but_its_own_checkout(tmp_path):

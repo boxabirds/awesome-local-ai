@@ -42,7 +42,76 @@ fn under_published_root(rel: &str) -> bool {
 /// tree, and kept out of the lake, the warehouse and the analytics file. Only the marker stays, saying what it was.
 pub const ARCHIVED_MARKER: &str = "archived.json";
 /// Where archived runs are looked for: the published roots, and the reference models' runs, which are archived too.
-const ARCHIVE_ROOTS: [&str; 2] = ["combinations", "benchmarks/reference"];
+const ARCHIVE_ROOTS: [&str; 2] = ["combinations", REFERENCE_ROOT];
+/// Where the reference models' runs are, relative to the repository.
+const REFERENCE_ROOT: &str = "benchmarks/reference";
+/// The held-out results a verdict reads, and the summaries that stand in for them where the detail is not kept.
+const ACCEPT_FILE: &str = "accept.json";
+const ACCEPT_SUMMARY_FILE: &str = "accept-summary.json";
+/// The harness took as baselines only the reference runs named `run-N` (its glob was `*/run-*`).
+const REFERENCE_BASELINE_PREFIX: &str = "run-";
+
+fn parse_json_or_none(bytes: Option<Vec<u8>>) -> Option<Value> {
+    bytes.and_then(|b| serde_json::from_slice(&b).ok())
+}
+
+/// A held-out result: the detail where it is kept, else its summary.
+fn accept_of(read: &dyn Fn(&str) -> Result<Option<Vec<u8>>>, dir: &str) -> Result<Option<Value>> {
+    let sep = if dir.is_empty() { "" } else { "/" };
+    if let Some(v) = parse_json_or_none(read(&format!("{dir}{sep}{ACCEPT_FILE}"))?) {
+        return Ok(Some(v));
+    }
+    Ok(parse_json_or_none(read(&format!("{dir}{sep}{ACCEPT_SUMMARY_FILE}"))?))
+}
+
+/// Every run of `pack` with its records, as the verdict reads them: the published combination runs and the reference
+/// runs named `run-N`.
+pub fn verdict_runs(published: &dyn Published, pack: &str) -> Result<Vec<super::verdict::RunRecords>> {
+    let mut out = Vec::new();
+    let ids = published.paths()?;
+    // An archived run's records left the published tree, so the harness never saw it as a baseline.
+    let archived = published.archived()?;
+    let marker = format!("/benchmarks/{pack}/");
+    // A run is exactly one level under its pack (the harness's glob was `benchmarks/<pack>/*/metrics.json`): a re-score's
+    // copy of the records under the run (rescore/, rescore-spoiled/) is not another run.
+    let one_level_under_pack = |r: &str| r.split_once(&marker).is_some_and(|(_, run)| !run.is_empty() && !run.contains('/'));
+    let runs: BTreeSet<&str> = ids.keys().filter_map(|p| p.strip_suffix(&format!("/{METRICS_FILE}"))).filter(|r| one_level_under_pack(r)).collect();
+    for run in runs.into_iter().filter(|r| !archived.contains(*r)) {
+        let read = |name: &str| published.read(&format!("{run}/{name}"));
+        out.push(records_of(run, false, &read)?);
+    }
+    for (run, dir) in published.reference_runs()? {
+        let in_pack = run.starts_with(&format!("{REFERENCE_ROOT}/{pack}/"));
+        let named = run.rsplit('/').next().is_some_and(|last| last.starts_with(REFERENCE_BASELINE_PREFIX));
+        if !in_pack || !named || archived.contains(&run) {
+            continue;
+        }
+        let read = |name: &str| -> Result<Option<Vec<u8>>> {
+            match std::fs::read(dir.join(name)) {
+                Ok(b) => Ok(Some(b)),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+                Err(e) => Err(anyhow::Error::new(e).context(format!("read {}", dir.join(name).display()))),
+            }
+        };
+        out.push(records_of(&run, true, &read)?);
+    }
+    Ok(out)
+}
+
+fn records_of(run: &str, reference: bool, read: &dyn Fn(&str) -> Result<Option<Vec<u8>>>) -> Result<super::verdict::RunRecords> {
+    let metrics = parse_json_or_none(read(METRICS_FILE)?).unwrap_or(Value::Object(Default::default()));
+    let mut story_accepts = BTreeMap::new();
+    if let Some(stories) = metrics.get("stories").and_then(Value::as_object) {
+        for key in stories.keys() {
+            let Ok(n) = key.parse::<i64>() else { continue };
+            if let Some(a) = accept_of(read, &format!("{STORIES_DIR}/{n:02}"))? {
+                story_accepts.insert(n, a);
+            }
+        }
+    }
+    let run_accept = accept_of(read, "")?;
+    Ok(super::verdict::RunRecords { id: run.to_string(), reference, metrics, run_accept, story_accepts })
+}
 
 /// The run directories these paths mark as archived.
 fn marked<'a>(paths: impl Iterator<Item = &'a str>) -> BTreeSet<String> {
@@ -56,6 +125,11 @@ pub trait Published {
     fn read(&self, path: &str) -> Result<Option<Vec<u8>>>;
     /// Every archived run directory, reference models' included.
     fn archived(&self) -> Result<BTreeSet<String>>;
+    /// The reference models' runs (`benchmarks/reference/<pack>/<model>/<run>` -> their folder): not ingested, but
+    /// baselines for the verdict on a story ended early. None by default.
+    fn reference_runs(&self) -> Result<BTreeMap<String, PathBuf>> {
+        Ok(BTreeMap::new())
+    }
     /// What this source is (for the database's meta).
     fn describe(&self) -> String;
 }
@@ -88,6 +162,18 @@ impl Published for TreeSource {
             walk(&self.root, &self.root.join(root), &mut all)?;
         }
         Ok(marked(all.keys().map(String::as_str)))
+    }
+
+    fn reference_runs(&self) -> Result<BTreeMap<String, PathBuf>> {
+        let mut out = BTreeMap::new();
+        let mut files = BTreeMap::new();
+        walk(&self.root, &self.root.join(REFERENCE_ROOT), &mut files)?;
+        for path in files.keys() {
+            if let Some(run) = path.strip_suffix(&format!("/{METRICS_FILE}")) {
+                out.insert(run.to_string(), self.root.join(run));
+            }
+        }
+        Ok(out)
     }
 
     fn describe(&self) -> String {
@@ -159,6 +245,11 @@ impl Published for LakeSource {
 
     fn archived(&self) -> Result<BTreeSet<String>> {
         TreeSource { root: self.checkout.clone() }.archived()
+    }
+
+    fn reference_runs(&self) -> Result<BTreeMap<String, PathBuf>> {
+        let d = self.lake.discover();
+        Ok(d.runs.iter().filter(|r| r.kind == bench_lake::Kind::Reference).map(|r| (r.id.clone(), r.dir.clone())).collect())
     }
 
     fn describe(&self) -> String {
@@ -625,6 +716,7 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
             summary.requests += super::ingest_run_requests_profiled(db, run_dir, server_log.as_deref(), &calls, &complete, &mut prof)?;
         }
     }
+    prof.time("verdicts", || update_verdicts(db, published))?;
     prof.time("set_meta", || -> Result<()> {
         db.set_meta("built_at", &format!("{now:.3}"))?;
         db.set_meta("source", &published.describe())?;
@@ -633,6 +725,33 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
     summary.profile = prof;
     summary.seconds = started.elapsed().as_secs_f64();
     Ok(summary)
+}
+
+/// The verdict on every story the operator ended early that the warehouse holds, worked out again from every run's
+/// records (story 23, ingest.verdict), and stored in place of the last pass's.
+pub fn update_verdicts(db: &mut super::db::Db, published: &dyn Published) -> Result<usize> {
+    use super::verdict::{baselines, ended_at, ended_early, verdict};
+    let mut rows = Vec::new();
+    let packs: BTreeSet<String> = published
+        .paths()?
+        .keys()
+        .filter_map(|p| p.split_once("/benchmarks/").and_then(|(_, rest)| rest.split('/').next()).map(String::from))
+        .collect();
+    for pack in packs {
+        let runs = verdict_runs(published, &pack)?;
+        for r in runs.iter().filter(|r| !r.reference) {
+            let Some(stories) = r.metrics.get("stories").and_then(Value::as_object) else { continue };
+            for (key, rec) in stories.iter().filter(|(_, rec)| ended_early(rec)) {
+                let Ok(story) = key.parse::<i64>() else { continue };
+                let Some(sk) = db.story_sk(&format!("{}/{STORIES_DIR}/{story:02}", r.id))? else { continue };
+                let Some(end) = ended_at(rec) else { continue };
+                let base = baselines(&runs, story, &r.id, end);
+                rows.push((sk, verdict(rec, story, &base), base.len()));
+            }
+        }
+    }
+    db.replace_verdicts(&rows)?;
+    Ok(rows.len())
 }
 
 /// A story's calls as the database has them (for placing requests without re-reading its log).

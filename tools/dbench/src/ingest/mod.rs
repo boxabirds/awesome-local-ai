@@ -12,6 +12,7 @@ pub mod inputs;
 pub mod llama_log;
 pub mod py;
 pub mod timing;
+pub mod verdict;
 
 use anyhow::{Context, Result};
 use serde::Serialize;

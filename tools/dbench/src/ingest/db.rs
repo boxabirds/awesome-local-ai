@@ -160,7 +160,7 @@ impl Db {
         let tx = self.conn.transaction()?;
         let cond = format!("run_id like '{REFERENCE_RUN_PREFIX}%' or stack like '{REFERENCE_STACK_PREFIX}%'");
         let sks = format!("select sk from stories where {cond}");
-        for t in ["calls", "tools", "msgs", "compactions", "attempts", "sessions", "collection", "events", "requests", "conditions"] {
+        for t in ["calls", "tools", "msgs", "compactions", "attempts", "sessions", "collection", "events", "requests", "conditions", "verdicts"] {
             tx.execute(&format!("delete from {t} where sk in ({sks})"), [])?;
         }
         tx.execute(&format!("delete from requests where run_id like '{REFERENCE_RUN_PREFIX}%'"), [])?;
@@ -177,7 +177,7 @@ impl Db {
         let tx = self.conn.transaction()?;
         let mut n = 0;
         for id in run_ids {
-            for t in ["calls", "tools", "msgs", "compactions", "attempts", "sessions", "collection", "events", "requests", "conditions"] {
+            for t in ["calls", "tools", "msgs", "compactions", "attempts", "sessions", "collection", "events", "requests", "conditions", "verdicts"] {
                 tx.execute(&format!("delete from {t} where sk in (select sk from stories where run_id = ?1)"), params![id])?;
             }
             tx.execute("delete from requests where run_id = ?1", params![id])?;
@@ -187,6 +187,31 @@ impl Db {
         }
         tx.commit()?;
         Ok(n)
+    }
+
+    /// Replace every verdict with these (story sk, verdict, how many baselines it was judged against).
+    pub fn replace_verdicts(&mut self, rows: &[(i64, super::verdict::Verdict, usize)]) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        tx.execute("delete from verdicts", [])?;
+        for (sk, v, n) in rows {
+            tx.execute(
+                "insert into verdicts(sk, verdict, gate_green, heldout_floor, heldout_ok, unverified_tasks, unverified_implementation_tasks, heldout_json, baselines)
+                 values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    sk,
+                    v.verdict,
+                    i64::from(v.gate_green),
+                    v.heldout_floor,
+                    i64::from(v.heldout_ok),
+                    serde_json::to_string(&v.unverified_tasks)?,
+                    serde_json::to_string(&v.unverified_implementation_tasks)?,
+                    v.heldout.as_ref().map(serde_json::Value::to_string),
+                    *n as i64
+                ],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
     }
 
     pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {

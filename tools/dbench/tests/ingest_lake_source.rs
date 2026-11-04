@@ -171,3 +171,46 @@ fn a_record_that_cannot_be_read_is_an_error_naming_its_path() {
     fs::set_permissions(&metrics, fs::Permissions::from_mode(READ_WRITE)).unwrap();
     assert!(format!("{err:#}").contains(&metrics.display().to_string()), "{err:#}");
 }
+
+/// The baselines the verdict reads, from a directory tree laid out like the repository (what the harness's own
+/// baselines read, moved to the host): every case of the tests it had.
+#[test]
+fn the_verdict_reads_every_run_of_the_pack_and_the_reference_runs_named_run_n() {
+    use dbench::ingest::inputs::{verdict_runs, TreeSource};
+    use dbench::ingest::verdict::{baselines, floor};
+    let root = tmp("verdict-runs");
+    let runs = root.join("combinations/some/stack/llamacpp-pi/benchmarks/vidi");
+    let finished = r#"{"stories": {"3": {"finished": 1, "accept": {"by_story": {"03": {"passed": 7, "total": 7}}}}}}"#;
+    write(&runs.join("a-this-run/metrics.json"), finished.as_bytes());
+    write(&runs.join("b-corrupt/metrics.json"), b"{not json");
+    write(&runs.join("c-unfinished/metrics.json"), br#"{"stories": {"3": {"finished": 0}}}"#);
+    write(&runs.join("d-other-story/metrics.json"), br#"{"stories": {"4": {"finished": 1}}}"#);
+    write(&runs.join("e-partial/metrics.json"), br#"{"stories": {"3": {"finished": 1, "accept": {"by_story": {"03": {"passed": 7, "total": 7}}}}}, "processed": [{"id": 3, "status": "PARTIAL"}]}"#);
+    write(&runs.join("f-known-good/metrics.json"), br#"{"stories": {"3": {"finished": 1}}, "known_good": {"from_run": "x"}}"#);
+    write(&runs.join("g-void/metrics.json"), br#"{"stories": {"3": {"finished": 1, "accept": {"by_story": {"03": {"passed": 0, "total": 7}}}}}}"#);
+    write(&runs.join("g-void/stories/03/accept-summary.json"), br#"{"harness_fault": "missing resources: no browser"}"#);
+    write(&runs.join("h-rescore/rescore/v2/metrics.json"), finished.as_bytes());
+    write(&root.join("combinations/x/todoodle-pi/benchmarks/todoodle/t1/metrics.json"), finished.as_bytes());
+    let reference = root.join("benchmarks/reference/vidi/opus-5.5");
+    write(&reference.join("run-1/metrics.json"), br#"{"stories": {"3": {"finished": 1}}}"#);
+    write(&reference.join("run-1/accept.json"), br#"{"by_story": {"03": {"passed": 2, "total": 7}}}"#);
+    write(&reference.join("v2-r1/metrics.json"), br#"{"stories": {"3": {"finished": 1}}}"#);
+    let src = TreeSource { root: root.clone() };
+    let all = verdict_runs(&src, "vidi").unwrap();
+    let ids: Vec<&str> = all.iter().map(|r| r.id.rsplit('/').next().unwrap()).collect();
+    assert_eq!(ids, ["a-this-run", "b-corrupt", "c-unfinished", "d-other-story", "e-partial", "f-known-good", "g-void", "run-1"],
+        "one level under the pack, this pack only, and reference runs named run-N");
+    let this = all[0].id.clone();
+    let base = baselines(&all, 3, &this, 2.0);
+    let got: Vec<(&str, &str, Option<serde_json::Value>)> =
+        base.iter().map(|b| (b.run.rsplit('/').next().unwrap(), b.status.as_str(), b.accept.clone())).collect();
+    assert_eq!(
+        got,
+        vec![
+            ("e-partial", "PARTIAL", Some(serde_json::json!({"passed": 7, "total": 7}))),
+            ("g-void", "DONE", None),
+            ("run-1", "DONE", Some(serde_json::json!({"passed": 2, "total": 7}))),
+        ]
+    );
+    assert_eq!(floor(&base), 2.0 / 7.0, "the reference build's run-level score is the only healthy one");
+}

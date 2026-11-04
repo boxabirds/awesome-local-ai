@@ -1906,8 +1906,8 @@ def reconstruct_agent(client, events: Path) -> dict:
 
 
 class ProgressWatcher(threading.Thread):
-    """Keeps progress.json current while a story runs: its tasks (from workspace evidence), effort,
-    baselines and recent activity. Cheap: git reads and the new tail of the event log, once a minute."""
+    """Keeps progress.json current while a story runs: its tasks (from workspace evidence), effort
+    and recent activity. Cheap: git reads and the new tail of the event log, once a minute."""
 
     def __init__(self, run: Path, scope: dict, stories: list[dict], metrics: dict, live: dict,
                  ws: Path, base: str, tasks: list[dict], tally: progress.EventTally):
@@ -1948,7 +1948,6 @@ STORY_FAULTS: list[dict] = []
 FAULT_ERROR_CHARS = 300
 EMPTY_EVIDENCE = {"written": set(), "committed": set(), "named": set(), "last_commit_at": None, "head": ""}
 NO_REQUESTS = {"requests": 0}
-UNKNOWN_VERDICT = "unknown"
 
 
 def derived(step: str, fn, default=None, run: Path | None = None):
@@ -2206,7 +2205,7 @@ def main() -> None:
         base_file.write_text(base)
         partial_base = [p["id"] for p in processed if p["status"] == PARTIAL]
         live = {"id": sid, "title": title, "status": "running", "started_at": time.time(), "tasks": [],
-                "partial_base": partial_base, "baselines": progress.baselines(REPO_ROOT, sid, run)}
+                "partial_base": partial_base}
         pack_started = provenance.pack_version(PK.dir, PK.name)
         earlier: list[dict] = []
         early = pending_skip(run, sid)
@@ -2340,23 +2339,19 @@ def main() -> None:
                  "agent_minutes": round(rec["agent"]["seconds"] / 60, 1), "calls": rec["agent"]["steps"],
                  "output_tokens": rec["agent"]["tokens"]["output"], "compactions": rec["agent"]["compactions"],
                  "last_commit_at": ev["last_commit_at"], "accept": own,
-                 "partial_base": partial_base, "tasks": table, "baselines": live["baselines"]}
+                 "partial_base": partial_base, "tasks": table}
         if skip:
-            health = derived("verdict", lambda: progress.base_health(rec["gate"], table, own, live["baselines"]), {
-                "verdict": UNKNOWN_VERDICT, "gate_green": bool(rec["gate"].get("all_green")), "unverified_tasks": [],
-                "unverified_implementation_tasks": [], "heldout": own, "heldout_floor": None, "heldout_ok": None},
-                run=run)
-            rec.update(skip=skip, verdict=health)
-            entry.update(reason=skip.get("reason"), by=skip.get("by"), requested_at=skip.get("at"),
-                         verdict=health["verdict"], health=health)
+            # The verdict (can later stories build on it?) is worked out on the host when the story is ingested, against
+            # every run that finished this story before it ended; a machine sees only the runs it holds.
+            rec.update(skip=skip)
+            entry.update(reason=skip.get("reason"), by=skip.get("by"), requested_at=skip.get("at"))
             mark_skip_applied(run, sid)
             log_intervention(run, (
                 f"story {sid}: ended by the operator ({skip.get('by')}) after {entry['agent_minutes']} agent-min, "
-                f"{entry['calls']} calls: {skip.get('reason')}. Recorded PARTIAL. Verdict {health['verdict']}: gate "
-                f"{'green' if health['gate_green'] else 'red'}, tasks not verified {health['unverified_tasks'] or 'none'} "
-                f"(implementation: {health['unverified_implementation_tasks'] or 'none'}), held-out "
-                f"{(own or {}).get('passed')}/{(own or {}).get('total')} (floor {health['heldout_floor']}). "
-                f"The run continued with the next story."))
+                f"{entry['calls']} calls: {skip.get('reason')}. Recorded PARTIAL: gate "
+                f"{'green' if rec['gate'].get('all_green') else 'red'}, tasks not verified "
+                f"{[r['n'] for r in table if r['status'] != progress.VERIFIED] or 'none'}, held-out "
+                f"{(own or {}).get('passed')}/{(own or {}).get('total')}. The run continued with the next story."))
         processed.append(entry)
         metrics["stories"][str(sid)] = rec
         keep_faults(rec)
@@ -2383,7 +2378,7 @@ def main() -> None:
                   f"{'  NOT PUSHED, kept locally; the next story retries' if r.get('unpushed') else ''}"
                   f"{'  pushed; the checkout stays behind until these are committed or discarded: ' + ', '.join(r['checkout_behind']) if r.get('checkout_behind') else ''}"
                   f"{'  ' + r['error'][:200] if r.get('error') else ''}", flush=True)
-        print(f"[story {sid}] {status}{' verdict ' + rec['verdict']['verdict'] if skip else ''} "
+        print(f"[story {sid}] {status}{' (ended by the operator)' if skip else ''} "
               f"gate green={rec['gate'].get('all_green')} "
               f"accept {'n/a (no held-out suite)' if acc.get('skipped') else str(acc['passed']) + '/' + str(acc['total'])} "
               f"stalled={rec['agent']['stalled']}"

@@ -22,7 +22,6 @@ workspace's HEAD or working tree changed. dbench returns it in its status view
       "status": "running",
       "ended_by": null,
       "reason": null,
-      "verdict": null,
       "partial_base": [],
       "started_at": 1790291590.0,
       "ended_at": null,
@@ -38,10 +37,6 @@ workspace's HEAD or working tree changed. dbench returns it in its status view
          "type": "test:e2e", "implements": ["sync.client"], "tcs": ["TC-22", "TC-23"],
          "status": "written", "found": 7, "total": 7}
       ],
-      "baselines": [
-        {"source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
-         "agent_minutes": 58.4, "calls": 236, "output_tokens": 163933, "status": "DONE"}
-      ],
       "recent_activity": ["bash: npx playwright test --config=playwright.nightly.config.ts …"]
     }
   ]
@@ -50,8 +45,9 @@ workspace's HEAD or working tree changed. dbench returns it in its status view
 
 - `status` is `pending` | `running` | `DONE` | `PARTIAL`. DONE means the agent
   finished the story by itself; PARTIAL means it was ended early (`ended_by: "operator"`).
-- `verdict` is `green` | `amber` | `red`, set on PARTIAL stories only.
-  `partial_base` lists the earlier PARTIAL stories this story was built on.
+- The verdict on a PARTIAL story (`green` | `amber` | `red`) is not in this file: the host works it out at ingest,
+  against every run that finished the story before it ended, and keeps it in the warehouse's `verdicts` table.
+  Records from before 4 Nov 2026 still carry the verdict their machine made. `partial_base` lists the earlier PARTIAL stories this story was built on.
 - Task `status` is `not-started` | `written` | `committed` | `verified` (see `progress.py`).
 - Times are Unix seconds. Readers compute ages (e.g. "last commit 1h47m ago") at display time.
 - Any field may be null or missing; readers must tolerate that.

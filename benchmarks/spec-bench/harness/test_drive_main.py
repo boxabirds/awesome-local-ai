@@ -205,7 +205,6 @@ class Loop:
         real = containment.StoryContainment
         mp.setattr(containment, "StoryContainment", lambda run, story: real(run, story, enabled=False))
         mp.setattr(drive, "kill_strays", self.strays.append)
-        mp.setattr(progress, "baselines", lambda repo, sid, run: [])
         mp.setattr(drive, "harness_provenance", lambda code_root: dict(HARNESS_PROVENANCE))
         mp.setattr(drive.provenance, "pack_version", lambda pack_dir, name: PACK_VERSION)
         mp.setattr(drive, "record_story", lambda repo, run, message, **k: self.recorded.append((repo, run, message))
@@ -396,7 +395,7 @@ RECORD_KEYS = {"title", "conditions_start", "started", "engine_settings", "memor
                "containment", "agent_commits", "provenance", "gate", "accept", "commit", "requests", "time_split",
                "conversation", "loc", "finished", "status", "ended_by", "partial_base", "tasks", "tasks_claimed", "end_reason"}
 ENTRY_KEYS = {"id", "title", "status", "ended_by", "started_at", "ended_at", "agent_minutes", "calls", "output_tokens",
-              "compactions", "last_commit_at", "accept", "partial_base", "tasks", "baselines"}
+              "compactions", "last_commit_at", "accept", "partial_base", "tasks"}
 
 
 def test_each_story_in_scope_is_run_scored_snapshotted_and_recorded_in_order(loop, capsys):
@@ -431,7 +430,7 @@ def test_each_story_in_scope_is_run_scored_snapshotted_and_recorded_in_order(loo
                          "started_at": rec["started"], "ended_at": rec["agent_finished"],
                          "agent_minutes": round(agent["seconds"] / 60, 1), "calls": 1, "output_tokens": OUTPUT_TOKENS,
                          "compactions": 0, "last_commit_at": entry["last_commit_at"], "accept": None, "partial_base": [],
-                         "tasks": [], "baselines": []}
+                         "tasks": []}
         assert isinstance(entry["last_commit_at"], (int, float))
         sdir = loop.run / "stories" / f"{sid:02d}"
         assert json.loads((sdir / "gate.json").read_text()) == rec["gate"]
@@ -581,7 +580,8 @@ def test_a_story_that_never_finishes_is_capped_recorded_partial_and_its_work_com
     assert (rec["status"], rec["ended_by"]) == (drive.PARTIAL, "operator")
     assert (rec["skip"]["by"], rec["skip"]["reason"], rec["skip"]["story"]) == (drive.STOP_SENT_BY, reason, 1)
     assert (rec["agent"]["nudges"], rec["agent"]["finished"], rec["agent"]["steps"]) == (drive.MAX_NUDGES, False, drive.MAX_NUDGES + 1)
-    assert (entry["status"], entry["by"], entry["reason"], entry["verdict"]) == (drive.PARTIAL, drive.STOP_SENT_BY, reason, "red")
+    assert (entry["status"], entry["by"], entry["reason"]) == (drive.PARTIAL, drive.STOP_SENT_BY, reason)
+    assert "verdict" not in rec and "verdict" not in entry      # worked out on the host at ingest
     assert rec["end_reason"] == drive.STOP_MESSAGE_EXHAUSTED == "stop-message-exhausted"
     assert rec["agent"]["interventions"] == {"total": 1, "stop_message": 1, "toolcall_text_resumes": 0, "error_resumes": 0}
     # The work is kept: what the agent committed, and what it left, in a harness commit that is the story's commit.
@@ -913,27 +913,26 @@ def test_a_machine_that_cannot_run_the_tests_stops_the_run_after_recording_the_s
 REQUEST = {"story": 1, "reason": "stuck on the build", "by": drive.OPERATOR, "at": 5.0}
 
 
-def test_a_story_the_operator_ended_while_it_ran_is_partial_with_a_verdict_and_the_run_goes_on(loop, monkeypatch, capsys):
+def test_a_story_the_operator_ended_while_it_ran_is_partial_and_the_run_goes_on(loop, monkeypatch, capsys):
     monkeypatch.setattr(drive, "SkipWatcher", ends_story(1, REQUEST))
     loop.plan(s1={"skip_request": True})                                    # the request file appears while the agent runs
     loop.main()
     rec, entry = loop.story(1), loop.metrics()["processed"][0]
-    health = {"verdict": "red", "gate_green": False, "unverified_tasks": [], "unverified_implementation_tasks": [],
-              "heldout": None, "heldout_floor": 1.0, "heldout_ok": True}
-    assert (rec["status"], rec["ended_by"], rec["skip"], rec["verdict"]) == (drive.PARTIAL, "operator", REQUEST, health)
+    # The verdict is not the machine's to make: the host works it out at ingest against every earlier run.
+    assert (rec["status"], rec["ended_by"], rec["skip"]) == (drive.PARTIAL, "operator", REQUEST)
     assert rec["end_reason"] == drive.OPERATOR_SKIP == "operator-skip"
-    assert set(rec) == RECORD_KEYS | {"skip", "verdict"}
-    assert {k: entry[k] for k in ("status", "ended_by", "reason", "by", "requested_at", "verdict", "health")} == {
+    assert set(rec) == RECORD_KEYS | {"skip"}
+    assert {k: entry[k] for k in ("status", "ended_by", "reason", "by", "requested_at")} == {
         "status": drive.PARTIAL, "ended_by": "operator", "reason": "stuck on the build", "by": drive.OPERATOR,
-        "requested_at": 5.0, "verdict": "red", "health": health}
-    assert set(entry) == ENTRY_KEYS | {"reason", "by", "requested_at", "verdict", "health"}
+        "requested_at": 5.0}
+    assert set(entry) == ENTRY_KEYS | {"reason", "by", "requested_at"}
     control = loop.run / drive.CONTROL_DIR
     assert sorted(p.name for p in control.iterdir()) == ["skip-story-1.applied.json"]
     log = (loop.run / "interventions.md").read_text()
     assert (f"story 1: ended by the operator (operator) after {entry['agent_minutes']} agent-min, 1 calls: stuck on the "
-            f"build. Recorded PARTIAL. Verdict red: gate red, tasks not verified none (implementation: none), held-out "
-            f"None/None (floor 1.0). The run continued with the next story.") in log
-    assert "[story 1] PARTIAL verdict red gate green=None accept n/a (no held-out suite) stalled=False\n" in capsys.readouterr().out
+            f"build. Recorded PARTIAL: gate red, tasks not verified none, held-out None/None. The run continued with the "
+            f"next story.") in log
+    assert "[story 1] PARTIAL (ended by the operator) gate green=None accept n/a (no held-out suite) stalled=False\n" in capsys.readouterr().out
     # The next story is built on the partial one: told so, and checked for stubs and held-out changes.
     second = loop.story(2)
     assert second["status"] == drive.DONE and second["partial_base"] == [1]
@@ -992,7 +991,7 @@ def test_a_story_skipped_before_the_harness_restarted_is_ended_from_its_log_with
     rec = loop.story(1)
     # No agent was started for this story, so it has no memory snapshot either: one is taken as a story BEGINS, and a
     # story ended from its log never did. Absent, not zero.
-    assert set(rec) == (RECORD_KEYS - {"conditions_start", "containment", "memory_start"}) | {"skip", "verdict"}
+    assert set(rec) == (RECORD_KEYS - {"conditions_start", "containment", "memory_start"}) | {"skip"}
     assert rec["status"] == drive.PARTIAL and rec["skip"] == {"story": 1, "reason": "not worth the wait", "by": drive.OPERATOR, "at": 7.0}
     agent = rec["agent"]
     assert agent["reconstructed_from_log"] is True and agent["ended_by_operator"] is True and agent["exit"] is None

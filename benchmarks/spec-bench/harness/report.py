@@ -17,6 +17,7 @@ from pathlib import Path
 
 import heldout
 import history
+import progress
 import publicise
 
 SECONDS_PER_MINUTE = 60
@@ -78,10 +79,11 @@ def conditions_cell(c: dict) -> str:
 
 
 def status_cell(s: dict) -> str:
-    """DONE, PARTIAL (verdict), and whether the story was built on an earlier PARTIAL story."""
+    """DONE, PARTIAL (with its verdict where an older record holds one: the verdict is now worked out on the host at
+    ingest), and whether the story was built on an earlier PARTIAL story."""
     st = s.get("status", "DONE")
-    if st == "PARTIAL":
-        st += f" ({(s.get('verdict') or {}).get('verdict', '?')})"
+    if st == "PARTIAL" and (s.get("verdict") or {}).get("verdict"):
+        st += f" ({s['verdict']['verdict']})"
     if s.get("partial_base"):
         st += f", on partial {', '.join(map(str, s['partial_base']))}"
     return st
@@ -94,12 +96,16 @@ def partial_notes(m: dict) -> list[str]:
         if s.get("status") == "PARTIAL":
             v = s.get("verdict") or {}
             skip = s.get("skip") or {}
+            own = ((s.get("accept") or {}).get("by_story") or {}).get(f"{int(sid):02d}") or {}
+            unverified = [r.get("n") for r in s.get("tasks") or [] if r.get("status") != progress.VERIFIED]
+            implementation = [r.get("n") for r in s.get("tasks") or []
+                              if r.get("status") != progress.VERIFIED and r.get("type") == progress.IMPLEMENTATION]
+            verdict = f"Verdict **{v['verdict']}** (floor {v.get('heldout_floor')}): " if v.get("verdict") else ""
             out.append(f"- **Story {sid} PARTIAL**, ended by the operator ({skip.get('by', '?')}): {skip.get('reason', '')}. "
-                       f"Verdict **{v.get('verdict', '?')}**: gate {'green' if v.get('gate_green') else 'red'}, "
-                       f"tasks not verified {v.get('unverified_tasks') or 'none'} "
-                       f"(implementation: {v.get('unverified_implementation_tasks') or 'none'}), "
-                       f"held-out {(v.get('heldout') or {}).get('passed')}/{(v.get('heldout') or {}).get('total')} "
-                       f"(floor {v.get('heldout_floor')}).")
+                       f"{verdict}gate {'green' if (s.get('gate') or {}).get('all_green') else 'red'}, "
+                       f"tasks not verified {unverified or 'none'} "
+                       f"(implementation: {implementation or 'none'}), "
+                       f"held-out {own.get('passed')}/{own.get('total')}.")
         if s.get("partial_base"):
             changes = s.get("partial_heldout_changes") or {}
             fixed = {p: _count(c["fixed"]) for p, c in changes.items() if c.get("fixed")}
