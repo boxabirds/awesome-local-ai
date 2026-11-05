@@ -3,7 +3,7 @@
 //! Nothing outside the temp directory is read or written: the cache, the keys and the private checkout are all under it.
 
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::time::{Duration, Instant};
@@ -30,18 +30,17 @@ impl Drop for Gallery {
     }
 }
 
-fn free_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
-}
-
-/// What the machine would have: a repo with one scored run, a private checkout beside it with one independent judge's result,
-/// and a HOME holding the key that says which build that judge's letter was.
+/// What the machine would have: a checkout with no run in it, a private checkout beside it holding the lake (its `state/`,
+/// the gallery's default) with one scored run and one independent judge's result, and a HOME holding the key that says which
+/// build that judge's letter was.
 fn world(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
     let root = std::env::temp_dir().join(format!("vidi-gallery-it-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let (repo, home) = (root.join("awesome-local-ai"), root.join("home"));
-    let run = repo.join(RUN);
+    std::fs::create_dir_all(&repo).unwrap();
+    let run = root.join("awesome-local-ai-bench-private/state/collected/node-t").join(RUN);
     std::fs::create_dir_all(run.join("workspace")).unwrap();
+    std::fs::write(run.join("run.json"), "{}").unwrap();
     std::fs::write(run.join("metrics.json"), r#"{"stories": {}}"#).unwrap();
     std::fs::write(run.join("accept-final-summary.json"), r#"{"passed": 71, "total": 75}"#).unwrap();
     let results = root.join("awesome-local-ai-bench-private/gradings").join(PACKAGE).join("results/judge-1");
@@ -52,32 +51,43 @@ fn world(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
     (root, repo, home)
 }
 
+/// Starts the gallery on a port the system picks (`--port 0`) and reads the port from what it says: a port chosen here and
+/// freed before the gallery binds it can be taken by another test in between ("Address already in use").
 fn start(repo: &Path, home: &Path, extra: &[&str]) -> (Gallery, String, String) {
-    let port = free_port();
     let mut child = Command::new(env!("CARGO_BIN_EXE_vidi-gallery"))
         .arg("--repo")
         .arg(repo)
-        .args(["--port", &port.to_string()])
+        .args(["--port", "0"])
         .args(extra)
         .env("HOME", home)
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()
         .unwrap();
-    let mut stdout = BufReader::new(child.stdout.take().unwrap());
-    let (mut first, mut second, mut early) = (String::new(), String::new(), String::new());
+    let stdout = BufReader::new(child.stdout.take().unwrap());
+    // Held from the start, so a failure below kills the gallery instead of leaving it running.
+    let mut g = Gallery { child, stdout, port: 0, early: String::new() };
+    let (mut first, mut second) = (String::new(), String::new());
     while first.is_empty() || second.is_empty() {
         let mut line = String::new();
-        assert_ne!(stdout.read_line(&mut line).unwrap(), 0, "the gallery ended before it said where it listens: {early}");
+        assert_ne!(g.stdout.read_line(&mut line).unwrap(), 0, "the gallery ended before it said where it listens: {}", g.early);
         if line.starts_with("vidi-gallery: ") {
             first = line;
         } else if line.starts_with("story review: ") {
             second = line;
         } else {
-            early.push_str(&line);
+            g.early.push_str(&line);
         }
     }
-    (Gallery { child, stdout, port, early }, first, second)
+    let port = first
+        .split("http://127.0.0.1:")
+        .nth(1)
+        .and_then(|rest| rest.split('/').next())
+        .and_then(|p| p.parse().ok())
+        .unwrap_or_else(|| panic!("no port in {first:?}"));
+    assert_ne!(port, 0, "the gallery says the port it is listening on, not the one it was asked for: {first}");
+    g.port = port;
+    (g, first, second)
 }
 
 /// A GET over a plain connection: (status, body).

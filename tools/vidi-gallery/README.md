@@ -6,14 +6,18 @@ labelled with its setup and run.
 
 ```bash
 cd tools/vidi-gallery && cargo run --release        # then open http://127.0.0.1:7800
-cargo run --release -- --repo /path/to/awesome-local-ai --port 7800
+cargo run --release -- --repo /path/to/awesome-local-ai --lake /path/to/state --port 7800
 ```
 
 Ctrl-C stops the gallery and every build it started.
 
-The gallery keeps its checkout level with origin: every minute it runs `git pull --ff-only` (never a reset),
-then looks for runs that have become reviewable. If a local edit stands in the way, git refuses, the
-checkout is left as it is, and the reason is printed on the gallery's stderr.
+The runs come from the lake (story 23), read with bench-lake as a library: each vidi run's preferred copy, its
+records and held-out results from that copy, its code from the lake's code repository (`state/code.git`). `--lake`
+names the lake's state folder; by default it is the private checkout's `state/`, beside `--repo`. The checkout
+(`--repo`) gives only the pack's scopes and the private checkout beside it (spec, suite, reviews, older audits);
+the gallery never pulls it. Every minute it looks for runs that have become reviewable in the lake. A run the
+operator archived or marked invalid (the lake's decision log, `bench-lake annotate`) is not shown; if that log cannot
+be read, no run is shown and the reason goes to stderr, since an unread log must not show invalid runs.
 
 ## What it shows
 
@@ -110,7 +114,7 @@ requirements and its **must-nots**. Below, one row per finished build:
 **One spec version at a time.** The review takes the version family of the private checkout
 (`vidi-v2.0-pre2` → `vidi-v2`) and only runs recorded under it: builds made from different specs
 can't be judged against one story's spec. Every minute it adds runs that have since become reviewable
-(finished, scored, with a `workspace.bundle`) to the end of the list, and prepares them, so a new run
+(finished, scored, with their code in the lake) to the end of the list, and prepares them, so a new run
 needs no restart.
 
 **Labelled by default.** Each build is named by its combination and run (e.g.
@@ -125,9 +129,10 @@ them). From v2, story numbers are the journey, so that is simply story order on 
 build. vidi v1 isn't numbered that way (boards are created in story 5, after pan and zoom in story
 1), so the private pack's `scope/canvas-prerequisites.json` lists each story's prerequisites: story 1
 is reviewed after story 5, on the build after story 5. The page shows "First: …" for each story.
-Builds are checked out from the run record's `workspace.bundle`. Only runs that finished every
-story with a valid score and have a bundle are reviewed (Opus run-1 was built outside the harness
-and has no per-story history).
+Builds are checked out from the lake's code repository at each story's `story/NN` ref
+(`bench-lake workspace`). Only runs that finished every story with a valid score and have their code in
+the lake are reviewed; a run with only a `workspace.bundle` in its folder has no code there (Opus run-1 was
+built outside the harness and has no per-story history).
 
 ## Opening a build
 

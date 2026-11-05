@@ -7,7 +7,8 @@ mod record;
 mod reviews;
 mod runs;
 mod stories;
-mod sync;
+#[cfg(test)]
+mod testlake;
 mod trace;
 
 use std::net::SocketAddr;
@@ -38,9 +39,13 @@ const DEGREES: usize = 360;
 #[derive(Parser)]
 #[command(about = "Review every Vidi build: scores, judging, cost, and each final build in its own labelled window")]
 struct Cli {
-    /// The awesome-local-ai checkout (default: the one this binary was built from).
+    /// The awesome-local-ai checkout (default: the one this binary was built from): the pack's scopes and the
+    /// private repo beside it. Runs are read from the lake, never from it.
     #[arg(long)]
     repo: Option<PathBuf>,
+    /// The lake's state folder, read through bench-lake (default: the private repo's `state`, beside the checkout).
+    #[arg(long)]
+    lake: Option<PathBuf>,
     #[arg(long, default_value_t = DEFAULT_PORT)]
     port: u16,
     /// Story review: hide each build's setup and run behind a shuffled letter, revealed once every
@@ -51,6 +56,8 @@ struct Cli {
 
 struct App {
     repo: PathBuf,
+    /// Where the runs and their code are read (story 23).
+    lake: bench_lake::Lake,
     builds: Builds,
     cache: PathBuf,
     blind: bool,
@@ -168,7 +175,7 @@ async fn prepare_one(app: &App, run: &runs::Run, build: u64) {
     let slug = story_slug(run, build);
     app.prep.lock().await.insert(slug.clone(), "preparing".into());
     let all_recorded = stories_on(app, build).iter().all(|&s| recorded(app, run, s));
-    let result = match story_checkout(&app.cache, run, build).await {
+    let result = match story_checkout(&app.cache, &app.lake, run, build).await {
         Ok(_) if all_recorded => Ok(()),
         Ok(ws) => builds::prepare(&ws, &app.cache).await,
         Err(e) => Err(e),
@@ -242,6 +249,9 @@ async fn prepare_all(app: Arc<App>, runs: Vec<runs::Run>) {
     println!("all walkthroughs recorded");
 }
 
+/// The lake's state folder in the private repo (dbench's collector writes it there).
+const LAKE_STATE: &str = "state";
+
 fn private_repo(repo: &std::path::Path) -> PathBuf {
     repo.parent().map(|p| p.join("awesome-local-ai-bench-private")).unwrap_or_default()
 }
@@ -260,19 +270,14 @@ fn newly_reviewable(have: &[runs::Run], now: Vec<runs::Run>) -> Vec<runs::Run> {
     now.into_iter().filter(|r| !have.iter().any(|h| h.slug == r.slug)).collect()
 }
 
-/// Every RESCAN_EVERY, bring the checkout level with origin, then add runs that have become reviewable (finished, scored, with their bundle) to the
+/// Every RESCAN_EVERY, add runs that have become reviewable in the lake (finished, scored, with their code) to the
 /// end of the list, so a run judged from the benchmarker's link appears without restarting the gallery,
 /// and prepare them like the rest.
 async fn rescan(app: Arc<App>) {
     loop {
         tokio::time::sleep(RESCAN_EVERY).await;
-        let (repo, family) = (app.repo.clone(), app.family.clone());
-        let pulled = repo.clone();
-        // Take what the benchmark machines have pushed first, so the scan below sees it.
-        if let Ok(Err(e)) = tokio::task::spawn_blocking(move || sync::sync_repo(&pulled)).await {
-            eprintln!("sync: {e}");
-        }
-        let Ok(now) = tokio::task::spawn_blocking(move || reviewable(&repo, &family)).await else { continue };
+        let (repo, lake, family) = (app.repo.clone(), app.lake.clone(), app.family.clone());
+        let Ok(now) = tokio::task::spawn_blocking(move || reviewable(&repo, &lake, &family)).await else { continue };
         let added = {
             let mut list = app.review_builds.write().expect("review builds lock");
             let added = newly_reviewable(&list, now);
@@ -301,35 +306,41 @@ fn story_slug(run: &runs::Run, story: u64) -> String {
     format!("{}@{story:02}", run.slug)
 }
 
-/// A checkout of the run's code as it was after `story`, from the record's git bundle, under the
-/// gallery cache. Reused if it exists.
-async fn story_checkout(cache: &std::path::Path, run: &runs::Run, story: u64) -> anyhow::Result<PathBuf> {
-    let commit = run.story_commits.get(&story).ok_or_else(|| anyhow::anyhow!("no recorded commit for story {story}"))?;
+/// A checkout of the run's code as it was after `story`, from the lake's code repository (bench-lake workspace, story
+/// 23), under the gallery cache. Reused if it exists.
+async fn story_checkout(cache: &std::path::Path, lake: &bench_lake::Lake, run: &runs::Run, story: u64) -> anyhow::Result<PathBuf> {
     let dir = cache.join(builds::CHECKOUTS).join(story_slug(run, story));
     if dir.join(".git").is_dir() {
         return Ok(dir);
     }
+    let copy = run.copy.clone().ok_or_else(|| anyhow::anyhow!("{} is not a run in the lake", run.slug))?;
     let _ = tokio::fs::remove_dir_all(&dir).await;
     tokio::fs::create_dir_all(dir.parent().unwrap_or(cache)).await?;
-    let bundle = run.path.join("workspace.bundle");
-    let ok = tokio::process::Command::new("git")
-        .args(["clone", "-q", "--no-checkout"]).arg(&bundle).arg(&dir)
-        .status().await?.success()
-        && tokio::process::Command::new("git").arg("-C").arg(&dir)
-            .args(["-c", "advice.detachedHead=false", "checkout", "-q", commit])
-            .status().await?.success();
-    if !ok {
+    let (lake, target) = (lake.clone(), dir.clone());
+    let made = tokio::task::spawn_blocking(move || lake.workspace(&copy, story as i64, &target).map(|_| ()).map_err(|e| lake_error(&e))).await?;
+    if let Err(why) = made {
         let _ = tokio::fs::remove_dir_all(&dir).await;
-        anyhow::bail!("could not check out {commit} from {}", bundle.display());
+        anyhow::bail!("could not check out story {story} of {}: {why}", run.slug);
     }
     Ok(dir)
 }
 
+/// bench-lake's answer as one line: its code and detail, and git's message when there is one.
+fn lake_error(e: &bench_lake::Error) -> String {
+    match e {
+        bench_lake::Error::Absent(a) => format!("{} ({})", a.code(), a.detail()),
+        bench_lake::Error::Refused(r) => match &r.message {
+            Some(m) => format!("{}: {m}", r.code()),
+            None => r.code().to_string(),
+        },
+    }
+}
+
 /// Finished, validly scored runs of one spec version family: the builds a story review compares.
 /// Builds made from different specs can't be judged against one story's spec.
-fn reviewable(repo: &std::path::Path, family: &str) -> Vec<runs::Run> {
+fn reviewable(repo: &std::path::Path, lake: &bench_lake::Lake, family: &str) -> Vec<runs::Run> {
     let mut list: Vec<runs::Run> =
-        runs::load(repo).into_iter().filter(|r| is_reviewable(r) && runs::family(&r.pack_version) == family).collect();
+        runs::load(repo, lake).into_iter().filter(|r| is_reviewable(r) && runs::family(&r.pack_version) == family).collect();
     list.sort_by(|a, b| a.slug.cmp(&b.slug));
     list
 }
@@ -379,7 +390,7 @@ async fn page() -> Html<&'static str> {
 }
 
 async fn api_runs(State(app): State<Arc<App>>) -> impl IntoResponse {
-    let runs = runs::load(&app.repo);
+    let runs = runs::load(&app.repo, &app.lake);
     let colours = setup_colours(&runs);
     let private = private_repo(&app.repo);
     let judges = runs::judges(&private, &home().join(".vidi-bench/keys"));
@@ -391,7 +402,7 @@ async fn api_status(State(app): State<Arc<App>>) -> impl IntoResponse {
 }
 
 async fn api_open(State(app): State<Arc<App>>, UrlPath(slug): UrlPath<String>) -> impl IntoResponse {
-    let runs = runs::load(&app.repo);
+    let runs = runs::load(&app.repo, &app.lake);
     let colours = setup_colours(&runs);
     let Some(run) = runs.iter().find(|r| r.slug == slug) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such run"}))).into_response();
@@ -409,7 +420,7 @@ async fn api_open(State(app): State<Arc<App>>, UrlPath(slug): UrlPath<String>) -
     };
     let workspace = match final_build_source(run) {
         FinalBuildSource::Folder(dir) => dir,
-        FinalBuildSource::Bundle { story } => match story_checkout(&app.cache, run, story).await {
+        FinalBuildSource::Code { story } => match story_checkout(&app.cache, &app.lake, run, story).await {
             Ok(dir) => dir,
             Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
         },
@@ -421,12 +432,12 @@ async fn api_open(State(app): State<Arc<App>>, UrlPath(slug): UrlPath<String>) -
     Json(serde_json::json!(state)).into_response()
 }
 
-/// Where a run's final build comes from: the plain `workspace/` folder an older record holds, else the last story's commit
-/// out of `workspace.bundle`. Newer runs have no folder (the app is stored once, as the bundle).
+/// Where a run's final build comes from: the plain `workspace/` folder a hand-built run holds, else the last story's
+/// code in the lake's code repository.
 #[derive(Debug, PartialEq, Eq)]
 enum FinalBuildSource {
     Folder(PathBuf),
-    Bundle { story: u64 },
+    Code { story: u64 },
     None,
 }
 
@@ -436,7 +447,7 @@ fn final_build_source(run: &runs::Run) -> FinalBuildSource {
         return FinalBuildSource::Folder(folder);
     }
     match run.story_commits.keys().next_back() {
-        Some(&story) if run.path.join("workspace.bundle").is_file() => FinalBuildSource::Bundle { story },
+        Some(&story) if run.code_stories.contains(&story) => FinalBuildSource::Code { story },
         _ => FinalBuildSource::None,
     }
 }
@@ -553,7 +564,7 @@ async fn api_review_open(State(app): State<Arc<App>>, UrlPath((story, key)): Url
     let reviewed = story;
     let story = review_build(&app, story);
     let run = &run;
-    let workspace = match story_checkout(&app.cache, run, story).await {
+    let workspace = match story_checkout(&app.cache, &app.lake, run, story).await {
         Ok(dir) => dir,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"state": "failed", "error": e.to_string()}))).into_response(),
     };
@@ -565,7 +576,7 @@ async fn api_review_open(State(app): State<Arc<App>>, UrlPath((story, key)): Url
     let banner = if app.blind {
         proxy::Banner { text: label.clone(), colour: BLIND_COLOUR.to_string(), title: label }
     } else {
-        let colours = setup_colours(&runs::load(&app.repo));
+        let colours = setup_colours(&runs::load(&app.repo, &app.lake));
         proxy::Banner {
             text: label,
             colour: colours.iter().find(|(s, _)| *s == run.setup).map(|(_, c)| c.clone()).unwrap_or_else(|| colour(0)),
@@ -801,11 +812,12 @@ async fn main() -> anyhow::Result<()> {
         .repo
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
         .canonicalize()?;
+    let lake = bench_lake::Lake::in_state_dir(&cli.lake.unwrap_or_else(|| private_repo(&repo).join(LAKE_STATE)));
     let cache = home().join(".cache/awesome-local-ai/vidi-gallery");
     let builds = Builds::new(cache.clone());
     let blind = cli.blind;
     let family = runs::family(&private_version(&private_repo(&repo)));
-    let mut review_builds = reviewable(&repo, &family);
+    let mut review_builds = reviewable(&repo, &lake, &family);
     if blind {
         shuffle(&mut review_builds);
     }
@@ -819,7 +831,7 @@ async fn main() -> anyhow::Result<()> {
     let record_config = record::write_config(&acceptance, &cache)?;
     let rec_ports = vec![REC_PORT_BASE]; // one recording at a time
     let app = Arc::new(App {
-        repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds: std::sync::RwLock::new(review_builds), family, started: utc_now(), reviews, stories,
+        repo: repo.clone(), lake, builds: builds.clone(), cache, blind, review_builds: std::sync::RwLock::new(review_builds), family, started: utc_now(), reviews, stories,
         prep: Default::default(), acceptance, recordings, rec_secret, record_config, rec: Default::default(),
         rec_ports: tokio::sync::Mutex::new(rec_ports), build_order,
     });
@@ -853,6 +865,8 @@ async fn main() -> anyhow::Result<()> {
     let app_for_shutdown = app.clone();
     let addr = SocketAddr::from(([127, 0, 0, 1], cli.port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
+    // The address it got: with --port 0 the system picks the port, and this line is how a caller learns it.
+    let addr = listener.local_addr()?;
     println!("vidi-gallery: http://{addr}/  (repo {})", repo.display());
     println!("story review: http://{addr}/review  ({} {} builds, {})", app.rbs().len(), app.family, if blind { "blind" } else { "labelled" });
     // Ctrl-C or a plain `kill` (SIGTERM): either way, stop every build first, or their wrangler
@@ -948,7 +962,7 @@ mod tests {
         std::fs::write(out.join("report.json"), report.to_string()).unwrap();
         let rec = std::collections::HashMap::from([(rec_key(&run, STORY), "done".to_string())]);
         let app = Arc::new(App {
-            repo: dir.clone(), builds: Builds::new(dir.join("cache")), cache: dir.join("cache"), blind: false,
+            repo: dir.clone(), lake: bench_lake::Lake::in_state_dir(&dir.join("state")), builds: Builds::new(dir.join("cache")), cache: dir.join("cache"), blind: false,
             review_builds: std::sync::RwLock::new(vec![run]), family: "vidi-v2".into(), started: "t0".into(),
             reviews: reviews::Store::new(dir.join("analysis/story-reviews.csv")),
             stories: vec![stories::Story { id: STORY, review_build: STORY, ..Default::default() }], prep: Default::default(),
@@ -1177,72 +1191,133 @@ mod tests {
 
     // ---------- the story review's checkouts, from a run's git bundle ----------
 
-    /// A repository with two commits on main, bundled the way the harness keeps a run's code: (bundle path, first commit, second commit).
-    fn bundled(dir: &std::path::Path) -> (PathBuf, String, String) {
-        let src = dir.join("src");
-        std::fs::create_dir_all(&src).unwrap();
-        git(&src, &["init", "-q"]);
-        let commit = |file: &str| {
-            std::fs::write(src.join(file), file).unwrap();
-            git(&src, &["add", "."]);
-            git(&src, &["commit", "-q", "-m", file]);
-            let out = std::process::Command::new("git").arg("-C").arg(&src).args(["rev-parse", "HEAD"]).output().unwrap();
-            String::from_utf8_lossy(&out.stdout).trim().to_string()
-        };
-        let first = commit("one.txt");
-        let second = commit("two.txt");
-        let bundle = dir.join("workspace.bundle");
-        git(&src, &["bundle", "create", bundle.to_str().unwrap(), "main"]);
-        (bundle, first, second)
+    use crate::testlake::{TestLake, COMBO_ID, COMBO_SLUG, NODE};
+
+    /// The lake's run, loaded as the gallery loads it.
+    fn lake_run(t: &TestLake) -> runs::Run {
+        runs::load(&t.root.join("repo"), &t.lake).into_iter().next().expect("the run is in the lake")
     }
 
     #[tokio::test]
-    async fn a_story_is_checked_out_at_its_recorded_commit_from_the_runs_bundle_and_reused_once_it_exists() {
-        let dir = scratch("checkout");
-        let (bundle, first, second) = bundled(&dir);
-        let run = runs::Run {
-            slug: "setup__run-1".into(),
-            path: bundle.parent().unwrap().to_path_buf(),
-            story_commits: [(1, first), (2, second)].into(),
-            ..Default::default()
-        };
-        let cache = dir.join("cache");
-        let one = story_checkout(&cache, &run, 1).await.unwrap();
+    async fn tc71_a_story_is_checked_out_from_the_lakes_code_repository_at_its_story_ref_and_reused_once_it_exists() {
+        let t = TestLake::new("checkout");
+        let commits = t.add_code(Some(NODE), COMBO_ID, &[1, 2]);
+        t.add_run(Some(NODE), COMBO_ID, TestLake::metrics_for(&commits));
+        let run = lake_run(&t);
+        let cache = t.root.join("cache");
+        let one = story_checkout(&cache, &t.lake, &run, 1).await.unwrap();
         assert_eq!(one, cache.join(builds::CHECKOUTS).join(story_slug(&run, 1)));
-        assert!(one.join("one.txt").is_file() && !one.join("two.txt").exists(), "story 1 is the build as it was after its commit");
-        let two = story_checkout(&cache, &run, 2).await.unwrap();
-        assert!(two.join("two.txt").is_file());
-        // A checkout that exists is returned as it is, whatever has happened to the bundle since.
-        std::fs::remove_file(&bundle).unwrap();
+        let head = |d: &std::path::Path| crate::testlake::git(d, &["rev-parse", "HEAD"]);
+        assert_eq!(head(&one), commits[&1], "the commit of the lake's story-01 ref");
+        assert!(one.join("story-01.txt").is_file() && !one.join("story-02.txt").exists(), "the build as it was after story 1");
+        let two = story_checkout(&cache, &t.lake, &run, 2).await.unwrap();
+        assert_eq!(head(&two), commits[&2]);
+        // A checkout that exists is returned as it is, whatever has happened to the lake since.
+        std::fs::remove_dir_all(t.state.join("code.git")).unwrap();
         std::fs::write(one.join("marker"), "kept").unwrap();
-        assert_eq!(story_checkout(&cache, &run, 1).await.unwrap(), one);
+        assert_eq!(story_checkout(&cache, &t.lake, &run, 1).await.unwrap(), one);
         assert!(one.join("marker").is_file(), "an existing checkout is not made again");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]
-    async fn a_story_with_no_recorded_commit_a_missing_bundle_or_a_commit_the_bundle_lacks_is_an_error_and_leaves_no_checkout() {
-        let dir = scratch("checkout-fails");
-        let (bundle, first, _) = bundled(&dir);
-        let run = runs::Run {
-            slug: "setup__run-2".into(),
-            path: dir.clone(),
-            story_commits: [(1, first), (3, "0123456789abcdef0123456789abcdef01234567".to_string())].into(),
-            ..Default::default()
-        };
-        let cache = dir.join("cache");
-        let missing = story_checkout(&cache, &run, 2).await.unwrap_err().to_string();
-        assert_eq!(missing, "no recorded commit for story 2");
-        // The commit is recorded but the bundle does not hold it: the clone works, the checkout does not.
-        let lacks = story_checkout(&cache, &run, 3).await.unwrap_err().to_string();
-        assert!(lacks.starts_with("could not check out 0123456789abcdef0123456789abcdef01234567 from "), "{lacks}");
-        assert!(!cache.join(builds::CHECKOUTS).join(story_slug(&run, 3)).exists());
-        // No bundle at all: the clone itself fails.
-        std::fs::remove_file(&bundle).unwrap();
-        let gone = story_checkout(&cache, &run, 1).await.unwrap_err().to_string();
-        assert!(gone.starts_with("could not check out "), "{gone}");
+    async fn a_story_the_lake_has_no_code_for_or_a_run_not_in_the_lake_is_an_error_and_leaves_no_checkout() {
+        let t = TestLake::new("checkout-fails");
+        let commits = t.add_code(Some(NODE), COMBO_ID, &[1]);
+        t.add_run(Some(NODE), COMBO_ID, TestLake::metrics_for(&commits));
+        let run = lake_run(&t);
+        let cache = t.root.join("cache");
+        let missing = story_checkout(&cache, &t.lake, &run, 2).await.unwrap_err().to_string();
+        assert_eq!(missing, format!("could not check out story 2 of {COMBO_SLUG}: E-LAKE-NOT-COLLECTED (no such ref in the lake's code repository)"));
+        assert!(!cache.join(builds::CHECKOUTS).join(story_slug(&run, 2)).exists());
+        let elsewhere = runs::Run { slug: "s__r".into(), ..Default::default() };
+        assert_eq!(story_checkout(&cache, &t.lake, &elsewhere, 1).await.unwrap_err().to_string(), "s__r is not a run in the lake");
+        // the code repository is not one: an absence, and nothing is left
+        std::fs::remove_dir_all(t.state.join("code.git")).unwrap();
+        std::fs::write(t.state.join("code.git"), "not a repository").unwrap();
+        let gone = story_checkout(&cache, &t.lake, &run, 1).await.unwrap_err().to_string();
+        assert!(gone.starts_with(&format!("could not check out story 1 of {COMBO_SLUG}: E-LAKE-NOT-COLLECTED")), "{gone}");
         assert!(!cache.join(builds::CHECKOUTS).join(story_slug(&run, 1)).exists());
-        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_refusal_is_told_with_gits_message_when_there_is_one() {
+        let refused = |message: Option<&str>| {
+            bench_lake::Error::Refused(bench_lake::Refused {
+                run: "r".into(), node: None, item: bench_lake::Item::Workspace(1),
+                reason: bench_lake::RefusedReason::GitClone, message: message.map(String::from),
+            })
+        };
+        assert_eq!(lake_error(&refused(Some("fatal: bad object"))), "E-LAKE-GIT-FAILED: fatal: bad object");
+        assert_eq!(lake_error(&refused(None)), "E-LAKE-GIT-FAILED");
+    }
+
+    /// An app over the test lake, with no review builds: what api_open needs.
+    fn app_over(t: &TestLake) -> Arc<App> {
+        let repo = t.root.join("repo");
+        Arc::new(App {
+            repo: repo.clone(), lake: t.lake.clone(), builds: Builds::new(repo.join("cache")), cache: repo.join("cache"), blind: false,
+            review_builds: std::sync::RwLock::new(Vec::new()), family: "vidi-v2".into(), started: "t0".into(),
+            reviews: reviews::Store::new(repo.join("analysis/story-reviews.csv")), stories: Vec::new(), prep: Default::default(),
+            acceptance: repo.join("acceptance"), recordings: repo.join("recordings"), rec_secret: "s".into(),
+            record_config: repo.join("record.config.ts"), rec: Default::default(), rec_ports: Default::default(), build_order: Vec::new(),
+        })
+    }
+
+    async fn open(app: &Arc<App>, slug: &str) -> (StatusCode, serde_json::Value) {
+        let r = api_open(State(app.clone()), UrlPath(slug.to_string())).await.into_response();
+        let status = r.status();
+        let bytes = axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap();
+        (status, serde_json::from_slice(&bytes).unwrap())
+    }
+
+    #[tokio::test]
+    async fn opening_a_run_takes_its_final_build_from_where_the_run_keeps_it_and_says_when_it_cannot() {
+        let t = TestLake::new("open");
+        let id = |name: &str| format!("combinations/q/1/s/os/hw/eng-cli/benchmarks/vidi/{name}");
+        // a run with its code: the last story's commit is checked out and the build starts
+        let commits = t.add_code(Some(NODE), &id("coded"), &[1, 2]);
+        t.add_run(Some(NODE), &id("coded"), TestLake::metrics_for(&commits));
+        // a hand-built run: its workspace/ folder is the build
+        std::fs::create_dir_all(t.add_run(Some(NODE), &id("by-hand"), serde_json::json!({})).join("workspace")).unwrap();
+        // a run whose last recorded story the lake has no code for, and one with code but no recorded story
+        let partial = t.add_code(Some(NODE), &id("partial"), &[1]);
+        t.add_run(Some(NODE), &id("partial"), serde_json::json!({"stories": {"1": {"commit": partial[&1]}, "2": {"commit": "a".repeat(40)}}}));
+        t.add_code(Some(NODE), &id("empty"), &[1]);
+        t.add_run(Some(NODE), &id("empty"), serde_json::json!({}));
+        // a run whose code goes from the lake between the listing and the opening
+        let lost = t.add_code(Some(NODE), &id("lost"), &[1]);
+        t.add_run(Some(NODE), &id("lost"), TestLake::metrics_for(&lost));
+        let app = app_over(&t);
+        let (status, v) = open(&app, "q_1_s_os_hw_eng-cli_coded").await;
+        assert_eq!((status, v["state"].as_str()), (StatusCode::OK, Some("preparing")), "{v}");
+        assert!(app.cache.join(builds::CHECKOUTS).join("q_1_s_os_hw_eng-cli_coded@02").join("story-02.txt").is_file(), "the last story's build");
+        let (status, v) = open(&app, "q_1_s_os_hw_eng-cli_by-hand").await;
+        assert_eq!((status, v["state"].as_str()), (StatusCode::OK, Some("preparing")), "{v}");
+        let no_build = (StatusCode::NOT_FOUND, serde_json::json!({"error": "this run has no build to open"}));
+        assert_eq!(open(&app, "q_1_s_os_hw_eng-cli_partial").await, no_build);
+        assert_eq!(open(&app, "q_1_s_os_hw_eng-cli_empty").await, no_build);
+        assert_eq!(open(&app, "no-such-run").await, (StatusCode::NOT_FOUND, serde_json::json!({"error": "no such run"})));
+        // corrupt the lost run's story ref so its listing still says code but the checkout cannot be made
+        let code = t.state.join("code.git");
+        let reference = bench_lake::code::story_ref(NODE, &id("lost"), 1);
+        let missing_tree_commit = {
+            let out = std::process::Command::new("git").arg("--git-dir").arg(&code)
+                .args(["hash-object", "-t", "commit", "-w", "--literally", "--stdin"])
+                .stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).spawn()
+                .and_then(|mut c| {
+                    use std::io::Write;
+                    c.stdin.take().unwrap().write_all(b"tree 0123456789abcdef0123456789abcdef01234567\nauthor a <a> 0 +0000\ncommitter a <a> 0 +0000\n\nbroken\n")?;
+                    c.wait_with_output()
+                }).unwrap();
+            String::from_utf8(out.stdout).unwrap().trim().to_string()
+        };
+        crate::testlake::git(&code, &["update-ref", &reference, &missing_tree_commit]);
+        let (status, v) = open(&app, "q_1_s_os_hw_eng-cli_lost").await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{v}");
+        assert!(v["error"].as_str().unwrap().starts_with("could not check out story 1 of q_1_s_os_hw_eng-cli_lost: E-LAKE-GIT-FAILED"), "{v}");
+        for slug in ["q_1_s_os_hw_eng-cli_coded", "q_1_s_os_hw_eng-cli_by-hand"] {
+            app.builds.stop(slug).await;
+        }
     }
 
     // ---------- the rescan: sync with origin, then add the runs that have become reviewable ----------
@@ -1251,56 +1326,36 @@ mod tests {
     const PASS_SETTLE: std::time::Duration = std::time::Duration::from_millis(1500);
     const REAL_POLL: std::time::Duration = std::time::Duration::from_millis(20);
 
-    /// An origin, the gallery's clone of it and a clone that plays the benchmark machine.
+    /// A lake the collector fills, and a checkout holding the pack's scope (one story), as the gallery reads them.
     struct Machines {
-        root: PathBuf,
+        lake: TestLake,
+        repo: PathBuf,
     }
     impl Machines {
         fn new(tag: &str) -> Machines {
-            let root = scratch(tag);
-            std::fs::create_dir_all(root.join("origin.git")).unwrap();
-            git(&root.join("origin.git"), &["init", "-q", "--bare"]);
-            git(&root, &["clone", "-q", "origin.git", "bench"]);
-            // The scope the runs were made in: one story.
-            let scope = root.join("bench/benchmarks/vidi/scope");
+            let lake = TestLake::new(tag);
+            let repo = lake.root.join("repo");
+            let scope = repo.join("benchmarks/vidi/scope");
             std::fs::create_dir_all(&scope).unwrap();
             std::fs::write(scope.join("canvas.json"), r#"{"stories": [1]}"#).unwrap();
-            git(&root.join("bench"), &["add", "."]);
-            git(&root.join("bench"), &["commit", "-q", "-m", "scope"]);
-            git(&root.join("bench"), &["push", "-q", "origin", "HEAD:main"]);
-            git(&root, &["clone", "-q", "origin.git", "gallery"]);
-            Machines { root }
+            Machines { lake, repo }
         }
-        fn gallery(&self) -> PathBuf {
-            self.root.join("gallery")
-        }
-        /// Pushes a finished, scored run with its code bundle: everything `is_reviewable` asks for.
-        fn push_reviewable_run(&self, name: &str) {
-            let bench = self.root.join("bench");
-            let run = bench.join("combinations/q/w/benchmarks/vidi").join(name);
-            std::fs::create_dir_all(run.join("workspace")).unwrap();
-            std::fs::write(run.join("workspace/index.ts"), "x").unwrap();
-            std::fs::write(run.join("workspace.bundle"), "bundle").unwrap();
-            std::fs::write(run.join("metrics.json"), r#"{"scope": "canvas", "stories": {"1": {"finished": 1.0}}}"#).unwrap();
-            std::fs::write(run.join("run.json"), r#"{"pack_version": "vidi-v2.0-pre1"}"#).unwrap();
+        /// A finished, scored run with its code, as the collector leaves it in the lake: everything `is_reviewable` asks for.
+        fn collect_reviewable_run(&self, name: &str) {
+            let id = format!("combinations/q/1/s/os/hw/eng-cli/benchmarks/vidi/{name}");
+            let commits = self.lake.add_code(Some(NODE), &id, &[1]);
+            let run = self.lake.add_run(Some(NODE), &id, serde_json::json!({"scope": "canvas", "stories": {"1": {"finished": 1.0, "commit": commits[&1]}}}));
             std::fs::write(run.join("run-status.json"), r#"{"state": "finished"}"#).unwrap();
             std::fs::write(run.join("accept-final-summary.json"), r#"{"passed": 3, "total": 4}"#).unwrap();
-            git(&bench, &["add", "."]);
-            git(&bench, &["commit", "-q", "-m", name]);
-            git(&bench, &["push", "-q", "origin", "HEAD:main"]);
-        }
-    }
-    impl Drop for Machines {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.root);
         }
     }
 
-    /// An app whose repo is `repo`, with no stories to prepare and no build under review yet.
-    fn rescanned_app(repo: &std::path::Path) -> Arc<App> {
+    /// An app over the machines' checkout and lake, with no stories to prepare and no build under review yet.
+    fn rescanned_app(m: &Machines) -> Arc<App> {
         let mut f = fixture();
         let app = Arc::get_mut(&mut f.app).unwrap();
-        app.repo = repo.to_path_buf();
+        app.repo = m.repo.clone();
+        app.lake = m.lake.lake.clone();
         app.stories = Vec::new();
         app.review_builds = std::sync::RwLock::new(Vec::new());
         f.app.clone()
@@ -1324,45 +1379,22 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn the_rescan_pulls_what_the_machines_pushed_and_adds_each_run_that_became_reviewable_once_in_order() {
+    async fn the_rescan_adds_each_run_that_became_reviewable_in_the_lake_once_in_order() {
         let machines = Machines::new("rescan");
-        let app = rescanned_app(&machines.gallery());
+        let app = rescanned_app(&machines);
         let task = tokio::spawn(rescan(app.clone()));
         // Nothing reviewable yet: a pass changes nothing.
         one_pass().await;
         assert!(slugs(&app).is_empty());
-        machines.push_reviewable_run("v2-r1");
+        machines.collect_reviewable_run("v2-r1");
         one_pass().await;
-        assert_eq!(slugs(&app), ["q_w_v2-r1"], "the pass pulled the run and added it");
+        assert_eq!(slugs(&app), ["q_1_s_os_hw_eng-cli_v2-r1"], "the pass found the run the collector brought");
         // A second run is added after the first; the first is not added again.
-        machines.push_reviewable_run("v2-r2");
+        machines.collect_reviewable_run("v2-r2");
         one_pass().await;
-        assert_eq!(slugs(&app), ["q_w_v2-r1", "q_w_v2-r2"]);
+        assert_eq!(slugs(&app), ["q_1_s_os_hw_eng-cli_v2-r1", "q_1_s_os_hw_eng-cli_v2-r2"]);
         one_pass().await;
         assert_eq!(slugs(&app).len(), 2, "a run already under review is not added again");
-        task.abort();
-        assert!(machines.gallery().join("combinations/q/w/benchmarks/vidi/v2-r2/metrics.json").is_file());
-    }
-
-    #[tokio::test(start_paused = true)]
-    async fn a_checkout_that_cannot_be_synced_is_reported_and_the_rescan_carries_on() {
-        // Not a repository: the pull fails every pass. A run already there is still found by the scan that follows.
-        let machines = Machines::new("rescan-nosync");
-        machines.push_reviewable_run("v2-r1");
-        let plain = machines.root.join("plain");
-        std::fs::create_dir_all(plain.join("combinations/q/w/benchmarks/vidi")).unwrap();
-        let copy = |from: &std::path::Path, to: &std::path::Path| {
-            let ok = std::process::Command::new("cp").arg("-R").arg(from).arg(to).status().unwrap().success();
-            assert!(ok);
-        };
-        copy(&machines.root.join("bench/combinations/q/w/benchmarks/vidi/v2-r1"), &plain.join("combinations/q/w/benchmarks/vidi"));
-        copy(&machines.root.join("bench/benchmarks"), &plain);
-        let app = rescanned_app(&plain);
-        let task = tokio::spawn(rescan(app.clone()));
-        one_pass().await;
-        assert_eq!(slugs(&app), ["q_w_v2-r1"]);
-        one_pass().await;
-        assert_eq!(slugs(&app).len(), 1);
         task.abort();
     }
 
@@ -1636,6 +1668,12 @@ mod final_build_source_tests {
         }
     }
 
+    /// The run with code in the lake for `stories`.
+    fn with_code(mut run: runs::Run, stories: &[u64]) -> runs::Run {
+        run.code_stories = stories.iter().copied().collect();
+        run
+    }
+
     #[test]
     fn an_old_run_with_a_workspace_folder_opens_the_folder() {
         let dir = scratch("folder");
@@ -1646,20 +1684,22 @@ mod final_build_source_tests {
     }
 
     #[test]
-    fn a_run_with_only_a_bundle_opens_the_last_story_s_commit_from_it() {
-        let dir = scratch("bundle");
-        std::fs::write(dir.join("workspace.bundle"), b"bundle").unwrap();
-        let run = run_at(&dir, &[(1, "aaa"), (3, "ccc"), (2, "bbb")]);
-        assert_eq!(final_build_source(&run), FinalBuildSource::Bundle { story: 3 });
+    fn a_run_with_code_in_the_lake_opens_its_last_recorded_story() {
+        let dir = scratch("code");
+        let run = with_code(run_at(&dir, &[(1, "aaa"), (3, "ccc"), (2, "bbb")]), &[1, 2, 3]);
+        assert_eq!(final_build_source(&run), FinalBuildSource::Code { story: 3 });
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn a_run_with_neither_a_folder_nor_a_usable_bundle_has_no_build() {
+    fn a_run_with_neither_a_folder_nor_code_for_its_last_story_has_no_build() {
         let dir = scratch("none");
-        assert_eq!(final_build_source(&run_at(&dir, &[(1, "aaa")])), FinalBuildSource::None);
+        assert_eq!(final_build_source(&run_at(&dir, &[(1, "aaa")])), FinalBuildSource::None, "no code at all");
         std::fs::write(dir.join("workspace.bundle"), b"bundle").unwrap();
-        assert_eq!(final_build_source(&run_at(&dir, &[])), FinalBuildSource::None, "a bundle with no recorded commit");
+        assert_eq!(final_build_source(&run_at(&dir, &[(1, "aaa")])), FinalBuildSource::None, "a bundle is not code in the lake");
+        assert_eq!(final_build_source(&with_code(run_at(&dir, &[(1, "aaa"), (2, "bbb")]), &[1])), FinalBuildSource::None,
+                   "code for an earlier story only");
+        assert_eq!(final_build_source(&with_code(run_at(&dir, &[]), &[1])), FinalBuildSource::None, "no recorded story");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

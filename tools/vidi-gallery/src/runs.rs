@@ -1,19 +1,22 @@
-//! Every recorded Vidi run in the repo, with its final held-out score, its audit (judging) and its
-//! cost. Pure reads of the committed records; missing data is `None`, never an error.
+//! Every Vidi run in the lake (story 23: read through bench-lake, never a checkout), with its final held-out score,
+//! its audit (judging) and its cost. Pure reads of the lake copy's records; missing data is `None`, never an error.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+
+use bench_lake::{Lake, RunRef};
 
 use serde::Serialize;
 use serde_json::Value;
 
-/// The run's app with its git history, and the plain-file copy older runs also have.
-const BUNDLE: &str = "workspace.bundle";
+/// The plain-file copy of the app a hand-built run has instead of code in the lake.
 const MIRROR: &str = "workspace";
-/// Folders never searched for runs: build output, dependencies, per-story records, git internals.
-const SKIP_DIRS: &[&str] = &["workspace", "node_modules", "stories", ".git", "target", "dist"];
-/// How deep under combinations/ a run can be (combination path + benchmarks/vidi/<run>).
-const MAX_DEPTH: usize = 12;
+/// Where vidi runs sit in the lake's run ids: `combinations/<setup>/benchmarks/vidi/<run>` and
+/// `benchmarks/reference/vidi/<stack>/<run>`.
+const COMBINATION_PREFIX: &str = "combinations/";
+const VIDI_INFIX: &str = "/benchmarks/vidi/";
+const REFERENCE_PREFIX: &str = "benchmarks/reference/vidi/";
+const REFERENCE_SETUP: &str = "reference/";
 /// A test that failed because the scoring machine had no browser: the score says nothing.
 const VOID_MARKER: &str = "Executable doesn't exist";
 const SECONDS_PER_MINUTE: f64 = 60.0;
@@ -58,8 +61,14 @@ pub struct Run {
     pub slug: String,
     pub setup: String,
     pub run: String,
+    /// The lake copy the gallery reads (bench-lake's preferred copy of the run).
     #[serde(skip)]
     pub path: PathBuf,
+    #[serde(skip)]
+    pub copy: Option<RunRef>,
+    /// The stories the lake's code repository has this copy's code for.
+    #[serde(skip)]
+    pub code_stories: BTreeSet<u64>,
     pub stories_finished: usize,
     pub stories_in_scope: Option<usize>,
     pub in_progress: bool,
@@ -69,7 +78,7 @@ pub struct Run {
     /// How each story ended (DONE / PARTIAL), from metrics.json's processed queue.
     #[serde(skip)]
     pub story_status: BTreeMap<u64, String>,
-    /// The record holds the run's git history (workspace.bundle), so any story's commit can be built.
+    /// The lake's code repository has the run's code, so its stories can be built.
     pub has_history: bool,
     /// run.json's pack_version, e.g. "vidi-v2.0-pre2" ("" for records from before versions).
     pub pack_version: String,
@@ -97,36 +106,40 @@ pub fn slug(setup: &str, run: &str) -> String {
         .collect()
 }
 
-/// Run folders: `combinations/**/benchmarks/vidi/<run>/` and `benchmarks/reference/vidi/<stack>/<run>/`
-/// that have a metrics.json and the app they built: workspace.bundle (what the harness writes) or, for older and
-/// hand-built runs, a workspace/ folder.
-pub fn discover(repo: &Path) -> Vec<(String, String, PathBuf)> {
+/// The setup and run names of a vidi run id: `combinations/<setup>/benchmarks/vidi/<run>` gives (<setup>, <run>),
+/// `benchmarks/reference/vidi/<stack>/<run>` gives (reference/<stack>, <run>); None for any other run.
+pub fn names(id: &str) -> Option<(String, String)> {
+    if let Some(rest) = id.strip_prefix(REFERENCE_PREFIX) {
+        let (stack, run) = rest.split_once('/')?;
+        return (!run.contains('/')).then(|| (format!("{REFERENCE_SETUP}{stack}"), run.to_string()));
+    }
+    let rest = id.strip_prefix(COMBINATION_PREFIX)?;
+    let (setup, run) = rest.rsplit_once(VIDI_INFIX)?;
+    (!run.contains('/')).then(|| (setup.to_string(), run.to_string()))
+}
+
+/// The vidi runs in the lake: bench-lake's preferred copy of each, with a metrics.json and the app it built, code in
+/// the lake's code repository (`code`, from `Lake::code_stories`) or, for a hand-built run, a workspace/ folder. A run
+/// the operator archived or marked invalid (`decisions`, the lake's annotation store) is left out.
+pub fn discover(
+    lake: &Lake,
+    code: &BTreeMap<(String, String), BTreeSet<u32>>,
+    decisions: &bench_lake::annotations::State,
+) -> Vec<(String, String, RunRef)> {
+    let d = lake.discover();
+    let ids: BTreeSet<&str> = d.runs.iter().map(|r| r.id.as_str()).collect();
     let mut out = Vec::new();
-    let combos = repo.join("combinations");
-    walk(&combos, 0, &mut |dir| {
-        let parent = dir.parent();
-        if dir.file_name().is_some_and(|n| n == "vidi")
-            && parent.and_then(|p| p.file_name()).is_some_and(|n| n == "benchmarks")
-        {
-            let setup = parent
-                .and_then(|p| p.parent())
-                .and_then(|c| c.strip_prefix(&combos).ok())
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_default();
-            for run in run_dirs(dir) {
-                out.push((setup.clone(), name(&run), run));
-            }
-            return false;
+    for id in ids {
+        if decisions.archived(id).is_some() || decisions.invalid(id).is_some() {
+            continue;
         }
-        true
-    });
-    let reference = repo.join("benchmarks/reference/vidi");
-    for stack in subdirs(&reference) {
-        for run in run_dirs(&stack) {
-            out.push((format!("reference/{}", name(&stack)), name(&run), run));
+        let (Some((setup, run)), Some(copy)) = (names(id), lake.preferred(&d, id)) else { continue };
+        let has_code = code.contains_key(&(bench_lake::code::node_of(copy).to_string(), copy.id.clone()));
+        if copy.dir.join("metrics.json").is_file() && (has_code || copy.dir.join(MIRROR).is_dir()) {
+            out.push((setup, run, copy.clone()));
         }
     }
-    out.sort();
+    out.sort_by(|a, b| (&a.0, &a.1).cmp(&(&b.0, &b.1)));
     out
 }
 
@@ -144,25 +157,6 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
         .collect();
     v.sort();
     v
-}
-
-fn run_dirs(dir: &Path) -> Vec<PathBuf> {
-    subdirs(dir)
-        .into_iter()
-        .filter(|r| r.join("metrics.json").is_file() && (r.join(BUNDLE).is_file() || r.join(MIRROR).is_dir()))
-        .collect()
-}
-
-/// Depth-first walk; `visit` returns false to stop descending into that folder.
-fn walk(dir: &Path, depth: usize, visit: &mut dyn FnMut(&Path) -> bool) {
-    if depth > MAX_DEPTH || !visit(dir) {
-        return;
-    }
-    for sub in subdirs(dir) {
-        if !SKIP_DIRS.iter().any(|s| sub.file_name().is_some_and(|n| n == *s)) {
-            walk(&sub, depth + 1, visit);
-        }
-    }
 }
 
 /// The public summary a held-out result has beside it, and the result itself, in the order they are read. Since
@@ -344,30 +338,46 @@ pub fn tasks_named(subject: &str) -> Vec<u64> {
     words.windows(2).filter(|w| w[0] == "task").filter_map(|w| w[1].parse().ok()).collect()
 }
 
-/// The private repo's copy of a run's held-out detail (the public record keeps counts only): the harness copies
-/// each run's private files to <private repo>/runs/<the run's path in this repo>/.
+/// The private repo's copy of a run's audit: judging runs before story 10 left it at
+/// <private repo>/runs/<run id>/ (the lake copy holds none yet).
 const PRIVATE_RUNS: &str = "runs";
 
 fn private_of(repo: &Path) -> PathBuf {
     repo.parent().map(|p| p.join("awesome-local-ai-bench-private")).unwrap_or_default()
 }
 
-/// A run file that may be private: in the run, else in the private repo's copy.
-fn run_or_private(repo: &Path, private: &Path, run: &Path, rel: &str) -> Option<String> {
-    std::fs::read_to_string(run.join(rel)).ok().or_else(|| {
-        let copy = private.join(PRIVATE_RUNS).join(run.strip_prefix(repo).ok()?).join(rel);
-        std::fs::read_to_string(copy).ok()
-    })
+/// A run file that may be private: in the lake copy, else in the private repo's copy under the run's id.
+fn run_or_private(private: &Path, copy: &RunRef, rel: &str) -> Option<String> {
+    std::fs::read_to_string(copy.dir.join(rel))
+        .ok()
+        .or_else(|| std::fs::read_to_string(private.join(PRIVATE_RUNS).join(&copy.id).join(rel)).ok())
 }
 
-pub fn load(repo: &Path) -> Vec<Run> {
-    load_with(repo, &private_of(repo))
+/// Every vidi run in the lake (`discover`). `repo` is this checkout, for the pack's scopes; the private repo beside
+/// it holds older audits.
+pub fn load(repo: &Path, lake: &Lake) -> Vec<Run> {
+    load_with(repo, lake, &private_of(repo))
 }
 
-fn load_with(repo: &Path, private: &Path) -> Vec<Run> {
-    discover(repo)
+/// The lake's state folder: where `collected` is (the annotation store and the code repository are beside it).
+fn state_of(lake: &Lake) -> PathBuf {
+    lake.collected.parent().map(Path::to_path_buf).unwrap_or_default()
+}
+
+fn load_with(repo: &Path, lake: &Lake, private: &Path) -> Vec<Run> {
+    // An unreadable decision log is never taken as "no decisions" (that would show invalid runs): nothing is shown.
+    let decisions = match bench_lake::annotations::Store::in_state_dir(&state_of(lake)).state() {
+        Ok(state) => state,
+        Err(e) => {
+            eprintln!("vidi-gallery: the lake's decision log cannot be read, so no run is shown: {e}");
+            return Vec::new();
+        }
+    };
+    let code = lake.code_stories();
+    discover(lake, &code, &decisions)
         .into_iter()
-        .map(|(setup, run, path)| {
+        .map(|(setup, run, copy)| {
+            let path = copy.dir.clone();
             let metrics = read_json(&path.join("metrics.json")).unwrap_or(Value::Null);
             let (cost, finished) = cost(&metrics);
             let scope = metrics.get("scope").and_then(Value::as_str).unwrap_or("canvas");
@@ -375,6 +385,10 @@ fn load_with(repo: &Path, private: &Path) -> Vec<Run> {
             let status_finished = read_json(&path.join("run-status.json"))
                 .and_then(|s| s.get("state").and_then(Value::as_str).map(|x| x == "finished"))
                 .unwrap_or(false);
+            let code_stories: BTreeSet<u64> = code
+                .get(&(bench_lake::code::node_of(&copy).to_string(), copy.id.clone()))
+                .map(|s| s.iter().map(|&n| u64::from(n)).collect())
+                .unwrap_or_default();
             Run {
                 slug: slug(&setup, &run),
                 in_progress: !status_finished && in_scope.is_some_and(|n| finished < n),
@@ -389,17 +403,19 @@ fn load_with(repo: &Path, private: &Path) -> Vec<Run> {
                             .collect()
                     })
                     .unwrap_or_default(),
-                has_history: path.join(BUNDLE).is_file(),
+                has_history: !code_stories.is_empty(),
+                code_stories,
                 pack_version: read_json(&path.join("run.json"))
                     .and_then(|m| m.get("pack_version").and_then(Value::as_str).map(String::from))
                     .unwrap_or_default(),
                 stories_in_scope: in_scope,
                 score: score(&path),
-                judging: run_or_private(repo, private, &path, "audit.jsonl").map(|t| judging(&t)),
+                judging: run_or_private(private, &copy, "audit.jsonl").map(|t| judging(&t)),
                 cost,
                 setup,
                 run,
                 path,
+                copy: Some(copy),
             }
         })
         .collect()
@@ -466,80 +482,126 @@ mod tests {
         std::fs::write(p, v.to_string()).unwrap();
     }
 
+    use crate::testlake::{TestLake, COMBO_ID, COMBO_SETUP, COMBO_SLUG, NODE, REFERENCE_ID};
+
     #[test]
-    fn runs_are_discovered_in_combinations_and_reference_stacks() {
-        let repo = tmp("discover");
-        let a = repo.join("combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi/canvas-pi-01");
-        let b = repo.join("benchmarks/reference/vidi/opus-5.5/run-1");
-        let no_ws = repo.join("combinations/x/benchmarks/vidi/smoke");
-        for d in [&a, &b] {
-            write(&d.join("metrics.json"), &json!({"stories": {}}));
-            std::fs::create_dir_all(d.join("workspace")).unwrap();
-        }
-        write(&no_ws.join("metrics.json"), &json!({}));
-        let found = discover(&repo);
+    fn a_vidi_run_id_names_its_setup_and_run() {
+        assert_eq!(names(COMBO_ID), Some((COMBO_SETUP.to_string(), "r1".to_string())));
+        assert_eq!(names(REFERENCE_ID), Some(("reference/opus-5.5".to_string(), "v2-r1".to_string())));
+        assert_eq!(names("combinations/q/1/s/os/hw/eng-cli/benchmarks/todoodle/r1"), None, "not a vidi run");
+        assert_eq!(names("benchmarks/reference/todoodle/opus-5.5/run-1"), None);
+        assert_eq!(names("benchmarks/reference/vidi/opus-5.5"), None, "a stack is not a run");
+        assert_eq!(names("elsewhere/benchmarks/vidi/r1"), None);
+    }
+
+    #[test]
+    fn tc70_the_runs_are_the_lakes_vidi_runs_with_code_or_a_workspace_folder() {
+        let t = TestLake::new("discover");
+        t.add_run(Some(NODE), COMBO_ID, json!({"stories": {}}));
+        t.add_code(Some(NODE), COMBO_ID, &[1]);
+        let by_hand = t.add_run(None, REFERENCE_ID, json!({"stories": {}}));
+        std::fs::create_dir_all(by_hand.join("workspace")).unwrap();
+        // no code and no folder; code but no metrics.json; a todoodle run: none is a gallery run
+        let bare = "combinations/q/1/s/os/hw/eng-cli/benchmarks/vidi/bare";
+        t.add_run(Some(NODE), bare, json!({}));
+        let no_metrics = "combinations/q/1/s/os/hw/eng-cli/benchmarks/vidi/no-metrics";
+        std::fs::remove_file(t.add_run(Some(NODE), no_metrics, json!({})).join("metrics.json")).unwrap();
+        t.add_code(Some(NODE), no_metrics, &[1]);
+        let todoodle = "combinations/q/1/s/os/hw/eng-cli/benchmarks/todoodle/r1";
+        t.add_run(Some(NODE), todoodle, json!({}));
+        t.add_code(Some(NODE), todoodle, &[1]);
+        let found = discover(&t.lake, &t.lake.code_stories(), &Default::default());
         assert_eq!(
-            found.iter().map(|(s, r, _)| (s.as_str(), r.as_str())).collect::<Vec<_>>(),
-            vec![("qwen/3.8/flash-next/macos/128GB/mtplx-pi", "canvas-pi-01"), ("reference/opus-5.5", "run-1")]
+            found.iter().map(|(s, r, c)| (s.as_str(), r.as_str(), c.id.as_str())).collect::<Vec<_>>(),
+            vec![(COMBO_SETUP, "r1", COMBO_ID), ("reference/opus-5.5", "v2-r1", REFERENCE_ID)]
         );
     }
 
     #[test]
-    fn a_run_with_a_bundle_and_metrics_is_listed_without_a_workspace_folder_and_a_bare_record_is_not() {
-        let repo = tmp("discover-bundle-only");
-        let bundled = repo.join("combinations/q/benchmarks/vidi/bundled");
-        let folder = repo.join("benchmarks/reference/vidi/opus-5.5/by-hand");
-        let neither = repo.join("combinations/q/benchmarks/vidi/neither");
-        let no_metrics = repo.join("combinations/q/benchmarks/vidi/no-metrics");
-        for d in [&bundled, &folder, &neither] {
-            write(&d.join("metrics.json"), &json!({"stories": {}}));
-        }
-        std::fs::write(bundled.join("workspace.bundle"), "bundle").unwrap();
-        std::fs::create_dir_all(folder.join("workspace")).unwrap();
-        std::fs::create_dir_all(&no_metrics).unwrap();
-        std::fs::write(no_metrics.join("workspace.bundle"), "bundle").unwrap();
-        let found = discover(&repo);
-        assert_eq!(
-            found.iter().map(|(s, r, _)| (s.as_str(), r.as_str())).collect::<Vec<_>>(),
-            vec![("q", "bundled"), ("reference/opus-5.5", "by-hand")],
-            "{found:?}"
-        );
+    fn a_run_held_by_two_nodes_is_listed_once_from_bench_lakes_preferred_copy() {
+        let t = TestLake::new("copies");
+        let theirs = t.add_run(Some("node-b"), COMBO_ID, json!({"stories": {}}));
+        let ours = t.add_run(Some(NODE), COMBO_ID, json!({"stories": {}}));
+        t.add_code(Some(NODE), COMBO_ID, &[1]);
+        t.add_code(Some("node-b"), COMBO_ID, &[1]);
+        let d = t.lake.discover();
+        let preferred = t.lake.preferred(&d, COMBO_ID).unwrap().dir.clone();
+        assert!(preferred == ours || preferred == theirs);
+        let runs = load(&t.root.join("repo"), &t.lake);
+        assert_eq!((runs.len(), runs[0].path.clone()), (1, preferred));
     }
 
     #[test]
-    fn a_folder_named_vidi_is_a_benchmark_only_directly_under_benchmarks() {
-        let repo = tmp("discover-vidi-elsewhere");
-        let real = repo.join("combinations/q/benchmarks/vidi/r1");
-        let stray = repo.join("combinations/q/notes/vidi/r1");
-        for d in [&real, &stray] {
-            write(&d.join("metrics.json"), &json!({"stories": {}}));
-            std::fs::create_dir_all(d.join("workspace")).unwrap();
+    fn tc72_a_runs_score_and_story_results_are_read_from_the_lake_copy_with_no_checkout_at_all() {
+        let t = TestLake::new("heldout");
+        let commits = t.add_code(Some(NODE), COMBO_ID, &[1, 2]);
+        let run = t.add_run(Some(NODE), COMBO_ID, json!({"stories": {"1": {"commit": commits[&1]}, "2": {"commit": commits[&2]}},
+            "processed": [{"id": 1, "status": "DONE"}, {"id": 2, "status": "PARTIAL"}, {"id": "x"}]}));
+        // the full held-out result, which only the lake copy holds (the public record kept counts only)
+        write(&run.join("stories/02/accept.json"), &json!({"passed": 9, "total": 12, "tests": [{"title": "t", "status": "failed"}]}));
+        let nowhere = t.root.join("no-checkout");
+        let runs = load(&nowhere, &t.lake);
+        assert_eq!(runs.len(), 1);
+        let r = &runs[0];
+        assert_eq!((r.slug.as_str(), r.setup.as_str(), r.run.as_str()), (COMBO_SLUG, COMBO_SETUP, "r1"));
+        assert_eq!((r.score.passed, r.score.total, r.score.source.as_deref()), (Some(9), Some(12), Some("stories/02/accept.json")));
+        assert_eq!(r.story_status, BTreeMap::from([(1, "DONE".to_string()), (2, "PARTIAL".to_string())]), "how each story ended");
+        assert_eq!(r.code_stories, BTreeSet::from([1, 2]));
+        assert!(r.has_history && r.copy.as_ref().is_some_and(|c| c.dir == run));
+        assert_eq!(r.pack_version, "vidi-v2.0-pre2");
+    }
+
+    #[test]
+    fn tc73_a_run_without_code_in_the_lake_has_no_history() {
+        let t = TestLake::new("nocode");
+        let run = t.add_run(Some(NODE), COMBO_ID, json!({"stories": {"1": {"commit": "a".repeat(40)}}}));
+        std::fs::create_dir_all(run.join("workspace")).unwrap();          // listed for its folder, but no code
+        std::fs::write(run.join("workspace.bundle"), "a bundle is not code in the lake").unwrap();
+        let runs = load(&t.root.join("repo"), &t.lake);
+        assert_eq!(runs.len(), 1);
+        assert!(!runs[0].has_history && runs[0].code_stories.is_empty());
+    }
+
+    #[test]
+    fn an_archived_or_invalid_run_is_not_shown_and_an_unreadable_decision_log_shows_nothing() {
+        use bench_lake::annotations::Kind;
+        let t = TestLake::new("decisions");
+        let id = |name: &str| format!("combinations/q/1/s/os/hw/eng-cli/benchmarks/vidi/{name}");
+        for name in ["kept", "archived", "invalid"] {
+            t.add_run(Some(NODE), &id(name), json!({"stories": {}}));
+            t.add_code(Some(NODE), &id(name), &[1]);
         }
-        let found = discover(&repo);
-        assert_eq!(found.iter().map(|(s, r, _)| (s.as_str(), r.as_str())).collect::<Vec<_>>(), vec![("q", "r1")], "{found:?}");
+        t.decide(Kind::Archived, &id("archived"));
+        t.decide(Kind::Invalid, &id("invalid"));
+        let shown = |t: &TestLake| load(&t.root.join("repo"), &t.lake).into_iter().map(|r| r.run).collect::<Vec<_>>();
+        assert_eq!(shown(&t), ["kept"]);
+        // a decision log that cannot be read is never taken as "no decisions": nothing is shown
+        let log = bench_lake::annotations::Store::in_state_dir(&t.state).log_path();
+        std::fs::write(&log, "not a decision\n").unwrap();
+        assert!(shown(&t).is_empty());
+    }
+
+    #[test]
+    fn a_runs_audit_is_read_from_the_lake_copy_else_the_private_repos_copy_under_its_id() {
+        let t = TestLake::new("audit");
+        let run = t.add_run(Some(NODE), COMBO_ID, json!({"stories": {}}));
+        t.add_code(Some(NODE), COMBO_ID, &[1]);
+        let private = t.root.join("priv");
+        assert!(load_with(&t.root, &t.lake, &private)[0].judging.is_none(), "no audit anywhere: no judging");
+        let row = json!({"category": "functional", "severity": "high", "status": "counted"}).to_string();
+        std::fs::create_dir_all(private.join("runs").join(COMBO_ID)).unwrap();
+        std::fs::write(private.join("runs").join(COMBO_ID).join("audit.jsonl"), &row).unwrap();
+        assert_eq!(load_with(&t.root, &t.lake, &private)[0].judging.as_ref().map(|j| j.rows), Some(1));
+        std::fs::write(run.join("audit.jsonl"), format!("{row}\n{row}")).unwrap();
+        assert_eq!(load_with(&t.root, &t.lake, &private)[0].judging.as_ref().map(|j| j.rows), Some(2), "the lake copy first");
+        let repo = t.root.join("awesome-local-ai");
+        assert_eq!(private_of(&repo), t.root.join("awesome-local-ai-bench-private"));
     }
 
     #[test]
     fn the_private_checkout_is_the_repos_sibling_and_a_repo_with_no_parent_has_none() {
         assert_eq!(private_of(Path::new("/work/awesome-local-ai")), PathBuf::from("/work/awesome-local-ai-bench-private"));
         assert_eq!(private_of(Path::new("/")), PathBuf::new());
-    }
-
-    #[test]
-    fn load_reads_a_runs_audit_from_the_private_checkout_beside_the_repo() {
-        let root = tmp("load-private");
-        let repo = root.join("awesome-local-ai");
-        let rel = "combinations/x/benchmarks/vidi/r1";
-        let run = repo.join(rel);
-        write(&run.join("metrics.json"), &json!({"stories": {}}));
-        std::fs::create_dir_all(run.join("workspace")).unwrap();
-        assert!(load(&repo)[0].judging.is_none());
-        let private = root.join("awesome-local-ai-bench-private/runs").join(rel);
-        std::fs::create_dir_all(&private).unwrap();
-        std::fs::write(private.join("audit.jsonl"), json!({"category": "functional", "severity": "high", "status": "counted"}).to_string()).unwrap();
-        let runs = load(&repo);
-        assert_eq!((runs.len(), runs[0].slug.as_str()), (1, "x_r1"));
-        assert_eq!(runs[0].judging.as_ref().map(|j| (j.rows, j.functional["high"])), Some((1, 1)));
     }
 
     #[test]
@@ -599,23 +661,6 @@ mod tests {
         assert!(is_void(&json!({"harness_fault": "Playwright's browser is missing"})));
         assert!(is_void(&json!({"tests": [{"error": "browserType.launch: Executable doesn't exist at ~/x"}]})));
         assert!(!is_void(&json!({"harness_fault": null, "tests": [{"error": "net::ERR_CONNECTION_REFUSED"}]})));
-    }
-
-    #[test]
-    fn a_runs_audit_is_read_from_the_private_copy_when_the_public_record_has_none() {
-        let root = tmp("audit-private");
-        let (repo, private) = (root.join("pub"), root.join("priv"));
-        let rel = "combinations/x/benchmarks/vidi/r1";
-        let run = repo.join(rel);
-        write(&run.join("metrics.json"), &json!({"stories": {}}));
-        std::fs::create_dir_all(run.join("workspace")).unwrap();
-        assert!(load_with(&repo, &private)[0].judging.is_none(), "no audit anywhere: no judging");
-        let row = json!({"category": "functional", "severity": "high", "status": "counted"}).to_string();
-        std::fs::create_dir_all(private.join("runs").join(rel)).unwrap();
-        std::fs::write(private.join("runs").join(rel).join("audit.jsonl"), &row).unwrap();
-        assert_eq!(load_with(&repo, &private)[0].judging.as_ref().map(|j| j.rows), Some(1));
-        std::fs::write(run.join("audit.jsonl"), format!("{row}\n{row}")).unwrap();
-        assert_eq!(load_with(&repo, &private)[0].judging.as_ref().map(|j| j.rows), Some(2), "the run's own copy first");
     }
 
     #[test]

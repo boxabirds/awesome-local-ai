@@ -137,6 +137,35 @@ impl Lake {
         self.collected.parent().unwrap_or(Path::new("")).join(CODE_REPO)
     }
 
+    /// Every copy that has code, as (node, run id) with the stories it has a ref for, from one listing of the code
+    /// repository's refs (a reader that shows many runs asks once, not once per run). Empty when there is no code
+    /// repository.
+    pub fn code_stories(&self) -> std::collections::BTreeMap<(String, String), std::collections::BTreeSet<u32>> {
+        let mut out: std::collections::BTreeMap<(String, String), std::collections::BTreeSet<u32>> = Default::default();
+        let Ok(listing) = git_command()
+            .arg("--git-dir")
+            .arg(self.code_repo())
+            .args(["for-each-ref", "--format=%(refname)", RUNS_REFS])
+            .output()
+        else {
+            return out;
+        };
+        if !listing.status.success() {
+            return out;
+        }
+        let story_marker = format!("/{STORY}/");
+        for name in String::from_utf8_lossy(&listing.stdout).lines() {
+            let Some(rest) = name.strip_prefix(RUNS_REFS).and_then(|r| r.strip_prefix('/')) else { continue };
+            let Some((node, rest)) = rest.split_once('/') else { continue };
+            let Some((run, story)) = rest.rsplit_once(&story_marker) else { continue };
+            let Ok(story) = story.parse::<u32>() else { continue };
+            if check_names(node, run).is_ok() {
+                out.entry((node.to_string(), run.to_string())).or_default().insert(story);
+            }
+        }
+        out
+    }
+
     /// The commit of the copy's story ref, if the lake's code repository has one.
     fn story_commit(&self, run: &RunRef, story: i64) -> Option<String> {
         let node = node_of(run);

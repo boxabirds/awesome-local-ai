@@ -2026,6 +2026,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "bench-lake",
  "bytes",
  "clap",
  "http-body-util",

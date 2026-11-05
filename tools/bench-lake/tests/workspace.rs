@@ -395,3 +395,22 @@ fn a_run_with_only_a_bundle_and_no_refs_is_absent_not_read_from_the_bundle() {
     // the reference run, which keeps its refs, is still served: only this copy's code is gone
     lake.workspace(&find(&lake, ID_REFV, None), 1, &s.join("ref")).unwrap();
 }
+
+#[test]
+fn code_stories_lists_each_copys_stories_with_code_in_one_pass() {
+    let (_s, state, lake) = scratch_lake_with_code("ws-stories");
+    let stories = lake.code_stories();
+    let q36 = stories.get(&("node-a".to_string(), ID_Q36.to_string())).expect("node-a's copy has code");
+    let metrics = lake.value(&find(&lake, ID_Q36, Some("node-a")), &bench_lake::Record::Metrics).unwrap();
+    let recorded: std::collections::BTreeSet<u32> =
+        metrics["stories"].as_object().unwrap().iter().filter(|(_, s)| s["commit"].is_string()).map(|(k, _)| k.parse().unwrap()).collect();
+    assert_eq!(q36, &recorded, "one entry per story ref, as the import made them");
+    assert!(!q36.contains(&(STORY_WITHOUT_COMMIT as u32)));
+    assert!(stories.contains_key(&("reference".to_string(), ID_REFV.to_string())), "a reference run's node is `reference`");
+    assert!(!stories.contains_key(&("node-d".to_string(), ID_FLASH.to_string())), "a copy with no refs is not listed");
+    // branch heads are not stories; a lake with no code repository has none
+    git(&state.join("code.git"), &["update-ref", &bench_lake::code::head_ref("node-z", ID_Q36, "main"), &git(&state.join("code.git"), &["rev-parse", &bench_lake::code::story_ref("node-a", ID_Q36, 1)])]);
+    assert!(!lake.code_stories().contains_key(&("node-z".to_string(), ID_Q36.to_string())));
+    let (_s2, _state2, bare) = scratch_lake("ws-stories-none");
+    assert!(bare.code_stories().is_empty());
+}
