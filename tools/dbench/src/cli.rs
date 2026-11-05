@@ -185,6 +185,14 @@ pub enum Cmd {
     Analyse(AnalyseArgs),
     /// Does an agent that repeats itself do worse? Longest run of identical tool calls against held-out results.
     Stalls(StallsArgs),
+    /// Take every workspace.bundle already in the lake into the lake's code repository (`<state>/code.git`).
+    ///
+    /// Each copy's branch heads go to refs/runs/<node>/<run>/heads/*, and the commit each story's record names to
+    /// refs/runs/<node>/<run>/story/NN (`reference` stands for the node of a reference run). Safe to repeat. A bundle
+    /// that does not verify, or a story commit its bundle lacks, is listed and the exit code is non-zero; the bundles
+    /// are left in place.
+    #[command(name = "code-import")]
+    CodeImport(CodeImportArgs),
     /// Validate pre-labels in a browser: accept or correct each, with blind items, agreement and kappa.
     Label(LabelArgs),
     /// End the running story as PARTIAL; the run continues with the next story.
@@ -322,6 +330,13 @@ pub struct AnalyseArgs {
     /// Only this story run (`<run dir>/stories/NN`) or every story of this run dir; repeatable.
     #[arg(long = "only")]
     pub only: Vec<String>,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct CodeImportArgs {
+    /// The lake's state folder, holding collected/ and reference/ (default: the parent of [collect] store in nodes.toml).
+    #[arg(long)]
+    pub state: Option<PathBuf>,
 }
 
 #[derive(Args, Debug, Clone)]

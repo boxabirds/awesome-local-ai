@@ -91,6 +91,25 @@ def test_the_operators_decisions_about_runs_are_in_every_backup(tmp_path):
         assert str(cfg.state / "annotations") in b
 
 
+def test_the_lakes_code_repository_is_in_every_backup(tmp_path):
+    # Story 23 (5 Nov 2026): every run's code lives in state/code.git once git stops carrying workspace.bundle.
+    # `dbench code-import` and the collector create it.
+    cfg, fake = config(tmp_path), FakeRestic({})
+    (cfg.state / "code.git").mkdir()
+    backup.run(cfg, fake, now=NOW)
+    for repo in cfg.repos:
+        b = next(c for c in fake.calls if c[c.index("-r") + 1] == repo and "backup" in c)
+        assert str(cfg.state / "code.git") in b
+
+
+def test_a_machine_with_no_code_repository_yet_is_still_backed_up_without_it(tmp_path):
+    cfg, fake = config(tmp_path), FakeRestic({})
+    backup.run(cfg, fake, now=NOW)
+    for repo in cfg.repos:
+        b = next(c for c in fake.calls if c[c.index("-r") + 1] == repo and "backup" in c)
+        assert str(cfg.state / "code.git") not in b and str(cfg.state / "collected") in b
+
+
 def test_a_machine_with_no_decisions_yet_is_still_backed_up_without_the_folder(tmp_path):
     cfg, fake = config(tmp_path), FakeRestic({})
     backup.run(cfg, fake, now=NOW)

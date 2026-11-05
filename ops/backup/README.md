@@ -14,6 +14,9 @@ existed once, on one disk.
 - **The operator's decisions about runs** (`annotations/`, story 23): which runs are invalid or archived, and which stories are not
   comparable. One append-only log, written by `bench-lake annotate`; since 4 Nov 2026 it is the only place they are kept, and they cannot
   be rebuilt from anything else. Backed up once the folder exists.
+- **Every run's code** (`code.git/`, story 23): one bare git repository holding each run's branch heads and the commit each story
+  ended on, filled by `dbench code-import` from the lake's bundles and by the collector from each node. Once nodes stop writing
+  `workspace.bundle`, it is the only copy of a run's code off the node. Backed up once it exists.
 - **Recordings, judging, annotate and keys** are the rest of that folder.
 
 This job copies all of it, every day, to two places: a repository on this Mac and one on another machine (the RTX 4090 box, over ssh), so

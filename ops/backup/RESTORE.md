@@ -62,6 +62,10 @@ rebuildable. Analytics is rebuilt with `dbench analyse`.
 The operator's decisions (`state/annotations/log.jsonl`) cannot be rebuilt: restore the folder as it was. Check it reads with
 `bench-lake <state> annotations`, which fails, naming the line, if the log is damaged.
 
+The code repository (`state/code.git`): restore the folder as it was, then check it with
+`git -C state/code.git fsck --connectivity-only` (prints nothing when whole). The refs of runs whose bundles are still in the lake can be
+made again with `dbench code-import --state state`; the code of runs collected after the nodes stopped writing bundles cannot.
+
 ## After a total loss, in this order
 
 1. Install restic and put the password file back.

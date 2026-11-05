@@ -1,0 +1,37 @@
+{
+  "stories": {
+    "1": {
+      "commit": "59a592fca04af9fe2c8b667b3a784298795ccde9"
+    },
+    "2": {
+      "commit": "31921e0254342559b1dab5656daefeb65f369cd0"
+    },
+    "3": {
+      "commit": "f2e843946dd8657d0e924068140f34e3e161e8ca"
+    },
+    "4": {
+      "commit": "e7dfbda17b0917f96effd1377f618137233b0541"
+    },
+    "5": {
+      "commit": "cf046f408dd40c9e1604fa92e9153f0a961d6f2f"
+    },
+    "7": {
+      "commit": "f3260bc0ca57674432ffd3547c3a4817a888283f"
+    },
+    "8": {
+      "commit": "8f4471d49c9e3981bdf6bbcb980e02e63aa02c67"
+    },
+    "9": {
+      "commit": "2d9cbbfa53edbeddf5f41ff32cb52e9349e55877"
+    },
+    "10": {
+      "commit": "4b4a25cbad5446f00fa194cdc74fd6107ac2796a"
+    },
+    "11": {
+      "commit": "95c2c6f875b345395f0c2ee995292d51b3fb96f1"
+    },
+    "12": {
+      "commit": "5327d733c20b491f023be07f75e756c0e844e2fd"
+    }
+  }
+}

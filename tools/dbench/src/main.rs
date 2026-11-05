@@ -91,6 +91,17 @@ async fn main() -> Result<()> {
         Cmd::Label(args) => dbench::label::cmd_label(&args).await,
         Cmd::Analyse(args) => dbench::analytics::cmd_analyse(&args, cli.json),
         Cmd::Stalls(args) => dbench::stalls::cmd_stalls(&args, cli.json),
+        Cmd::CodeImport(args) => {
+            let state = match args.state {
+                Some(s) => s,
+                None => {
+                    let ctx = Ctx::load(cli.config, cli.json)?;
+                    let store = ctx.collect.store.clone().context("--state, or [collect] store in nodes.toml")?;
+                    store.parent().context("[collect] store has no parent folder")?.to_path_buf()
+                }
+            };
+            dbench::lake_code::cmd_code_import(&state, cli.json)
+        }
         Cmd::Collect(args) => dbench::collector::cmd_collect(&Ctx::load(cli.config, cli.json)?, &args).await,
         Cmd::Release { node } => client::cmd_release(&Ctx::load(cli.config, cli.json)?, &node).await,
         Cmd::Move { node, id, before } => {
