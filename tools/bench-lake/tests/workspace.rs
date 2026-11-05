@@ -1,4 +1,5 @@
-//! lakelib.code.workspace: TC-47 to TC-58, TC-84, and TC-109 on the fixture's real run.
+//! lakelib.code.workspace: TC-47 to TC-58, TC-84, TC-109 on the fixture's real run, and story 23's TC-80 and TC-81:
+//! the working copy comes from the lake's code repository (`state/code.git`), at the copy's `story/NN` ref.
 
 mod common;
 use bench_lake::{Error, Item, Reason, RefusedReason};
@@ -9,13 +10,11 @@ use std::os::unix::fs::symlink;
 use std::path::Path;
 use std::process::Command;
 
-const BUNDLE: &str = "workspace.bundle";
 const REAL_COMMIT_1: &str = "59a592fca04af9fe2c8b667b3a784298795ccde9";
 const LAST_STORY: i64 = 12;
 const STORY_WITHOUT_COMMIT: i64 = 6;
-const RANDOM_BUNDLE_BYTES: usize = 4096;
-const LCG_MUL: u64 = 6364136223846793005;
-const LCG_ADD: u64 = 1442695040888963407;
+/// A tree no repository holds: a commit made to point at it is in the code repository, its files are not.
+const MISSING_TREE: &str = "0123456789abcdef0123456789abcdef01234567";
 
 fn absent(e: Error) -> bench_lake::Absent {
     match e {
@@ -31,13 +30,6 @@ fn refused(e: Error) -> bench_lake::Refused {
     }
 }
 
-fn set_commit(state: &Path, story: i64, commit: &str) {
-    let p = state.join("collected/node-a").join(ID_Q36).join("metrics.json");
-    let mut v: serde_json::Value = serde_json::from_slice(&fs::read(&p).unwrap()).unwrap();
-    v["stories"][story.to_string()]["commit"] = serde_json::json!(commit);
-    fs::write(&p, serde_json::to_vec(&v).unwrap()).unwrap();
-}
-
 fn empty_or_missing(p: &Path) -> bool {
     match fs::read_dir(p) {
         Ok(mut it) => it.next().is_none(),
@@ -47,7 +39,7 @@ fn empty_or_missing(p: &Path) -> bool {
 
 #[test]
 fn tc47_good() {
-    let (s, _state, lake) = scratch_lake("ws-good");
+    let (s, _state, lake) = scratch_lake_with_code("ws-good");
     let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("work");
     let ws = lake.workspace(&run, 1, &dest).unwrap();
@@ -81,7 +73,7 @@ const REPO_WORKSPACE_AT_STORY_12: &str = "tests/fixtures/workspace-mirror-q36-st
 fn tc48_and_tc109_files_equal_the_repository_workspace() {
     let listing = fs::read_to_string(manifest_dir().join(REPO_WORKSPACE_AT_STORY_12)).unwrap();
     let tracked: Vec<(&str, &str)> = listing.lines().map(|l| l.split_once('\t').unwrap()).collect();
-    let (s, _state, lake) = scratch_lake("ws-repo");
+    let (s, _state, lake) = scratch_lake_with_code("ws-repo");
     let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("last");
     let ws = lake.workspace(&run, LAST_STORY, &dest).unwrap();
@@ -105,17 +97,17 @@ fn tc48_and_tc109_files_equal_the_repository_workspace() {
 }
 
 #[test]
-fn tc49_bundle_unchanged() {
-    let (s, _state, lake) = scratch_lake("ws-hash");
+fn tc49_the_code_repository_is_unchanged() {
+    let (s, state, lake) = scratch_lake_with_code("ws-hash");
     let run = find(&lake, ID_Q36, Some("node-a"));
-    let before = fs::read(run.dir.join(BUNDLE)).unwrap();
+    let before = snapshot(&state.join("code.git"));
     lake.workspace(&run, 1, &s.join("w")).unwrap();
-    assert_eq!(fs::read(run.dir.join(BUNDLE)).unwrap(), before);
+    assert_eq!(snapshot(&state.join("code.git")), before);
 }
 
 #[test]
 fn tc50_destination_is_an_existing_empty_folder() {
-    let (s, _state, lake) = scratch_lake("ws-empty");
+    let (s, _state, lake) = scratch_lake_with_code("ws-empty");
     let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("w");
     fs::create_dir(&dest).unwrap();
@@ -124,98 +116,107 @@ fn tc50_destination_is_an_existing_empty_folder() {
 }
 
 #[test]
-fn tc51_no_bundle() {
-    let (s, _state, lake) = scratch_lake("ws-nobundle");
+fn tc81_a_run_with_no_code_in_the_lake() {
+    let (s, _state, lake) = scratch_lake_with_code("ws-nocode");
     let run = find(&lake, ID_FLASH, Some("node-d"));
     let dest = s.join("w");
     let a = absent(lake.workspace(&run, 1, &dest).unwrap_err());
-    assert_eq!(a.reason, Reason::NotCollected);
-    assert_eq!(a.item, Item::Bundle);
+    assert_eq!((a.reason.clone(), a.item.clone()), (Reason::NoRef, Item::Code));
+    assert_eq!(a.code(), "E-LAKE-NOT-COLLECTED");
     assert_eq!(a.node.as_deref(), Some("node-d"));
     assert!(!dest.exists(), "nothing was made");
-    // no bundle and no metrics at all: the same absence (the bundle is looked for first)
-    let a = absent(lake.workspace(&run, 99, &dest).unwrap_err());
-    assert_eq!(a.item, Item::Bundle);
 }
 
 #[test]
-fn tc51_bundle_that_is_a_link_or_a_folder() {
-    let (s, state, lake) = scratch_lake("ws-linkbundle");
+fn tc81_a_lake_without_a_code_repository() {
+    let (s, _state, lake) = scratch_lake("ws-norepo");
     let run = find(&lake, ID_Q36, Some("node-a"));
-    let b = state.join("collected/node-a").join(ID_Q36).join(BUNDLE);
-    let moved = s.join("moved.bundle");
-    fs::rename(&b, &moved).unwrap();
-    symlink(&moved, &b).unwrap();
     let a = absent(lake.workspace(&run, 1, &s.join("w")).unwrap_err());
-    assert_eq!((a.reason, a.item), (Reason::NotAFile, Item::Bundle));
+    assert_eq!((a.reason.clone(), a.item.clone()), (Reason::NoRef, Item::Code));
+    assert!(!s.join("w").exists());
 }
 
 #[test]
-fn tc51_metrics_not_there() {
-    let (s, state, lake) = scratch_lake("ws-nometrics");
-    let run = find(&lake, ID_Q36, Some("node-a"));
-    fs::remove_file(state.join("collected/node-a").join(ID_Q36).join("metrics.json")).unwrap();
-    let a = absent(lake.workspace(&run, 1, &s.join("w")).unwrap_err());
-    assert_eq!(a.reason, Reason::NotCollected);
-    assert_eq!(a.item, Item::Workspace(1));
-}
-
-#[test]
-fn tc52_no_commit_for_the_story() {
-    let (s, _state, lake) = scratch_lake("ws-nocommit");
+fn tc81_a_story_the_lake_has_no_ref_for() {
+    let (s, _state, lake) = scratch_lake_with_code("ws-nostory");
     let run = find(&lake, ID_Q36, Some("node-a"));
     let metrics = lake.value(&run, &bench_lake::Record::Metrics).unwrap();
     assert!(metrics["stories"].get(STORY_WITHOUT_COMMIT.to_string()).is_none(), "story 6 has no entry in the real metrics");
     let dest = s.join("w");
     let a = absent(lake.workspace(&run, STORY_WITHOUT_COMMIT, &dest).unwrap_err());
-    assert_eq!(a.reason, Reason::Malformed("no commit for story".to_string()));
-    assert_eq!(a.item, Item::Workspace(STORY_WITHOUT_COMMIT));
+    assert_eq!((a.reason.clone(), a.item.clone()), (Reason::NoRef, Item::Code));
     assert!(!dest.exists());
-    // a story entry without a commit field, and a commit that is not a string
-    let (_s2, state2, lake2) = scratch_lake("ws-nocommit2");
-    let p = state2.join("collected/node-a").join(ID_Q36).join("metrics.json");
-    let mut v: serde_json::Value = serde_json::from_slice(&fs::read(&p).unwrap()).unwrap();
-    v["stories"]["2"].as_object_mut().unwrap().remove("commit");
-    v["stories"]["3"]["commit"] = serde_json::json!(7);
-    fs::write(&p, serde_json::to_vec(&v).unwrap()).unwrap();
-    let run2 = find(&lake2, ID_Q36, Some("node-a"));
-    for st in [2, 3] {
-        let a = absent(lake2.workspace(&run2, st, &s.join("w2")).unwrap_err());
-        assert_eq!(a.reason, Reason::Malformed("no commit for story".to_string()), "story {st}");
-    }
+    // the same for a story beyond the last
+    let a = absent(lake.workspace(&run, LAST_STORY + 1, &dest).unwrap_err());
+    assert_eq!((a.reason.clone(), a.item.clone()), (Reason::NoRef, Item::Code));
 }
 
 #[test]
-fn tc53_commit_not_in_the_bundle() {
-    let (s, state, lake) = scratch_lake("ws-notin");
-    set_commit(&state, 1, "0123456789abcdef0123456789abcdef01234567");
+fn the_working_copy_does_not_need_the_runs_metrics() {
+    let (s, state, lake) = scratch_lake_with_code("ws-nometrics");
+    let run = find(&lake, ID_Q36, Some("node-a"));
+    fs::remove_file(state.join("collected/node-a").join(ID_Q36).join("metrics.json")).unwrap();
+    let ws = lake.workspace(&run, 1, &s.join("w")).unwrap();
+    assert_eq!(ws.commit, REAL_COMMIT_1);
+}
+
+#[test]
+fn tc80_the_working_copy_is_the_story_refs_commit_and_its_history_only() {
+    let (s, state, lake) = scratch_lake_with_code("ws-ref");
+    let run = find(&lake, ID_Q36, Some("node-a"));
+    let code = state.join("code.git");
+    let reference = bench_lake::code::story_ref("node-a", ID_Q36, 3);
+    let at_ref = git(&code, &["rev-parse", &reference]);
+    let dest = s.join("w");
+    let ws = lake.workspace(&run, 3, &dest).unwrap();
+    assert_eq!(ws.commit, at_ref);
+    assert_eq!(git(&dest, &["rev-parse", "HEAD"]), at_ref);
+    assert_eq!(git(&dest, &["rev-list", "--count", "HEAD"]), git(&code, &["rev-list", "--count", &reference]), "the story's history");
+    assert_eq!(git(&dest, &["for-each-ref", "--format=%(refname)"]), "refs/lake/story", "no other run's refs, no later story");
+    // a story ref moved (a story restarted on the node): the working copy follows the ref
+    let story_2 = git(&code, &["rev-parse", &bench_lake::code::story_ref("node-a", ID_Q36, 2)]);
+    git(&code, &["update-ref", &reference, &story_2]);
+    let moved = lake.workspace(&run, 3, &s.join("moved")).unwrap();
+    assert_eq!(moved.commit, story_2);
+}
+
+#[test]
+fn tc53_a_story_commit_whose_files_are_not_in_the_repository() {
+    let (s, state, lake) = scratch_lake_with_code("ws-notin");
+    let code = state.join("code.git");
+    let broken = Command::new("git")
+        .env_clear()
+        .env("PATH", std::env::var("PATH").unwrap_or_default())
+        .arg("--git-dir")
+        .arg(&code)
+        .args(["hash-object", "-t", "commit", "-w", "--literally", "--stdin"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut c| {
+            use std::io::Write;
+            c.stdin.take().unwrap().write_all(format!("tree {MISSING_TREE}\nauthor a <a> 0 +0000\ncommitter a <a> 0 +0000\n\nbroken\n").as_bytes())?;
+            c.wait_with_output()
+        })
+        .unwrap();
+    let broken = String::from_utf8(broken.stdout).unwrap().trim().to_string();
+    git(&code, &["update-ref", &bench_lake::code::story_ref("node-a", ID_Q36, 1), &broken]);
     let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("w");
-    let a = absent(lake.workspace(&run, 1, &dest).unwrap_err());
-    assert_eq!(a.reason, Reason::Malformed("commit not in bundle".to_string()));
-    assert_eq!(a.item, Item::Workspace(1));
+    let r = refused(lake.workspace(&run, 1, &dest).unwrap_err());
+    assert_eq!(r.reason, RefusedReason::GitClone);
+    assert_eq!(r.code(), "E-LAKE-GIT-FAILED");
+    assert!(r.message.as_deref().is_some_and(|m| !m.is_empty()), "git's message is carried");
     assert!(!dest.exists(), "the folder the library made is removed");
     let pre = s.join("pre");
     fs::create_dir(&pre).unwrap();
-    absent(lake.workspace(&run, 1, &pre).unwrap_err());
+    refused(lake.workspace(&run, 1, &pre).unwrap_err());
     assert!(empty_or_missing(&pre) && pre.exists(), "an existing empty folder is left empty");
 }
 
 #[test]
-fn tc54_commit_not_hexadecimal() {
-    let (s, state, lake) = scratch_lake("ws-hex");
-    let run = find(&lake, ID_Q36, Some("node-a"));
-    for bad in [&REAL_COMMIT_1[..39], "zzz592fca04af9fe2c8b667b3a784298795ccde9", "", "HEAD", "--upload-pack=x"] {
-        set_commit(&state, 1, bad);
-        let a = absent(lake.workspace(&run, 1, &s.join("w")).unwrap_err());
-        assert_eq!(a.reason, Reason::Malformed("commit is not 40 hexadecimal characters".to_string()), "{bad:?}");
-    }
-    assert!(!s.join("w").exists());
-}
-
-#[test]
 fn story_out_of_range_for_a_workspace() {
-    let (s, _state, lake) = scratch_lake("ws-range");
+    let (s, _state, lake) = scratch_lake_with_code("ws-range");
     let run = find(&lake, ID_Q36, Some("node-a"));
     for st in [1000, -1] {
         let a = absent(lake.workspace(&run, st, &s.join("w")).unwrap_err());
@@ -226,7 +227,7 @@ fn story_out_of_range_for_a_workspace() {
 
 #[test]
 fn tc55_destination_inside_a_root() {
-    let (s, state, lake) = scratch_lake("ws-inside");
+    let (s, state, lake) = scratch_lake_with_code("ws-inside");
     let run = find(&lake, ID_Q36, Some("node-a"));
     let inside = state.join("collected/new-dest");
     let r = refused(lake.workspace(&run, 1, &inside).unwrap_err());
@@ -250,7 +251,7 @@ fn tc55_destination_inside_a_root() {
 
 #[test]
 fn tc56_destination_not_empty() {
-    let (s, _state, lake) = scratch_lake("ws-notempty");
+    let (s, _state, lake) = scratch_lake_with_code("ws-notempty");
     let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("w");
     write(&dest.join("keep.txt"), b"mine");
@@ -265,23 +266,13 @@ fn tc56_destination_not_empty() {
 }
 
 #[test]
-fn tc57_git_fails() {
+fn tc57_a_code_repository_that_is_not_one() {
     let (s, state, lake) = scratch_lake("ws-gitfail");
-    let b = state.join("collected/node-a").join(ID_Q36).join(BUNDLE);
-    let mut x = 12345u64;
-    let random: Vec<u8> = (0..RANDOM_BUNDLE_BYTES)
-        .map(|_| {
-            x = x.wrapping_mul(LCG_MUL).wrapping_add(LCG_ADD);
-            (x >> 33) as u8
-        })
-        .collect();
-    fs::write(&b, random).unwrap();
+    fs::write(state.join("code.git"), b"not a repository").unwrap();
     let run = find(&lake, ID_Q36, Some("node-a"));
     let dest = s.join("w");
-    let r = refused(lake.workspace(&run, 1, &dest).unwrap_err());
-    assert_eq!(r.reason, RefusedReason::GitClone);
-    assert_eq!(r.code(), "E-LAKE-GIT-FAILED");
-    assert!(r.message.as_deref().is_some_and(|m| !m.is_empty()), "git's message is carried");
+    let a = absent(lake.workspace(&run, 1, &dest).unwrap_err());
+    assert_eq!((a.reason.clone(), a.item.clone()), (Reason::NoRef, Item::Code));
     assert!(empty_or_missing(&dest));
 }
 
@@ -301,7 +292,7 @@ impl Drop for EnvGuard {
 
 #[test]
 fn tc58_the_callers_git_settings_do_not_matter() {
-    let (s, _state, lake) = scratch_lake("ws-env");
+    let (s, _state, lake) = scratch_lake_with_code("ws-env");
     let run = find(&lake, ID_Q36, Some("node-a"));
     let plain = s.join("plain");
     lake.workspace(&run, 1, &plain).unwrap();
@@ -346,7 +337,7 @@ fn tc58_the_callers_git_settings_do_not_matter() {
 
 #[test]
 fn tc84_workspace_writes_only_its_destination() {
-    let (s, state, lake) = scratch_lake("ws-writes");
+    let (s, state, lake) = scratch_lake_with_code("ws-writes");
     let run = find(&lake, ID_Q36, Some("node-a"));
     let before = snapshot(&state);
     let dest = s.join("w");
@@ -361,7 +352,7 @@ fn tc84_workspace_writes_only_its_destination() {
 
 #[test]
 fn a_reference_run_has_a_workspace_too() {
-    let (s, _state, lake) = scratch_lake("ws-ref");
+    let (s, _state, lake) = scratch_lake_with_code("ws-ref");
     let run = find(&lake, ID_REFV, None);
     let ws = lake.workspace(&run, 1, &s.join("w")).unwrap();
     assert_eq!(ws.commit.len(), 40);

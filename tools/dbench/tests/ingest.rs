@@ -1106,6 +1106,8 @@ fn collect_config(root: &std::path::Path, repo: Option<PathBuf>, worktree: bool)
         nodes: vec![],
         runs: vec![],
         no_ingest: false,
+        // These tests are about the pass, not the disk: no margin, so a nearly full machine cannot hold the pull.
+        free_space_margin_gib: 0,
         ..Default::default()
     }
 }

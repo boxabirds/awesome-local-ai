@@ -189,7 +189,8 @@ fn complete_command() {
 
 #[test]
 fn workspace_command_success_and_refusal() {
-    let s = Scratch::new("cmd-ws");
+    let (s, state, _lake) = scratch_lake_with_code("cmd-ws");
+    let run = |args: &[&str]| bench_lake_cmd().arg(&state).args(args).output().unwrap();
     let dest = s.join("w");
     let o = run(&["workspace", ID_Q36_AT_NODE_A, "1", dest.to_str().unwrap()]);
     assert_eq!(o.status.code(), Some(EXIT_OK), "{}", String::from_utf8_lossy(&o.stderr));
@@ -208,7 +209,7 @@ fn workspace_command_success_and_refusal() {
     // an absence is exit 0
     let o = run(&["workspace", ID_FLASH, "1", s.join("w2").to_str().unwrap()]);
     assert_eq!(o.status.code(), Some(EXIT_OK));
-    assert_eq!(json_of(&o)["absent"]["item"], "bundle");
+    assert_eq!(json_of(&o)["absent"]["item"], "code");
 }
 
 #[test]

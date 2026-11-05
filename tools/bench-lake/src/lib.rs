@@ -2,7 +2,7 @@
 //! about them (story 23, annotations.rs).
 //!
 //! The lake is two folders, a collected folder and a reference folder (`Lake`). Nothing here writes into them; the
-//! one thing that creates files there is `Lake::workspace` (bundle.rs), and only in a destination outside both
+//! one thing that creates files there is `Lake::workspace` (code.rs), and only in a destination outside both
 //! roots. The decisions are the one thing bench-lake writes: `<state>/annotations`, beside the two roots.
 //! Every function answers with a value or an `Absent`/`Refused`; none stops the program (decision 7 of the design).
 //! The exact output of the command is in CANONICAL.md.
@@ -13,7 +13,7 @@
 
 pub mod absent;
 pub mod annotations;
-pub mod bundle;
+pub mod code;
 pub mod cli;
 pub mod compare;
 pub mod complete;
@@ -29,7 +29,7 @@ use std::io::{self, Read};
 use std::path::Path;
 
 pub use absent::{Absent, Error, Item, Reason, Refused, RefusedReason};
-pub use bundle::Workspace;
+pub use code::Workspace;
 pub use complete::Completeness;
 pub use layout::{Discovery, Kind, Lake, Rejected, RunRef};
 pub use logs::{Form, Log};

@@ -327,8 +327,7 @@ def write_workspace_git_log(ws: Path, run: Path) -> None:
 
 def make_bundle(workspace: Path, dest: Path) -> None:
     """The workspace's whole git history as one file. Written beside its name and renamed into place, so a process
-    killed part-way never leaves a torn bundle where a whole one was. The one command that makes a run's bundle
-    (finalize.bundle calls it)."""
+    killed part-way never leaves a torn bundle where a whole one was. The one command that makes a run's bundle."""
     part = dest.with_name(dest.name + ".part")
     try:
         subprocess.run(["git", "-C", str(workspace), "bundle", "create", str(part), "--all"],

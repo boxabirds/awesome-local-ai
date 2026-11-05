@@ -40,7 +40,7 @@ fn ask_everything(lake: &Lake) -> Vec<String> {
 
 #[test]
 fn tc77_the_lake_is_unchanged_after_every_call() {
-    let (s, state, lake) = scratch_lake("unchanged");
+    let (s, state, lake) = scratch_lake_with_code("unchanged");
     let before = snapshot(&state);
     let answers = ask_everything(&lake);
     assert!(answers.len() > 100);

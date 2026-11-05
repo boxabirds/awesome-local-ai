@@ -20,12 +20,12 @@ import subprocess
 from pathlib import Path
 
 HARNESS = Path(__file__).resolve().parent
+import benchlake  # noqa: E402
 import heldout  # noqa: E402
 import packdir  # noqa: E402
 PACK = packdir.resolve()  # the judged runs are vidi's
 PER_STORY_FILES = ("accept.json", "gate.json")
-BUNDLE = "workspace.bundle"   # the run's app with its git history: what the harness keeps (finalize.py writes it)
-MIRROR = "workspace"          # the plain-file copy older runs also have; the harness no longer writes it
+MIRROR = "workspace"          # the plain-file copy older runs have; the harness no longer writes it
 # What the plain-file mirror left out (drive.MIRROR_EXCLUDES, minus .git): the pack's spec, build output, test output.
 NOT_MIRRORED = ("spec", "node_modules", "dist", ".wrangler", "test-results", "playwright-report")
 
@@ -40,19 +40,30 @@ def drop_unmirrored(tree: Path) -> None:
             target.unlink()
 
 
+def scored_story(run: Path) -> tuple[int, str] | None:
+    """The story the run's final score was taken on and its commit: the last story metrics.json records a commit for.
+    None for a run with no metrics.json or no commit in it."""
+    try:
+        st = json.loads((run / "metrics.json").read_text())["stories"]
+    except (OSError, ValueError, KeyError):
+        return None
+    stories = st.items() if isinstance(st, dict) else ((s.get("id", i + 1), s) for i, s in enumerate(st))
+    found = [(int(k), s["commit"]) for k, s in stories if s.get("commit")]
+    return found[-1] if found else None
+
+
 def clone_app(run: Path, dest: Path) -> None:
-    """The run's app, with its git history, cloned to dest: from workspace.bundle, else (a run from before the
-    bundle, or a hand-built reference run) from its workspace/ folder."""
-    bundle, folder = run / BUNDLE, run / MIRROR
-    if bundle.is_file():
-        source = bundle
-    elif folder.is_dir():
-        source = folder
-    else:
-        raise SystemExit(f"{run}: no {BUNDLE} and no {MIRROR}/ folder: the app it built is not here")
-    subprocess.run(["git", "clone", "-q", str(source), str(dest)], check=True)
-    if source == bundle:
+    """The run's app, with its git history, in dest: from the lake's code repository at the story the run was scored
+    on (bench-lake workspace, story 23), else (a run from before the bundle, or a hand-built reference run) cloned
+    from its workspace/ folder."""
+    scored = scored_story(run)
+    if scored and benchlake.workspace(run, scored[0], dest) is not None:
         drop_unmirrored(dest)
+        return
+    folder = run / MIRROR
+    if not folder.is_dir():
+        raise SystemExit(f"{run}: the lake has no code for it and it has no {MIRROR}/ folder: the app it built is not here")
+    subprocess.run(["git", "clone", "-q", str(folder), str(dest)], check=True)
 
 
 def copy_run(run: Path, dest: Path) -> None:

@@ -7,6 +7,7 @@ use std::io;
 
 pub const DETAIL_NO_RUN: &str = "no run with this id";
 pub const DETAIL_NOT_COLLECTED: &str = "no such file";
+pub const DETAIL_NO_REF: &str = "no such ref in the lake's code repository";
 pub const DETAIL_NOT_A_FILE: &str = "not a regular file";
 pub const DETAIL_PERMISSION: &str = "permission denied";
 pub const DETAIL_IO: &str = "io error";
@@ -31,7 +32,7 @@ pub enum Item {
     /// The canonical item text after `record:` (for example `accept:1`).
     Record(String),
     Log(i64),
-    Bundle,
+    Code,
     Workspace(i64),
 }
 
@@ -40,6 +41,8 @@ pub enum Item {
 pub enum Reason {
     NoRun,
     NotCollected,
+    /// The run's code at this point is not in the lake's code repository.
+    NoRef,
     NotAFile,
     /// The detail: `permission denied` or `io error`.
     Unreadable(String),
@@ -53,7 +56,7 @@ impl Reason {
     pub fn code(&self) -> &'static str {
         match self {
             Reason::NoRun => CODE_NO_RUN,
-            Reason::NotCollected => CODE_NOT_COLLECTED,
+            Reason::NotCollected | Reason::NoRef => CODE_NOT_COLLECTED,
             Reason::NotAFile => CODE_NOT_A_FILE,
             Reason::Unreadable(_) => CODE_UNREADABLE,
             Reason::Malformed(_) => CODE_MALFORMED,
@@ -64,6 +67,7 @@ impl Reason {
         match self {
             Reason::NoRun => DETAIL_NO_RUN.to_string(),
             Reason::NotCollected => DETAIL_NOT_COLLECTED.to_string(),
+            Reason::NoRef => DETAIL_NO_REF.to_string(),
             Reason::NotAFile => DETAIL_NOT_A_FILE.to_string(),
             Reason::Unreadable(d) | Reason::Malformed(d) | Reason::BadName(d) => d.clone(),
         }
@@ -195,7 +199,7 @@ fn item_text(item: &Item) -> String {
         Item::Run => "run".to_string(),
         Item::Record(name) => format!("record:{name}"),
         Item::Log(story) => format!("log:{story}"),
-        Item::Bundle => "bundle".to_string(),
+        Item::Code => "code".to_string(),
         Item::Workspace(story) => format!("workspace:{story}"),
     }
 }

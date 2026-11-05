@@ -1,8 +1,8 @@
 """finalize.py <run-dir> [--pack benchmarks/vidi] [--record]
 
-At the end of a run: save the workspace's history as <run-dir>/workspace.bundle (the review page builds
-each story from it), bring the run's own records up to date, then re-score the final build with the held-out suite
-(rescore.py --final), so a finished run has its score of record and can be judged without anyone doing it by hand.
+At the end of a run: bring the run's own records up to date, then re-score the final build with the held-out suite
+(rescore.py --final) from the run's own repository (story 23: the node keeps it, and serves it to the lake's code
+repository; a run from before that whose repository is gone is scored from the workspace.bundle it has), so a finished run has its score of record and can be judged without anyone doing it by hand.
 finalize_pending.py runs the same thing later for every run that ended without one.
 
 The suite is the one at the pack's tag (pack_ref), taken from the private repo itself (tagsuite.py): where that
@@ -21,7 +21,7 @@ check, or has no time split or conversation profile is recomputed from the machi
 Every outcome says whether a person is needed (finalize.json: needs_person, reason, reason_kind, attempts,
 last_attempt_at, history). Whatever trying again can change is retried by finalize_pending.py, up to MAX_ATTEMPTS:
 a tool not on PATH, the suite's tag not fetched yet, a re-score the machine spoiled or the guard flagged, a harness
-that failed to load. needs_person is true only for what will not change: no bundle and no work dir left, a build
+that failed to load. needs_person is true only for what will not change: no repository and no bundle left, a build
 that fails from a clean clone, a tag that doesn't exist, nothing to score, or MAX_ATTEMPTS failures in a row.
 
 A run already scored under the version, at its final checkpoint, is left alone (its records are still repaired).
@@ -44,7 +44,9 @@ from pathlib import Path
 from typing import Callable
 
 HARNESS = Path(__file__).resolve().parent
-BUNDLE = "workspace.bundle"
+BUNDLE = "workspace.bundle"   # a run's history before story 23; the node now keeps the run's repository instead
+CODE_REPOSITORY = "repository"   # finalize.json "code": what the re-score was taken from
+CODE_BUNDLE = "workspace.bundle"
 STATUS = "finalize.json"
 RUN_STATUS = "run-status.json"         # written by run.sh: state finished, failed or stopped
 SPOILED = "rescore-spoiled"
@@ -87,7 +89,7 @@ KIND_RESCORE_FAILED = "rescore_failed"                 # rescore.py itself faile
 KIND_HARNESS_FAILED = "harness_failed"                 # finalize could not run at all (the harness didn't load)
 KIND_OUT_OF_TIME = "out_of_time"                       # stopped at the sweep's time budget; not an attempt
 KIND_BUILD_FAILS_CLEAN = "build_fails_from_clean_clone"  # a result: passes where the agent worked, not from a clean clone
-KIND_NO_BUNDLE = "no_bundle"                           # no workspace.bundle and no work dir to make one from
+KIND_NO_CODE = "no_code"                               # neither the run's repository nor an old workspace.bundle
 KIND_NOTHING_TO_SCORE = "nothing_to_score"             # no story recorded any code
 
 
@@ -120,21 +122,23 @@ def write_status(run: Path, status: dict) -> None:
     (run / STATUS).write_text(json.dumps(status, indent=2) + "\n")
 
 
-def ensure_bundle(run: Path) -> None:
-    """The workspace's history as the run's bundle: made afresh while the work dir is still there, else the one
-    the run already has. Neither is the end of it: there is nothing left to score."""
+WORK_REPO = Path("workspace") / ".git"   # what stays of a finished run's work dir: the run's own repository
+
+
+def code_of(run: Path) -> Path:
+    """The run's history to score from (story 23, code.readers): its own repository, which stays on the node when
+    the work dir is given back (release_work); for a run from before story 23 whose repository is gone, the
+    workspace.bundle it already has. Neither is the end of it: there is nothing left to score."""
     try:
         work = Path((run / "work_dir.txt").read_text().strip()).expanduser()
     except OSError:
         work = None
-    if work is not None and (work / "workspace" / ".git").exists():
-        bundle(work / "workspace", run / BUNDLE)
-    elif not (run / BUNDLE).is_file():
-        raise Unscored(KIND_NO_BUNDLE, "the run has no workspace.bundle and its work directory is gone from this "
-                                       "machine: there is no code left to score", needs_person=True)
-
-
-WORK_REPO = Path("workspace") / ".git"   # what stays of a finished run's work dir: the run's own repository
+    if work is not None and (work / WORK_REPO).exists():
+        return work / WORK_REPO.parent
+    if (run / BUNDLE).is_file():
+        return run / BUNDLE
+    raise Unscored(KIND_NO_CODE, "the run's repository is gone from this machine and it has no workspace.bundle: "
+                                 "there is no code left to score", needs_person=True)
 
 
 def release_work(run: Path) -> str | None:
@@ -180,11 +184,6 @@ def read_run_status(run: Path) -> dict:
     except (OSError, ValueError):
         return {}
     return doc if isinstance(doc, dict) else {}
-
-
-def bundle(workspace: Path, dest: Path) -> None:
-    import drive
-    drive.make_bundle(workspace, dest)
 
 
 def score_of(run: Path, version: str) -> str:
@@ -453,25 +452,25 @@ def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: C
     prior = read_status(run)
     same = prior if prior.get("version") == version else {}     # attempts are counted per suite version
     out: dict = {"version": version, "pack_ref": pack_ref, "at": now}
-    no_bundle = None
+    code, no_code = None, None
     try:
-        ensure_bundle(run)
-        out["bundle"] = BUNDLE
+        code = code_of(run)
+        out["code"] = CODE_BUNDLE if code.name == BUNDLE else CODE_REPOSITORY
     except Unscored as e:
-        no_bundle = e
+        no_code = e
     out["outside_workspace"] = scan(run)
     out["repair"] = repair_records(run)
     done, stale = scored_already(run, version)
     if done:
         return _keep_scored(run, version, prior, out, record)
-    if stale and no_bundle is None:
+    if stale and no_code is None:
         set_aside(run, version, f"not the run's final build: {stale}")
     attempts, history = int(same.get("attempts") or 0), list(same.get("history") or [])
     person, counted = False, True
     try:
-        if no_bundle is not None:
-            raise no_bundle
-        rescore(run, run / BUNDLE, version)
+        if no_code is not None:
+            raise no_code
+        rescore(run, code, version)
         if fault := fault_of(run, version):
             set_aside(run, version, fault)
             fault_kind, fault_person = classify_fault(fault)
@@ -489,7 +488,7 @@ def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: C
     except Unscored as e:
         state, kind, reason, person, counted = "failed", e.kind, public(e), e.needs_person, e.counted
         message = f"final re-score failed: {reason}"
-    except (Exception, SystemExit) as e:  # a broken scorer must not lose the bundle or the run's record
+    except (Exception, SystemExit) as e:  # a broken scorer must not lose the run's record
         state, kind, reason = "failed", KIND_RESCORE_FAILED, public(e) or type(e).__name__
         message = f"final re-score failed: {reason}"
     if counted:
@@ -572,7 +571,7 @@ def load_pack(pack: str):
 
 
 def rescore_with_harness(pack: str, timeout_s: float | None = None) -> Rescore:
-    def rescore(run: Path, bundle_path: Path, version: str) -> None:
+    def rescore(run: Path, code: Path, version: str) -> None:
         import scoring_tools
         import tagsuite
         env = scoring_tools.environment()
@@ -584,7 +583,7 @@ def rescore_with_harness(pack: str, timeout_s: float | None = None) -> Rescore:
         except tagsuite.SuiteError as e:
             raise Unscored(e.kind, str(e), e.needs_person) from None
         code = run_bounded([scoring_tools.resolve(env)["uv"], "run", "--quiet", str(HARNESS / "rescore.py"), str(run),
-                            "--bundle", str(bundle_path), "--pack", pack, "--final"], HARNESS, env, timeout_s)
+                            "--code", str(code), "--pack", pack, "--final"], HARNESS, env, timeout_s)
         if code != 0:
             raise RuntimeError(f"rescore.py exited {code}")
         if not (run / "rescore" / version / "rescore.json").is_file():

@@ -69,7 +69,7 @@ fn is_have(h: &str) -> bool {
 }
 
 fn git(repo: &Path) -> std::process::Command {
-    let mut c = bench_lake::bundle::git_command();
+    let mut c = bench_lake::code::git_command();
     c.arg("-C").arg(repo);
     c
 }

@@ -9,7 +9,9 @@ from pathlib import Path
 
 import pytest
 
+import benchlake
 import judge
+import lake_testing
 import packdir
 
 mac_only = pytest.mark.skipif(sys.platform != "darwin", reason="sandbox-exec is macOS only")
@@ -291,15 +293,15 @@ def test_a_whole_command_judges_collects_and_unblinds(tmp_path, monkeypatch, cap
     assert out[-1] == f"done: {job.private / 'state' / 'judging' / 'job' / 'results'}"
 
 
-# ---------------------------------------------------------------- the app is read from workspace.bundle
+# ---------------------------------------------------------------- the app is read from the lake's code repository
 
-def bundled_record(tmp_path, scored_is_tip=True):
-    """A record with workspace.bundle and NO workspace/ folder (what the harness now writes): two commits, the
-    bundle's tip on b.ts = 2; LOG's head (bbbbbbb...) is patched to the real tip so the log check passes."""
+def lake_record(tmp_path, monkeypatch, scored_is_tip=True):
+    """A run in a scratch lake with its code in the lake's code repository (story 23) and NO workspace/ folder: two
+    commits, the tip with b.ts = 2; metrics.json records the scored commit for story 2 and the lake's story-02 ref
+    is that commit (as the import makes it); the log's head is the scored commit, so the log check passes."""
     src = tmp_path / "src"
     src.mkdir()
-    git = lambda *a: subprocess.run(["git", "-C", str(src), "-c", "user.name=a", "-c", "user.email=a@b", *a],
-                                    capture_output=True, text=True, check=True).stdout.strip()
+    git = lambda *a: lake_testing.git(src, *a)
     git("init", "-q", "-b", "main")
     (src / "b.ts").write_text("export const b = 1\n")
     (src / "spec").mkdir()
@@ -312,12 +314,10 @@ def bundled_record(tmp_path, scored_is_tip=True):
     git("add", "-A")
     git("commit", "-q", "-m", "story 2")
     tip = git("rev-parse", "HEAD")
-    rec = tmp_path / "rec"
-    rec.mkdir()
-    git("bundle", "create", str(rec / "workspace.bundle"), "--all")
     scored = tip if scored_is_tip else first
+    state = lake_testing.lake(tmp_path, monkeypatch)
+    rec = lake_testing.add_run(state, src, {2: scored})
     (rec / "workspace-git-log.txt").write_text(f"commit {scored}\nvidi-agent  Fri Sep 25 17:07:33 2026 +0100\n\n    story\n")
-    (rec / "metrics.json").write_text(json.dumps({"stories": {"2": {"commit": scored}}}))
     return rec, first, tip
 
 
@@ -325,9 +325,10 @@ def files_of(repo):
     return subprocess.run(["git", "-C", str(repo), "ls-files"], capture_output=True, text=True).stdout.split()
 
 
-def test_record_workspace_reads_the_bundle_when_there_is_no_workspace_folder(tmp_path):
-    rec, _, _ = bundled_record(tmp_path)
-    assert not (rec / "workspace").exists()
+def test_record_workspace_reads_the_lake_when_there_is_no_workspace_folder(tmp_path, monkeypatch):
+    # TC-82
+    rec, _, _ = lake_record(tmp_path, monkeypatch)
+    assert not (rec / "workspace").exists() and not (rec / "workspace.bundle").exists()
     judge.record_workspace(rec, tmp_path / "ws")
     assert files_of(tmp_path / "ws") == ["b.ts", "c.ts"]            # no spec/: the mirror never held it
     assert (tmp_path / "ws" / "b.ts").read_text() == "export const b = 2\n"
@@ -335,69 +336,106 @@ def test_record_workspace_reads_the_bundle_when_there_is_no_workspace_folder(tmp
     assert commits.stdout.strip() == "1"                 # one commit, no history, so no author names
 
 
-def test_record_workspace_takes_the_commit_the_score_was_taken_on_from_the_bundle(tmp_path):
-    rec, first, _ = bundled_record(tmp_path, scored_is_tip=False)
+def test_record_workspace_takes_the_commit_the_score_was_taken_on_from_the_lake(tmp_path, monkeypatch):
+    rec, first, _ = lake_record(tmp_path, monkeypatch, scored_is_tip=False)
     judge.record_workspace(rec, tmp_path / "ws")
     assert files_of(tmp_path / "ws") == ["b.ts"]
     assert (tmp_path / "ws" / "b.ts").read_text() == "export const b = 1\n"
 
 
-def test_a_scored_commit_the_bundle_does_not_hold_is_refused(tmp_path):
-    rec, _, _ = bundled_record(tmp_path)
+def test_a_scored_commit_the_lake_does_not_hold_is_refused(tmp_path, monkeypatch):
+    rec, _, _ = lake_record(tmp_path, monkeypatch)
     missing = "d" * 40
     (rec / "workspace-git-log.txt").write_text(f"commit {missing}\nvidi-agent  Fri\n")
-    (rec / "metrics.json").write_text(json.dumps({"stories": {"2": {"commit": missing}}}))
-    with pytest.raises(SystemExit, match="not in workspace.bundle"):
+    (rec / "metrics.json").write_text(json.dumps({"stories": {"3": {"commit": missing}}}))
+    with pytest.raises(SystemExit, match="the lake has no code for the story the score was taken on"):
         judge.record_workspace(rec, tmp_path / "ws")
 
 
-def test_a_bundle_snapshot_that_is_not_the_scored_commit_is_refused(tmp_path):
-    rec, first, _ = bundled_record(tmp_path)
+def test_a_lake_story_ref_that_is_not_the_scored_commit_is_refused(tmp_path, monkeypatch):
+    rec, first, tip = lake_record(tmp_path, monkeypatch)
+    (rec / "workspace-git-log.txt").write_text(f"commit {first}\nvidi-agent  Fri\n")
+    (rec / "metrics.json").write_text(json.dumps({"stories": {"2": {"commit": first}}}))     # the lake's story-02 is tip
+    with pytest.raises(SystemExit, match=f"the lake's code at story 2 is {tip[:7]}, but the score was taken on {first[:7]}"):
+        judge.record_workspace(rec, tmp_path / "ws")
+
+
+def test_a_snapshot_that_is_not_the_scored_commit_is_refused_before_the_lake_is_asked(tmp_path, monkeypatch):
+    rec, first, _ = lake_record(tmp_path, monkeypatch)
     (rec / "metrics.json").write_text(json.dumps({"stories": {"2": {"commit": first}}}))
     with pytest.raises(SystemExit, match="score was taken on"):
         judge.record_workspace(rec, tmp_path / "ws")
 
 
-def test_the_bundle_wins_over_a_workspace_folder_and_the_folder_serves_a_run_without_one(tmp_path):
-    rec, _, _ = bundled_record(tmp_path)
+def test_the_lake_wins_over_a_workspace_folder_and_the_folder_serves_a_run_without_code_in_it(tmp_path, monkeypatch):
+    rec, _, _ = lake_record(tmp_path, monkeypatch)
     (rec / "workspace").mkdir()
     (rec / "workspace" / "stale.ts").write_text("x\n")
     judge.record_workspace(rec, tmp_path / "ws")
     assert files_of(tmp_path / "ws") == ["b.ts", "c.ts"]
-    old = fake_record(tmp_path / "old")                   # a folder and no bundle: the fallback, as before
+    old = fake_record(tmp_path / "old")                   # a folder and no code in the lake: the fallback, as before
     judge.record_workspace(old, tmp_path / "ws-old")
     assert files_of(tmp_path / "ws-old") == ["src/b.ts"]
 
 
-REAL_BUNDLED_RUN = "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1"
+REAL_RUN = "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-fresh-r1"
 
 
-def test_a_real_runs_bundle_gives_the_files_its_workspace_folder_has(tmp_path):
-    run = judge.REPO / REAL_BUNDLED_RUN
-    if not (run / "workspace.bundle").is_file() or not (run / "workspace").is_dir():
-        pytest.skip("the run is archived or already has no mirror")
-    from_bundle = tmp_path / "from-bundle"
-    judge.record_workspace(run, from_bundle)
+def test_a_real_runs_lake_code_gives_the_files_its_workspace_folder_has(tmp_path):
+    run = judge.REPO / REAL_RUN
+    if not (run / "workspace").is_dir() or not (benchlake.state() / "code.git").is_dir():
+        pytest.skip("the run has no workspace folder here, or this machine has no lake")
+    from_lake = tmp_path / "from-lake"
+    judge.record_workspace(run, from_lake)
     from_folder = tmp_path / "from-folder"
     shutil.copytree(run / "workspace", from_folder, ignore=shutil.ignore_patterns(".git"))
     subprocess.run(["git", "-C", str(from_folder), "init", "-q"], check=True)
     subprocess.run(["git", "-C", str(from_folder), "add", "-A"], check=True)
-    assert files_of(from_bundle) == files_of(from_folder)
+    assert files_of(from_lake) == files_of(from_folder)
 
 
-def test_judge_prep_clones_the_app_from_the_bundle_when_the_run_has_no_workspace_folder(tmp_path):
+def test_judge_prep_takes_the_app_from_the_lake_when_the_run_has_no_workspace_folder(tmp_path, monkeypatch):
+    # TC-82
     import judge_prep
-    rec, _, tip = bundled_record(tmp_path)
+    rec, _, tip = lake_record(tmp_path, monkeypatch)
     (rec / "stories").mkdir()
     judge_prep.copy_run(rec, tmp_path / "out")
     app = tmp_path / "out" / "workspace"
     assert (app / "b.ts").read_text() == "export const b = 2\n" and not (app / "spec").exists()
     head = subprocess.run(["git", "-C", str(app), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     assert head == tip                                   # with its history, as a clone of the folder had
+    count = subprocess.run(["git", "-C", str(app), "rev-list", "--count", "HEAD"], capture_output=True, text=True)
+    assert count.stdout.strip() == "2"
 
 
-def test_judge_prep_names_a_run_that_has_neither_bundle_nor_folder(tmp_path):
+def test_judge_prep_clones_a_run_without_code_in_the_lake_from_its_workspace_folder_as_it_is(tmp_path):
+    """A run from before the bundle, or a hand-built reference run: its workspace/ folder is a repository, cloned
+    with its history, and nothing is taken out of it (it is the mirror)."""
     import judge_prep
-    (tmp_path / "stories").mkdir()
-    with pytest.raises(SystemExit, match="no workspace.bundle and no workspace/ folder"):
-        judge_prep.copy_run(tmp_path, tmp_path / "out")
+    run = tmp_path / "run"
+    (run / "stories").mkdir(parents=True)
+    folder = run / "workspace"
+    (folder / "spec").mkdir(parents=True)
+    (folder / "spec" / "README.md").write_text("kept\n")
+    (folder / "a.ts").write_text("export const a = 1\n")
+    git = ["git", "-C", str(folder), "-c", "user.name=a", "-c", "user.email=a@b"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "built by hand"], check=True)
+    tip = subprocess.run([*git, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    judge_prep.copy_run(run, tmp_path / "out")
+    app = tmp_path / "out" / "workspace"
+    assert (app / "a.ts").read_text() == "export const a = 1\n" and (app / "spec" / "README.md").is_file()
+    assert subprocess.run(["git", "-C", str(app), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip() == tip
+
+
+def test_judge_prep_names_a_run_that_has_neither_code_in_the_lake_nor_a_folder(tmp_path, monkeypatch):
+    import judge_prep
+    state = lake_testing.lake(tmp_path / "lake", monkeypatch)
+    run = lake_testing.add_run(state, None, {2: "a" * 40})        # in the lake, no code for it
+    (run / "stories").mkdir()
+    with pytest.raises(SystemExit, match="the lake has no code for it and it has no workspace/ folder"):
+        judge_prep.copy_run(run, tmp_path / "out")
+    (tmp_path / "stories").mkdir()                                # outside the lake, no metrics either
+    with pytest.raises(SystemExit, match="the lake has no code for it and it has no workspace/ folder"):
+        judge_prep.copy_run(tmp_path, tmp_path / "out2")

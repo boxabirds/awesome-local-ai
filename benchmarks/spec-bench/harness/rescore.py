@@ -6,7 +6,7 @@ the code the run recorded at the end of each story. The run's own scores are lef
 new ones go to <run>/rescore/<pack-version>/stories/NN/accept.json (private; accept-summary.json beside it is
 its public counts), beside a per-story table.
 
-    uv run rescore.py <run-dir> --bundle <workspace.bundle> [--pack benchmarks/vidi]
+    uv run rescore.py <run-dir> --code <the run's repository> [--pack benchmarks/vidi]
 
 The suite is the one at the pack's tag (bench.json "pack_ref"), taken from the private repo's git objects and
 kept on this machine (tagsuite.py), never the private checkout's working tree: where that checkout is cannot
@@ -369,7 +369,9 @@ def rescore_record(version: str, workers: int, host_limits: dict, environment: d
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run", type=Path)
-    ap.add_argument("--bundle", type=Path, required=True, help="the run's workspace history (git bundle)")
+    ap.add_argument("--code", type=Path, required=True,
+                    help="the run's history: its own repository (the node's work dir), or a run's old workspace.bundle "
+                         "(whatever git clone takes)")
     ap.add_argument("--jobs", type=int, default=DEFAULT_JOBS)
     ap.add_argument("--pack", default="benchmarks/vidi")
     ap.add_argument("--only", help="comma list of story ids (a partial re-score, e.g. to check the tool)")
@@ -406,7 +408,7 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix="rescore-"))
     base = tmp / "base"
-    subprocess.run(["git", "clone", "-q", "--no-checkout", str(a.bundle.resolve()), str(base)], check=True)
+    subprocess.run(["git", "clone", "-q", "--no-checkout", str(a.code.resolve()), str(base)], check=True)
     print(f"re-scoring {run.name}: {len(cps)} stories under {version}, {a.jobs} at a time, "
           f"{workers} held-out workers each {host}", flush=True)
     results = []

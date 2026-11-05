@@ -3,7 +3,7 @@
 //! runs those decisions archive.
 
 use crate::annotations::{RunAnnotations, State};
-use crate::bundle::BUNDLE_FILE;
+use crate::code::BUNDLE_FILE;
 use crate::layout::{Discovery, Lake, RunRef};
 use crate::records::{story_dir, RESCORE_DIR, STORIES_DIR};
 use crate::{read_regular, FileProblem};

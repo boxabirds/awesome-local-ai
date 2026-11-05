@@ -57,8 +57,8 @@ def held_out_tests(passed: int, errors=None) -> list[dict]:
 def fake_rescore(passed: int, total: int, calls: list, fault: str | None = None, errors=None, detail: bool = True):
     """Stands in for rescore.py --final: writes what it would (rescore.json, and the final checkpoint's
     accept.json), without a browser."""
-    def rescore(run: Path, bundle: Path, version: str) -> None:
-        calls.append((run, bundle, version))
+    def rescore(run: Path, code: Path, version: str) -> None:
+        calls.append((run, code, version))
         out = run / "rescore" / version
         out.mkdir(parents=True)
         (out / "rescore.json").write_text(json.dumps({"pack_version": version, "results": [
@@ -72,17 +72,16 @@ def fake_rescore(passed: int, total: int, calls: list, fault: str | None = None,
     return rescore
 
 
-def test_a_finished_run_gets_its_bundle_and_final_score_and_says_so(tmp_path):
+def test_a_finished_run_is_scored_from_its_own_repository_and_says_so(tmp_path):
+    # TC-83: the re-score takes the run's own repository (which the node keeps and serves to the lake); no bundle
     work = workspace_with_history(tmp_path)
     run = run_dir(tmp_path, work)
     calls, messages = [], []
     out = finalize.finalize(run, pack_ref="vidi-v2.0-pre2", version="vidi-v2.0-pre2",
                             rescore=fake_rescore(74, 75, calls), record=messages.append)
-    heads = subprocess.run(["git", "bundle", "list-heads", str(run / "workspace.bundle")], capture_output=True, text=True).stdout
-    head = subprocess.run(["git", "-C", str(work / "workspace"), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    assert head in heads                                        # the bundle ends at the final story's commit
-    assert calls == [(run, run / "workspace.bundle", "vidi-v2.0-pre2")]
-    assert out["score"] == "74/75" and out["rescore"] == "done"
+    assert calls == [(run, work / "workspace", "vidi-v2.0-pre2")]
+    assert not (run / "workspace.bundle").exists()
+    assert out["code"] == finalize.CODE_REPOSITORY and out["score"] == "74/75" and out["rescore"] == "done"
     assert json.loads((run / "finalize.json").read_text())["score"] == "74/75"
     assert messages == ["final score 74/75 under vidi-v2.0-pre2"]
 
@@ -112,11 +111,11 @@ def test_a_failed_rescore_is_reported_not_raised(tmp_path):
     run = run_dir(tmp_path, workspace_with_history(tmp_path))
     messages = []
 
-    def broken(run, bundle, version):
+    def broken(run, code, version):
         raise RuntimeError("no browser")
     out = finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=broken, record=messages.append)
     assert out["rescore"] == "failed" and "no browser" in out["reason"]
-    assert (run / "workspace.bundle").is_file()
+    assert (tmp_path / "work" / "workspace" / ".git").is_dir()
     assert "re-score failed" in messages[0]
 
 
@@ -409,7 +408,7 @@ def test_every_outcome_says_whether_a_person_is_needed(tmp_path, make, state, ki
     assert ("will be retried" in messages[0]) is (state != "done" and not person)
 
 
-def test_a_run_with_no_bundle_and_no_work_dir_left_needs_a_person(tmp_path):
+def test_a_run_with_no_repository_and_no_bundle_left_needs_a_person(tmp_path):
     run = live_run(tmp_path, 63)
     import shutil
     shutil.rmtree(tmp_path / "work")
@@ -417,7 +416,7 @@ def test_a_run_with_no_bundle_and_no_work_dir_left_needs_a_person(tmp_path):
     finalize_with(run, fake_rescore(74, 75, calls))
     fin = status(run)
     assert calls == [] and fin["rescore"] == "failed" and fin["needs_person"] is True
-    assert fin["reason_kind"] == finalize.KIND_NO_BUNDLE and "bundle" not in fin
+    assert fin["reason_kind"] == finalize.KIND_NO_CODE and "code" not in fin
     assert str(tmp_path) not in fin["reason"]
 
 
@@ -425,17 +424,27 @@ def test_a_run_whose_work_dir_was_never_recorded_needs_a_person_too(tmp_path):
     run = live_run(tmp_path, 63)
     (run / "work_dir.txt").unlink()
     finalize_with(run, fake_rescore(74, 75, []))
-    assert status(run)["reason_kind"] == finalize.KIND_NO_BUNDLE and status(run)["needs_person"] is True
+    assert status(run)["reason_kind"] == finalize.KIND_NO_CODE and status(run)["needs_person"] is True
 
 
-def test_a_run_whose_work_dir_is_gone_is_scored_from_the_bundle_it_already_has(tmp_path):
+def test_a_run_from_before_story_23_whose_repository_is_gone_is_scored_from_the_bundle_it_already_has(tmp_path):
     run = live_run(tmp_path, 63)
-    finalize_with(run, raising(RuntimeError("no browser")))           # bundled, not scored
+    subprocess.run(["git", "-C", str(tmp_path / "work" / "workspace"), "bundle", "create", "-q",
+                    str(run / finalize.BUNDLE), "--all"], check=True)     # what an older harness left
     import shutil
     shutil.rmtree(tmp_path / "work")
     calls = []
     finalize_with(run, fake_rescore(62, 75, calls))
-    assert len(calls) == 1 and status(run)["score"] == "62/75" and status(run)["needs_person"] is False
+    assert [c[1] for c in calls] == [run / finalize.BUNDLE] and status(run)["code"] == finalize.CODE_BUNDLE
+    assert status(run)["score"] == "62/75" and status(run)["needs_person"] is False
+
+
+def test_the_runs_repository_wins_over_an_old_bundle(tmp_path):
+    run = live_run(tmp_path, 63)
+    (run / finalize.BUNDLE).write_bytes(b"an old bundle")
+    calls = []
+    finalize_with(run, fake_rescore(62, 75, calls))
+    assert [c[1] for c in calls] == [tmp_path / "work" / "workspace"] and status(run)["code"] == finalize.CODE_REPOSITORY
 
 
 def test_attempts_are_counted_and_a_retryable_failure_needs_a_person_at_the_cap(tmp_path):
@@ -770,7 +779,7 @@ def test_a_scored_run_is_scored_whether_or_not_its_bundle_and_work_dir_are_still
     finalize_with(run, fake_rescore(62, 75, []))
     import shutil
     shutil.rmtree(tmp_path / "work")
-    (run / finalize.BUNDLE).unlink()
+    assert not (run / finalize.BUNDLE).exists()
     out = finalize_with(run, fake_rescore(62, 75, []))
     assert out["rescore"] == "done" and status(run)["score"] == "62/75" and status(run)["needs_person"] is False
 
@@ -955,7 +964,7 @@ def test_the_work_dir_is_given_back_whatever_the_bundle_because_the_repository_s
     """The bundle no longer gates it (story 23): the code is the repository that stays, not the bundle."""
     run, own, _ = scored_run(tmp_path, monkeypatch)
     if bundle is None:
-        (run / "workspace.bundle").unlink()
+        (run / "workspace.bundle").unlink(missing_ok=True)
     else:
         (run / "workspace.bundle").write_bytes(bundle)
     assert finalize.release_work(run) is not None

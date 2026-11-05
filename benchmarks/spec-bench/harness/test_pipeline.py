@@ -348,9 +348,9 @@ def rescore_here(mp: pytest.MonkeyPatch):
     by the test is broken in it too."""
     keep_pack(mp)
 
-    def run_rescore(run: Path, bundle: Path, version: str) -> None:
+    def run_rescore(run: Path, code: Path, version: str) -> None:
         mp.setattr(rescore, "BASE_PORT", TEST_RESCORE_PORT)
-        mp.setattr(sys, "argv", ["rescore.py", str(run), "--bundle", str(bundle), "--pack", PACK, "--final",
+        mp.setattr(sys, "argv", ["rescore.py", str(run), "--code", str(code), "--pack", PACK, "--final",
                                  "--workers", "1"])
         before = signal.getsignal(signal.SIGTERM)
         try:

@@ -227,3 +227,42 @@ pub fn git(dir: &Path, args: &[&str]) -> String {
     assert!(out.status.success(), "git {args:?} failed: {}", String::from_utf8_lossy(&out.stderr));
     String::from_utf8_lossy(&out.stdout).trim_end().to_string()
 }
+
+/// The lake's code repository as dbench lays it out (`dbench code-import`): each copy's bundle fetched under
+/// `refs/runs/<node>/<run>/heads/`, and each story commit metrics.json records, when the bundle holds it, under
+/// `.../story/NN`.
+pub fn build_code_repo(state: &Path, lake: &Lake) {
+    let code = state.join(bench_lake::code::CODE_REPO);
+    git(state, &["init", "--quiet", "--bare", "--template=", code.to_str().unwrap()]);
+    for run in lake.discover().runs {
+        let bundle = run.dir.join(bench_lake::code::BUNDLE_FILE);
+        if !bundle.is_file() {
+            continue;
+        }
+        let node = bench_lake::code::node_of(&run).to_string();
+        let heads = bench_lake::code::head_ref(&node, &run.id, "*");
+        git(&code, &["fetch", "--quiet", "--no-tags", bundle.to_str().unwrap(), &format!("+refs/heads/*:{heads}")]);
+        let metrics: serde_json::Value = serde_json::from_slice(&fs::read(run.dir.join("metrics.json")).unwrap()).unwrap();
+        for (story, s) in metrics["stories"].as_object().unwrap() {
+            let (Ok(n), Some(commit)) = (story.parse::<u32>(), s["commit"].as_str()) else { continue };
+            let held = Command::new("git")
+                .env_clear()
+                .env("PATH", std::env::var("PATH").unwrap_or_default())
+                .arg("--git-dir")
+                .arg(&code)
+                .args(["cat-file", "-e", &format!("{commit}^{{commit}}")])
+                .status()
+                .unwrap();
+            if held.success() {
+                git(&code, &["update-ref", &bench_lake::code::story_ref(&node, &run.id, n), commit]);
+            }
+        }
+    }
+}
+
+/// A scratch lake whose state folder has the lake's code repository.
+pub fn scratch_lake_with_code(tag: &str) -> (Scratch, PathBuf, Lake) {
+    let (s, state, lake) = scratch_lake(tag);
+    build_code_repo(&state, &lake);
+    (s, state, lake)
+}

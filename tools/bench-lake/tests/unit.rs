@@ -328,7 +328,7 @@ fn item_texts() {
     assert_eq!(t(Item::Run), "run");
     assert_eq!(t(Item::Record("accept:1".into())), "record:accept:1");
     assert_eq!(t(Item::Log(7)), "log:7");
-    assert_eq!(t(Item::Bundle), "bundle");
+    assert_eq!(t(Item::Code), "code");
     assert_eq!(t(Item::Workspace(1)), "workspace:1");
 }
 
@@ -477,18 +477,18 @@ const WRITE_CALLS: [&str; 14] = [
     ".append(true)",
 ];
 
-/// The writers: bundle.rs makes a working copy outside the lake; annotations.rs appends the operator's decisions
+/// The writers: code.rs makes a working copy outside the lake; annotations.rs appends the operator's decisions
 /// below `<state>/annotations` (story 23; tests/annotations.rs TC-C0 proves no run folder changes).
 #[test]
-fn tc83_rust_writes_only_in_bundle_rs_and_annotations_rs() {
-    let mut seen_in_bundle = false;
+fn tc83_rust_writes_only_in_code_rs_and_annotations_rs() {
+    let mut seen_in_code = false;
     let mut seen_in_annotations = false;
     for (name, text) in src_files() {
         let code: String = text.lines().filter(|l| !l.trim_start().starts_with("//")).collect::<Vec<_>>().join("\n");
         for call in WRITE_CALLS {
             if code.contains(call) {
-                if name == "bundle.rs" {
-                    seen_in_bundle = true;
+                if name == "code.rs" {
+                    seen_in_code = true;
                 } else if name == "annotations.rs" {
                     seen_in_annotations = true;
                 } else if name == "main.rs" {
@@ -501,15 +501,15 @@ fn tc83_rust_writes_only_in_bundle_rs_and_annotations_rs() {
             }
         }
     }
-    assert!(seen_in_bundle, "bundle.rs is where the working copy is made");
+    assert!(seen_in_code, "code.rs is where the working copy is made");
     assert!(seen_in_annotations, "annotations.rs is where the decisions are appended");
 }
 
 #[test]
-fn tc83_only_bundle_rs_starts_a_process_for_the_library() {
+fn tc83_only_code_rs_starts_a_process_for_the_library() {
     for (name, text) in src_files() {
         if text.contains("Command::new") {
-            assert!(name == "bundle.rs" || name == "compare.rs", "{name} starts a process");
+            assert!(name == "code.rs" || name == "compare.rs", "{name} starts a process");
         }
     }
 }

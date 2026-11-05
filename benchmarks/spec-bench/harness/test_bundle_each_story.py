@@ -143,10 +143,9 @@ def test_a_bundle_that_cannot_be_made_never_stops_the_event_being_recorded(tmp_p
     assert BUNDLE not in pushed_files(remote)
 
 
-def test_finalize_makes_its_bundle_with_the_same_code(tmp_path):
+def test_finalize_makes_no_bundle_it_scores_from_the_runs_repository():
+    """Story 23 (code.readers): the node keeps the run's repository and finalize re-scores from it (finalize.code_of),
+    so finalize has no bundle command, its own or drive's."""
     import finalize
-    repo, remote, run, ws = stopped_run(tmp_path)
-    out = tmp_path / "final.bundle"
-    finalize.bundle(ws, out)
-    assert head_of_bundle(out) == head_of(ws)
-    assert finalize.bundle.__code__.co_names.count("make_bundle") == 1, "finalize has its own bundle command again"
+    source = Path(finalize.__file__).read_text()
+    assert not hasattr(finalize, "bundle") and "make_bundle" not in source

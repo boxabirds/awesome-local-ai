@@ -104,7 +104,7 @@ and a refusal as
 | a record | `record:<name>` followed by `:<arg>` for each argument, with a story printed as a decimal integer: `record:metrics`, `record:accept:1`, `record:rescore-accept:v1:1`, `record:accept:1000` |
 | the version list of `rescore/` | `record:rescore-versions` |
 | a log | `log:<story>` |
-| the bundle | `bundle` |
+| the run's code in the lake's code repository | `code` |
 | a working copy | `workspace:<story>` |
 
 `code` and `detail`. The detail is a fixed text, the same in both languages. The parser's own message and the operating
@@ -113,10 +113,10 @@ system's message are not part of the canonical form.
 | Code | Detail | When |
 |---|---|---|
 | `E-LAKE-NO-RUN` | `no run with this id` | the id (or node and id) names no run |
-| `E-LAKE-NOT-COLLECTED` | `no such file` | the file is not there |
+| `E-LAKE-NOT-COLLECTED` | `no such file` or `no such ref in the lake's code repository` | the file is not there, or the run's code at the story is not in `code.git` |
 | `E-LAKE-NOT-A-FILE` | `not a regular file` | a symbolic link or a folder where a file belongs (or a link in a folder of the path) |
 | `E-LAKE-UNREADABLE` | `permission denied` or `io error` | the operating system refused (`permission denied` for EACCES and EPERM, `io error` for anything else) |
-| `E-LAKE-MALFORMED` | `not valid JSON`, `not valid UTF-8`, `not valid gzip`, `note is not an object`, `complete is not a boolean`, `no commit for story`, `commit is not 40 hexadecimal characters`, `commit not in bundle` | the file is there but unusable |
+| `E-LAKE-MALFORMED` | `not valid JSON`, `not valid UTF-8`, `not valid gzip`, `note is not an object`, `complete is not a boolean` | the file is there but unusable |
 | `E-LAKE-BAD-NAME` | `story out of range` or `version not valid` | a story or version that cannot name a file |
 | `E-LAKE-DEST-INSIDE-ROOT` | `destination is inside the lake` | refusal: the destination, links resolved, is inside the collected or reference folder |
 | `E-LAKE-DEST-NOT-EMPTY` | `destination is not empty` | refusal: the destination exists and is not an empty folder |
@@ -287,13 +287,14 @@ $ bench-lake <LAKE> log combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/ll
 
     {"commit":HEX40,"node":N,"path":DEST,"run":ID,"status":"found","story":S}
 
-`path` is `<dest>` exactly as given on the command line. The working copy is made by `git clone --no-checkout` of the
-run's `workspace.bundle` and `git checkout --detach <commit>`, where the commit is `stories.<S>.commit` of the run's
-`metrics.json` (S as a plain decimal key). Checks in order: story range (`E-LAKE-BAD-NAME`, item `workspace:S`); destination
-inside a root or not empty (refusals, exit 2); the bundle (absence, item `bundle`: `E-LAKE-NOT-COLLECTED`, `E-LAKE-NOT-A-FILE`);
-then the metrics and the commit (absences with item `workspace:S`: the metrics record missing is `E-LAKE-NOT-COLLECTED`,
-unusable metrics are those of the metrics record, a story without a commit or a commit that is not 40 hexadecimal
-characters or not in the bundle is `E-LAKE-MALFORMED`); then git (refusal `E-LAKE-GIT-FAILED`).
+`path` is `<dest>` exactly as given on the command line. The working copy comes from the lake's code repository,
+`<state>/code.git` (beside `collected`; with `--roots`, beside `<COLLECTED>`): a new repository in `<dest>` fetches
+the copy's story ref, `refs/runs/<node>/<run>/story/<SS>` (`<node>` is `reference` for a reference run, `<SS>` the
+story in two digits), as its only ref, `refs/lake/story`, with its history, and checks out that commit detached. The
+commit is the ref's: since story 23 the run's records do not name it. Checks in order: story range (`E-LAKE-BAD-NAME`,
+item `workspace:S`); destination inside a root or not empty (refusals, exit 2); the ref (absence, item `code`:
+`E-LAKE-NOT-COLLECTED`, `no such ref in the lake's code repository`, also when there is no code repository); then git
+(refusal `E-LAKE-GIT-FAILED`, item `workspace:S`, for example a commit whose files the repository does not hold).
 
 ```example
 $ bench-lake <LAKE> workspace node-a@combinations/qwen/3.6/35b-a3b/ubuntu/strix-halo-128GB/gufo-fork-ninjapear-pi/benchmarks/vidi/v2-q36fork-b-r2 1 <DEST>
@@ -309,7 +310,7 @@ $ bench-lake <LAKE> workspace node-a@combinations/qwen/3.6/35b-a3b/ubuntu/strix-
 
 ```example
 $ bench-lake <LAKE> workspace combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1 1 <DEST>
-{"absent":{"code":"E-LAKE-NOT-COLLECTED","detail":"no such file","item":"bundle","node":"node-d","run":"combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1"},"status":"absent"}
+{"absent":{"code":"E-LAKE-NOT-COLLECTED","detail":"no such ref in the lake's code repository","item":"code","node":"node-d","run":"combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1"},"status":"absent"}
 ```
 
 

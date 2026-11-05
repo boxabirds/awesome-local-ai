@@ -9,7 +9,7 @@
 //! no user or system configuration.
 
 use anyhow::{bail, Context, Result};
-use bench_lake::bundle::{git_command, BUNDLE_FILE};
+use bench_lake::code::{git_command, BUNDLE_FILE};
 use bench_lake::{Lake, Record, RunRef};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,12 +18,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 /// The repository's folder name in the lake's state folder.
-pub const CODE_REPO: &str = "code.git";
-/// The node segment of a reference run's refs: bench-lake's label for the reference root.
-pub const REFERENCE_NODE: &str = bench_lake::layout::REFERENCE_LABEL;
-pub const RUNS_REFS: &str = "refs/runs";
-const HEADS: &str = "heads";
-const STORY: &str = "story";
+pub use bench_lake::code::{CODE_REPO, HEADS, REFERENCE_NODE, RUNS_REFS, STORY};
 const BRANCH_PREFIX: &str = "refs/heads/";
 /// A recorded commit in full.
 pub const FULL_COMMIT_LEN: usize = 40;
@@ -66,34 +61,11 @@ pub struct ImportReport {
 }
 
 /// The node segment of a lake copy's refs.
-pub fn node_of(run: &RunRef) -> &str {
-    run.node.as_deref().unwrap_or(REFERENCE_NODE)
-}
+pub use bench_lake::code::{head_ref, node_of, run_prefix, story_ref};
 
-/// A refs path is made only from a node name under the lake's part rule and a run id the lake accepts, so a name can
-/// never reach outside `refs/runs/` or another run's refs (`..`, a slash in a node name, a cut-short id).
+/// bench-lake's rule for the names a refs path is made from (`code::check_names`), as this crate's errors.
 pub fn check_names(node: &str, run: &str) -> Result<()> {
-    if !bench_lake::layout::is_valid_part(node) {
-        bail!("not a node name: {node:?}");
-    }
-    if !bench_lake::layout::is_run_id(run) {
-        bail!("not a run id: {run:?}");
-    }
-    Ok(())
-}
-
-/// `refs/runs/<node>/<run>`.
-pub fn run_prefix(node: &str, run: &str) -> String {
-    format!("{RUNS_REFS}/{node}/{run}")
-}
-
-pub fn head_ref(node: &str, run: &str, branch: &str) -> String {
-    format!("{}/{HEADS}/{branch}", run_prefix(node, run))
-}
-
-/// The story number in two digits, as the story folders.
-pub fn story_ref(node: &str, run: &str, story: u32) -> String {
-    format!("{}/{STORY}/{story:02}", run_prefix(node, run))
+    bench_lake::code::check_names(node, run).map_err(anyhow::Error::msg)
 }
 
 fn git(code: &Path) -> Command {

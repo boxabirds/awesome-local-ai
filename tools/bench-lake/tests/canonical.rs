@@ -41,7 +41,8 @@ fn every_question_has_a_worked_example() {
 
 #[test]
 fn the_worked_examples_are_the_commands_output() {
-    let s = Scratch::new("canon");
+    // The fixture lake with its code repository (built from the fixture's bundles, as dbench code-import does).
+    let (s, state, _lake) = scratch_lake_with_code("canon");
     let dest = s.join("dest");
     let nonempty = s.join("nonempty");
     write(&nonempty.join("keep"), b"x");
@@ -57,7 +58,7 @@ fn the_worked_examples_are_the_commands_output() {
             })
             .collect();
         let want = e.output.replace("<DEST>", &dest.to_string_lossy()).replace("<NONEMPTY-DEST>", &nonempty.to_string_lossy());
-        let o = bench_lake_cmd().arg(fixture_state()).args(&args).output().unwrap();
+        let o = bench_lake_cmd().arg(&state).args(&args).output().unwrap();
         let got = String::from_utf8(o.stdout).unwrap();
         assert_eq!(got, format!("{want}\n"), "{:?}", e.args);
         let expected_exit = if want.contains("\"status\":\"refused\"") { EXIT_REFUSED } else { EXIT_OK };

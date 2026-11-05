@@ -8,7 +8,7 @@
 use crate::layout::{Lake, RunRef};
 use crate::logs::{COMPACT_LOG, RAW_LOG};
 use crate::records::Record;
-use crate::{bundle::git_command, Completeness};
+use crate::{code::git_command, Completeness};
 use flate2::read::MultiGzDecoder;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;

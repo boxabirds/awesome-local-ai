@@ -43,6 +43,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
+import benchlake  # noqa: E402
 import claims  # noqa: E402
 import gates  # noqa: E402
 import heldout  # noqa: E402
@@ -105,17 +106,18 @@ def scored_commit(record: Path) -> str:
 
 def record_workspace(record: Path, dest: Path) -> None:
     """The run's final workspace from its record, as a one-commit git repo (grading_package archives
-    HEAD). Refuses a snapshot that isn't the commit the final score was taken on. The app is read from
-    workspace.bundle, at the commit the score was taken on; a run with no bundle but a workspace/ folder (a run from
-    before the bundle, a hand-built reference run) is read from the folder."""
+    HEAD). Refuses a snapshot that isn't the commit the final score was taken on. The app is read from the lake's code
+    repository (bench-lake workspace, story 23), at the story the score was taken on; a run the lake has no code for
+    but with a workspace/ folder (a run from before the bundle, a hand-built reference run) is read from the folder."""
     log = (record / "workspace-git-log.txt").read_text()
     head = log.split("\n", 1)[0].split()[-1]
     scored = scored_commit(record)
     if not (head.startswith(scored[:7]) or scored.startswith(head[:7])):
         raise SystemExit(f"{record}: the workspace snapshot is {head[:7]}, but the score was taken on {scored[:7]}")
-    if (record / judge_prep.BUNDLE).is_file():
-        copy_scored_tree(record, scored, dest)
-    else:
+    if not copy_scored_tree(record, scored, dest):
+        if not (record / judge_prep.MIRROR).is_dir():
+            raise SystemExit(f"{record}: the lake has no code for the story the score was taken on ({scored[:7]}) and "
+                             f"there is no {judge_prep.MIRROR}/ folder")
         shutil.copytree(record / judge_prep.MIRROR, dest)
     git = ["git", "-C", str(dest), "-c", "user.name=build", "-c", "user.email=build@invalid"]
     subprocess.run([*git, "init", "-q"], check=True)
@@ -123,20 +125,24 @@ def record_workspace(record: Path, dest: Path) -> None:
     subprocess.run([*git, "commit", "-q", "-m", "final build"], check=True)
 
 
-def copy_scored_tree(record: Path, scored: str, dest: Path) -> None:
-    """The files of commit `scored` from the record's workspace.bundle, without history, in dest."""
+def copy_scored_tree(record: Path, scored: str, dest: Path) -> bool:
+    """The files of commit `scored`, from the lake's code repository at the run's last recorded story, without
+    history, in dest. False (dest untouched) when the lake has no code for the run."""
+    story = judge_prep.scored_story(record)
     with tempfile.TemporaryDirectory() as tmp:
         clone = Path(tmp) / "clone"
-        judge_prep.clone_app(record, clone)
-        found = subprocess.run(["git", "-C", str(clone), "rev-parse", "--verify", "--quiet", f"{scored}^{{commit}}"],
-                               capture_output=True, text=True)
-        if found.returncode != 0:
-            raise SystemExit(f"{record}: the commit the score was taken on ({scored[:7]}) is not in workspace.bundle")
-        tree = subprocess.run(["git", "-C", str(clone), "archive", "--format=tar", found.stdout.strip()],
+        commit = benchlake.workspace(record, story[0], clone) if story else None
+        if commit is None:
+            return False
+        if not (commit.startswith(scored) or scored.startswith(commit)):
+            raise SystemExit(f"{record}: the lake's code at story {story[0]} is {commit[:7]}, but the score was taken "
+                             f"on {scored[:7]}")
+        tree = subprocess.run(["git", "-C", str(clone), "archive", "--format=tar", commit],
                               capture_output=True, check=True).stdout
     dest.mkdir(parents=True)
     subprocess.run(["tar", "-x", "-C", str(dest)], input=tree, check=True)
     judge_prep.drop_unmirrored(dest)
+    return True
 
 
 def record_claims(record: Path, out: Path) -> list[str]:

@@ -319,7 +319,7 @@ PS = """\
   300     1 bash /srv/checkout/benchmarks/spec-bench/harness/run.sh install-b --record
   310   300 uv run --quiet drive.py --run-dir /r/b --base-url cloud
   311   310 /cache/python drive.py --run-dir /r/b --base-url cloud
-  400     1 /cache/python rescore.py /r/c --bundle /r/c/workspace.bundle --final
+  400     1 /cache/python rescore.py /r/c --code /srv/w/c/workspace --final
   500     1 vim drive.py
   600     1 /bin/zsh -c cat run.sh | grep drive.py
   700     1 bash /srv/checkout/run.sh
