@@ -58,6 +58,9 @@ struct App {
     repo: PathBuf,
     /// Where the runs and their code are read (story 23).
     lake: bench_lake::Lake,
+    /// Every run in the lake, as last read: at start and by each rescan. Requests read this, never the lake, so a
+    /// request costs nothing even when launchd runs the gallery as a background job (low disk and CPU priority).
+    listing: std::sync::RwLock<Vec<runs::Run>>,
     builds: Builds,
     cache: PathBuf,
     blind: bool,
@@ -276,8 +279,10 @@ fn newly_reviewable(have: &[runs::Run], now: Vec<runs::Run>) -> Vec<runs::Run> {
 async fn rescan(app: Arc<App>) {
     loop {
         tokio::time::sleep(RESCAN_EVERY).await;
-        let (repo, lake, family) = (app.repo.clone(), app.lake.clone(), app.family.clone());
-        let Ok(now) = tokio::task::spawn_blocking(move || reviewable(&repo, &lake, &family)).await else { continue };
+        let (repo, lake) = (app.repo.clone(), app.lake.clone());
+        let Ok(listing) = tokio::task::spawn_blocking(move || runs::load(&repo, &lake)).await else { continue };
+        let now = reviewable(&listing, &app.family);
+        *app.listing.write().expect("listing lock") = listing;
         let added = {
             let mut list = app.review_builds.write().expect("review builds lock");
             let added = newly_reviewable(&list, now);
@@ -336,11 +341,11 @@ fn lake_error(e: &bench_lake::Error) -> String {
     }
 }
 
-/// Finished, validly scored runs of one spec version family: the builds a story review compares.
+/// Finished, validly scored runs of one spec version family, out of `listing`: the builds a story review compares.
 /// Builds made from different specs can't be judged against one story's spec.
-fn reviewable(repo: &std::path::Path, lake: &bench_lake::Lake, family: &str) -> Vec<runs::Run> {
+fn reviewable(listing: &[runs::Run], family: &str) -> Vec<runs::Run> {
     let mut list: Vec<runs::Run> =
-        runs::load(repo, lake).into_iter().filter(|r| is_reviewable(r) && runs::family(&r.pack_version) == family).collect();
+        listing.iter().cloned().filter(|r| is_reviewable(r) && runs::family(&r.pack_version) == family).collect();
     list.sort_by(|a, b| a.slug.cmp(&b.slug));
     list
 }
@@ -390,7 +395,7 @@ async fn page() -> Html<&'static str> {
 }
 
 async fn api_runs(State(app): State<Arc<App>>) -> impl IntoResponse {
-    let runs = runs::load(&app.repo, &app.lake);
+    let runs = app.listing.read().expect("listing lock").clone();
     let colours = setup_colours(&runs);
     let private = private_repo(&app.repo);
     let judges = runs::judges(&private, &home().join(".vidi-bench/keys"));
@@ -402,7 +407,7 @@ async fn api_status(State(app): State<Arc<App>>) -> impl IntoResponse {
 }
 
 async fn api_open(State(app): State<Arc<App>>, UrlPath(slug): UrlPath<String>) -> impl IntoResponse {
-    let runs = runs::load(&app.repo, &app.lake);
+    let runs = app.listing.read().expect("listing lock").clone();
     let colours = setup_colours(&runs);
     let Some(run) = runs.iter().find(|r| r.slug == slug) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such run"}))).into_response();
@@ -576,7 +581,7 @@ async fn api_review_open(State(app): State<Arc<App>>, UrlPath((story, key)): Url
     let banner = if app.blind {
         proxy::Banner { text: label.clone(), colour: BLIND_COLOUR.to_string(), title: label }
     } else {
-        let colours = setup_colours(&runs::load(&app.repo, &app.lake));
+        let colours = setup_colours(&app.listing.read().expect("listing lock"));
         proxy::Banner {
             text: label,
             colour: colours.iter().find(|(s, _)| *s == run.setup).map(|(_, c)| c.clone()).unwrap_or_else(|| colour(0)),
@@ -817,7 +822,8 @@ async fn main() -> anyhow::Result<()> {
     let builds = Builds::new(cache.clone());
     let blind = cli.blind;
     let family = runs::family(&private_version(&private_repo(&repo)));
-    let mut review_builds = reviewable(&repo, &lake, &family);
+    let listing = runs::load(&repo, &lake);
+    let mut review_builds = reviewable(&listing, &family);
     if blind {
         shuffle(&mut review_builds);
     }
@@ -831,7 +837,7 @@ async fn main() -> anyhow::Result<()> {
     let record_config = record::write_config(&acceptance, &cache)?;
     let rec_ports = vec![REC_PORT_BASE]; // one recording at a time
     let app = Arc::new(App {
-        repo: repo.clone(), lake, builds: builds.clone(), cache, blind, review_builds: std::sync::RwLock::new(review_builds), family, started: utc_now(), reviews, stories,
+        repo: repo.clone(), lake, listing: std::sync::RwLock::new(listing), builds: builds.clone(), cache, blind, review_builds: std::sync::RwLock::new(review_builds), family, started: utc_now(), reviews, stories,
         prep: Default::default(), acceptance, recordings, rec_secret, record_config, rec: Default::default(),
         rec_ports: tokio::sync::Mutex::new(rec_ports), build_order,
     });
@@ -962,7 +968,7 @@ mod tests {
         std::fs::write(out.join("report.json"), report.to_string()).unwrap();
         let rec = std::collections::HashMap::from([(rec_key(&run, STORY), "done".to_string())]);
         let app = Arc::new(App {
-            repo: dir.clone(), lake: bench_lake::Lake::in_state_dir(&dir.join("state")), builds: Builds::new(dir.join("cache")), cache: dir.join("cache"), blind: false,
+            repo: dir.clone(), lake: bench_lake::Lake::in_state_dir(&dir.join("state")), listing: Default::default(), builds: Builds::new(dir.join("cache")), cache: dir.join("cache"), blind: false,
             review_builds: std::sync::RwLock::new(vec![run]), family: "vidi-v2".into(), started: "t0".into(),
             reviews: reviews::Store::new(dir.join("analysis/story-reviews.csv")),
             stories: vec![stories::Story { id: STORY, review_build: STORY, ..Default::default() }], prep: Default::default(),
@@ -1255,7 +1261,7 @@ mod tests {
     fn app_over(t: &TestLake) -> Arc<App> {
         let repo = t.root.join("repo");
         Arc::new(App {
-            repo: repo.clone(), lake: t.lake.clone(), builds: Builds::new(repo.join("cache")), cache: repo.join("cache"), blind: false,
+            repo: repo.clone(), lake: t.lake.clone(), listing: std::sync::RwLock::new(runs::load(&repo, &t.lake)), builds: Builds::new(repo.join("cache")), cache: repo.join("cache"), blind: false,
             review_builds: std::sync::RwLock::new(Vec::new()), family: "vidi-v2".into(), started: "t0".into(),
             reviews: reviews::Store::new(repo.join("analysis/story-reviews.csv")), stories: Vec::new(), prep: Default::default(),
             acceptance: repo.join("acceptance"), recordings: repo.join("recordings"), rec_secret: "s".into(),
@@ -1356,6 +1362,7 @@ mod tests {
         let app = Arc::get_mut(&mut f.app).unwrap();
         app.repo = m.repo.clone();
         app.lake = m.lake.lake.clone();
+        app.listing = std::sync::RwLock::new(runs::load(&m.repo, &m.lake.lake));
         app.stories = Vec::new();
         app.review_builds = std::sync::RwLock::new(Vec::new());
         f.app.clone()
@@ -1395,6 +1402,32 @@ mod tests {
         assert_eq!(slugs(&app), ["q_1_s_os_hw_eng-cli_v2-r1", "q_1_s_os_hw_eng-cli_v2-r2"]);
         one_pass().await;
         assert_eq!(slugs(&app).len(), 2, "a run already under review is not added again");
+        task.abort();
+    }
+
+    async fn listed(app: &Arc<App>) -> Vec<String> {
+        let r = api_runs(State(app.clone())).await.into_response();
+        let bytes = axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        v["runs"].as_array().unwrap().iter().map(|r| r["run"].as_str().unwrap().to_string()).collect()
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_run_list_is_held_in_memory_and_each_rescan_brings_it_up_to_date() {
+        let machines = Machines::new("listing");
+        machines.collect_reviewable_run("v2-r1");
+        let app = rescanned_app(&machines);
+        // A request reads no lake file: with the lake moved away, the list is still there.
+        let moved = machines.lake.root.join("state-away");
+        std::fs::rename(&machines.lake.state, &moved).unwrap();
+        assert_eq!(listed(&app).await, ["v2-r1"]);
+        std::fs::rename(&moved, &machines.lake.state).unwrap();
+        // A run the collector brings appears after the next pass, not before.
+        machines.collect_reviewable_run("v2-r2");
+        assert_eq!(listed(&app).await, ["v2-r1"]);
+        let task = tokio::spawn(rescan(app.clone()));
+        one_pass().await;
+        assert_eq!(listed(&app).await, ["v2-r1", "v2-r2"]);
         task.abort();
     }
 
