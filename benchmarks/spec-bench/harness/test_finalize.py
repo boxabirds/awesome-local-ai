@@ -877,9 +877,9 @@ def test_repair_run_without_record_repairs_and_commits_nothing(tmp_path, monkeyp
 
 # ---------- giving the work dir back once a run is finished and scored ----------
 # A run's work dir (~/.w/<id>) holds the agent's whole workspace: 1.4 to 3.1 GB each. By 24 Oct 2026 the series had
-# left 50 GB on gruntus, 29 GB on tritus and 23 GB on quintus. Once a run is finished and scored its code is the
-# workspace.bundle in its record (rescore.py and a partial rerun both read the bundle), so the dir is only weight. A
-# stopped or failed run resumes in it, so it stays.
+# left 50 GB on gruntus, 29 GB on tritus and 23 GB on quintus. Once a run is finished and scored, the weight goes and
+# the run's own repository (workspace/.git) stays: since story 23 the node serves the run's code from it (GET
+# /v1/runs/code) and the lake keeps it. A stopped or failed run resumes in its dir, so it all stays.
 
 def scored_run(tmp_path: Path, monkeypatch, state: str | None = "finished", fault: str | None = None):
     """A run as run.sh leaves it: its work dir at the harness's own path for it (drive.work_dir_for) with the long-name
@@ -900,22 +900,40 @@ def scored_run(tmp_path: Path, monkeypatch, state: str | None = "finished", faul
     return run, own, out
 
 
-def test_a_finished_and_scored_run_gives_back_its_work_dir_and_keeps_its_bundle(tmp_path, monkeypatch):
+def git(cwd: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
+
+
+def only_the_repository_is_left(own: Path) -> bool:
+    """Everything of the work dir but the run's own repository is gone: own/ holds workspace/ and workspace/ holds .git."""
+    return sorted(p.name for p in own.iterdir()) == ["workspace"] and sorted(p.name for p in (own / "workspace").iterdir()) == [".git"]
+
+
+def test_a_finished_and_scored_run_gives_back_its_work_dir_but_keeps_its_repository(tmp_path, monkeypatch):
+    """Story 23 (code.lake_repo): the node serves a run's code from its own repository (GET /v1/runs/code), so the
+    repository outlives the run; the rest of the work dir (the checked-out files, node_modules, build output) goes."""
     import drive
     run, own, out = scored_run(tmp_path, monkeypatch)
-    assert out["rescore"] == "done" and own.is_dir()
+    (own / "workspace" / "node_modules" / "x").mkdir(parents=True)
+    (own / "workspace" / "node_modules" / "x" / "index.js").write_text("weight")
+    (own / "server.log").write_text("weight")
+    heads_before = git(own / "workspace", "for-each-ref", "--format=%(refname) %(objectname)")
+    assert out["rescore"] == "done"
     note = finalize.release_work(run)
-    assert not own.exists()                                       # the 1.4 to 3.1 GB is gone
-    assert not os.path.lexists(drive.WORK_LINKS / drive.work_dir_name(run))     # and so is the link that pointed at it
-    heads = subprocess.run(["git", "bundle", "list-heads", str(run / "workspace.bundle")], capture_output=True, text=True).stdout
-    assert heads.strip()                                          # the code stays, in the record
-    assert note and "work dir" in note
+    assert only_the_repository_is_left(own)
+    assert git(own / "workspace", "for-each-ref", "--format=%(refname) %(objectname)") == heads_before
+    # TC-17: what the node's code route runs still answers from what is left.
+    bundle = subprocess.run(["git", "-C", str(own / "workspace"), "bundle", "create", "-", "--branches"], capture_output=True)
+    assert bundle.returncode == 0 and bundle.stdout.startswith(b"# v2 git bundle")
+    assert os.path.islink(drive.WORK_LINKS / drive.work_dir_name(run))       # the long name still leads to it
+    assert note and "work dir" in note and "repository" in note
 
 
 def test_the_work_dir_is_given_back_once_not_twice(tmp_path, monkeypatch):
     run, own, _ = scored_run(tmp_path, monkeypatch)
-    assert finalize.release_work(run) is not None and not own.exists()
-    assert finalize.release_work(run) is None                     # already gone: nothing to do, no error
+    assert finalize.release_work(run) is not None and only_the_repository_is_left(own)
+    assert finalize.release_work(run) is None                     # nothing left to give back: no note, no error
+    assert only_the_repository_is_left(own)
 
 
 @pytest.mark.parametrize("state", ["stopped", "failed", "running", None])
@@ -932,18 +950,16 @@ def test_a_run_whose_final_score_was_not_recorded_keeps_its_work_dir(tmp_path, m
     assert (own / "workspace" / ".git").is_dir()
 
 
-def test_a_run_whose_bundle_does_not_verify_keeps_its_work_dir(tmp_path, monkeypatch):
+@pytest.mark.parametrize("bundle", [b"not a bundle", None])
+def test_the_work_dir_is_given_back_whatever_the_bundle_because_the_repository_stays(tmp_path, monkeypatch, bundle):
+    """The bundle no longer gates it (story 23): the code is the repository that stays, not the bundle."""
     run, own, _ = scored_run(tmp_path, monkeypatch)
-    (run / "workspace.bundle").write_bytes(b"not a bundle")
-    assert finalize.release_work(run) is None
-    assert (own / "workspace" / ".git").is_dir()
-
-
-def test_a_run_with_no_bundle_keeps_its_work_dir(tmp_path, monkeypatch):
-    run, own, _ = scored_run(tmp_path, monkeypatch)
-    (run / "workspace.bundle").unlink()
-    assert finalize.release_work(run) is None
-    assert (own / "workspace" / ".git").is_dir()
+    if bundle is None:
+        (run / "workspace.bundle").unlink()
+    else:
+        (run / "workspace.bundle").write_bytes(bundle)
+    assert finalize.release_work(run) is not None
+    assert only_the_repository_is_left(own)
 
 
 def test_only_the_harnesss_own_path_for_the_run_is_ever_deleted(tmp_path, monkeypatch):
@@ -963,7 +979,7 @@ def test_release_work_from_the_command_line_gives_back_the_dir_without_scoring_a
     run, own, _ = scored_run(tmp_path, monkeypatch)
     before = (run / "finalize.json").read_text()
     assert finalize.main([str(run), "--release-work"]) == 0
-    assert not own.exists()
+    assert only_the_repository_is_left(own)
     assert (run / "finalize.json").read_text() == before          # no second re-score, no second attempt counted
     assert "gave back its work dir" in capsys.readouterr().out
 

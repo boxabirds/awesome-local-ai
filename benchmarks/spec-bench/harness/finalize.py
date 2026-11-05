@@ -39,7 +39,6 @@ import shutil
 import signal
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import Callable
@@ -135,25 +134,21 @@ def ensure_bundle(run: Path) -> None:
                                        "machine: there is no code left to score", needs_person=True)
 
 
-def bundle_verifies(bundle_file: Path) -> bool:
-    """git can read the bundle and its history is complete (a bundle has no repository of its own to check against)."""
-    if not bundle_file.is_file():
-        return False
-    with tempfile.TemporaryDirectory() as scratch:
-        subprocess.run(["git", "init", "-q", scratch], check=True, capture_output=True)
-        return subprocess.run(["git", "-C", scratch, "bundle", "verify", str(bundle_file)], capture_output=True).returncode == 0
+WORK_REPO = Path("workspace") / ".git"   # what stays of a finished run's work dir: the run's own repository
 
 
 def release_work(run: Path) -> str | None:
-    """Give back a finished, scored run's work dir (1.4 to 3.1 GB): its code is the run's workspace.bundle, which
-    rescore.py and a partial rerun read, so the dir is only weight. Kept for a run that has not finished (a stopped or
-    failed run resumes in it), whose final score is not recorded, or whose bundle does not verify. Only the harness's own
-    path for the run goes (drive.work_dir_for), never whatever work_dir.txt says. A note on what it did, else None."""
+    """Give back a finished, scored run's work dir (1.4 to 3.1 GB) except the run's own repository (workspace/.git):
+    the node serves the run's code from it (GET /v1/runs/code, story 23) and the lake keeps it, so the checked-out
+    files, node_modules and build output are only weight. Kept whole for a run that has not finished (a stopped or
+    failed run resumes in it) or whose final score is not recorded. Only the harness's own path for the run is touched
+    (drive.work_dir_for), never whatever work_dir.txt says, and the long-name link to it stays. A note on what it did,
+    else None (nothing left to give back)."""
     import drive
     own = drive.work_dir_for(run)
     if not own.is_dir() or read_run_status(run).get("state") != "finished":
         return None
-    if read_status(run).get("rescore") != "done" or not bundle_verifies(run / BUNDLE):
+    if read_status(run).get("rescore") != "done":
         return None
     try:
         named = Path((run / "work_dir.txt").read_text().strip()).expanduser()
@@ -161,12 +156,22 @@ def release_work(run: Path) -> str | None:
         return None
     if named.resolve() != own.resolve():
         return None
-    gone = sum(f.stat().st_size for f in own.rglob("*") if f.is_file() and not f.is_symlink())
-    shutil.rmtree(own)
-    link = drive.WORK_LINKS / drive.work_dir_name(run)
-    if link.is_symlink():
-        link.unlink()
-    return f"gave back its work dir ({gone / 2**30:.1f} GB): the code is in {BUNDLE}"
+    repo = own / WORK_REPO
+    weight = [p for p in own.iterdir() if p.name != WORK_REPO.parts[0]]
+    if (own / WORK_REPO.parts[0]).is_dir():
+        weight += [p for p in (own / WORK_REPO.parts[0]).iterdir() if p.name != WORK_REPO.name]
+    if not weight:
+        return None
+    gone = 0
+    for p in weight:
+        if p.is_dir() and not p.is_symlink():
+            gone += sum(f.stat().st_size for f in p.rglob("*") if f.is_file() and not f.is_symlink())
+            shutil.rmtree(p)
+        else:
+            gone += p.lstat().st_size
+            p.unlink()
+    kept = "its repository (workspace/.git) is kept" if repo.is_dir() else "it had no repository"
+    return f"gave back its work dir ({gone / 2**30:.1f} GB); {kept}"
 
 
 def read_run_status(run: Path) -> dict:

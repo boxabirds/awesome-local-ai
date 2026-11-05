@@ -39,6 +39,8 @@ pub const E_CODE_NO_RECORD: &str = "E-CODE-NO-RECORD";
 /// A folder that holds a bundle but that the lake does not take as a run (bench-lake rejected it), so no reader can
 /// find its code.
 pub const E_CODE_NOT_A_RUN: &str = "E-CODE-NOT-A-RUN";
+/// The node's dbench has no code route (an old node): the run's files are still pulled, its code is not.
+pub const E_CODE_ENDPOINT_MISSING: &str = "E-CODE-ENDPOINT-MISSING";
 /// A story key of metrics.json that is not a story number.
 pub const E_CODE_BAD_STORY: &str = "E-CODE-BAD-STORY";
 
@@ -66,6 +68,18 @@ pub struct ImportReport {
 /// The node segment of a lake copy's refs.
 pub fn node_of(run: &RunRef) -> &str {
     run.node.as_deref().unwrap_or(REFERENCE_NODE)
+}
+
+/// A refs path is made only from a node name under the lake's part rule and a run id the lake accepts, so a name can
+/// never reach outside `refs/runs/` or another run's refs (`..`, a slash in a node name, a cut-short id).
+pub fn check_names(node: &str, run: &str) -> Result<()> {
+    if !bench_lake::layout::is_valid_part(node) {
+        bail!("not a node name: {node:?}");
+    }
+    if !bench_lake::layout::is_run_id(run) {
+        bail!("not a run id: {run:?}");
+    }
+    Ok(())
 }
 
 /// `refs/runs/<node>/<run>`.
@@ -351,4 +365,166 @@ pub fn cmd_code_import(state: &Path, json: bool) -> Result<()> {
         bail!("{} problems listed", report.problems.len());
     }
     Ok(())
+}
+
+// ---- the collector's half ----
+
+/// What one pull of a run's code did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Pulled {
+    /// The node had no commit the lake lacks (204).
+    NothingNew,
+    /// A bundle was taken; this many refs of the run moved.
+    Applied { refs_moved: usize },
+    /// The node has no repository for the run, or does not list it (404 with an error).
+    NoCode(String),
+    /// The node's dbench has no code route (404 without a body): an old node.
+    EndpointMissing,
+}
+
+static INCOMING: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+const INCOMING_PREFIX: &str = "incoming-";
+const BUNDLE_SUFFIX: &str = ".bundle";
+const TAG_PREFIX: &str = "refs/tags/story-";
+
+/// Takes a bundle from a node into the run's refs: its branches under `heads/`, its `story-NN` tags under `story/NN`.
+/// The bundle is verified first (complete, and its prerequisites held), and fetched in one transaction, so a bundle cut
+/// short or damaged moves no ref. Returns how many of the run's refs moved.
+pub fn apply_code(lake_code: &Path, node: &str, run: &str, bundle: &Path) -> Result<usize> {
+    check_names(node, run)?;
+    open(lake_code)?;
+    let bundle = std::path::absolute(bundle)?;
+    let verify = git(lake_code)
+        .args(["bundle", "verify", "--quiet"])
+        .arg(&bundle)
+        .output()
+        .context("run git bundle verify")?;
+    if !verify.status.success() {
+        bail!("{E_CODE_BAD_BUNDLE}: {}", message_of(&verify));
+    }
+    let prefix = run_prefix(node, run);
+    let before = refs_under(lake_code, &prefix)?;
+    let fetch = git(lake_code)
+        .args(["fetch", "--quiet", "--atomic", "--no-tags", "--no-write-fetch-head"])
+        .arg(&bundle)
+        .arg(format!("+{BRANCH_PREFIX}*:{prefix}/{HEADS}/*"))
+        .arg(format!("+{TAG_PREFIX}*:{prefix}/{STORY}/*"))
+        .output()
+        .context("run git fetch")?;
+    if !fetch.status.success() {
+        bail!("{E_CODE_BAD_BUNDLE}: {}", message_of(&fetch));
+    }
+    let after = refs_under(lake_code, &prefix)?;
+    Ok(after.iter().filter(|(r, c)| before.get(*r) != Some(c)).count())
+}
+
+/// Pulls the commits of a run that the lake lacks from its node: sends the tips the lake holds for the run, writes the
+/// answer to a file inside the repository, takes it (`apply_code`) and removes the file whatever happened.
+pub async fn pull_code(api: &crate::client::Api, lake_code: &Path, node: &str, run: &str) -> Result<Pulled> {
+    check_names(node, run)?;
+    open(lake_code)?;
+    let haves: BTreeSet<String> = refs_under(lake_code, &run_prefix(node, run))?.into_values().collect();
+    let haves: Vec<String> = haves.into_iter().collect();
+    let (status, body) = api.run_code(run, &haves).await?;
+    match status {
+        reqwest::StatusCode::NO_CONTENT => Ok(Pulled::NothingNew),
+        reqwest::StatusCode::NOT_FOUND if body.is_empty() => Ok(Pulled::EndpointMissing),
+        reqwest::StatusCode::NOT_FOUND => Ok(Pulled::NoCode(String::from_utf8_lossy(&body).into_owned())),
+        s if s.is_success() => {
+            let n = INCOMING.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let file = lake_code.join(format!("{INCOMING_PREFIX}{}-{n}{BUNDLE_SUFFIX}", std::process::id()));
+            // git runs off the async workers: a pass pulls many runs from many nodes at once.
+            let (code, node, run, at) = (lake_code.to_path_buf(), node.to_string(), run.to_string(), file.clone());
+            let applied = tokio::task::spawn_blocking(move || -> Result<usize> {
+                std::fs::write(&at, &body)?;
+                apply_code(&code, &node, &run, &at)
+            })
+            .await
+            .map_err(anyhow::Error::from)
+            .and_then(|r| r);
+            let _ = std::fs::remove_file(&file);
+            Ok(Pulled::Applied { refs_moved: applied? })
+        }
+        s => bail!("{s}: {}", String::from_utf8_lossy(&body)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const RUN: &str = "combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4";
+    const REF_RUN: &str = "benchmarks/reference/vidi/opus-5.5/run-1";
+
+    #[test]
+    fn ref_names_keep_the_run_ids_slashes_and_number_stories_in_two_digits() {
+        assert_eq!(head_ref("thing2", RUN, "main"), format!("refs/runs/thing2/{RUN}/heads/main"));
+        assert_eq!(story_ref("thing2", RUN, 1), format!("refs/runs/thing2/{RUN}/story/01"));
+        assert_eq!(story_ref("thing2", RUN, 99), format!("refs/runs/thing2/{RUN}/story/99"));
+        assert_eq!(story_ref("thing2", RUN, 100), format!("refs/runs/thing2/{RUN}/story/100"));
+        assert_eq!(story_ref(REFERENCE_NODE, REF_RUN, 3), format!("refs/runs/reference/{REF_RUN}/story/03"));
+    }
+
+    #[test]
+    fn only_a_run_id_and_a_node_name_the_lake_accepts_make_refs() {
+        assert!(check_names("thing2", RUN).is_ok());
+        assert!(check_names(REFERENCE_NODE, REF_RUN).is_ok());
+        for (node, run) in [
+            ("thing2", "combinations/../../refs/heads/x"),
+            ("thing2", "combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/.."),
+            ("thing2", "combinations/qwen/3.8"),
+            ("thing2", ""),
+            ("a/b", RUN),
+            ("..", RUN),
+            ("", RUN),
+        ] {
+            assert!(check_names(node, run).is_err(), "{node} {run}");
+        }
+    }
+
+    #[test]
+    fn a_refused_name_writes_nothing() {
+        let code = std::env::temp_dir().join(format!("dbench-lake-code-unit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&code);
+        assert!(apply_code(&code, "thing2", "combinations/../x", Path::new("/nonexistent.bundle")).is_err());
+        assert!(!code.exists(), "no repository made for a refused name");
+    }
+
+    #[test]
+    fn a_recorded_commit_is_one_of_the_runs_own_or_the_only_one_it_begins() {
+        let commits: BTreeSet<String> = [
+            "aaaaaaa1111111111111111111111111111111aa",
+            "aaaaaaa2222222222222222222222222222222bb",
+            "bcdef01234567890123456789012345678901234",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
+        assert_eq!(
+            resolve_commit("bcdef01234567890123456789012345678901234", &commits).as_deref(),
+            Some("bcdef01234567890123456789012345678901234")
+        );
+        assert_eq!(
+            resolve_commit("BCDEF01", &commits).as_deref(),
+            Some("bcdef01234567890123456789012345678901234"),
+            "case does not matter"
+        );
+        assert_eq!(
+            resolve_commit("aaaaaaa1", &commits).as_deref(),
+            Some("aaaaaaa1111111111111111111111111111111aa")
+        );
+        assert_eq!(resolve_commit("aaaaaaa", &commits), None, "begins two");
+        assert_eq!(resolve_commit("bcdef0", &commits), None, "shorter than 7");
+        assert_eq!(
+            resolve_commit("cccccccccccccccccccccccccccccccccccccccc", &commits),
+            None,
+            "not this run's"
+        );
+        assert_eq!(
+            resolve_commit("bcdef01234567890123456789012345678901234ff", &commits),
+            None,
+            "longer than 40"
+        );
+        assert_eq!(resolve_commit("bcdefg0", &commits), None, "not hexadecimal");
+    }
 }

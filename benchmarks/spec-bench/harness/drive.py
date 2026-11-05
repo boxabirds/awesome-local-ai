@@ -307,6 +307,15 @@ def link_work_dir(run: Path, work: Path) -> None:
         link.symlink_to(work)
 
 
+STORY_TAG = "story-{:02d}"   # the tag on a story's last commit in the run's own repository (story 23, code.lake_repo)
+
+
+def tag_story(ws: Path, sid: int, commit: str) -> None:
+    """Tag the story's commit story-NN in the run's own repository; a story run again moves its tag. The node's code
+    route serves the branches and these tags, and the lake keeps them as the story's code."""
+    sh(["git", "tag", "-f", STORY_TAG.format(sid), commit], ws, GIT_IDENTITY)
+
+
 def write_workspace_git_log(ws: Path, run: Path) -> None:
     """The agent's git history as text, beside the run's records (the judge reads it). The files are not copied: the
     workspace.bundle holds them."""
@@ -2305,6 +2314,7 @@ def main() -> None:
         if sh(["git", "status", "--porcelain"], ws).strip():
             sh(["git", "commit", "-qm", f"harness: snapshot after story {sid} (uncommitted agent work)"], ws, GIT_IDENTITY)
         rec["commit"] = sh(["git", "rev-parse", "HEAD"], ws).strip()
+        derived("story tag", lambda: tag_story(ws, sid, rec["commit"]), run=run)
         rec["requests"] = derived("server statistics", lambda: server_stats(
             a.server_log, rec["started"], rec["agent_finished"],
             earlier=[(x["started"], x["ended"]) for x in earlier]), dict(NO_REQUESTS), run=run)

@@ -563,6 +563,27 @@ def test_a_fault_in_the_bookkeeping_is_saved_with_the_story_even_without_record(
     assert "harness fault in lines of code: RuntimeError: no such tree" in (loop.run / "interventions.md").read_text()
 
 
+def test_each_story_end_commit_is_tagged_story_nn_in_the_runs_own_repository(loop):
+    """Story 23 (code.lake_repo): the node's code route serves the run repository's branches and story-NN tags, so
+    the story's commit is tagged where the harness records it, and nothing else is written for the code."""
+    loop.main()
+    for sid in (1, 2):
+        rec = loop.story(sid)
+        assert git(loop.ws, "rev-parse", f"refs/tags/story-{sid:02d}^{{commit}}") == rec["commit"]
+    assert git(loop.ws, "tag", "--list").split() == ["story-01", "story-02"]
+
+
+def test_a_story_tag_that_fails_is_a_harness_fault_and_the_story_is_still_recorded(loop, monkeypatch):
+    # TC-20b
+    def broken(ws, sid, commit):
+        raise RuntimeError("cannot lock ref")
+    monkeypatch.setattr(drive, "tag_story", broken)
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert rec["status"] == drive.DONE and [f["step"] for f in rec["harness_faults"]] == ["story tag"]
+    assert "harness fault in story tag: RuntimeError: cannot lock ref" in (loop.run / "interventions.md").read_text()
+
+
 # ======================= what the agent left behind =======================
 
 def test_a_story_that_never_finishes_is_capped_recorded_partial_and_its_work_committed_by_the_harness(loop, capsys):

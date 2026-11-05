@@ -601,7 +601,7 @@ fn ctx_for(url: String) -> Ctx {
     Ctx { nodes: BTreeMap::from([(NODE.to_string(), NodeEntry { url, token: None })]), collect: Default::default(), json: false }
 }
 
-const FAKE_RUN: &str = "combinations/a/b/benchmarks/p/r1";
+const FAKE_RUN: &str = "combinations/f/v/x/os/m/eng-pi/benchmarks/p/r1";
 
 fn runs_route() -> impl Fn() -> std::future::Ready<Json<serde_json::Value>> + Clone {
     || std::future::ready(Json(serde_json::json!([{"run": FAKE_RUN, "job": null, "run_status": null, "job_state": null}])))
@@ -650,7 +650,12 @@ async fn e_an_error_part_way_keeps_what_arrived_and_the_next_pass_finishes() {
             }
         }
     };
-    let app = Router::new().route("/v1/runs", get(runs_route())).route("/v1/runs/scopes", get(|| async { Json(listing_with_stream(false)) })).route("/v1/runs/events", get(events));
+    // A current node: it has the code route too (story 23), with nothing to send.
+    let app = Router::new()
+        .route("/v1/runs", get(runs_route()))
+        .route("/v1/runs/scopes", get(|| async { Json(listing_with_stream(false)) }))
+        .route("/v1/runs/events", get(events))
+        .route("/v1/runs/code", get(|| async { StatusCode::NO_CONTENT }));
     let ctx = ctx_for(serve(app).await);
     let first = collector::collect_node_with(&ctx, NODE, l, &[], &none, &cadence(0), T0, true).await;
     assert!(first.problems.iter().any(|p| p.contains("boom")), "{:?}", first.problems);

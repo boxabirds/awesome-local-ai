@@ -1369,3 +1369,8 @@ def test_the_story_start_snapshot_carries_the_detail_it_was_given(monkeypatch, t
     assert snap["footprint_categories_mib"] == {"IOAccelerator": 56.0}
     monkeypatch.setattr(drive, "server_process_detail", lambda port: (None, {"anon_mib": 5.0, "file_mib": 6.0}))
     assert drive.memory_at_story_start(tmp_path, 18010, None)["process_split_mib"] == {"anon_mib": 5.0, "file_mib": 6.0}
+
+
+def test_a_storys_tag_is_story_and_its_number_in_two_digits():
+    # Story 23 (code.lake_repo): the lake keeps the tag as refs/runs/<node>/<run>/story/NN, as the story folders.
+    assert [drive.STORY_TAG.format(n) for n in (1, 9, 10, 99, 100)] == ["story-01", "story-09", "story-10", "story-99", "story-100"]

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::server::Shared;
 
+pub mod code;
 pub mod file;
 pub mod finality;
 pub mod listing;
@@ -16,4 +17,5 @@ pub fn routes() -> Router<Arc<Shared>> {
         .merge(listing::routes())
         .merge(stream::routes())
         .merge(file::routes())
+        .merge(code::routes())
 }

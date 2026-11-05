@@ -185,6 +185,15 @@ impl Api {
         self.get_ok(&format!("/v1/runs/scopes?run={}", urlencode(run))).await
     }
 
+    /// A run's code as a git bundle without the commits `haves` reach (`GET /v1/runs/code`): the status and the body as
+    /// the node sent them.
+    pub async fn run_code(&self, run: &str, haves: &[String]) -> Result<(reqwest::StatusCode, Vec<u8>)> {
+        let path = format!("/v1/runs/code?run={}&have={}", urlencode(run), urlencode(&haves.join(",")));
+        let resp = self.req(reqwest::Method::GET, &path).timeout(CHUNK_TIMEOUT).send().await?;
+        let status = resp.status();
+        Ok((status, resp.bytes().await?.to_vec()))
+    }
+
     /// One page of a stream's events after the cursor `after` (`GET /v1/runs/events`). Each event keeps the text the node
     /// sent, byte for byte.
     pub async fn run_events(&self, run: &str, stream: &str, story: Option<&str>, after: Option<&str>, limit: usize) -> Result<crate::scope_collect::EventsPage> {

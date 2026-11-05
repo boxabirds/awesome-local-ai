@@ -571,7 +571,15 @@ pub async fn collect_node_with(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs:
             collect_run(&api, node, &r.run, &dir, classes_for(&r.run), cadence, now).await
         };
         match result {
-            Ok(s) => out.runs.push(s),
+            Ok(s) => {
+                // The run's code follows its files, on the passes that looked at the run (story 23, code.lake_repo).
+                if scopes && (!s.complete || s.changed) {
+                    if let Some(problem) = pull_run_code(&api, lake, node, &r.run).await {
+                        out.problems.push(problem);
+                    }
+                }
+                out.runs.push(s)
+            }
             Err(e) if scopes && e.to_string().contains("404") && !e.to_string().contains("E-RUN-NOT-FOUND") => {
                 out.problems.push(format!("{E_NODE_OLD}: {}: needs the new dbench (no /v1/runs/scopes)", r.run));
             }
@@ -579,6 +587,20 @@ pub async fn collect_node_with(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs:
         }
     }
     out
+}
+
+/// Pulls a run's new commits into the lake's code repository (`<state>/code.git`, beside the store). A reference run's
+/// refs are under `reference`, as its files are in the reference folder whichever node ran it. Returns the line to log
+/// when the code could not be pulled; the run's files are kept either way.
+async fn pull_run_code(api: &crate::client::Api, lake: Lake<'_>, node: &str, run: &str) -> Option<String> {
+    use crate::lake_code::{self, Pulled};
+    let code = lake.store.parent().unwrap_or(Path::new("")).join(lake_code::CODE_REPO);
+    let segment = if run.starts_with(REFERENCE_RUN_PREFIX) { lake_code::REFERENCE_NODE } else { node };
+    match lake_code::pull_code(api, &code, segment, run).await {
+        Ok(Pulled::NothingNew | Pulled::Applied { .. } | Pulled::NoCode(_)) => None,
+        Ok(Pulled::EndpointMissing) => Some(format!("{}: {run}: needs the new dbench (no /v1/runs/code)", lake_code::E_CODE_ENDPOINT_MISSING)),
+        Err(e) => Some(format!("{run}: code: {e:#}")),
+    }
 }
 
 /// The free bytes of the disk that holds `path`.
