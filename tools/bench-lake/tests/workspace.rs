@@ -358,3 +358,40 @@ fn a_reference_run_has_a_workspace_too() {
     assert_eq!(ws.commit.len(), 40);
     assert_eq!(git(&s.join("w"), &["rev-parse", "HEAD"]), ws.commit);
 }
+
+#[test]
+fn tc80_story_2s_files_are_the_run_repositorys_at_its_story_2_commit() {
+    // The run's own repository is what the fixture's real bundle holds; its story 2 commit is the one the run recorded.
+    let (s, state, lake) = scratch_lake_with_code("ws-story2");
+    let run = find(&lake, ID_Q36, Some("node-a"));
+    let repo = s.join("run-repo");
+    let bundle = state.join("collected/node-a").join(ID_Q36).join(bench_lake::code::BUNDLE_FILE);
+    git(s.path(), &["clone", "--quiet", "--no-checkout", bundle.to_str().unwrap(), repo.to_str().unwrap()]);
+    let metrics = lake.value(&run, &bench_lake::Record::Metrics).unwrap();
+    let recorded = metrics["stories"]["2"]["commit"].as_str().unwrap().to_string();
+    let dest = s.join("w");
+    let ws = lake.workspace(&run, 2, &dest).unwrap();
+    assert_eq!(ws.commit, recorded);
+    assert_eq!(tree_of(&dest, "HEAD"), tree_of(&repo, &recorded), "every path and blob");
+    assert_eq!(git(&dest, &["status", "--porcelain"]), "", "the files on disk are those blobs");
+    for (path, blob) in tree_of(&repo, &recorded) {
+        assert_eq!(git(&dest, &["hash-object", "--", &path]), blob, "{path}");
+    }
+}
+
+#[test]
+fn a_run_with_only_a_bundle_and_no_refs_is_absent_not_read_from_the_bundle() {
+    let (s, state, lake) = scratch_lake_with_code("ws-bundleonly");
+    let run = find(&lake, ID_Q36, Some("node-a"));
+    assert!(run.dir.join(bench_lake::code::BUNDLE_FILE).is_file(), "the copy still holds its bundle");
+    let code = state.join("code.git");
+    let prefix = bench_lake::code::run_prefix("node-a", ID_Q36);
+    for r in git(&code, &["for-each-ref", "--format=%(refname)", &prefix]).lines() {
+        git(&code, &["update-ref", "-d", r]);
+    }
+    let a = absent(lake.workspace(&run, 1, &s.join("w")).unwrap_err());
+    assert_eq!((a.reason.clone(), a.item.clone()), (Reason::NoRef, Item::Code));
+    assert!(!s.join("w").exists());
+    // the reference run, which keeps its refs, is still served: only this copy's code is gone
+    lake.workspace(&find(&lake, ID_REFV, None), 1, &s.join("ref")).unwrap();
+}

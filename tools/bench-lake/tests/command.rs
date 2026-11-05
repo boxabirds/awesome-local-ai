@@ -210,6 +210,13 @@ fn workspace_command_success_and_refusal() {
     let o = run(&["workspace", ID_FLASH, "1", s.join("w2").to_str().unwrap()]);
     assert_eq!(o.status.code(), Some(EXIT_OK));
     assert_eq!(json_of(&o)["absent"]["item"], "code");
+    // TC-81: a story the lake has no ref for, of a run that has code: absent, item code, exit 0 as every absence
+    let o = run(&["workspace", ID_Q36_AT_NODE_A, "6", s.join("w3").to_str().unwrap()]);   // story 6: no commit recorded
+    assert_eq!(o.status.code(), Some(EXIT_OK));
+    let v = json_of(&o);
+    assert_eq!((v["status"].as_str(), v["absent"]["item"].as_str(), v["absent"]["code"].as_str()),
+               (Some("absent"), Some("code"), Some("E-LAKE-NOT-COLLECTED")));
+    assert!(!s.join("w3").exists());
 }
 
 #[test]

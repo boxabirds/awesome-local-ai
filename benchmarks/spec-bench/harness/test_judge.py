@@ -439,3 +439,19 @@ def test_judge_prep_names_a_run_that_has_neither_code_in_the_lake_nor_a_folder(t
     (tmp_path / "stories").mkdir()                                # outside the lake, no metrics either
     with pytest.raises(SystemExit, match="the lake has no code for it and it has no workspace/ folder"):
         judge_prep.copy_run(tmp_path, tmp_path / "out2")
+
+
+def test_a_run_with_only_a_bundle_and_no_code_in_the_lake_is_not_read_from_the_bundle(tmp_path, monkeypatch):
+    """Story 23 (code.readers): the bundle is no longer a source. A run whose lake copy still holds a good
+    workspace.bundle but has no refs in the lake's code repository has no code, for the judge and for judge_prep."""
+    import judge_prep
+    rec, _, _ = lake_record(tmp_path, monkeypatch)
+    lake_testing.git(tmp_path / "src", "bundle", "create", "-q", str(rec / "workspace.bundle"), "--all")
+    code = tmp_path / "state" / "code.git"
+    for ref in lake_testing.git(code, "for-each-ref", "--format=%(refname)").split():
+        lake_testing.git(code, "update-ref", "-d", ref)
+    with pytest.raises(SystemExit, match="the lake has no code for the story the score was taken on"):
+        judge.record_workspace(rec, tmp_path / "ws")
+    (rec / "stories").mkdir()
+    with pytest.raises(SystemExit, match="the lake has no code for it"):
+        judge_prep.copy_run(rec, tmp_path / "out")
