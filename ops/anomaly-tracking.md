@@ -747,6 +747,15 @@ test that would reproduce it. Details under the entries.
   `ingest_memory` (58 MB log) peaked at 58 MB against 54 to 55 MB, failing 2 of 3 runs. CoreFoundation is now opened on
   first use; test `a_command_that_checks_no_free_space_does_not_start_core_foundation` (seen failing on the linked
   version). Peak back to 53 to 55 MB.
+- **Found after the swap (5 Nov 21:15 GMT):** the live collector was built 31 Oct, before the ingest read its records
+  from the lake (story 23). (1) The first pass re-ingested all 628 stories (1,540 s, 25.5 GiB of lake reads): every
+  story's digest named its records by git id before and by content sha256 now. One-off. (2) Steady state was worse
+  than before, 9,412 MiB read in 5 minutes against 1,709: to name each record, every ingest read and hashed every record
+  of every run (compact logs 1.4 GiB lake-wide), about 1.1 GiB a pass, and an ingest now runs on every pass that pulled
+  something. Fixed: the process keeps each file's sha256 and reads it again only when its size, mtime or inode changes;
+  the ids are unchanged, so no second re-ingest. Test `an_unchanged_record_is_not_read_again_to_name_it` (seen failing).
+  Lesson: a swap onto a binary several releases newer runs every change in between for the first time; read the log
+  between the two builds before swapping.
 
 ### A-048 — Agents' own `playwright install` was refused by the sandbox in 13 runs, unseen for a month
 - **First seen:** 2026-10-02 08:31 BST · **Last seen:** 2026-10-31 15:39 BST · **Found:** 2026-11-05, from a failing agent-sandbox test.

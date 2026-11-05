@@ -208,13 +208,36 @@ impl LakeSource {
                     continue;
                 }
                 let path = run.dir.join(&name);
-                let bytes = std::fs::read(&path).with_context(|| format!("read {}", path.display()))?;
-                out.insert(format!("{id}/{name}"), (path, bench_lake::sha256_hex(&bytes)));
+                let sha = content_id(&path)?;
+                out.insert(format!("{id}/{name}"), (path, sha));
             }
         }
         *self.files.borrow_mut() = Some(out.clone());
         Ok(out)
     }
+}
+
+/// What says a file is unchanged without reading it: its size, modification time (to the nanosecond) and inode.
+type FileStamp = (u64, i64, i64, u64);
+
+/// The sha256 of a file's content, read only when its stamp differs from the last time this process named it: the
+/// collector ingests on every pass that pulled something, and reading every record of every run to name it was about
+/// 1.1 GiB a pass (A-049). The cache is the process's, so it outlives each ingest's `LakeSource`.
+fn content_id(path: &Path) -> Result<String> {
+    use std::os::unix::fs::MetadataExt;
+    static CACHE: std::sync::OnceLock<std::sync::Mutex<HashMap<PathBuf, (FileStamp, String)>>> = std::sync::OnceLock::new();
+    let meta = std::fs::metadata(path).with_context(|| format!("read {}", path.display()))?;
+    let stamp: FileStamp = (meta.len(), meta.mtime(), meta.mtime_nsec(), meta.ino());
+    let cache = CACHE.get_or_init(Default::default);
+    if let Some((s, sha)) = cache.lock().unwrap_or_else(|e| e.into_inner()).get(path) {
+        if *s == stamp {
+            return Ok(sha.clone());
+        }
+    }
+    let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
+    let sha = bench_lake::sha256_hex(&bytes);
+    cache.lock().unwrap_or_else(|e| e.into_inner()).insert(path.to_path_buf(), (stamp, sha.clone()));
+    Ok(sha)
 }
 
 impl Published for LakeSource {

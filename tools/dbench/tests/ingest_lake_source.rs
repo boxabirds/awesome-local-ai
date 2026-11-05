@@ -219,3 +219,26 @@ fn the_verdict_reads_every_run_of_the_pack_and_the_reference_runs_named_run_n() 
     );
     assert_eq!(floor(&base), 2.0 / 7.0, "the reference build's run-level score is the only healthy one");
 }
+
+/// A record whose size and modification time are unchanged is not read again to name it: the collector ingests on
+/// every pass that pulled something, and reading and hashing every record of every run each time was about 1.1 GiB of
+/// reads a pass (A-049). The id stays the content's sha256, so a warehouse built before keeps its digests. The file is
+/// made unreadable after the first listing, without touching its size or time: a second source that read it would fail.
+#[cfg(unix)]
+#[test]
+fn an_unchanged_record_is_not_read_again_to_name_it() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = tmp("unchanged");
+    let dir = copy(&root.join("state"), OWN_NODE, RUN, "{\"a\":1}", 1);
+    let first = source(&root).paths().unwrap();
+    let metrics = dir.join("metrics.json");
+    fs::set_permissions(&metrics, fs::Permissions::from_mode(0o000)).unwrap();
+    let second = source(&root).paths();
+    fs::set_permissions(&metrics, fs::Permissions::from_mode(0o644)).unwrap();
+    assert_eq!(second.expect("an unchanged record is named without reading it"), first);
+    // A changed record is read again, and its id follows its bytes.
+    write(&metrics, b"{\"a\":2, \"longer\": true}");
+    let third = source(&root).paths().unwrap();
+    assert_ne!(third[&format!("{RUN}/metrics.json")], first[&format!("{RUN}/metrics.json")]);
+    let _ = fs::remove_dir_all(&root);
+}
