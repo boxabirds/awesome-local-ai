@@ -1589,7 +1589,7 @@ GUIDE_DATA.flows = [
       },
       {
         title: "The held-out suite's tools and the browsers", nodes: ["fit", "tools"], edges: ["fit>tools"],
-        text: ["The suite's own dependencies are installed (`npm ci`), Playwright's Chromium matching the suite's version is installed, and `check-browser.sh` proves the suite can launch it. The agents' own browser cache is seeded with the same Chromium, so no story starts without one. A pack with no suite skips this and reports acceptance as n/a."],
+        text: ["The suite's own dependencies are installed (`npm ci`), Playwright's Chromium matching the suite's version is installed, and `check-browser.sh` proves the suite can launch it. The agents' own browser cache is seeded with the same Chromium, so no story starts without one. Browsers are infrastructure: a run never downloads one. An agent's Playwright is usually newer than the suite's, and asks for its own Chromium revision by folder name, so the harness links the revisions it wants to the newest browser of each kind in the cache (on main since 5 November 2026, not yet released): at the first story's start for the Playwright npm hands out that day, and at each story's start for the one in the workspace. The agent's `playwright install` then finds them and fetches nothing; before this, 13 runs from 2 October had their download refused by the sandbox. A pack with no suite skips this and reports acceptance as n/a."],
         where: [["benchmarks/spec-bench/harness/check-browser.sh", "harness/check-browser.sh"], ["benchmarks/spec-bench/harness/playwright-platform.sh", "harness/playwright-platform.sh"]],
         state: "built",
       },

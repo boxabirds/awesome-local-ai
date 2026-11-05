@@ -205,6 +205,10 @@ class Loop:
         real = containment.StoryContainment
         mp.setattr(containment, "StoryContainment", lambda run, story: real(run, story, enabled=False))
         mp.setattr(drive, "kill_strays", self.strays.append)
+        self.browser_links: list = []                                       # (when, ...) per call; no npm here
+        mp.setattr(drive, "link_released_browsers", lambda work, real: self.browser_links.append(("job", work)) or [])
+        mp.setattr(drive, "link_workspace_browsers",
+                   lambda work, ws, real: self.browser_links.append(("story", work, ws)) or [])
         mp.setattr(drive, "harness_provenance", lambda code_root: dict(HARNESS_PROVENANCE))
         mp.setattr(drive.provenance, "pack_version", lambda pack_dir, name: PACK_VERSION)
         mp.setattr(drive, "record_story", lambda repo, run, message, **k: self.recorded.append((repo, run, message))
@@ -582,6 +586,22 @@ def test_a_story_tag_that_fails_is_a_harness_fault_and_the_story_is_still_record
     rec = loop.story(1)
     assert rec["status"] == drive.DONE and [f["step"] for f in rec["harness_faults"]] == ["story tag"]
     assert "harness fault in story tag: RuntimeError: cannot lock ref" in (loop.run / "interventions.md").read_text()
+
+
+def test_the_run_s_browser_links_follow_npm_s_playwright_at_job_start_and_the_workspace_s_at_each_story(loop):
+    """Browsers are infrastructure: the harness links the revisions the agent's Playwright wants, so the agent's own
+    `playwright install` finds them and downloads nothing (13 runs were refused a download from 2 Oct 2026)."""
+    loop.main()
+    assert loop.browser_links == [("job", loop.work), ("story", loop.work, loop.ws), ("story", loop.work, loop.ws)]
+
+
+def test_browser_links_that_fail_are_a_harness_fault_and_the_stories_still_run(loop, monkeypatch):
+    def offline(work, real):
+        raise RuntimeError("npm pack playwright-core@latest: npm ERR! network")
+    monkeypatch.setattr(drive, "link_released_browsers", offline)
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert rec["status"] == drive.DONE and [f["step"] for f in rec["harness_faults"]] == ["browser links"]
 
 
 # ======================= what the agent left behind =======================

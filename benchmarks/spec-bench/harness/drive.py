@@ -24,6 +24,7 @@ import stat
 import signal
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 import traceback
@@ -884,6 +885,67 @@ def link_agent_browsers(work: Path, home: Path, view: Path, real_home: Path) -> 
         return
     default.parent.mkdir(parents=True, exist_ok=True)
     default.symlink_to(view / sandbox.BROWSERS_DIR, target_is_directory=True)
+
+
+# What `playwright install chromium` fetches (browsers.json names). Playwright keeps each as `<name with _>-<revision>`.
+LINKED_BROWSERS = ("chromium", "chromium-headless-shell", "ffmpeg")
+PLAYWRIGHT_CORE = "playwright-core"
+BROWSERS_JSON = "browsers.json"
+RELEASED_CORE = f"{PLAYWRIGHT_CORE}@latest"
+NPM_PACK_SECONDS = 120
+
+
+def wanted_browsers(core: Path) -> dict[str, int]:
+    """The browser folders (name -> revision) the playwright-core package at `core` launches; none without one."""
+    listing = core / BROWSERS_JSON
+    if not listing.is_file():
+        return {}
+    return {b["name"].replace("-", "_"): int(b["revision"])
+            for b in json.loads(listing.read_text())["browsers"] if b["name"] in LINKED_BROWSERS}
+
+
+def link_wanted_browsers(work: Path, wanted: dict[str, int], real_home: Path) -> list[str]:
+    """Browsers are infrastructure: a run never downloads one. Each revision the agent's Playwright wants that the
+    run's browsers directory lacks is linked to the newest browser of that kind in the shared cache (Playwright
+    looks a browser up by its folder's revision only, and runs a nearby Chromium as it does its own). Its
+    `playwright install` then finds every browser complete. Returns the names linked."""
+    shared = hostenv.agent_playwright_cache(real_home)
+    browsers = work / sandbox.BROWSERS_DIR
+    linked = []
+    for kind, revision in sorted(wanted.items()):
+        name = f"{kind}-{revision}"
+        link = browsers / name
+        if link.is_symlink() or link.exists():
+            continue
+        have = [(int(m.group(1)), e) for e in (shared.iterdir() if shared.is_dir() else ())
+                if (m := re.fullmatch(rf"{re.escape(kind)}-(\d+)", e.name)) and e.is_dir()]
+        if not have:
+            continue
+        browsers.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(max(have)[1])
+        linked.append(name)
+    return linked
+
+
+def link_workspace_browsers(work: Path, ws: Path, real_home: Path) -> list[str]:
+    """At each story's start: the revisions of the Playwright the agent installed in its workspace."""
+    return link_wanted_browsers(work, wanted_browsers(ws / "node_modules" / PLAYWRIGHT_CORE), real_home)
+
+
+def link_released_browsers(work: Path, real_home: Path) -> list[str]:
+    """At job start: the revisions of the Playwright npm hands out today, which an agent's first `npm install` (in
+    story 1) gets. Read from the released package itself (`npm pack`, on the host)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        r = subprocess.run(["npm", "pack", RELEASED_CORE, "--silent"], cwd=tmp, capture_output=True, text=True,
+                           timeout=NPM_PACK_SECONDS)
+        if r.returncode != 0:
+            raise RuntimeError(f"npm pack {RELEASED_CORE}: {(r.stderr or r.stdout).strip()[-300:]}")
+        with tarfile.open(Path(tmp) / r.stdout.strip().splitlines()[-1]) as package:
+            listing = package.extractfile(f"package/{BROWSERS_JSON}").read()
+        core = Path(tmp) / PLAYWRIGHT_CORE
+        core.mkdir()
+        (core / BROWSERS_JSON).write_bytes(listing)
+        return link_wanted_browsers(work, wanted_browsers(core), real_home)
 
 
 def agent_env(work: Path, view: Path | None = None) -> dict:
@@ -2189,6 +2251,7 @@ def main() -> None:
     # Before any story is recorded: HEAD then is the harness this process loaded (the records move HEAD on).
     harness = harness_provenance(CODE_ROOT)
 
+    browsers_released = False                       # the job-start links, made once, at the first story's start
     for story in stories:
         sid = story["id"]
         if any(p["id"] == sid for p in processed):
@@ -2202,6 +2265,11 @@ def main() -> None:
         events = sdir / "agent-events.jsonl"
         STORY_SKIP.clear()
         STORY_FAULTS.clear()
+        # Browsers are infrastructure, never downloaded by a run: link the revisions the agent's Playwright wants.
+        if not browsers_released:
+            browsers_released = True
+            derived("browser links", lambda: link_released_browsers(work, Path.home()), run=run)
+        derived("browser links", lambda: link_workspace_browsers(work, ws, Path.home()), run=run)
         prior = last_session(client, events)
         # Where the story began: kept across harness restarts, so evidence counts the whole story.
         base_file = sdir / "base-commit"

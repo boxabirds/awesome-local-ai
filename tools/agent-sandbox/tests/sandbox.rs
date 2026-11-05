@@ -44,6 +44,9 @@ const EXECUTABLE: u32 = 0o755;
 const SECRET: &str = "held-out-secret-7c1f";
 const LEAK_PACKAGE: &str = "agent-sandbox-test-leak";
 const NPM_REGISTRY: &str = "registry.npmjs.org";
+/// Playwright's browser downloads (presets.toml `playwright`): a run with its browsers linked asks neither.
+const PLAYWRIGHT_CDN: &str = "cdn.playwright.dev";
+const PLAYWRIGHT_MIRROR: &str = "playwright.download.prss.microsoft.com";
 /// An address in TEST-NET-1 (RFC 5737): never routed, used only to ask the kernel which local
 /// address it would send from. No packet leaves the machine.
 const UNROUTED: (Ipv4Addr, u16) = (Ipv4Addr::new(192, 0, 2, 1), 9);
@@ -66,7 +69,6 @@ console.log(await p.textContent('#ok')); await b.close();";
 /// has its own loopback, so the server and the browser must share one.
 const DRIVE_MJS: &str = r#"
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
 const port = process.argv[2];
 let server;
 const stop = () => { try { server?.kill('SIGTERM'); } catch {} };
@@ -87,11 +89,10 @@ for (let i = 0; i < 90 && !up; i++) {
 }
 if (!up) { console.log('STEP FAILED: wrangler dev'); stop(); process.exit(1); }
 console.log('STEP OK: wrangler dev');
-const cache = process.env.PLAYWRIGHT_BROWSERS_PATH;
-const wanted = JSON.parse(readFileSync('node_modules/playwright-core/browsers.json', 'utf8'))
-  .browsers.find((b) => b.name === 'chromium-headless-shell').revision;
-if (!cache || !existsSync(`${cache}/chromium_headless_shell-${wanted}`)) {
-  console.log(`CHROMIUM SKIPPED: revision ${wanted} is not in the browser cache`);
+// Browsers are infrastructure: the run's directory links the revisions this Playwright wants, so the
+// agent's own install finds them complete and downloads nothing.
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
+  console.log('CHROMIUM SKIPPED: this machine has no browser cache');
 } else {
   step('playwright browsers', 'npx', ['playwright', 'install', 'chromium']);
   const r = spawnSync('node', ['browse.mjs', port], { encoding: 'utf8' });
@@ -194,6 +195,46 @@ fn browser_cache() -> Option<PathBuf> {
         Some(home.join("Library/Caches/ms-playwright")),
     ];
     candidates.into_iter().flatten().find(|p| p.is_dir())
+}
+
+/// What the harness does at job start (drive.py `link_released_browsers`): the browser revisions of the
+/// Playwright npm hands out today, linked in the run's browsers directory to the newest browser of each kind
+/// in the shared cache.
+fn link_released_revisions(cache: &Path, own_browsers: &Path, scratch: &Path) {
+    std::fs::create_dir_all(scratch).unwrap();
+    let packed = Command::new("npm")
+        .args(["pack", "playwright-core@latest", "--silent"])
+        .current_dir(scratch)
+        .output()
+        .unwrap();
+    assert!(packed.status.success(), "npm pack: {}", String::from_utf8_lossy(&packed.stderr));
+    let tarball = String::from_utf8_lossy(&packed.stdout).trim().to_string();
+    let listing = Command::new("tar")
+        .args(["-xzOf", &tarball, "package/browsers.json"])
+        .current_dir(scratch)
+        .output()
+        .unwrap();
+    let browsers: serde_json::Value = serde_json::from_slice(&listing.stdout).unwrap();
+    for b in browsers["browsers"].as_array().unwrap() {
+        let name = b["name"].as_str().unwrap();
+        if !["chromium", "chromium-headless-shell", "ffmpeg"].contains(&name) {
+            continue;
+        }
+        let kind = name.replace('-', "_");
+        let link = own_browsers.join(format!("{kind}-{}", b["revision"].as_str().unwrap()));
+        let newest = std::fs::read_dir(cache)
+            .unwrap()
+            .flatten()
+            .filter_map(|e| {
+                let file = e.file_name().to_string_lossy().to_string();
+                let revision: u32 = file.strip_prefix(&format!("{kind}-"))?.parse().ok()?;
+                Some((revision, e.path()))
+            })
+            .max();
+        if let (false, Some((_, newest))) = (link.exists() || link.is_symlink(), newest) {
+            std::os::unix::fs::symlink(newest, link).unwrap();
+        }
+    }
 }
 
 // ---------- a run directory with canaries around it ----------
@@ -1363,8 +1404,16 @@ fn online_the_harness_workload_installs_builds_serves_and_loads_in_chromium() {
     // shared browsers (not to its hidden bookkeeping): the install step then finds them complete
     // and downloads nothing.
     let cache = browser_cache();
-    let own_browsers = bench.own.join("agent-home/.cache/ms-playwright");
-    let mut extra = vec!["--preset", "npm", "--proxy-log", log.to_str().unwrap()];
+    let own_browsers = bench.own.join("browsers");
+    // The presets the harness always gives a run (sandbox.py DEFAULT_PRESETS).
+    let mut extra = vec![
+        "--preset",
+        "npm",
+        "--preset",
+        "playwright",
+        "--proxy-log",
+        log.to_str().unwrap(),
+    ];
     if let Some(cache) = &cache {
         std::fs::create_dir_all(&own_browsers).unwrap();
         for entry in std::fs::read_dir(cache)
@@ -1374,6 +1423,7 @@ fn online_the_harness_workload_installs_builds_serves_and_loads_in_chromium() {
         {
             std::os::unix::fs::symlink(entry.path(), own_browsers.join(entry.file_name())).unwrap();
         }
+        link_released_revisions(cache, &own_browsers, &bench.path("released"));
         extra.extend(["--ro", cache.to_str().unwrap()]);
     }
     // The app's port and wrangler's inspector port are the run's own; workerd and miniflare also
@@ -1407,12 +1457,13 @@ fn online_the_harness_workload_installs_builds_serves_and_loads_in_chromium() {
     match text.lines().find(|l| l.starts_with("CHROMIUM SKIPPED")) {
         Some(why) => eprintln!("SKIP {test} (Chromium step only): {why}"),
         None => {
-            assert!(
-                text.contains("STEP OK: playwright browsers"),
-                "{}",
-                describe(&out)
-            );
-            assert!(text.contains("STEP OK: chromium"), "{}", describe(&out));
+            for step in ["playwright browsers", "chromium"] {
+                assert!(
+                    text.contains(&format!("STEP OK: {step}")),
+                    "{}",
+                    describe(&out)
+                );
+            }
         }
     }
     let logged = std::fs::read_to_string(&log).unwrap();
@@ -1425,6 +1476,11 @@ fn online_the_harness_workload_installs_builds_serves_and_loads_in_chromium() {
             line["allowed"] == true,
             to_registry,
             "only the registry is let through: {line}"
+        );
+        let request = line["request"].as_str().unwrap_or_default();
+        assert!(
+            !request.contains(PLAYWRIGHT_CDN) && !request.contains(PLAYWRIGHT_MIRROR),
+            "the agent's install downloads no browser: {line}"
         );
     }
 }

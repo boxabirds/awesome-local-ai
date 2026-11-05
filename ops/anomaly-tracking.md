@@ -721,6 +721,27 @@ test that would reproduce it. Details under the entries.
 
 ---
 
+### A-048 — Agents' own `playwright install` was refused by the sandbox in 13 runs, unseen for a month
+- **First seen:** 2026-10-02 08:31 BST · **Last seen:** 2026-10-31 15:39 BST · **Found:** 2026-11-05, from a failing agent-sandbox test.
+- **Where:** the run's browsers directory (`drive.link_agent_browsers`) and the sandbox's `playwright` preset; every node.
+- **Observed:** refused `CONNECT storage.googleapis.com:443` in the run proxy logs (`~/.vidi-bench/egress/`):
+  gruntus 7 runs / 85 refusals (2 to 12 Oct), quintus 4 / 118 (8 to 13 Oct), thing2 1 / 30 (31 Oct). thing1 and
+  tritus could not be reached; macbook-air did not resolve. The agents' cache is filled for the held-out suite's
+  locked Playwright; an agent's `@playwright/test` with a `^` range gets the current release, which wants a newer
+  Chromium revision, so its `playwright install` went to `cdn.playwright.dev`, which now redirects the full Chromium
+  to `storage.googleapis.com`, a host no preset allows. What it cost those runs (end-to-end tests not run, turns spent
+  retrying) is **not yet checked** in their event streams.
+- **Why unseen:** refusals are written only to the proxy log, which nothing reads; the agent-sandbox workload test ran
+  without the `playwright` preset and skipped its Chromium step when the revision was not cached.
+- **Bucket:** internal bug (browser provisioning) — **confidence high**.
+- **Status:** fixed on main 5 Nov, not yet released. Browsers are infrastructure: the harness links the revisions the
+  agent's Playwright wants to the newest browser of each kind in the shared cache (npm's current release at the first
+  story's start, the workspace's own at each story's start); Playwright accepts a nearby Chromium (1.64.1 on Chromium
+  145, headless, headed and `playwright test`). Tests: `test_a_newer_playwright_finds_its_revisions_linked_...`,
+  `test_the_run_s_browser_links_follow_npm_s_playwright_...`, and agent-sandbox's workload test now asserts no
+  Playwright host is contacted (seen failing with the 403 without the links). Open: nothing yet reads the proxy logs'
+  refusals.
+
 ### A-047 — A run standing at 26 of 27 waited two days and nineteen hours behind eight jobs, because the only way to correct a job was to cancel it and submit it again
 - **First seen:** 2026-10-03 22:11 BST (the resubmission) · **Last seen:** 2026-10-06 16:44 BST (moved to the front)
 - **Where:** `dbench`'s per-node queue (`tools/dbench/src/server.rs`); the M5 Max, job `vidi-v2-mlx26101-r2-again1`, run `v2-mlx26101-r2` on `qwen/3.8/flash-next/macos/128GB/mlxserve-pi`.

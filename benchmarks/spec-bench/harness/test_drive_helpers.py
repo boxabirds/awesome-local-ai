@@ -455,6 +455,77 @@ def test_the_agent_s_browsers_are_linked_once_and_an_existing_cache_is_left_alon
     assert (tmp_path / "run2" / "browsers").is_dir() and list((tmp_path / "run2" / "browsers").iterdir()) == []
 
 
+def _playwright_core(at: Path, chromium: int, shell: int, ffmpeg: int) -> Path:
+    """A playwright-core package as npm installs it: browsers.json names the revisions it launches."""
+    at.mkdir(parents=True, exist_ok=True)
+    (at / "browsers.json").write_text(json.dumps({"browsers": [
+        {"name": "chromium", "revision": str(chromium), "installByDefault": True},
+        {"name": "chromium-headless-shell", "revision": str(shell), "installByDefault": True},
+        {"name": "firefox", "revision": "1497", "installByDefault": True},
+        {"name": "ffmpeg", "revision": str(ffmpeg), "installByDefault": True}]}))
+    return at
+
+
+def test_the_browsers_a_playwright_wants_are_read_from_its_browsers_json(tmp_path):
+    core = _playwright_core(tmp_path / "node_modules" / "playwright-core", 1248, 1248, 1013)
+    assert drive.wanted_browsers(core) == {"chromium": 1248, "chromium_headless_shell": 1248, "ffmpeg": 1013}
+    assert drive.wanted_browsers(tmp_path / "no-playwright-here") == {}
+
+
+def test_a_newer_playwright_finds_its_revisions_linked_to_the_newest_shared_browser_and_downloads_nothing(tmp_path):
+    # 13 runs from 2 Oct 2026: the agent's Playwright wanted a revision the shared cache lacked, its own
+    # `playwright install` went to the CDN, which redirects outside the sandbox's hosts, and was refused.
+    work, real = tmp_path / "run", tmp_path / "real-home"
+    shared = hostenv.agent_playwright_cache(real)
+    for name in ("chromium-1200", "chromium-1208", "chromium_headless_shell-1208", "chromium_headless_shell-1248",
+                 "ffmpeg-1011"):
+        (shared / name).mkdir(parents=True)
+    drive.link_agent_browsers(work, work / "agent-home", Path("/w"), real)
+    wanted = {"chromium": 1248, "chromium_headless_shell": 1248, "ffmpeg": 1013}
+    assert drive.link_wanted_browsers(work, wanted, real) == ["chromium-1248", "ffmpeg-1013"]
+    browsers = work / "browsers"
+    assert os.readlink(browsers / "chromium-1248") == str(shared / "chromium-1208")          # the newest, not 1200
+    assert os.readlink(browsers / "ffmpeg-1013") == str(shared / "ffmpeg-1011")
+    assert os.readlink(browsers / "chromium_headless_shell-1248") == str(shared / "chromium_headless_shell-1248")
+    assert drive.link_wanted_browsers(work, wanted, real) == []                                # once only
+    # A kind the shared cache has none of is left to Playwright: there is nothing to link it to.
+    assert drive.link_wanted_browsers(work, {"webkit": 2300}, real) == []
+    assert not (browsers / "webkit-2300").exists()
+
+
+def test_the_links_follow_the_workspace_s_own_playwright_at_each_story(tmp_path):
+    work, real = tmp_path / "run", tmp_path / "real-home"
+    (hostenv.agent_playwright_cache(real) / "chromium-1208").mkdir(parents=True)
+    ws = work / "workspace"
+    assert drive.link_workspace_browsers(work, ws, real) == []                                 # no Playwright yet
+    _playwright_core(ws / "node_modules" / "playwright-core", 1260, 1260, 1013)
+    assert drive.link_workspace_browsers(work, ws, real) == ["chromium-1260"]
+
+
+def test_job_start_links_the_revisions_of_the_playwright_npm_hands_out_today(tmp_path, monkeypatch):
+    # An agent's `npm install @playwright/test` gets the current release; story 1 is where it first does that.
+    real, work = tmp_path / "real-home", tmp_path / "run"
+    (hostenv.agent_playwright_cache(real) / "chromium-1208").mkdir(parents=True)
+    released = _playwright_core(tmp_path / "released" / "package", 1248, 1248, 1013)
+    tarball = tmp_path / "released" / "playwright-core-1.64.1.tgz"
+    subprocess.run(["tar", "-czf", str(tarball), "-C", str(released.parent), "package"], check=True)
+    calls = []
+
+    def fake_npm(cmd, cwd, **kw):
+        calls.append(cmd)
+        (Path(cwd) / tarball.name).write_bytes(tarball.read_bytes())
+        return done(stdout=tarball.name + "\n")
+    monkeypatch.setattr(drive.subprocess, "run", fake_npm)
+    assert drive.link_released_browsers(work, real) == ["chromium-1248"]
+    assert calls[0][:3] == ["npm", "pack", "playwright-core@latest"]
+
+    def offline(cmd, cwd, **kw):
+        return done(returncode=1, stderr="npm ERR! network")
+    monkeypatch.setattr(drive.subprocess, "run", offline)
+    with pytest.raises(RuntimeError, match="npm pack playwright-core@latest"):
+        drive.link_released_browsers(tmp_path / "run2", real)
+
+
 def test_the_agent_s_environment_is_its_own_home_temp_dir_ports_and_a_neutral_identity(tmp_path):
     work = tmp_path / "work" / "run"
     view = Path("/w")
