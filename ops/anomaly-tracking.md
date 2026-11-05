@@ -721,6 +721,33 @@ test that would reproduce it. Details under the entries.
 
 ---
 
+### A-049 — The collector re-read the whole lake and warehouse on every pass: about 1 TB of reads in 3 days
+- **First seen:** 2026-11-05 17:45 GMT, by the owner in Activity Monitor ("100+GB writes and > 1TB reads"). The pattern is
+  as old as the lake ingest.
+- **Where:** `dbench collect` on the host (`tools/dbench/src/collector.rs`, `ingest/inputs.rs`, `conversation_api.rs`).
+- **Observed:** pid 803, started 2 Nov 11:05 GMT, 78 hours: 1,099 GiB read and 118 GiB written (proc_pid_rusage).
+  25,178 full passes, busy about 80% of the time; a full pass 38 to 73 s and about 350 MiB of reads. Causes:
+  (1) a pass ingested every candidate run whenever any one run had changed (always, with jobs running), and also on a
+  60 s "fetch" tick left from the git source: `run_record 64x` on every pass; (2) the reference and archive purges ran
+  on every ingest, and `delete from requests|conditions where run_id like '…%'` scans both tables (EXPLAIN: SCAN);
+  (3) the benchmarker asks `/v1/conversations` every 10 s and each answer scanned the events index (787,000 rows),
+  about 50 MiB when the warehouse was out of the page cache. The 118 GiB of writes are not yet attributed.
+- **Also:** the collector held (pulled nothing) for hours at 6 to 9.7 GB free, below its 10 GiB margin, because it
+  measured with statvfs, which leaves out space macOS frees on demand (25.8 GB important-usage against 22.6 GB statvfs
+  at the time of checking). The disk was refilled by test builds (`tools/target/debug`).
+- **Bucket:** internal bug (collector efficiency) — **confidence high**.
+- **Status:** fixed on main 5 Nov, not yet deployed. A pass ingests only the runs it changed; everything only on the
+  first pass and when the decision log changes, and only then the purges; the fetch tick is gone; `/v1/conversations`
+  keeps its answer until the warehouse files change; free space on macOS is the capacity for important usage. Tests:
+  `a_pass_ingests_only_the_runs_it_changed_…`, `the_decision_log_mark_changes_…`, `an_ingest_of_named_runs_runs_no_purge_…`,
+  `the_available_answer_is_kept_until_the_warehouse_changes`, `on_macos_free_space_is_the_capacity_for_important_usage`
+  (each seen failing on the old behaviour).
+- **Found by the release suite, before release:** the first version linked CoreFoundation for the free-space figure,
+  which started the framework in every dbench process: `dbench --help` peaked at 10.5 MB against 6.1 MB, and
+  `ingest_memory` (58 MB log) peaked at 58 MB against 54 to 55 MB, failing 2 of 3 runs. CoreFoundation is now opened on
+  first use; test `a_command_that_checks_no_free_space_does_not_start_core_foundation` (seen failing on the linked
+  version). Peak back to 53 to 55 MB.
+
 ### A-048 — Agents' own `playwright install` was refused by the sandbox in 13 runs, unseen for a month
 - **First seen:** 2026-10-02 08:31 BST · **Last seen:** 2026-10-31 15:39 BST · **Found:** 2026-11-05, from a failing agent-sandbox test.
 - **Where:** the run's browsers directory (`drive.link_agent_browsers`) and the sandbox's `playwright` preset; every node.

@@ -371,7 +371,7 @@ async fn the_activity_route_serves_the_theme_shares_per_story_run() {
     }
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let shared = Arc::new(Shared { db_path: wh });
+    let shared = Arc::new(Shared::new(wh));
     tokio::spawn(async move { axum::serve(listener, router(shared)).await.unwrap() });
     let v: Value = reqwest::get(format!("http://{addr}/v1/activity")).await.unwrap().json().await.unwrap();
     assert_eq!(v["version"], 1);
@@ -395,7 +395,7 @@ async fn the_activity_route_is_empty_when_nothing_has_been_assigned() {
     Db::open(&wh).unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let shared = Arc::new(Shared { db_path: wh });
+    let shared = Arc::new(Shared::new(wh));
     tokio::spawn(async move { axum::serve(listener, router(shared)).await.unwrap() });
     let v: Value = reqwest::get(format!("http://{addr}/v1/activity")).await.unwrap().json().await.unwrap();
     assert_eq!(v["rows"].as_array().unwrap().len(), 0);

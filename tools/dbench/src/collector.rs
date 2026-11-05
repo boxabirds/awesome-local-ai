@@ -507,6 +507,27 @@ pub struct NodeSummary {
     pub problems: Vec<String>,
 }
 
+/// What a pass ingests: every candidate when a full ingest is due (the first pass, or the operator's decision log
+/// changed, so purges and archives are applied), else only the runs this pass's pulls changed; None when there is nothing
+/// to do. A-049: ingesting every run whenever any one had changed re-read all of the lake's records on every pass.
+pub fn ingest_selection(full: bool, summaries: &[NodeSummary]) -> Option<crate::ingest::inputs::Selection> {
+    if full {
+        return Some(crate::ingest::inputs::Selection::default());
+    }
+    let mut only: Vec<String> = summaries.iter().flat_map(|s| &s.runs).filter(|r| r.changed).map(|r| r.run.clone()).collect();
+    only.sort();
+    only.dedup();
+    (!only.is_empty()).then_some(crate::ingest::inputs::Selection { all: false, only })
+}
+
+/// The operator's decision log as it stands (its length and modification time), to tell when a decision was added; None
+/// while there is no log.
+pub fn decisions_mark(store: &Path) -> Option<(u64, std::time::SystemTime)> {
+    let state = store.parent()?;
+    let meta = std::fs::metadata(bench_lake::annotations::Store::in_state_dir(state).log_path()).ok()?;
+    Some((meta.len(), meta.modified().ok()?))
+}
+
 /// Whether a pass pulls this run: never an archived one, even when asked for by name; otherwise every run, or only the
 /// ones asked for. A reference model's run is wanted too: its records go to the reference folder.
 pub fn wanted(run: &str, only_runs: &[String], archived: &BTreeSet<String>) -> bool {
@@ -603,8 +624,117 @@ async fn pull_run_code(api: &crate::client::Api, lake: Lake<'_>, node: &str, run
     }
 }
 
-/// The free bytes of the disk that holds `path`.
+/// The free bytes of the disk that holds `path`, as the system counts them for a write that matters: on macOS the
+/// volume's capacity for important usage, which includes space the system frees on demand (local snapshots, caches) and
+/// is what Finder shows; statvfs leaves that out, and the collector held for hours at 6 to 9.7 GB while the volume had
+/// more (A-049). Elsewhere, and if macOS cannot say, statvfs.
 pub fn free_bytes(path: &Path) -> std::io::Result<u64> {
+    let plain = statvfs_available(path)?;
+    Ok(important_capacity(path).unwrap_or(plain))
+}
+
+#[cfg(target_os = "macos")]
+mod important {
+    //! CoreFoundation's `kCFURLVolumeAvailableCapacityForImportantUsageKey` for a path, through its C interface. The
+    //! framework is opened on first use, not linked: a linked CoreFoundation starts in every dbench process, 4.3 MB of
+    //! resident memory for commands that never ask for free space.
+    use std::ffi::{c_void, CStr};
+    use std::sync::OnceLock;
+    type CFTypeRef = *const c_void;
+    type CFIndex = isize;
+    const K_CF_NUMBER_SINT64_TYPE: CFIndex = 4;
+    const NOT_A_DIRECTORY: u8 = 0;
+    const FRAMEWORK: &CStr = c"/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation";
+
+    type CreateUrl = unsafe extern "C" fn(CFTypeRef, *const u8, CFIndex, u8) -> CFTypeRef;
+    type CopyProperty = unsafe extern "C" fn(CFTypeRef, CFTypeRef, *mut CFTypeRef, *mut CFTypeRef) -> u8;
+    type NumberValue = unsafe extern "C" fn(CFTypeRef, CFIndex, *mut c_void) -> u8;
+    type Release = unsafe extern "C" fn(CFTypeRef);
+    type Symbol = *mut c_void;
+
+    struct Cf {
+        key: CFTypeRef,
+        create_url: CreateUrl,
+        copy_property: CopyProperty,
+        number_value: NumberValue,
+        release: Release,
+    }
+    // SAFETY: the key is an immutable CFString constant and the rest are function pointers; CoreFoundation's functions
+    // used here are safe to call from any thread.
+    unsafe impl Send for Cf {}
+    unsafe impl Sync for Cf {}
+
+    fn symbol(handle: *mut c_void, name: &CStr) -> Option<*mut c_void> {
+        // SAFETY: `handle` is a live dlopen handle and `name` a NUL-terminated symbol name.
+        let p = unsafe { libc::dlsym(handle, name.as_ptr()) };
+        (!p.is_null()).then_some(p)
+    }
+
+    fn open() -> Option<Cf> {
+        // SAFETY: a NUL-terminated path to a system framework; the handle is kept for the life of the process.
+        let h = unsafe { libc::dlopen(FRAMEWORK.as_ptr(), libc::RTLD_LAZY | libc::RTLD_LOCAL) };
+        if h.is_null() {
+            return None;
+        }
+        let key_slot = symbol(h, c"kCFURLVolumeAvailableCapacityForImportantUsageKey")?;
+        // SAFETY: each symbol is the CoreFoundation function or constant of that name, with the C signature declared
+        // in `Cf`; the constant's symbol is the address of a CFStringRef.
+        unsafe {
+            Some(Cf {
+                key: *(key_slot as *const CFTypeRef),
+                create_url: std::mem::transmute::<Symbol, CreateUrl>(symbol(h, c"CFURLCreateFromFileSystemRepresentation")?),
+                copy_property: std::mem::transmute::<Symbol, CopyProperty>(symbol(h, c"CFURLCopyResourcePropertyForKey")?),
+                number_value: std::mem::transmute::<Symbol, NumberValue>(symbol(h, c"CFNumberGetValue")?),
+                release: std::mem::transmute::<Symbol, Release>(symbol(h, c"CFRelease")?),
+            })
+        }
+    }
+
+    pub fn capacity(path: &[u8]) -> Option<u64> {
+        static CF: OnceLock<Option<Cf>> = OnceLock::new();
+        let cf = CF.get_or_init(open).as_ref()?;
+        // SAFETY: the buffer and its length describe `path`, which outlives the call; a null allocator is the default.
+        let url = unsafe { (cf.create_url)(std::ptr::null(), path.as_ptr(), path.len() as CFIndex, NOT_A_DIRECTORY) };
+        if url.is_null() {
+            return None;
+        }
+        let mut value: CFTypeRef = std::ptr::null();
+        // SAFETY: `url` is a live CFURL made above; the key is the framework's constant; `value` receives a retained
+        // CFNumber or stays null; a null error pointer asks for no error object.
+        let ok = unsafe { (cf.copy_property)(url, cf.key, &mut value, std::ptr::null_mut()) };
+        // SAFETY: `url` was created above and is released once.
+        unsafe { (cf.release)(url) };
+        if ok == 0 || value.is_null() {
+            return None;
+        }
+        let mut n: i64 = 0;
+        // SAFETY: `value` is the CFNumber the property call returned, read as a 64-bit integer into `n`.
+        let got = unsafe { (cf.number_value)(value, K_CF_NUMBER_SINT64_TYPE, &mut n as *mut i64 as *mut c_void) };
+        // SAFETY: `value` was returned retained by a Copy function and is released once.
+        unsafe { (cf.release)(value) };
+        (got != 0 && n >= 0).then_some(n as u64)
+    }
+}
+
+/// The volume's capacity for important usage (macOS); None elsewhere, for a missing path, or when the system cannot say.
+pub fn important_capacity(path: &Path) -> Option<u64> {
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        if !path.exists() {
+            return None;
+        }
+        important::capacity(path.as_os_str().as_bytes())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = path;
+        None
+    }
+}
+
+/// The bytes statvfs says an unprivileged process can write on the disk that holds `path`.
+pub fn statvfs_available(path: &Path) -> std::io::Result<u64> {
     use std::os::unix::ffi::OsStrExt;
     let c = std::ffi::CString::new(path.as_os_str().as_bytes()).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
     // SAFETY: an all-zero statvfs is a valid value to pass for the call to fill in.
@@ -634,8 +764,9 @@ pub fn space_decision(free: std::io::Result<u64>, margin_gib: u64) -> SpaceDecis
 }
 
 /// One pass over the nodes, then the ingest of what changed.
-pub async fn pass(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: u64) -> Result<Vec<NodeSummary>> {
-    pass_profiled(ctx, cfg, cadence, fetch, now, &mut Profile::default()).await
+/// One pass: pull from every node, then ingest what changed (`full`: everything, see `ingest_selection`).
+pub async fn pass(ctx: &Ctx, cfg: &Config, cadence: &Cadence, full: bool, now: u64) -> Result<Vec<NodeSummary>> {
+    pass_profiled(ctx, cfg, cadence, full, now, &mut Profile::default()).await
 }
 
 /// One line for the log: how long the pass took, what took it, and how much of the time the collector is busy.
@@ -646,7 +777,7 @@ pub fn pass_log_line(profile: &Profile, wall: f64, idle: Duration, top: usize) -
 }
 
 /// `pass`, charging where its time went to `profile`.
-pub async fn pass_profiled(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: u64, profile: &mut Profile) -> Result<Vec<NodeSummary>> {
+pub async fn pass_profiled(ctx: &Ctx, cfg: &Config, cadence: &Cadence, full: bool, now: u64, profile: &mut Profile) -> Result<Vec<NodeSummary>> {
     crate::store::create_private_dir_all(&cfg.store)?;
     let free = profile.time("pass.free_space", || (cfg.free_bytes)(&cfg.store));
     if let SpaceDecision::Hold(line) = space_decision(free, cfg.free_space_margin_gib) {
@@ -666,8 +797,7 @@ pub async fn pass_profiled(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bo
         }
     }
     if let Some(repo) = cfg.repo.as_ref().filter(|_| !cfg.no_ingest) {
-        let changed = summaries.iter().any(|s| s.runs.iter().any(|r| r.changed));
-        if changed || fetch {
+        if let Some(sel) = ingest_selection(full, &summaries) {
             let store = cfg.store.clone();
             let db_path = cfg.db.clone();
             let repo = repo.clone();
@@ -684,7 +814,7 @@ pub async fn pass_profiled(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bo
                     std::fs::create_dir_all(dir)?;
                 }
                 let mut db = setup.time("pass.db_open", || crate::ingest::db::Db::open(&db_path))?;
-                let summary = crate::ingest::inputs::run(&mut db, published.as_ref(), &store, &Default::default(), now as f64)?;
+                let summary = crate::ingest::inputs::run(&mut db, published.as_ref(), &store, &sel, now as f64)?;
                 Ok((summary, setup))
             })
             .await??;
@@ -818,19 +948,20 @@ pub async fn cmd_collect(ctx: &Ctx, args: &CollectArgs) -> Result<()> {
             }
         });
     }
-    let fetch_every = Duration::from_millis(args.fetch_every_ms);
-    let mut last_fetch: Option<std::time::Instant> = None;
+    // A full ingest on the first pass (whatever changed while the collector was stopped) and whenever the operator's
+    // decision log changes; otherwise each pass ingests only the runs it pulled something new for.
+    let mut ingested_mark: Option<Option<(u64, std::time::SystemTime)>> = None;
     loop {
-        let fetch = last_fetch.is_none_or(|t| t.elapsed() >= fetch_every);
+        let mark = decisions_mark(&cfg.store);
+        let full = ingested_mark.as_ref() != Some(&mark);
         let started = std::time::Instant::now();
         let mut profile = Profile::default();
-        if let Err(e) = pass_profiled(ctx, &cfg, &cadence, fetch, now_secs(), &mut profile).await {
-            eprintln!("dbench collect: {e:#}");
+        match pass_profiled(ctx, &cfg, &cadence, full, now_secs(), &mut profile).await {
+            Ok(_) if full => ingested_mark = Some(mark),
+            Ok(_) => {}
+            Err(e) => eprintln!("dbench collect: {e:#}"),
         }
         eprintln!("{}", pass_log_line(&profile, started.elapsed().as_secs_f64(), cadence.running_poll, crate::profile::LOG_TOP_PHASES));
-        if fetch {
-            last_fetch = Some(std::time::Instant::now());
-        }
         tokio::time::sleep(cadence.running_poll).await;
     }
 }
@@ -839,6 +970,45 @@ pub async fn cmd_collect(ctx: &Ctx, args: &CollectArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::collect::{FileEntry, FileKind};
+
+    fn summary_of(node: &str, runs: &[(&str, bool)]) -> NodeSummary {
+        NodeSummary {
+            node: node.into(),
+            reachable: true,
+            runs: runs.iter().map(|(r, changed)| RunSummary { run: r.to_string(), changed: *changed, ..Default::default() }).collect(),
+            problems: vec![],
+        }
+    }
+
+    #[test]
+    fn a_pass_ingests_only_the_runs_it_changed_and_everything_only_when_a_full_ingest_is_due() {
+        // A-049: every pass re-read every run's records (64 runs, about 350 MiB) because any one run had changed.
+        let (a, b) = ("combinations/a/benchmarks/vidi/r1", "combinations/a/benchmarks/vidi/r2");
+        let quiet = [summary_of("n1", &[(a, false), (b, false)])];
+        assert!(ingest_selection(false, &quiet).is_none(), "nothing changed: no ingest");
+        let one = [summary_of("n1", &[(a, false), (b, true)]), summary_of("n2", &[(b, true)])];
+        let sel = ingest_selection(false, &one).expect("an ingest");
+        assert_eq!((sel.all, sel.only), (false, vec![b.to_string()]), "only the changed run, once");
+        let full = ingest_selection(true, &quiet).expect("a full ingest");
+        assert!(!full.all && full.only.is_empty(), "every candidate, unchanged ones skipped by their digest");
+        assert!(ingest_selection(true, &one).unwrap().only.is_empty(), "a full ingest covers the changed runs too");
+    }
+
+    #[test]
+    fn the_decision_log_mark_changes_when_a_decision_is_added() {
+        use bench_lake::annotations::{Kind, Op, Request, Store};
+        let dir = std::env::temp_dir().join(format!("dbench-decisions-mark-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = dir.join("collected");
+        std::fs::create_dir_all(&store).unwrap();
+        let before = decisions_mark(&store);
+        let req = Request { op: Op::Set, kind: Kind::Archived, run: "combinations/a/b/c/d/e/f-g/benchmarks/vidi/r1".into(), story: None, reason: "r".into(), by: "t".into() };
+        Store::in_state_dir(&dir).append(&req, "2026-11-05T00:00:00Z").unwrap();
+        let after = decisions_mark(&store);
+        assert_ne!(before, after);
+        assert_eq!(decisions_mark(&store), after, "unchanged when nothing is added");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn an_archived_run_is_never_pulled_even_when_asked_for_and_only_runs_still_narrows() {

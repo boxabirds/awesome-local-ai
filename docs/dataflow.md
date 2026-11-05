@@ -416,8 +416,10 @@ sequenceDiagram
 - **Inputs:** the compact log and published records from `origin/main` (`GitSource`,
   `git fetch` first, never the working copy), and the full stream, server log and conditions
   from the lake.
-- **When:** after a pass in which any file changed, or on the 60 s fetch tick
-  (`DEFAULT_FETCH_EVERY_MS`). Only stories whose input digest changed are re-ingested.
+- **When:** after a pass in which a run's files changed, and then only for those runs; every run on the collector's
+  first pass and whenever the operator's decision log changes (the purges of reference and archived runs run then
+  only). Only stories whose input digest changed are re-ingested. (Until 5 Nov 2026 every run was re-read on every
+  pass in which any one changed, and on a 60 s tick: about 350 MiB of reads a pass, A-049.)
 - **Reference-model conversations are left out** of the warehouse.
 - **Read by** the conversation API (`127.0.0.1:7761`), which the benchmarker proxies.
 

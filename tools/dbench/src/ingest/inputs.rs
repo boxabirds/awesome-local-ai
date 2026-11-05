@@ -636,10 +636,14 @@ pub struct Summary {
 pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel: &Selection, now: f64) -> Result<Summary> {
     let started = std::time::Instant::now();
     let mut prof = Profile::default();
-    prof.time("purge_reference", || db.purge_reference())?;          // anything an earlier version ingested
     let decided = prof.time("decisions", || decisions(store))?;
     let archived = archived_of(&decided);
-    prof.time("purge_archived", || db.purge_runs(&archived))?; // and any run archived since it was ingested
+    // A full ingest only (no runs named): the purges scan whole tables, and a pass that names the runs it changed
+    // runs after a full one has already applied every decision (A-049).
+    if sel.only.is_empty() {
+        prof.time("purge_reference", || db.purge_reference())?;          // anything an earlier version ingested
+        prof.time("purge_archived", || db.purge_runs(&archived))?; // and any run archived since it was ingested
+    }
     let ids = prof.time("published_paths", || published.paths())?;
     let lake = prof.time("lake_scan", || lake_runs(store))?;
     let mut by_run: BTreeMap<String, Vec<String>> = BTreeMap::new();

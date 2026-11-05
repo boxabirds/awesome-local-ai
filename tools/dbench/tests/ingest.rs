@@ -552,7 +552,7 @@ fn dbench_ingest_builds_the_database_from_the_published_tree_and_the_lake_and_re
 async fn api_server(db_path: PathBuf) -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let router = dbench::conversation_api::router(std::sync::Arc::new(dbench::conversation_api::Shared { db_path }));
+    let router = dbench::conversation_api::router(std::sync::Arc::new(dbench::conversation_api::Shared::new(db_path)));
     tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
     format!("http://{addr}")
 }
@@ -1132,6 +1132,26 @@ fn published_lake(root: &std::path::Path) -> PathBuf {
     let checkout = root.join("checkout");
     std::fs::create_dir_all(&checkout).unwrap();
     checkout
+}
+
+#[test]
+fn an_ingest_of_named_runs_runs_no_purge_and_a_full_one_does() {
+    // A-049: the reference and archive purges scanned the requests and conditions tables on every pass.
+    let root = std::env::temp_dir().join(format!("dbench-purge-once-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    published_lake(&root);
+    let store = root.join("store");
+    let src = dbench::ingest::inputs::LakeSource::new(&store, &root.join("reference"));
+    let mut db = Db::open(&root.join("wh.db")).unwrap();
+    let phases = |s: &dbench::ingest::inputs::Summary| s.profile.line(0.0, 100);
+    let full = dbench::ingest::inputs::run(&mut db, &src, &store, &Default::default(), 1_790_000_000.0).unwrap();
+    assert!(phases(&full).contains("purge_reference") && phases(&full).contains("purge_archived"), "{}", phases(&full));
+    let sel = dbench::ingest::inputs::Selection { all: false, only: vec![RUN.to_string()] };
+    let named = dbench::ingest::inputs::run(&mut db, &src, &store, &sel, 1_790_000_000.0).unwrap();
+    assert!(!phases(&named).contains("purge_reference") && !phases(&named).contains("purge_archived"), "{}", phases(&named));
+    assert_eq!(stories_in(&root.join("wh.db")), 1);
+    std::fs::remove_dir_all(&root).unwrap();
 }
 
 #[tokio::test]

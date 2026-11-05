@@ -217,8 +217,6 @@ pub enum Cmd {
 pub const DEFAULT_RUNNING_POLL_MS: u64 = 10_000;
 pub const DEFAULT_FINISHED_RECHECK_MS: u64 = 3_600_000;
 pub const DEFAULT_SETTLE_GRACE_MS: u64 = 60_000;
-/// How often the published records are fetched from git between passes.
-pub const DEFAULT_FETCH_EVERY_MS: u64 = 60_000;
 pub const DEFAULT_API_BIND: &str = "127.0.0.1:7761";
 /// Beside the lake, the folder a reference model's runs go to when none is set.
 pub const DEFAULT_REFERENCE_DIR: &str = "reference";
@@ -276,8 +274,6 @@ pub struct CollectArgs {
     pub finished_recheck_ms: u64,
     #[arg(long, default_value_t = DEFAULT_SETTLE_GRACE_MS, hide = true)]
     pub settle_grace_ms: u64,
-    #[arg(long, default_value_t = DEFAULT_FETCH_EVERY_MS, hide = true)]
-    pub fetch_every_ms: u64,
 }
 
 #[derive(Args, Debug, Clone)]

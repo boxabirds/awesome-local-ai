@@ -44,3 +44,20 @@ fn cancel_says_recorded_stories_are_kept_and_the_same_run_id_resumes() {
     assert!(text.contains("submit"), "{text}");
     assert!(!text.to_lowercase().contains("lost"), "{text}");
 }
+
+/// A dbench command that never asks for free space does not start CoreFoundation. Linking it for the free-space figure
+/// (A-049) initialised it in every dbench process at start, 4.3 MB more resident memory (6.1 to 10.5 MB for `--help`),
+/// which put the ingest's memory peak over its limit. dyld maps the framework anyway and moves it to "delayed" when
+/// nothing in the program needs it; this reads dyld's own library log for that line.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_command_that_checks_no_free_space_does_not_start_core_foundation() {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_dbench"))
+        .arg("--help")
+        .env("DYLD_PRINT_LIBRARIES", "1")
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let log = String::from_utf8_lossy(&out.stderr);
+    assert!(log.contains("move loaded to delayed: CoreFoundation"), "CoreFoundation was started at launch");
+}

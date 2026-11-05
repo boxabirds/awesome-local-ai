@@ -18,9 +18,39 @@ use crate::ingest::db::{Db, Event};
 pub const EVENTS_PAGE_MAX: usize = 500;
 pub const EVENTS_PAGE_DEFAULT: usize = 200;
 
-#[derive(Clone)]
+/// The warehouse's files as they stand (each one's length and modification time): an ingest's commit changes the WAL
+/// file, and a checkpoint the database file, so an equal mark means the same data.
+type Mark = Vec<Option<(u64, std::time::SystemTime)>>;
+const WAREHOUSE_SUFFIXES: [&str; 2] = ["", "-wal"];
+
 pub struct Shared {
     pub db_path: PathBuf,
+    /// The last `/v1/conversations` answer and the warehouse mark it was worked out at.
+    available: std::sync::Mutex<Option<(Mark, Value)>>,
+    available_computed: std::sync::atomic::AtomicUsize,
+}
+
+impl Shared {
+    pub fn new(db_path: PathBuf) -> Shared {
+        Shared { db_path, available: Default::default(), available_computed: Default::default() }
+    }
+
+    /// How many times the available answer was worked out from the warehouse (it is otherwise kept, A-049).
+    pub fn available_computed(&self) -> usize {
+        self.available_computed.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn mark(&self) -> Mark {
+        WAREHOUSE_SUFFIXES
+            .iter()
+            .map(|suffix| {
+                let mut name = self.db_path.clone().into_os_string();
+                name.push(suffix);
+                let meta = std::fs::metadata(PathBuf::from(name)).ok()?;
+                Some((meta.len(), meta.modified().ok()?))
+            })
+            .collect()
+    }
 }
 
 pub fn router(shared: Arc<Shared>) -> Router {
@@ -116,13 +146,25 @@ async fn health() -> Json<Value> {
     Json(json!({ "ok": true, "version": crate::VERSION }))
 }
 
-/// Every story run the warehouse has a stream for, and which of them are complete.
+/// Every story run the warehouse has a stream for, and which of them are complete. Worked out again only when the
+/// warehouse has changed since the last answer: the benchmarker asks every 10 s, and each answer scans the events index.
 async fn available(State(st): State<Arc<Shared>>) -> Response {
-    let got = with_db(&st, |db| Ok((db.story_ids_with_events()?, db.complete_story_ids()?))).await;
-    match got {
-        Some((ids, complete)) => no_store(Json(json!({ "ids": ids, "complete": complete })).into_response()),
-        None => no_store(Json(json!({ "ids": [], "complete": [] })).into_response()),
+    let mark = st.mark();
+    if let Some((at, answer)) = st.available.lock().expect("available lock").as_ref() {
+        if *at == mark {
+            return no_store(Json(answer.clone()).into_response());
+        }
     }
+    let got = with_db(&st, |db| Ok((db.story_ids_with_events()?, db.complete_story_ids()?))).await;
+    st.available_computed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let answer = match got {
+        Some((ids, complete)) => json!({ "ids": ids, "complete": complete }),
+        None => return no_store(Json(json!({ "ids": [], "complete": [] })).into_response()),
+    };
+    // Marked after the read: opening the warehouse can make its WAL file. A write between the read and this mark is
+    // taken up at the warehouse's next change.
+    *st.available.lock().expect("available lock") = Some((st.mark(), answer.clone()));
+    no_store(Json(answer).into_response())
 }
 
 async fn conversation(State(st): State<Arc<Shared>>, UrlPath(id): UrlPath<String>) -> Response {
@@ -235,6 +277,34 @@ async fn tool(State(st): State<Arc<Shared>>, UrlPath((id, idx)): UrlPath<(String
 pub async fn serve(bind: &str, db_path: PathBuf) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(bind).await?;
     eprintln!("dbench collect: conversation API on http://{}", listener.local_addr()?);
-    axum::serve(listener, router(Arc::new(Shared { db_path }))).await?;
+    axum::serve(listener, router(Arc::new(Shared::new(db_path)))).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn the_available_answer_is_kept_until_the_warehouse_changes() {
+        // A-049: the benchmarker asks every 10 s, and each answer scanned the events index (787,000 rows, ~50 MiB).
+        let dir = std::env::temp_dir().join(format!("dbench-available-cache-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("conversations.db");
+        drop(Db::open(&path).unwrap());
+        let shared = Arc::new(Shared::new(path.clone()));
+        let body = |r: Response| async { axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap() };
+        let first = body(available(State(shared.clone())).await).await;
+        let again = body(available(State(shared.clone())).await).await;
+        assert_eq!(first, again);
+        assert_eq!(shared.available_computed(), 1, "the same warehouse: the answer is not worked out again");
+        // An ingest writes the warehouse: the next answer is worked out afresh and says what is there now.
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute("insert into runs(id) values ('combinations/a/b/c/d/e/f-g/benchmarks/vidi/r1')", []).unwrap();
+        drop(conn);
+        let _ = body(available(State(shared.clone())).await).await;
+        assert_eq!(shared.available_computed(), 2);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

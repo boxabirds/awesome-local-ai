@@ -805,6 +805,23 @@ fn the_margin_is_a_setting_with_a_proposed_default_of_ten_gib() {
     assert_eq!(Config::default().free_space_margin_gib, 10);
 }
 
+/// On macOS the free space is what the system says a write that matters can use: it counts space the system frees on
+/// demand (local snapshots, caches), which statvfs leaves out. The collector held for hours at 6 to 9.7 GB "free" while
+/// the volume had more (A-049).
+#[cfg(target_os = "macos")]
+#[test]
+fn on_macos_free_space_is_the_capacity_for_important_usage() {
+    let dir = scratch_dir("free-important");
+    let important = dbench::collector::important_capacity(&dir).expect("macOS gives the figure");
+    let plain = dbench::collector::statvfs_available(&dir).unwrap();
+    let free = free_bytes(&dir).unwrap();
+    // The volume moves between the readings: equal to the important figure within 1%, and never below statvfs's.
+    assert!(free.abs_diff(important) <= important / 100, "free {free}, important {important}");
+    assert!(important + important / 100 >= plain, "important {important}, statvfs {plain}");
+    assert!(dbench::collector::important_capacity(&dir.join("not-there")).is_none());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 #[test]
 fn the_free_bytes_of_a_real_folder_are_read_and_of_a_missing_one_are_an_error() {
     let dir = scratch_dir("free");
