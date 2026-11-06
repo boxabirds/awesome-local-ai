@@ -1,0 +1,32 @@
+{
+ "pair": {
+  "GRADING.md": "3dbf9a8a4300cabe719645c1e1bab1cfe8547cb6879c8c6ed2b7d341c3be3490",
+  "acceptance/package.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+  "acceptance/tests/story-01.spec.ts": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "build-alt/commits.txt": "58ab876ef664dc3e97738947a5782b8b2bec386958b544d4ef5ba66545e01d67",
+  "build-alt/heldout.json": "9a188b98906c7406ef6dcd22032f1f6baa6f3d9d24c5e0d12c729ffff2d912be",
+  "build-alt/workspace/src/a.ts": "1df3032e75cb45e568d2741f3dbf4ba4b11d547f91e906e0563bc9990d9cf07e",
+  "build-alt/workspace/src/b.ts": "4c2c85c4f42367f4eefb554b524eadc7f8c16afa6bb9783d0e61ae68ce40eca3",
+  "build-pi/commits.txt": "39bb88a2bbf30dc42300c386f7826f93d5559d341968acb31f5d9a4ced22ad0e",
+  "build-pi/heldout.json": "fd575887767c110a23de4120bf4bf50a5f8ac3fd0c2bbdb2fbedbc86dd10c286",
+  "build-pi/workspace/src/a.ts": "a3b135bcfeaabda5d6780642cf256059889ad4649c9ba4f7a4d5d6e83a68b402",
+  "build-pi/workspace/src/b.ts": "70e328b58e3b0eb4a9d1ba67a5b22a0ada841e8797eb22732e10b5b10878f38b",
+  "scope.json": "4bcdd943745d8c757b5799022418ba6082f17918a95b522da11fc0bfdc78b93e",
+  "spec/spec.md": "d4f02eaafd1a9e9de7d10972ca8e47fa7a985825c3c9c1e249c72683cb3e4f19"
+ },
+ "ref": {
+  "GRADING.md": "3dbf9a8a4300cabe719645c1e1bab1cfe8547cb6879c8c6ed2b7d341c3be3490",
+  "acceptance/package.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+  "acceptance/tests/story-01.spec.ts": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "build-pi/commits.txt": "39bb88a2bbf30dc42300c386f7826f93d5559d341968acb31f5d9a4ced22ad0e",
+  "build-pi/heldout.json": "fd575887767c110a23de4120bf4bf50a5f8ac3fd0c2bbdb2fbedbc86dd10c286",
+  "build-pi/workspace/src/a.ts": "a3b135bcfeaabda5d6780642cf256059889ad4649c9ba4f7a4d5d6e83a68b402",
+  "build-pi/workspace/src/b.ts": "70e328b58e3b0eb4a9d1ba67a5b22a0ada841e8797eb22732e10b5b10878f38b",
+  "build-ref/claims/story-01.md": "c53c58eef3b2a78f74486e41f6625159f7bc8a21167204061be5988b972e3d1a",
+  "build-ref/commits.txt": "cc27dfb02588e6eee5241bc04e2d5fe8d905b1e7749ee14c8b3c490992b06610",
+  "build-ref/heldout.json": "54246ae5e807e38fd980654c086e1bef853bb3116bdf417995837fa615cdea39",
+  "build-ref/workspace/src/a.ts": "6d82825cd79355e30e2de5e1473ab5283e0cc3f7ea3652a894652718d7c97078",
+  "scope.json": "4bcdd943745d8c757b5799022418ba6082f17918a95b522da11fc0bfdc78b93e",
+  "spec/spec.md": "d4f02eaafd1a9e9de7d10972ca8e47fa7a985825c3c9c1e249c72683cb3e4f19"
+ }
+}

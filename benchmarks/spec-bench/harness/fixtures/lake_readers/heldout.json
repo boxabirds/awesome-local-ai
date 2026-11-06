@@ -1,0 +1,94 @@
+{
+ "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/fx-r1#01": {
+  "by_story": {
+   "01": {
+    "passed": 1,
+    "total": 2
+   }
+  },
+  "passed": 2,
+  "tests": [
+   {
+    "file": "story-01.spec.ts",
+    "status": "passed",
+    "title": "story 01 pans"
+   },
+   {
+    "error": "Error: expected 2\nreceived 1",
+    "file": "story-01.spec.ts",
+    "status": "failed",
+    "title": "story 01 zooms"
+   }
+  ],
+  "total": 4
+ },
+ "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/fx-r1#02": {
+  "by_story": {
+   "02": {
+    "passed": 1,
+    "total": 2
+   }
+  },
+  "passed": 3,
+  "tests": [
+   {
+    "file": "story-02.spec.ts",
+    "status": "passed",
+    "title": "story 02 pans"
+   },
+   {
+    "error": "Error: expected 2\nreceived 1",
+    "file": "story-02.spec.ts",
+    "status": "failed",
+    "title": "story 02 zooms"
+   }
+  ],
+  "total": 4
+ },
+ "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/fx-r2#01": {
+  "by_story": {
+   "01": {
+    "passed": 1,
+    "total": 2
+   }
+  },
+  "passed": 3,
+  "tests": [
+   {
+    "file": "story-01.spec.ts",
+    "status": "passed",
+    "title": "story 01 pans"
+   },
+   {
+    "error": "Error: expected 2\nreceived 1",
+    "file": "story-01.spec.ts",
+    "status": "failed",
+    "title": "story 01 zooms"
+   }
+  ],
+  "total": 4
+ },
+ "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/fx-r2#02": {
+  "by_story": {
+   "02": {
+    "passed": 2,
+    "total": 2
+   }
+  },
+  "passed": 4,
+  "tests": [
+   {
+    "file": "story-02.spec.ts",
+    "status": "passed",
+    "title": "story 02 pans"
+   },
+   {
+    "error": "Error: expected 2\nreceived 1",
+    "file": "story-02.spec.ts",
+    "status": "failed",
+    "title": "story 02 zooms"
+   }
+  ],
+  "total": 4
+ }
+}

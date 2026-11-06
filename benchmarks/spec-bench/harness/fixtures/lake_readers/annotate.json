@@ -1,0 +1,258 @@
+[
+ {
+  "behaviour": {
+   "cumulative": "3/4",
+   "failed": [
+    {
+     "error": "Error: expected 2",
+     "title": "story 01 zooms"
+    }
+   ],
+   "own_passed": 1,
+   "own_total": 2
+  },
+  "claims": "",
+  "commits": [
+   "commit 2222222222222222222222222222222222222222\nvidi-agent  Fri Sep 25 16:00:00 2026 +0100\n\n    story 1: pan\n\n src/a.ts | 1 +"
+  ],
+  "completion": {
+   "agent_minutes": 3.0,
+   "compactions": null,
+   "ended_by": "agent",
+   "ended_in_error": null,
+   "nudges": null,
+   "resumes": null,
+   "status": "DONE",
+   "tool_calls": 6
+  },
+  "id": "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/fx-r2#01",
+  "run": "fx-r2",
+  "self_check_green": true,
+  "stack": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi",
+  "story": 1,
+  "tasks": [],
+  "timeline": [
+   {
+    "count": 3,
+    "kind": "tool",
+    "last": "bash cat spec/stories/012-drop-images-onto-the-board/design.md",
+    "min": 0.0,
+    "text": "bash find spec/stories/012-drop-images-onto-the-board -type f | head; echo ---; ls"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.7 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 1.7,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.7 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 2.9,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 89.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 4.0,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 89.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   }
+  ],
+  "title": "Pan the board"
+ },
+ {
+  "behaviour": {
+   "cumulative": "3/4",
+   "failed": [
+    {
+     "error": "Error: expected 2",
+     "title": "story 02 zooms"
+    }
+   ],
+   "own_passed": 1,
+   "own_total": 2
+  },
+  "claims": "",
+  "commits": [
+   "commit 2222222222222222222222222222222222222222\nvidi-agent  Fri Sep 25 17:07:33 2026 +0100\n\n    story 2: notes\n\n src/b.ts | 1 +"
+  ],
+  "completion": {
+   "agent_minutes": 2.0,
+   "compactions": null,
+   "ended_by": "agent",
+   "ended_in_error": null,
+   "nudges": null,
+   "resumes": null,
+   "status": "DONE",
+   "tool_calls": 7
+  },
+  "id": "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/fx-r1#02",
+  "run": "fx-r1",
+  "self_check_green": false,
+  "stack": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi",
+  "story": 2,
+  "tasks": [],
+  "timeline": [
+   {
+    "count": 3,
+    "kind": "tool",
+    "last": "bash cat spec/stories/012-drop-images-onto-the-board/design.md",
+    "min": 0.0,
+    "text": "bash find spec/stories/012-drop-images-onto-the-board -type f | head; echo ---; ls"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.7 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 1.7,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.7 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 2.9,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 89.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 4.0,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 89.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   }
+  ],
+  "title": "Notes"
+ },
+ {
+  "behaviour": {
+   "cumulative": "2/4",
+   "failed": [
+    {
+     "error": "Error: expected 2",
+     "title": "story 01 zooms"
+    }
+   ],
+   "own_passed": 1,
+   "own_total": 2
+  },
+  "claims": "",
+  "commits": [
+   "commit 1111111111111111111111111111111111111111\nvidi-agent  Fri Sep 25 16:00:00 2026 +0100\n\n    story 1: pan\n\n src/a.ts | 1 +"
+  ],
+  "completion": {
+   "agent_minutes": 1.5,
+   "compactions": null,
+   "ended_by": "agent",
+   "ended_in_error": null,
+   "nudges": null,
+   "resumes": null,
+   "status": "DONE",
+   "tool_calls": 5
+  },
+  "id": "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/fx-r1#01",
+  "run": "fx-r1",
+  "self_check_green": true,
+  "stack": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi",
+  "story": 1,
+  "tasks": [],
+  "timeline": [
+   {
+    "count": 3,
+    "kind": "tool",
+    "last": "bash cat spec/stories/012-drop-images-onto-the-board/design.md",
+    "min": 0.0,
+    "text": "bash find spec/stories/012-drop-images-onto-the-board -type f | head; echo ---; ls"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.7 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 1.7,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.7 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 2.9,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 89.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 4.0,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 89.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   }
+  ],
+  "title": "Pan the board"
+ },
+ {
+  "behaviour": {
+   "cumulative": "4/4",
+   "failed": [
+    {
+     "error": "Error: expected 2",
+     "title": "story 02 zooms"
+    }
+   ],
+   "own_passed": 2,
+   "own_total": 2
+  },
+  "claims": "",
+  "commits": [
+   "commit 3333333333333333333333333333333333333333\nvidi-agent  Fri Sep 25 17:07:33 2026 +0100\n\n    story 2: notes\n\n src/b.ts | 1 +"
+  ],
+  "completion": {
+   "agent_minutes": 4.0,
+   "compactions": null,
+   "ended_by": "agent",
+   "ended_in_error": null,
+   "nudges": null,
+   "resumes": null,
+   "status": "DONE",
+   "tool_calls": 8
+  },
+  "id": "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/fx-r2#02",
+  "run": "fx-r2",
+  "self_check_green": false,
+  "stack": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi",
+  "story": 2,
+  "tasks": [],
+  "timeline": [
+   {
+    "count": 3,
+    "kind": "tool",
+    "last": "bash cat spec/stories/012-drop-images-onto-the-board/design.md",
+    "min": 0.0,
+    "text": "bash find spec/stories/012-drop-images-onto-the-board -type f | head; echo ---; ls"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.7 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 1.7,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.7 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 2.9,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 90.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   },
+   {
+    "count": 1,
+    "kind": "error",
+    "last": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 89.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi",
+    "min": 4.0,
+    "text": "model error: insufficient memory: this request needs more memory than the engine may use (the engine held 89.9 GiB and its next prefill chunk needs 4.1 GiB, past its 90.0 GiB limit). The prefill stopped before that chunk, after findi"
+   }
+  ],
+  "title": "Notes"
+ }
+]
