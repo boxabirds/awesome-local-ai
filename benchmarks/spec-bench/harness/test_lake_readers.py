@@ -9,7 +9,7 @@ One fixture, built in two layouts (`world`):
             run in reference/. The checkout holds no run folder at all, so a tool that still read one would find
             nothing and its output would differ.
 The goldens in fixtures/lake_readers/ are the tools' output on the checkout layout, captured once with the code as it
-was before task 23.18 (commit 7cf93f444^, by capture_lake_readers.py) and never edited by hand.
+was before task 23.18 (commit 7cf93f444^; how, in fixtures/lake_readers/README.md) and never edited by hand.
 
 Per tool (the task 23.18 decisions say why the last four are as they are):
   annotate (attempts), heldout.private_copy (the held-out results found), judge (the blinded package),
