@@ -16,8 +16,9 @@ fn temp_dir(tag: &str) -> PathBuf {
 
 // ---- story 5: the lake takes the full record (lake.allowlist.full_record) ----
 
-/// The 19 fixed record names of the design table, with their kinds.
-const FIXED_RECORDS: [(&str, FileKind); 19] = [
+/// The 18 fixed record names of the design table, with their kinds. (workspace.bundle left it in story 23: the run's
+/// code reaches the lake's code repository through the code route.)
+const FIXED_RECORDS: [(&str, FileKind); 18] = [
     ("run.json", FileKind::Whole),
     ("run-history.jsonl", FileKind::Whole),
     ("run-status.json", FileKind::Whole),
@@ -36,7 +37,6 @@ const FIXED_RECORDS: [(&str, FileKind); 19] = [
     ("AUDIT.md", FileKind::Blob),
     ("audit.jsonl", FileKind::Blob),
     ("publish-refused.json", FileKind::Blob),
-    ("workspace.bundle", FileKind::Blob),
 ];
 const FIXED_RAW: [&str; 4] = ["server.log", "proxy.log", "requests.jsonl", "egress.jsonl"];
 /// The 9 story record names and the 2 story raw names.
@@ -54,11 +54,12 @@ const STORY_RECORDS: [(&str, FileKind); 9] = [
 const STORY_RAW: [&str; 2] = ["agent-events.jsonl", "conditions.jsonl"];
 
 #[test]
-fn the_table_holds_the_42_rules_of_the_design_and_the_legacy_records_beside_them() {
+fn the_table_holds_the_41_rules_of_the_design_and_the_legacy_records_beside_them() {
     assert_eq!(COLLECTABLE.len(), COLLECTED_RULES);
     assert_eq!(LEGACY_RECORDS.len(), LEGACY_RULES);
     let count = |f: &dyn Fn(&Collectable) -> bool| COLLECTABLE.iter().filter(|e| f(e)).count();
-    assert_eq!(count(&|e| matches!(e.pattern, Pattern::Fixed(_)) && e.class == Class::Record), 19);
+    assert_eq!(COLLECTED_RULES, 41);
+    assert_eq!(count(&|e| matches!(e.pattern, Pattern::Fixed(_)) && e.class == Class::Record), 18);
     assert_eq!(count(&|e| matches!(e.pattern, Pattern::Fixed(_)) && e.class == Class::Raw), 4);
     assert_eq!(count(&|e| matches!(e.pattern, Pattern::Story(_)) && e.class == Class::Record), 9);
     assert_eq!(count(&|e| matches!(e.pattern, Pattern::Story(_)) && e.class == Class::Raw), 2);
@@ -323,7 +324,7 @@ fn every_rule_resolves_under_the_run_dir_or_the_egress_dir() {
 #[test]
 fn each_name_left_out_on_purpose_is_classified_with_a_reason() {
     // TC-29
-    for name in ["workspace/a/b", "control/skip-story.json", "current_story", "work_dir.txt", ".gitignore", "archived.json"] {
+    for name in ["workspace/a/b", "control/skip-story.json", "current_story", "work_dir.txt", ".gitignore", "archived.json", "workspace.bundle"] {
         match classify(name) {
             Classification::NotCollected(rule, reason) => assert!(!reason.is_empty() && !rule.is_empty(), "{name}"),
             other => panic!("{name}: {other:?}"),
@@ -343,14 +344,18 @@ fn a_temporary_is_left_out_and_wins_over_the_tree_rule() {
 }
 
 #[test]
-fn every_not_collected_rule_has_a_reason_and_the_list_has_eight() {
-    // TC-33
-    assert_eq!(NOT_COLLECTED.len(), 8);
+fn every_not_collected_rule_has_a_reason_and_the_list_has_nine() {
+    // TC-33; the ninth is workspace.bundle (story 23)
+    assert_eq!(NOT_COLLECTED.len(), 9);
     for r in NOT_COLLECTED {
         assert!(r.reason.len() > 10 && !r.id.is_empty(), "{}", r.id);
     }
     let ids: BTreeSet<&str> = NOT_COLLECTED.iter().map(|r| r.id).collect();
-    assert_eq!(ids.len(), 8);
+    assert_eq!(ids.len(), 9);
+    // The bundle is neither offered nor taken, and the working tree's reason no longer points at it.
+    assert!(parse_name("workspace.bundle").is_none());
+    let tree = NOT_COLLECTED.iter().find(|r| r.id == "workspace/**").unwrap();
+    assert!(!tree.reason.contains("bundle"), "{}", tree.reason);
 }
 
 #[test]

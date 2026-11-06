@@ -149,6 +149,7 @@ impl Node {
         let dir = self.run_dir(run_id);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("run.json"), fixture("run.json")).unwrap();
+        std::fs::write(dir.join(dbench::collect::WORK_DIR_FILE), "/home/x/.w/r\n").unwrap(); // ran on this node
         if let Some(f) = status_fixture {
             std::fs::write(dir.join("run-status.json"), fixture(f)).unwrap();
         }
@@ -688,6 +689,8 @@ fn copy_lake_run(src: &Path, dst: &Path) {
             std::fs::copy(src.join(name), dst.join(name)).unwrap();
         }
     }
+    // The node it stands for ran it (the lake never holds work_dir.txt; story 23: a node offers only its own runs).
+    std::fs::write(dst.join(dbench::collect::WORK_DIR_FILE), "/home/x/.w/r\n").unwrap();
     if let Ok(rd) = std::fs::read_dir(src.join("stories")) {
         for e in rd.filter_map(|e| e.ok()).filter(|e| e.file_type().is_ok_and(|t| t.is_dir())) {
             let n = e.file_name();

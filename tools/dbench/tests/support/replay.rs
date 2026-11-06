@@ -860,6 +860,9 @@ impl Replay {
             Some(p) => copy_file(p, &dir.join("run.json")),
             None => std::fs::write(dir.join("run.json"), "{}").unwrap(),
         }
+        // The replayed run is the node's own: the harness wrote work_dir.txt where it ran (the lake never holds it),
+        // and since story 23 a node offers only such runs.
+        std::fs::write(dir.join(dbench::collect::WORK_DIR_FILE), "/home/x/.w/replay\n").unwrap();
         Replay { run, run_id: run_id.into(), dir, story_files: BTreeSet::new(), run_files: false, monotone: false, floor: HashMap::new() }
     }
 

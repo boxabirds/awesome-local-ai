@@ -2,8 +2,9 @@
 //!
 //! The host pulls a run's full record with `GET /v1/runs/files` and `/v1/runs/file` (server.rs): the files git
 //! does not carry (the full agent transcript, the model server's log, the live progress file, the egress log) and
-//! the files git does (the scores, the held-out detail, the workspace bundle, the compact conversation logs, the
-//! re-scores). This module is the allow-list behind them: a request names a file, the name is matched against the
+//! the files git did (the scores, the held-out detail, the compact conversation logs, the re-scores). The run's code
+//! is not a file here: it reaches the lake's code repository through the code route (story 23), and the old bundle
+//! is left out. A node offers only the runs it ran (`is_own_run`). This module is the allow-list behind them: a request names a file, the name is matched against the
 //! rules here, and the path is built only from segments that passed the same rules. A name no rule accepts is never
 //! served and never listed. What is left out on purpose is named too (`NOT_COLLECTED`), and a test at the end of this
 //! file requires every file name the harness can write to be in exactly one of the two lists.
@@ -32,6 +33,8 @@ pub const RUN_MARKER: &str = "run.json";
 pub const RUN_STATUS_FILE: &str = "run-status.json";
 /// Written by the harness once the agent's work directory is made; its basename is the egress log's name.
 pub const WORK_DIR_FILE: &str = "work_dir.txt";
+/// A run's code as a git bundle, the harness's old carrier: no longer collected (story 23).
+pub const BUNDLE_FILE: &str = "workspace.bundle";
 pub const STORIES_DIR: &str = "stories";
 pub const EVENTS_FILE: &str = "agent-events.jsonl";
 pub const CONDITIONS_FILE: &str = "conditions.jsonl";
@@ -155,7 +158,7 @@ const fn tree(id: &'static str, root: TreeRoot) -> Collectable {
 
 /// How many rules the full record has: 19 fixed record names, 4 fixed raw names, 9 story record names, 2 story raw
 /// names and 8 tree rules.
-pub const COLLECTED_RULES: usize = 42;
+pub const COLLECTED_RULES: usize = 41;
 /// How many more the corpus of recorded run directories needed (an older layout's records, one older file).
 pub const LEGACY_RULES: usize = 8;
 
@@ -191,7 +194,6 @@ pub const COLLECTABLE: [Collectable; COLLECTED_RULES] = [
     fixed("AUDIT.md", FileKind::Blob, Class::Record),
     fixed("audit.jsonl", FileKind::Blob, Class::Record),
     fixed("publish-refused.json", FileKind::Blob, Class::Record),
-    fixed("workspace.bundle", FileKind::Blob, Class::Record),
     fixed("requests.jsonl", FileKind::Append, Class::Raw),
     story("stories/NN/prompt.md", "prompt.md", FileKind::Whole, Class::Record),
     story("stories/NN/accept-final-summary.json", "accept-final-summary.json", FileKind::Whole, Class::Record),
@@ -336,8 +338,9 @@ pub struct NotCollected {
 
 /// The named list of what the collector never takes. Every file name the harness can write is in this list or in
 /// `COLLECTABLE` (or `LEGACY_RECORDS`), and never in both.
-pub const NOT_COLLECTED: [NotCollected; 8] = [
-    NotCollected { id: "workspace/**", pattern: NcPattern::Tree(WORKSPACE_DIR), reason: "the agent's working tree: rebuildable from workspace.bundle" },
+pub const NOT_COLLECTED: [NotCollected; 9] = [
+    NotCollected { id: "workspace/**", pattern: NcPattern::Tree(WORKSPACE_DIR), reason: "the agent's working tree: its commits reach the lake's code repository through the code route" },
+    NotCollected { id: BUNDLE_FILE, pattern: NcPattern::Fixed(BUNDLE_FILE), reason: "the old carrier of the run's code: since story 23 the code reaches the lake's code repository through the code route" },
     NotCollected { id: "control/**", pattern: NcPattern::Tree(CONTROL_DIR), reason: "live control files such as the operator's skip request" },
     NotCollected { id: CURRENT_STORY_FILE, pattern: NcPattern::Fixed(CURRENT_STORY_FILE), reason: "the live marker of the story now running" },
     NotCollected { id: WORK_DIR_FILE, pattern: NcPattern::Fixed(WORK_DIR_FILE), reason: "the work folder note: a machine path (the egress log is reached through it, the note is not taken)" },
@@ -676,12 +679,21 @@ pub fn run_status(run_dir: &Path) -> Option<RunStatus> {
 }
 
 /// The absolute run directory a repo-relative path names, if it is a valid path and a run dir.
+/// A run folder this node ran (story 23, node.own_runs): it holds `run.json` and `work_dir.txt`. The harness writes
+/// work_dir.txt where the run runs and git never carries it, so a copy of another machine's run that git brought
+/// into this checkout has `run.json` but not it, and is not this node's to offer.
+pub fn is_own_run(dir: &Path) -> bool {
+    dir.join(RUN_MARKER).is_file() && dir.join(WORK_DIR_FILE).is_file()
+}
+
+/// The folder of a run this node ran, named by its repo-relative path; None for a path that is not one, a folder that
+/// is not a run, and a run git carried here from another machine.
 pub fn is_run_dir(repo: &Path, rel: &str) -> Option<PathBuf> {
     if !valid_run_dir(rel) {
         return None;
     }
     let dir = repo.join(rel);
-    dir.join(RUN_MARKER).is_file().then_some(dir)
+    is_own_run(&dir).then_some(dir)
 }
 
 fn rel_of(repo: &Path, dir: &Path) -> Option<String> {
@@ -699,7 +711,7 @@ fn runs_under(repo: &Path, benchmarks: &Path, out: &mut Vec<String>) {
             continue;
         };
         for run in runs.filter_map(|e| e.ok()) {
-            if run.path().join(RUN_MARKER).is_file() {
+            if is_own_run(&run.path()) {
                 out.extend(rel_of(repo, &run.path()));
             }
         }
@@ -724,10 +736,10 @@ fn walk_combinations(repo: &Path, dir: &Path, depth: usize, out: &mut Vec<String
     }
 }
 
-/// Every run directory on this machine, relative to the repo: under each combination (a directory
+/// Every run this machine ran (`is_own_run`), relative to the repo: under each combination (a directory
 /// under `combinations/` with `config.sh`) its `benchmarks/<pack>/<run>/`, and for each install
 /// with a `RUN_BASE` (a reference stack) `<RUN_BASE>/<run>/`. A run dir's own contents (the
-/// workspace, node_modules) are never walked.
+/// workspace, node_modules) are never walked; a run git carried here from another machine is not listed.
 pub fn list_runs(repo: &Path, share_dir: &Path) -> Vec<String> {
     let mut out = Vec::new();
     walk_combinations(repo, &repo.join(COMBINATIONS_DIR), 0, &mut out);
@@ -747,7 +759,7 @@ pub fn list_runs(repo: &Path, share_dir: &Path) -> Vec<String> {
                 continue;
             };
             for run in runs.filter_map(|e| e.ok()) {
-                if run.path().join(RUN_MARKER).is_file() {
+                if is_own_run(&run.path()) {
                     out.extend(rel_of(repo, &run.path()));
                 }
             }
@@ -838,12 +850,18 @@ mod tests {
         let comb = repo.join("combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi");
         std::fs::create_dir_all(&comb).unwrap();
         std::fs::write(comb.join(COMBINATION_CONFIG), "INSTALL_ID=\"x\"\n").unwrap();
-        for run in ["v2-r1", "v2-r2"] {
+        for run in ["v2-r1", "v2-r2", "v2-r3"] {
             let d = comb.join("benchmarks/vidi").join(run);
             std::fs::create_dir_all(d.join("workspace/node_modules/deep")).unwrap();
             std::fs::write(d.join(RUN_MARKER), "{}").unwrap();
-            // A nested run.json inside the workspace must not be taken for a run.
+            // A nested run.json (and work-folder note) inside the workspace must not be taken for a run.
             std::fs::write(d.join("workspace/node_modules/deep").join(RUN_MARKER), "{}").unwrap();
+            std::fs::write(d.join("workspace/node_modules/deep").join(WORK_DIR_FILE), "/w").unwrap();
+        }
+        // Story 23 (node.own_runs): a run is this node's when its folder holds work_dir.txt, which git never carries.
+        // v2-r1 and v2-r2 ran here; v2-r3 is a copy git carried from another machine, so it is not offered.
+        for run in ["v2-r1", "v2-r2"] {
+            std::fs::write(comb.join("benchmarks/vidi").join(run).join(WORK_DIR_FILE), "/home/x/.w/r").unwrap();
         }
         // A run dir without the marker (a stray directory) is not a run.
         std::fs::create_dir_all(comb.join("benchmarks/vidi/stray")).unwrap();
@@ -857,6 +875,11 @@ mod tests {
         let base = repo.join("benchmarks/reference/vidi/opus-5.5/run-3");
         std::fs::create_dir_all(&base).unwrap();
         std::fs::write(base.join(RUN_MARKER), "{}").unwrap();
+        std::fs::write(base.join(WORK_DIR_FILE), "/home/x/.w/ref").unwrap();
+        // A reference run of the same stack that another machine made, carried here by git.
+        let carried = repo.join("benchmarks/reference/vidi/opus-5.5/run-4");
+        std::fs::create_dir_all(&carried).unwrap();
+        std::fs::write(carried.join(RUN_MARKER), "{}").unwrap();
         // An install with a RUN_BASE that isn't a valid relative path is ignored.
         std::fs::create_dir_all(share.join("bad")).unwrap();
         std::fs::write(share.join("bad").join(INSTALL_ENV), "RUN_BASE=\"../etc\"\n").unwrap();
@@ -878,6 +901,10 @@ mod tests {
             "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/stray"
         )
         .is_none());
+        // A carried copy is not served either: the node API answers 404 for it.
+        assert!(is_run_dir(&repo, "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r3").is_none());
+        assert!(is_run_dir(&repo, "benchmarks/reference/vidi/opus-5.5/run-4").is_none());
+        assert!(is_run_dir(&repo, "benchmarks/reference/vidi/opus-5.5/run-3").is_some());
         assert!(is_run_dir(&repo, "../etc").is_none());
         assert!(is_run_dir(&repo, "/etc").is_none());
         std::fs::remove_dir_all(&root).unwrap();
@@ -904,6 +931,7 @@ mod tests {
         let base = repo.join("benchmarks/reference/vidi/opus-5.5");
         std::fs::create_dir_all(base.join("run-1")).unwrap();
         std::fs::write(base.join("run-1").join(RUN_MARKER), "{}").unwrap();
+        std::fs::write(base.join("run-1").join(WORK_DIR_FILE), "/w/run-1").unwrap();
         std::fs::create_dir_all(base.join("stray")).unwrap();
         // A file in the share dir beside the installs is no install either.
         std::fs::write(share.join("README"), "x").unwrap();
@@ -920,6 +948,7 @@ mod tests {
         std::fs::create_dir_all(comb.join("benchmarks/vidi/v2-r1")).unwrap();
         std::fs::write(comb.join(COMBINATION_CONFIG), "INSTALL_ID=\"x\"\n").unwrap();
         std::fs::write(comb.join("benchmarks/vidi/v2-r1").join(RUN_MARKER), "{}").unwrap();
+        std::fs::write(comb.join("benchmarks/vidi/v2-r1").join(WORK_DIR_FILE), "/w/v2-r1").unwrap();
         // A file where a pack directory would be, and a file among the directories that lead to the combination.
         std::fs::write(comb.join("benchmarks/NOTES.txt"), "x").unwrap();
         std::fs::write(repo.join("combinations/qwen/README.md"), "x").unwrap();
@@ -943,6 +972,7 @@ mod tests {
             std::fs::create_dir_all(comb.join("benchmarks/vidi/r1")).unwrap();
             std::fs::write(comb.join(COMBINATION_CONFIG), "INSTALL_ID=\"x\"\n").unwrap();
             std::fs::write(comb.join("benchmarks/vidi/r1").join(RUN_MARKER), "{}").unwrap();
+            std::fs::write(comb.join("benchmarks/vidi/r1").join(WORK_DIR_FILE), "/w/r1").unwrap();
         }
         // A combination that has never been benchmarked: its config, no benchmarks directory.
         let bare = repo.join("combinations/bare");

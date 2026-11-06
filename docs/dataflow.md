@@ -402,6 +402,10 @@ sequenceDiagram
   `proxy.log`, `conditions.jsonl` per story, the egress log, `progress.json`.
 - **Moved by** `dbench collect`. Each pass lists every node's runs (`GET /v1/runs`), then
   each run's files (`/v1/runs/files`), then pulls what it does not hold (`/v1/runs/file`).
+  A node lists and serves only the runs it ran: a run folder holding `work_dir.txt`, which git
+  never carries (story 23, `collect::is_own_run`); a copy of another machine's run that git
+  brought into its checkout is not offered (404). `workspace.bundle` is not collected: a run's
+  code reaches the lake's code repository through the code route.
   An append-only file resumes from its local length, after a prefix check of the last
   4096 bytes; a file the node rewrote is fetched again from 0. `progress.json` is pulled
   whole.

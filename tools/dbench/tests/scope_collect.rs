@@ -79,6 +79,7 @@ impl Fx {
         let node = Node::start().await;
         std::fs::create_dir_all(node.run_dir(RUN_ID)).unwrap();
         std::fs::write(node.run_dir(RUN_ID).join("run.json"), "{}").unwrap();
+        std::fs::write(node.run_dir(RUN_ID).join(dbench::collect::WORK_DIR_FILE), "/home/x/.w/r\n").unwrap(); // ran here
         // the node lists the runs of a combination: a folder under combinations/ that has config.sh
         std::fs::write(node.shared.cfg.repo.join("combinations").join(replay::COMBINATION).join("config.sh"), "").unwrap();
         Fx { node, lake: Lakedir::new() }
@@ -464,14 +465,16 @@ async fn files_of_every_kind_arrive() {
     fx.status("started");
     fx.job(Some("running"));
     let bundle = pseudo(BLOB_CHUNKS * collect::COLLECT_CHUNK_BYTES as usize + 77);
-    fx.write("workspace.bundle", &bundle);
+    fx.write("workspace-git-log.txt", &bundle);
+    fx.write("workspace.bundle", b"left by a harness from before story 23: not collected");
     fx.write("metrics.json", b"{\"v\":1}");
     fx.write("stories/01/gate.json", b"{\"gate\":1}");
     fx.write("stories/01/artifacts/shots/a.png", &pseudo(5000));
     fx.write("server.log", b"line one\n");
     fx.pass(T0).await;
     let held = |name: &str| fx.in_lake(name).unwrap_or_else(|| panic!("{name} did not arrive"));
-    assert_eq!(held("workspace.bundle"), bundle, "a blob of several chunks");
+    assert_eq!(held("workspace-git-log.txt"), bundle, "a blob of several chunks");
+    assert!(fx.in_lake("workspace.bundle").is_none(), "the bundle is not collected (story 23)");
     assert_eq!(held("metrics.json"), b"{\"v\":1}");
     assert_eq!(held("stories/01/gate.json"), b"{\"gate\":1}", "a story file");
     assert_eq!(held("stories/01/artifacts/shots/a.png"), pseudo(5000), "a nested file");
@@ -521,7 +524,7 @@ async fn the_pass_writes_only_inside_the_runs_lake_folder() {
     let fx = Fx::new().await;
     fx.status("finished");
     fx.write(AGENT, &lines(&[ag("1.5", 1)]));
-    fx.write("workspace.bundle", &pseudo(1000));
+    fx.write("workspace-git-log.txt", &pseudo(1000));
     let before = files_below(&fx.lake.0);
     assert!(before.is_empty());
     for now in [T0, WITHIN_GRACE, AFTER_GRACE] {
@@ -543,7 +546,7 @@ async fn only_the_scope_routes_are_used() {
     fx.job(Some("done"));
     fx.write(AGENT, &lines(&[ag("1.5", 1)]));
     fx.write("metrics.json", b"{}");
-    fx.write("workspace.bundle", &pseudo(100));
+    fx.write("workspace-git-log.txt", &pseudo(100));
     let ctx = fx.ctx();
     let cfg = Config { store: fx.lake.0.clone(), reference: fx.lake.0.join("ref"), no_ingest: true, scopes: true, free_bytes: |_| Ok(u64::MAX), ..Default::default() };
     collector::pass(&ctx, &cfg, &cadence(0), false, T0).await.unwrap();
@@ -699,6 +702,7 @@ async fn e_one_runs_error_does_not_stop_the_others() {
     let other = fx.node.run_dir("r2");
     std::fs::create_dir_all(&other).unwrap();
     std::fs::write(other.join("run.json"), "{}").unwrap();
+    std::fs::write(other.join(dbench::collect::WORK_DIR_FILE), "/home/x/.w/r2\n").unwrap();
     std::fs::create_dir_all(other.join("stories/01")).unwrap();
     std::fs::write(other.join(AGENT), lines(&[ag("9.5", 1)])).unwrap();
     let cfg = Config { store: fx.lake.0.clone(), reference: fx.lake.0.join("ref"), no_ingest: true, scopes: true, free_bytes: |_| Ok(u64::MAX), ..Default::default() };

@@ -141,6 +141,11 @@ fn pattern(len: usize, seed: u8) -> Vec<u8> {
     (0..len).map(|i| (i as u8).wrapping_mul(31).wrapping_add(seed).wrapping_add((i >> 8) as u8).wrapping_add((i >> 16) as u8)).collect()
 }
 
+/// The large blob record the transfer tests use (until story 23 they used workspace.bundle, which is no longer collected).
+const BIG_BLOB: &str = "workspace-git-log.txt";
+/// The note that makes a run folder this node's (`collect::is_own_run`): the harness writes it where the run runs.
+const OWN_RUN_NOTE: &str = dbench::collect::WORK_DIR_FILE;
+
 fn write(dir: &Path, name: &str, body: &[u8]) {
     let p = dir.join(name);
     std::fs::create_dir_all(p.parent().unwrap()).unwrap();
@@ -164,6 +169,7 @@ fn make_finished_run(dir: &Path, sizes: &Sizes) -> Vec<String> {
         names.push(name.to_string());
     };
     put(dir, "run.json", br#"{"install_id": "fake-install"}"#.to_vec());
+    write(dir, OWN_RUN_NOTE, b"/home/x/.w/fake/workspace\n"); // it ran on this node (story 23: nodes offer only those)
     put(dir, "run-status.json", br#"{"state": "finished", "reason": "", "at": "2026-10-15T00:00:00Z"}"#.to_vec());
     put(dir, "metrics.json", br#"{"stories": {"1": {"title": "One"}}}"#.to_vec());
     put(dir, "finalize.json", pattern(2_000, 1));
@@ -173,8 +179,7 @@ fn make_finished_run(dir: &Path, sizes: &Sizes) -> Vec<String> {
     put(dir, "run-history.jsonl", pattern(900, 5));
     put(dir, "interventions.md", pattern(100, 6));
     put(dir, "flow-counts.json", pattern(200, 7));
-    put(dir, "workspace-git-log.txt", pattern(5_000, 8));
-    put(dir, "workspace.bundle", pattern(sizes.bundle, 9));
+    put(dir, BIG_BLOB, pattern(sizes.bundle, 9));
     put(dir, "heldout-detail.json", pattern(30_000, 10));
     put(dir, "AUDIT.md", pattern(4_000, 11));
     put(dir, "audit.jsonl", pattern(6_000, 12));
@@ -221,9 +226,10 @@ fn add_left_out(dir: &Path) -> Vec<&'static str> {
     write(dir, "current_story", b"3\n");
     write(dir, "work_dir.txt", b"/home/x/.w/abc123/workspace\n");
     write(dir, ".gitignore", b"workspace/\n");
+    write(dir, "workspace.bundle", b"a bundle written by a harness from before story 23");
     write(dir, ".run-status.json.4242.tmp", b"half");
     write(dir, "stories/01/artifacts/.shot.png.partial", b"half");
-    vec!["workspace/src/app.ts", "workspace/node_modules/dep/index.js", "control/skip-story.json", "current_story", "work_dir.txt", ".gitignore", ".run-status.json.4242.tmp", "stories/01/artifacts/.shot.png.partial"]
+    vec!["workspace/src/app.ts", "workspace/node_modules/dep/index.js", "control/skip-story.json", "current_story", "work_dir.txt", ".gitignore", "workspace.bundle", ".run-status.json.4242.tmp", "stories/01/artifacts/.shot.png.partial"]
 }
 
 fn run_dir(env: &Env) -> PathBuf {
@@ -320,7 +326,7 @@ async fn the_manifest_of_a_real_run_lists_the_full_record() {
         assert!(listed.contains(want), "{want} is not offered; the manifest has {} names", listed.len());
     }
     for want in [
-        "finalize.json", "summary.md", "server-health.json", "workspace.bundle", "workspace-git-log.txt", "run-history.jsonl",
+        "finalize.json", "summary.md", "server-health.json", BIG_BLOB, "run-history.jsonl",
         "rescore/vidi-v2.0-pre2/rescore.json", "stories/01/prompt.md", "stories/01/accept.json", "stories/01/accept-summary.json",
         "stories/01/accept-report.json", "stories/01/accept-final.json", "stories/01/agent-events.compact.jsonl.gz",
         "stories/01/artifacts/app-start.log", "stories/01/screenshots/shot-000.png", "AUDIT.md", "audit.jsonl", "heldout-detail.json", "summary-detail.md",
@@ -337,7 +343,7 @@ async fn the_manifest_of_a_real_run_lists_the_full_record() {
     }
     // Kinds: the large ones are blobs.
     let kind = |n: &str| m["files"].as_array().unwrap().iter().find(|f| f["name"] == n).unwrap()["kind"].as_str().unwrap().to_string();
-    assert_eq!((kind("workspace.bundle"), kind("run.json"), kind("server.log")), ("blob".into(), "whole".into(), "append".into()));
+    assert_eq!((kind(BIG_BLOB), kind("run.json"), kind("server.log")), ("blob".into(), "whole".into(), "append".into()));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -387,6 +393,7 @@ fn one_blob_env(name: &str, data: &[u8]) -> (Env, PathBuf) {
     let env = setup();
     let dir = run_dir(&env);
     write(&dir, "run.json", b"{}");
+    write(&dir, OWN_RUN_NOTE, b"/home/x/.w/r\n");
     write(&dir, name, data);
     (env, dir)
 }
@@ -409,24 +416,24 @@ async fn a_blob_of_a_hundred_kilobytes_arrives_in_one_request_byte_for_byte() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_ten_megabyte_bundle_arrives_in_three_requests_and_leaves_no_partial() {
+async fn a_ten_megabyte_blob_arrives_in_three_requests_and_leaves_no_partial() {
     // TC-16, TC-17
     let data = pattern(10 * MIB, 22);
-    let (env, _) = one_blob_env("workspace.bundle", &data);
+    let (env, _) = one_blob_env(BIG_BLOB, &data);
     let srv = start(&env);
     // By hand, the way the client asks: the second and third requests name the mtime the first carried.
-    let (s1, h1, b1) = srv.get_raw(&Server::file_url(RUN, "workspace.bundle", "&from=0")).await;
+    let (s1, h1, b1) = srv.get_raw(&Server::file_url(RUN, BIG_BLOB, "&from=0")).await;
     assert_eq!((s1, h1["eof"].as_str(), b1.len()), (200, "0", CHUNK));
     let mtime = h1["mtime"].clone();
-    let (s2, h2, b2) = srv.get_raw(&Server::file_url(RUN, "workspace.bundle", &format!("&from={CHUNK}&mtime={mtime}"))).await;
+    let (s2, h2, b2) = srv.get_raw(&Server::file_url(RUN, BIG_BLOB, &format!("&from={CHUNK}&mtime={mtime}"))).await;
     assert_eq!((s2, h2["eof"].as_str(), b2.len()), (200, "0", CHUNK));
-    let (s3, h3, b3) = srv.get_raw(&Server::file_url(RUN, "workspace.bundle", &format!("&from={}&mtime={mtime}", 2 * CHUNK))).await;
+    let (s3, h3, b3) = srv.get_raw(&Server::file_url(RUN, BIG_BLOB, &format!("&from={}&mtime={mtime}", 2 * CHUNK))).await;
     assert_eq!((s3, h3["eof"].as_str(), b3.len()), (200, "1", 2 * MIB));
     assert_eq!([b1, b2, b3].concat(), data);
     // Through the collector: the final name appears only after the last chunk, the partial exists before.
-    let dest = env.root.join("out/workspace.bundle");
-    let part = env.root.join("out/.workspace.bundle.partial");
-    let entry = entry_for(&run_dir(&env), "workspace.bundle", collect::FileKind::Blob);
+    let dest = env.root.join("out/workspace-git-log.txt");
+    let part = env.root.join("out/.workspace-git-log.txt.partial");
+    let entry = entry_for(&run_dir(&env), BIG_BLOB, collect::FileKind::Blob);
     let mut chunks = 0;
     let mut progress = |p: &Partial| -> anyhow::Result<()> {
         chunks += 1;
@@ -444,11 +451,11 @@ async fn a_ten_megabyte_bundle_arrives_in_three_requests_and_leaves_no_partial()
 async fn a_pass_killed_after_two_chunks_is_resumed_from_the_partial_over_the_real_server() {
     // TC-18
     let data = pattern(10 * MIB, 23);
-    let (env, _) = one_blob_env("workspace.bundle", &data);
+    let (env, _) = one_blob_env(BIG_BLOB, &data);
     let srv = start(&env);
-    let dest = env.root.join("out/workspace.bundle");
-    let part = env.root.join("out/.workspace.bundle.partial");
-    let entry = entry_for(&run_dir(&env), "workspace.bundle", collect::FileKind::Blob);
+    let dest = env.root.join("out/workspace-git-log.txt");
+    let part = env.root.join("out/.workspace-git-log.txt.partial");
+    let entry = entry_for(&run_dir(&env), BIG_BLOB, collect::FileKind::Blob);
     let mut recorded: Option<Partial> = None;
     let mut seen = 0;
     let mut killed_after_two = |p: &Partial| -> anyhow::Result<()> {
@@ -478,11 +485,11 @@ async fn a_file_rewritten_between_two_chunks_gives_a_conflict_and_the_copy_ends_
     // TC-19
     let old = pattern(9 * MIB, 24);
     let new = pattern(7 * MIB + 99, 25);
-    let (env, dir) = one_blob_env("workspace.bundle", &old);
+    let (env, dir) = one_blob_env(BIG_BLOB, &old);
     let srv = start(&env);
-    let dest = env.root.join("out/workspace.bundle");
-    let entry = entry_for(&dir, "workspace.bundle", collect::FileKind::Blob);
-    let node_file = dir.join("workspace.bundle");
+    let dest = env.root.join("out/workspace-git-log.txt");
+    let entry = entry_for(&dir, BIG_BLOB, collect::FileKind::Blob);
+    let node_file = dir.join(BIG_BLOB);
     let mut rewritten = false;
     let mut rewrite_after_first_chunk = |_: &Partial| -> anyhow::Result<()> {
         if !rewritten {
@@ -495,9 +502,9 @@ async fn a_file_rewritten_between_two_chunks_gives_a_conflict_and_the_copy_ends_
     let pulled = collector::pull_blob(&srv.api(), &RunRef::Path(RUN.into()), &entry, &dest, None, &mut rewrite_after_first_chunk).await.unwrap();
     assert_eq!(pulled.refetches, 1);
     assert_eq!(std::fs::read(&dest).unwrap(), new);
-    assert!(!env.root.join("out/.workspace.bundle.partial").exists());
+    assert!(!env.root.join("out/.workspace-git-log.txt.partial").exists());
     // The server's answer to a stale read, by hand.
-    let (status, _, body) = srv.get_raw(&Server::file_url(RUN, "workspace.bundle", &format!("&from={CHUNK}&mtime=1.000"))).await;
+    let (status, _, body) = srv.get_raw(&Server::file_url(RUN, BIG_BLOB, &format!("&from={CHUNK}&mtime=1.000"))).await;
     assert_eq!(status, 409);
     assert!(error_of(&body).contains("E-BLOB-CHANGED"), "{}", error_of(&body));
 }
@@ -510,35 +517,35 @@ async fn a_complete_blob_whose_node_mtime_changed_is_fetched_again_and_replaced_
     let env = setup();
     let dir = run_dir(&env);
     make_finished_run(&dir, &Sizes { bundle: first.len(), compact: 1_000 });
-    write(&dir, "workspace.bundle", &first);
+    write(&dir, BIG_BLOB, &first);
     let srv = start(&env);
     for now in [100, 200, 300] {
         pass(&env, &srv, now).await;
     }
-    let held = lake_run(&env).join("workspace.bundle");
+    let held = lake_run(&env).join(BIG_BLOB);
     assert_eq!(std::fs::read(&held).unwrap(), first);
     assert!(note(&lake_run(&env)).complete);
     // The node rewrites it (a re-score replacing the bundle). The recheck is set to zero so the look is due.
-    write(&dir, "workspace.bundle", &second);
-    set_mtime(&dir.join("workspace.bundle"), 500);
+    write(&dir, BIG_BLOB, &second);
+    set_mtime(&dir.join(BIG_BLOB), 500);
     let cad = Cadence { finished_recheck: Duration::ZERO, ..cadence(0) };
     let s = collector::pass(&ctx_of(&[(NODE_NAME, &srv)]), &config(&env), &cad, false, 400).await.unwrap();
     assert_eq!(s[0].runs[0].pulled_files, 1, "{:?}", s[0].runs[0]);
     assert_eq!(std::fs::read(&held).unwrap(), second);
-    assert!(!lake_run(&env).join(".workspace.bundle.partial").exists());
+    assert!(!lake_run(&env).join(".workspace-git-log.txt.partial").exists());
     assert!(!note(&lake_run(&env)).complete, "a changed file starts the settling over");
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_blob_that_changes_on_every_request_fails_with_the_limit_and_the_lake_keeps_its_last_complete_copy() {
     // TC-21
-    let (env, dir) = one_blob_env("workspace.bundle", &pattern(9 * MIB, 28));
+    let (env, dir) = one_blob_env(BIG_BLOB, &pattern(9 * MIB, 28));
     let srv = start(&env);
-    let dest = env.root.join("out/workspace.bundle");
+    let dest = env.root.join("out/workspace-git-log.txt");
     let last_good = pattern(77, 29);
-    write(&env.root, "out/workspace.bundle", &last_good);
-    let entry = entry_for(&dir, "workspace.bundle", collect::FileKind::Blob);
-    let node_file = dir.join("workspace.bundle");
+    write(&env.root, "out/workspace-git-log.txt", &last_good);
+    let entry = entry_for(&dir, BIG_BLOB, collect::FileKind::Blob);
+    let node_file = dir.join(BIG_BLOB);
     let mut n = 0u64;
     let mut rewrite_every_chunk = |_: &Partial| -> anyhow::Result<()> {
         n += 1;
@@ -549,7 +556,7 @@ async fn a_blob_that_changes_on_every_request_fails_with_the_limit_and_the_lake_
     let err = collector::pull_blob(&srv.api(), &RunRef::Path(RUN.into()), &entry, &dest, None, &mut rewrite_every_chunk).await.unwrap_err().to_string();
     assert!(err.contains(collector::E_REFETCH_LIMIT), "{err}");
     assert_eq!(std::fs::read(&dest).unwrap(), last_good);
-    assert!(!env.root.join("out/.workspace.bundle.partial").exists());
+    assert!(!env.root.join("out/.workspace-git-log.txt.partial").exists());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -558,6 +565,7 @@ async fn a_whole_file_over_one_chunk_is_refused_with_its_code_and_a_zero_byte_bl
     let env = setup();
     let dir = run_dir(&env);
     write(&dir, "run.json", b"{}");
+    write(&dir, OWN_RUN_NOTE, b"/home/x/.w/r\n");
     write(&dir, "run-history.jsonl", &vec![b'a'; CHUNK + 1]);
     write(&dir, "heldout-detail.json", b"");
     let srv = start(&env);
@@ -584,11 +592,12 @@ async fn the_large_members_of_a_run_arrive_whole_at_twenty_and_fifty_megabytes()
     let bundle = pattern(20 * MIB, 31);
     let compact = pattern(50 * MIB, 32);
     write(&dir, "run.json", b"{}");
-    write(&dir, "workspace.bundle", &bundle);
+    write(&dir, OWN_RUN_NOTE, b"/home/x/.w/r\n");
+    write(&dir, BIG_BLOB, &bundle);
     write(&dir, "stories/01/agent-events.compact.jsonl.gz", &compact);
     let srv = start(&env);
     pass(&env, &srv, 100).await;
-    assert!(std::fs::read(lake_run(&env).join("workspace.bundle")).unwrap() == bundle);
+    assert!(std::fs::read(lake_run(&env).join(BIG_BLOB)).unwrap() == bundle);
     assert!(std::fs::read(lake_run(&env).join("stories/01/agent-events.compact.jsonl.gz")).unwrap() == compact);
 }
 
@@ -623,6 +632,7 @@ async fn a_run_with_only_left_out_files_besides_its_marker_has_a_manifest_of_tha
     let env = setup();
     let dir = run_dir(&env);
     write(&dir, "run.json", b"{}");
+    write(&dir, OWN_RUN_NOTE, b"/home/x/.w/r\n");
     add_left_out(&dir);
     let srv = start(&env);
     let m = srv.get_json(&format!("/v1/runs/files?run={RUN}")).await;
@@ -749,10 +759,11 @@ async fn every_file_and_folder_the_collector_creates_is_readable_by_the_owner_al
 
 fn make_reference_run(dir: &Path) {
     write(dir, "run.json", br#"{"install_id": "ref-install"}"#);
+    write(dir, OWN_RUN_NOTE, b"/home/x/.w/ref\n");
     write(dir, "run-status.json", br#"{"state": "finished", "reason": "", "at": "2026-10-15T00:00:00Z"}"#);
     write(dir, "metrics.json", br#"{"stories": {}}"#);
     write(dir, "finalize.json", &pattern(1_500, 60));
-    write(dir, "workspace.bundle", &pattern(200_000, 61));
+    write(dir, BIG_BLOB, &pattern(200_000, 61));
     write(dir, "summary.md", &pattern(900, 62));
     for story in ["01", "02"] {
         write(dir, &format!("stories/{story}/prompt.md"), &pattern(2_000, 63));
@@ -781,10 +792,10 @@ async fn a_reference_run_lands_under_reference_with_its_records_and_compact_logs
     }
     let held = env.root.join("reference/vidi/opus-5.5/v2-r1");
     let names = names_below(&held);
-    for want in ["run.json", "metrics.json", "finalize.json", "workspace.bundle", "summary.md", "stories/01/prompt.md", "stories/01/gate.json", "stories/01/accept-summary.json", "stories/01/agent-events.compact.jsonl.gz", "stories/02/agent-events.compact.jsonl.gz"] {
+    for want in ["run.json", "metrics.json", "finalize.json", BIG_BLOB, "summary.md", "stories/01/prompt.md", "stories/01/gate.json", "stories/01/accept-summary.json", "stories/01/agent-events.compact.jsonl.gz", "stories/02/agent-events.compact.jsonl.gz"] {
         assert!(names.contains(want), "{want}");
     }
-    for never in ["stories/01/agent-events.jsonl", "stories/01/conditions.jsonl", "server.log", "proxy.log", "requests.jsonl", "egress.jsonl"] {
+    for never in ["stories/01/agent-events.jsonl", "stories/01/conditions.jsonl", "server.log", "proxy.log", "requests.jsonl", "egress.jsonl", "workspace.bundle"] {
         assert!(!names.contains(never), "{never} must not be in the reference folder");
     }
     let n = note(&held);
@@ -872,18 +883,19 @@ async fn crash_then_heal(state: CrashState) {
     let data = pattern(10 * MIB, 90);
     let dir = run_dir(&env);
     write(&dir, "run.json", b"{}");
+    write(&dir, OWN_RUN_NOTE, b"/home/x/.w/r\n");
     write(&dir, "run-status.json", br#"{"state": "finished", "reason": "", "at": "2026-10-15T00:00:00Z"}"#);
-    write(&dir, "workspace.bundle", &data);
+    write(&dir, BIG_BLOB, &data);
     let srv = start(&env);
     // The state a crash leaves, built by hand: a partial file of `partial_bytes`, a note that records `note_says` of them.
     let held = lake_run(&env);
     std::fs::create_dir_all(&held).unwrap();
-    let m = std::fs::metadata(dir.join("workspace.bundle")).unwrap();
-    std::fs::write(held.join(".workspace.bundle.partial"), &data[..state.partial_bytes]).unwrap();
+    let m = std::fs::metadata(dir.join(BIG_BLOB)).unwrap();
+    std::fs::write(held.join(".workspace-git-log.txt.partial"), &data[..state.partial_bytes]).unwrap();
     if let Some(recorded) = state.note_says {
         let mut c = Collection { node: NODE_NAME.into(), run: RUN.into(), first_collected_at: 1, collected_at: 1, ..Default::default() };
         c.files.insert(
-            "workspace.bundle".into(),
+            BIG_BLOB.into(),
             Collected { bytes: 0, node_size: m.len(), node_mtime: collect::mtime_secs(&m), at_eof: false, pulled_at: 1, refetches: 0, partial: Some(Partial { bytes: recorded as u64, node_size: m.len(), node_mtime: collect::mtime_secs(&m) }) },
         );
         collector::save_collection(&held, &c).unwrap();
@@ -891,8 +903,8 @@ async fn crash_then_heal(state: CrashState) {
     for now in [100, 200, 300, 400] {
         pass(&env, &srv, now).await;
     }
-    assert_eq!(std::fs::read(held.join("workspace.bundle")).unwrap(), data, "ends equal to the node");
-    assert!(!held.join(".workspace.bundle.partial").exists());
+    assert_eq!(std::fs::read(held.join(BIG_BLOB)).unwrap(), data, "ends equal to the node");
+    assert!(!held.join(".workspace-git-log.txt.partial").exists());
     assert!(note(&held).complete);
 }
 
@@ -986,7 +998,7 @@ async fn w1_a_finished_run_is_collected_whole_and_marked_complete_only_after_eve
     for name in &record {
         assert_eq!(std::fs::read(held.join(name)).unwrap(), std::fs::read(run_dir(&env).join(name)).unwrap(), "{name}");
     }
-    assert!(held.join("rescore/vidi-v2.0-pre2/rescore.json").is_file() && held.join("workspace.bundle").is_file());
+    assert!(held.join("rescore/vidi-v2.0-pre2/rescore.json").is_file() && held.join(BIG_BLOB).is_file());
     // Criterion 5 and 6: a file outside the list is refused; the agent's working tree is not in the lake.
     assert_eq!(srv.get_raw(&Server::file_url(RUN, "workspace/src/app.ts", "")).await.0, 404);
     assert!(!held.join("workspace").exists());
@@ -1010,6 +1022,7 @@ async fn w1_a_run_that_settled_with_no_stories_is_complete_with_its_records_alon
     let env = setup();
     let dir = run_dir(&env);
     write(&dir, "run.json", b"{}");
+    write(&dir, OWN_RUN_NOTE, b"/home/x/.w/r\n");
     write(&dir, "run-status.json", br#"{"state": "finished", "reason": "", "at": "2026-10-15T00:00:00Z"}"#);
     let srv = start(&env);
     for now in [100, 200, 300] {
@@ -1040,18 +1053,19 @@ async fn w2_a_reference_run_and_a_combination_run_collected_in_one_pass_land_whe
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn w3_a_pass_aborted_in_the_middle_of_a_bundle_and_a_rescore_rewrite_still_end_equal_to_the_node() {
+async fn w3_a_pass_aborted_in_the_middle_of_a_large_blob_and_a_rescore_rewrite_still_end_equal_to_the_node() {
     // TC-89: the pass is a task dropped mid-transfer, twice, then a rewrite on the node, then passes until complete.
     let env = setup();
     let dir = run_dir(&env);
     let bundle = pattern(24 * MIB, 95);
     write(&dir, "run.json", b"{}");
+    write(&dir, OWN_RUN_NOTE, b"/home/x/.w/r\n");
     write(&dir, "run-status.json", br#"{"state": "finished", "reason": "", "at": "2026-10-15T00:00:00Z"}"#);
-    write(&dir, "workspace.bundle", &bundle);
+    write(&dir, BIG_BLOB, &bundle);
     write(&dir, "rescore/vidi-v2.0-pre2/rescore.json", &pattern(900, 96));
     let srv = start(&env);
     let held = lake_run(&env);
-    let part = held.join(".workspace.bundle.partial");
+    let part = held.join(".workspace-git-log.txt.partial");
     for kill in 0..2 {
         let (ctx, cfg) = (ctx_of(&[(NODE_NAME, &srv)]), config(&env));
         let task = tokio::spawn(async move { collector::pass(&ctx, &cfg, &cadence(0), false, 100 + kill).await });
@@ -1059,7 +1073,7 @@ async fn w3_a_pass_aborted_in_the_middle_of_a_bundle_and_a_rescore_rewrite_still
         task.abort();
         let _ = task.await;
         if part.exists() {
-            assert!(!held.join("workspace.bundle").exists(), "never half-written under the real name");
+            assert!(!held.join(BIG_BLOB).exists(), "never half-written under the real name");
         }
         assert!(!note(&held).complete, "never complete while a bundle is half held");
     }
@@ -1069,7 +1083,7 @@ async fn w3_a_pass_aborted_in_the_middle_of_a_bundle_and_a_rescore_rewrite_still
     for now in [200, 300, 400, 500] {
         pass(&env, &srv, now).await;
     }
-    assert_eq!(std::fs::read(held.join("workspace.bundle")).unwrap(), bundle);
+    assert_eq!(std::fs::read(held.join(BIG_BLOB)).unwrap(), bundle);
     assert_eq!(std::fs::read(held.join("rescore/vidi-v2.0-pre2/rescore.json")).unwrap(), pattern(950, 97));
     assert!(!part.exists() && note(&held).complete);
 }
@@ -1179,8 +1193,9 @@ async fn a_shortage_on_a_real_small_disk_pulls_nothing_and_a_partial_resumes_whe
     let data = pattern(10 * MIB, 98);
     let dir = run_dir(&env);
     write(&dir, "run.json", b"{}");
+    write(&dir, OWN_RUN_NOTE, b"/home/x/.w/r\n");
     write(&dir, "run-status.json", br#"{"state": "finished", "reason": "", "at": "2026-10-15T00:00:00Z"}"#);
-    write(&dir, "workspace.bundle", &data);
+    write(&dir, BIG_BLOB, &data);
     let srv = start(&env);
     let store = volume.mount.join("lake");
     let cfg = |margin_gib: u64| Config { store: store.clone(), reference: volume.mount.join("reference"), free_space_margin_gib: margin_gib, free_bytes: collector::free_bytes, ..config(&env) };
@@ -1193,20 +1208,20 @@ async fn a_shortage_on_a_real_small_disk_pulls_nothing_and_a_partial_resumes_whe
     assert!(summaries.is_empty() && !held.exists());
     // TC-97: with room, a pass dies after one chunk of the bundle (a partial is left); the shortage returns; the partial is
     // untouched; then it resumes and the lake equals one collected without the shortage.
-    let entry = entry_for(&dir, "workspace.bundle", collect::FileKind::Blob);
-    let dest = held.join("workspace.bundle");
+    let entry = entry_for(&dir, BIG_BLOB, collect::FileKind::Blob);
+    let dest = held.join(BIG_BLOB);
     let mut recorded: Option<Partial> = None;
     let mut one_chunk = |p: &Partial| -> anyhow::Result<()> {
         recorded = Some(p.clone());
         anyhow::bail!("killed after one chunk")
     };
     assert!(collector::pull_blob(&srv.api(), &RunRef::Path(RUN.into()), &entry, &dest, None, &mut one_chunk).await.is_err());
-    let part = held.join(".workspace.bundle.partial");
+    let part = held.join(".workspace-git-log.txt.partial");
     let part_before = std::fs::read(&part).unwrap();
     assert_eq!(part_before.len(), CHUNK);
     let mut c = Collection { node: NODE_NAME.into(), run: RUN.into(), first_collected_at: 1, collected_at: 1, ..Default::default() };
     let left = recorded.unwrap();
-    c.files.insert("workspace.bundle".into(), Collected { bytes: 0, node_size: left.node_size, node_mtime: left.node_mtime, at_eof: false, pulled_at: 1, refetches: 0, partial: Some(left) });
+    c.files.insert(BIG_BLOB.into(), Collected { bytes: 0, node_size: left.node_size, node_mtime: left.node_mtime, at_eof: false, pulled_at: 1, refetches: 0, partial: Some(left) });
     collector::save_collection(&held, &c).unwrap();
     let summaries = collector::pass(&ctx, &cfg(1), &cadence(0), false, 200).await.unwrap();
     assert!(summaries.is_empty());

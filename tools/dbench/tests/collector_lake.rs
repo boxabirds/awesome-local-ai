@@ -466,7 +466,9 @@ fn node_with_run_files(run: &str) -> FakeNode {
     let mut files = BTreeMap::new();
     files.insert("run.json".to_string(), whole(b"{}"));
     files.insert("metrics.json".to_string(), whole(b"{\"stories\":{}}"));
+    // A node on a release from before story 23 still offers the bundle; the collector does not take it.
     files.insert("workspace.bundle".to_string(), blob(pattern(5000, 12)));
+    files.insert("workspace-git-log.txt".to_string(), blob(pattern(700, 16)));
     files.insert("stories/01/agent-events.compact.jsonl.gz".to_string(), blob(pattern(3000, 13)));
     files.insert("stories/01/agent-events.jsonl".to_string(), FakeFile { data: pattern(2000, 14), mtime: 1_790_000_000.5, kind: FileKind::Append });
     files.insert("server.log".to_string(), FakeFile { data: pattern(500, 15), mtime: 1_790_000_000.5, kind: FileKind::Append });
@@ -490,8 +492,9 @@ async fn the_note_of_a_reference_run_holds_the_full_id_and_the_node_and_a_second
     assert_eq!((note.run.as_str(), note.node.as_str()), (run, "node-a"));
     let mut held: Vec<&str> = note.files.keys().map(String::as_str).collect();
     held.sort_unstable();
-    assert_eq!(held, ["metrics.json", "run.json", "stories/01/agent-events.compact.jsonl.gz", "workspace.bundle"], "records only");
+    assert_eq!(held, ["metrics.json", "run.json", "stories/01/agent-events.compact.jsonl.gz", "workspace-git-log.txt"], "records only");
     assert!(!dir.join("stories/01/agent-events.jsonl").exists() && !dir.join("server.log").exists());
+    assert!(!dir.join("workspace.bundle").exists(), "the bundle is not taken (story 23)");
     assert!(!store.join("node-a").exists(), "nothing of a reference run under the lake's node folders");
     // The same run seen on a second node: the same folder, the note now names the second node.
     let (_, api_b, _) = serve_fake(node_with_run_files(run)).await;
@@ -519,7 +522,9 @@ async fn a_run_with_no_note_becomes_collecting_and_the_first_time_is_set() {
     let s = pass_once(&api, COMBINATION_RUN, &dir, 60, 100).await;
     let note = load_collection(&dir).unwrap();
     assert_eq!((note.first_collected_at, note.collected_at, note.complete), (100, 100, false));
+    // run.json, metrics.json, workspace-git-log.txt, the compact and the raw log, server.log; not the bundle.
     assert!(s.changed && s.pulled_files == 6, "{s:?}");
+    assert!(!note.files.contains_key("workspace.bundle") && !dir.join("workspace.bundle").exists());
     std::fs::remove_dir_all(dir).unwrap();
 }
 

@@ -1834,6 +1834,46 @@ async fn files_manifest_by_job_and_by_run_path_lists_only_allow_listed_files() {
     );
 }
 
+/// A copy of another machine's run, as git carried it into this checkout: the run's records, no work_dir.txt.
+const CARRIED_RUN: &str = "combinations/test/combo/fake/benchmarks/growpack/run-carried";
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_run_git_carried_here_is_neither_listed_nor_served_and_the_bundle_is_not_offered() {
+    // Story 23 (node.own_runs), TC-01 to TC-05: the node offers only the runs it ran.
+    let env = setup();
+    let own = env.repo.join(GROW_RUN);
+    std::fs::create_dir_all(own.join("stories/01")).unwrap();
+    std::fs::write(own.join("run.json"), "{}").unwrap();
+    std::fs::write(own.join("work_dir.txt"), "/home/x/.w/run-g").unwrap();
+    std::fs::write(own.join("metrics.json"), "{}").unwrap();
+    std::fs::write(own.join("workspace.bundle"), b"bundle bytes").unwrap();
+    let carried = env.repo.join(CARRIED_RUN);
+    std::fs::create_dir_all(carried.join("stories/01")).unwrap();
+    std::fs::write(carried.join("run.json"), "{}").unwrap();
+    std::fs::write(carried.join("metrics.json"), "{}").unwrap();
+    let srv = start(&env, false);
+    assert_eq!(
+        srv.get("/v1/runs").await,
+        json!([{"run": GROW_RUN, "job": null, "run_status": null, "job_state": null}])
+    );
+    for path in [
+        format!("/v1/runs/files?run={CARRIED_RUN}"),
+        format!("/v1/runs/file?run={CARRIED_RUN}&name=metrics.json"),
+        format!("/v1/runs/scopes?run={CARRIED_RUN}"),
+    ] {
+        let (code, _, body) = srv.get_raw(&path).await;
+        assert_eq!(code, 404, "{path}: {}", String::from_utf8_lossy(&body));
+        assert!(String::from_utf8_lossy(&body).contains(&format!("no run {CARRIED_RUN} on this node")), "{path}");
+    }
+    // The node's own run is served, and its manifest does not offer the bundle, nor list it among the unlisted.
+    let m = srv.get(&format!("/v1/runs/files?run={GROW_RUN}")).await;
+    let names: Vec<&str> = m["files"].as_array().unwrap().iter().map(|f| f["name"].as_str().unwrap()).collect();
+    assert!(names.contains(&"metrics.json") && !names.contains(&"workspace.bundle"), "{names:?}");
+    assert!(!m["unlisted"].to_string().contains("workspace.bundle"), "{}", m["unlisted"]);
+    let (code, _, _) = srv.get_raw(&format!("/v1/runs/file?run={GROW_RUN}&name=workspace.bundle")).await;
+    assert_ne!(code, 200);
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_ranged_read_follows_growth_and_the_prefix_check_catches_a_rewrite() {
     let env = setup();
@@ -1841,6 +1881,7 @@ async fn a_ranged_read_follows_growth_and_the_prefix_check_catches_a_rewrite() {
     let run_dir = env.repo.join(GROW_RUN);
     std::fs::create_dir_all(run_dir.join("stories/01")).unwrap();
     std::fs::write(run_dir.join("run.json"), "{}").unwrap();
+    std::fs::write(run_dir.join("work_dir.txt"), "/home/x/.w/run-g").unwrap(); // it ran on this node
     let events = run_dir.join("stories/01/agent-events.jsonl");
     let first: Vec<u8> = (0..1000)
         .flat_map(|i| format!("{{\"_rx\": {i}}}\n").into_bytes())
@@ -2097,6 +2138,7 @@ async fn collect_refetches_a_file_the_node_rewrote_and_backfills_a_run_that_has_
     let run_dir = env.repo.join(GROW_RUN);
     std::fs::create_dir_all(run_dir.join("stories/01")).unwrap();
     std::fs::write(run_dir.join("run.json"), "{}").unwrap();
+    std::fs::write(run_dir.join("work_dir.txt"), "/home/x/.w/run-g").unwrap(); // it ran on this node
     std::fs::write(run_dir.join("run-status.json"), r#"{"state": "finished", "at": "2026-10-01T00:00:00Z"}"#).unwrap();
     let events = run_dir.join("stories/01/agent-events.jsonl");
     let first: String = (0..300).map(|i| format!("{{\"_rx\": 1790000000.{i}, \"type\": \"x\"}}\n")).collect();
@@ -2164,6 +2206,7 @@ async fn a_collect_pass_skips_runs_the_operator_archived_and_ingests_what_it_pul
         let dir = env.repo.join(run);
         std::fs::create_dir_all(dir.join("stories/01")).unwrap();
         std::fs::write(dir.join("run.json"), "{}").unwrap();
+        std::fs::write(dir.join("work_dir.txt"), "/home/x/.w/r").unwrap(); // it ran on this node
         std::fs::write(dir.join("run-status.json"), r#"{"state": "finished", "at": "2026-10-01T00:00:00Z"}"#).unwrap();
         std::fs::write(dir.join("stories/01/agent-events.jsonl"), "{\"_rx\": 1790000000.0, \"type\": \"x\"}\n").unwrap();
     }
@@ -2219,6 +2262,7 @@ async fn the_run_listing_puts_the_newest_run_status_first_and_breaks_ties_and_ga
         let dir = env.repo.join(base).join(run);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("run.json"), "{}").unwrap();
+        std::fs::write(dir.join("work_dir.txt"), "/home/x/.w/r").unwrap(); // it ran on this node
         if let Some(at) = at {
             std::fs::write(dir.join("run-status.json"), format!(r#"{{"state": "finished", "at": "{at}"}}"#)).unwrap();
         }

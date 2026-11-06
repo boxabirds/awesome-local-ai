@@ -116,6 +116,7 @@ impl Rig {
             let repo = root.0.join("repo");
             std::fs::create_dir_all(repo.join(RUN)).unwrap();
             std::fs::write(repo.join(RUN).join("run.json"), "{}").unwrap();
+            std::fs::write(repo.join(RUN).join(dbench::collect::WORK_DIR_FILE), "/home/x/.w/r\n").unwrap(); // ran here
             repo
         });
         let repo = repo.canonicalize().unwrap();

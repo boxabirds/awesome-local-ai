@@ -276,8 +276,10 @@ async fn an_unknown_run_a_run_without_a_work_folder_and_one_without_a_repository
     assert_eq!(status, HTTP_NOT_FOUND, "not on this node");
     n.make_run(RUN, false);
     let (status, body) = n.get(&[("run", RUN)]).await;
+    // No work_dir.txt: a run git carried here, which this node did not run, so it is not this node's to offer at
+    // all (story 23, node.own_runs) and the answer is the unknown run's.
     assert_eq!(status, HTTP_NOT_FOUND, "no work_dir.txt");
-    assert!(String::from_utf8_lossy(&body).contains(dbench::scopes::code::E_CODE_NO_REPO));
+    assert!(String::from_utf8_lossy(&body).contains(&format!("no run {RUN} on this node")), "{}", String::from_utf8_lossy(&body));
     n.make_run(RUN, true);
     let (status, body) = n.get(&[("run", RUN)]).await;
     assert_eq!(status, HTTP_NOT_FOUND, "a work folder with no .git");

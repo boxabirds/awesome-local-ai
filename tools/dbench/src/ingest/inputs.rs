@@ -182,9 +182,6 @@ pub struct LakeSource {
     files: std::cell::RefCell<Option<BTreeMap<String, (PathBuf, String)>>>,
 }
 
-/// The workspace bundle is a Record in the collector's allow-list but not a record the ingest reads.
-const NOT_A_PUBLISHED_RECORD: &str = "workspace.bundle";
-
 impl LakeSource {
     /// `store` is the collected lake (`<state>/collected`), `reference` the reference models' folder.
     pub fn new(store: &Path, reference: &Path) -> Self {
@@ -204,7 +201,7 @@ impl LakeSource {
             walk(&run.dir, &run.dir, &mut names)?;
             for name in names.into_keys() {
                 let is_record = crate::collect::parse_name(&name).is_some_and(|f| f.class() == crate::collect::Class::Record);
-                if !is_record || name == NOT_A_PUBLISHED_RECORD {
+                if !is_record {
                     continue;
                 }
                 let path = run.dir.join(&name);
