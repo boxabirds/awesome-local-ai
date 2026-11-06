@@ -8,9 +8,9 @@ host-desc.sh). The names themselves live only outside the repo, and are read fro
 Nothing here, and no test, hard-codes a real name.
 
 Used by heldout.staged_problems (the check before every harness commit: a staged file the harness wrote, or the
-commit message, naming a machine is refused) and by tests/privacy-test.sh (`python3 machine_names.py tracked
-<repo>`: no tracked file names a machine in the node list). The agent's own work (publicise.is_own_work) is its
-own and never checked, as for held-out titles.
+commit message, naming a machine is refused). The agent's own work (publicise.is_own_work) is its own and never
+checked, as for held-out titles. (The repo-wide check of tracked files, `machine_names.py tracked`, went on
+6 Nov 2026: tests/privacy-test.sh stopped calling it on 3 Nov, when the owner decided names in tracked files are fine.)
 Tests: test_machine_names.py, and section I of test_publish_gate.py.
 """
 from __future__ import annotations
@@ -18,8 +18,6 @@ from __future__ import annotations
 import os
 import re
 import socket
-import subprocess
-import sys
 import tomllib
 from pathlib import Path, PurePosixPath
 
@@ -32,8 +30,6 @@ GENERIC_NAMES = {"localhost", "localhost.localdomain", "ubuntu", "debian", "fedo
 MIN_NAME_CHARS = 4                            # shorter names match ordinary words
 NAME_CHAR = "A-Za-z0-9"                       # a name ends where these do: "-", "_", ".", "(" all separate
 AGENT_OWN_FILES = {"gate.json", "agent-events.jsonl", "agent-events.compact.jsonl.gz", "workspace-git-log.txt"}
-EXIT_FOUND = 1
-EXIT_BROKEN_LIST = 2
 
 
 def nodes_file() -> Path:
@@ -112,49 +108,3 @@ def in_file(rel: str, text: str, names: set[str]) -> list[str]:
     if is_own_work(rel):
         return []
     return sorted(set(found(rel, names)) | set(found(text, names)))
-
-
-def tracked(repo: Path, names: set[str]) -> dict[str, list[str]]:
-    """Every tracked text file of repo (not the agent's own work) that names a machine, with the names."""
-    if not names:
-        return {}
-    listed = subprocess.run(["git", "-C", str(repo), "ls-files", "-z"], capture_output=True, check=True).stdout
-    out = {}
-    for rel in filter(None, listed.decode().split("\0")):
-        if is_own_work(rel):
-            continue
-        try:
-            data = (repo / rel).read_bytes()
-        except OSError:
-            continue                              # deleted in the working tree: nothing there to publish
-        if b"\0" in data[:8192]:
-            hits = found(rel, names)              # binary: only its name can be read
-        else:
-            hits = in_file(rel, data.decode("utf-8", errors="replace"), names)
-        if hits:
-            out[rel] = hits
-    return out
-
-
-def main(argv: list[str]) -> int:
-    if len(argv) < 2 or argv[1] != "tracked":
-        print("usage: machine_names.py tracked [repo]", file=sys.stderr)
-        return EXIT_BROKEN_LIST
-    repo = Path(argv[2] if len(argv) > 2 else ".")
-    path = nodes_file()
-    try:
-        names = distinctive(node_names(path))
-    except ValueError as e:
-        print(e)
-        return EXIT_BROKEN_LIST
-    if not names:
-        print(f"skip: no machine names in a local node list ({path})")
-        return 0
-    hits = tracked(repo, names)
-    for rel, found_names in sorted(hits.items()):
-        print(f"{rel}: {', '.join(found_names)}")
-    return EXIT_FOUND if hits else 0
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))

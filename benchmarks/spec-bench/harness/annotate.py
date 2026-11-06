@@ -38,8 +38,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[2]
+
 sys.path.insert(0, str(HERE))
+import benchlake  # noqa: E402
 import claims  # noqa: E402
 import heldout  # noqa: E402
 import packdir  # noqa: E402
@@ -55,11 +56,20 @@ CLAIM_CHARS = 4000
 
 # ---------- building attempts from the run records ----------
 
-def run_dirs(repo: Path) -> list[Path]:
-    """Every recorded vidi run: combinations/**/benchmarks/vidi/<run> and benchmarks/reference/vidi/<model>/<run>."""
-    found = [p.parent for p in repo.glob("combinations/**/benchmarks/vidi/*/metrics.json")]
-    found += [p.parent for p in repo.glob("benchmarks/reference/vidi/*/*/metrics.json")]
-    return sorted(r for r in set(found) if not _known_good(r))
+VIDI_IN_COMBINATION = "/benchmarks/vidi/"
+VIDI_REFERENCE = "benchmarks/reference/vidi/"
+COMBINATIONS = "combinations/"
+
+
+def is_vidi(run_id: str) -> bool:
+    return run_id.startswith(VIDI_REFERENCE) or (run_id.startswith(COMBINATIONS) and VIDI_IN_COMBINATION in run_id)
+
+
+def run_dirs() -> list[tuple[str, Path]]:
+    """Every recorded vidi run in the lake (story 23, through bench-lake): (run id, its preferred copy's folder), for
+    combinations/**/benchmarks/vidi/<run> and benchmarks/reference/vidi/<model>/<run>, with a metrics.json."""
+    return [(rid, d) for rid, d in benchlake.preferred_runs()
+            if is_vidi(rid) and (d / "metrics.json").is_file() and not _known_good(d)]
 
 
 def _known_good(run: Path) -> bool:
@@ -70,8 +80,8 @@ def _known_good(run: Path) -> bool:
         return False
 
 
-def stack_of(run: Path, repo: Path) -> str:
-    rel = run.relative_to(repo).as_posix()
+def stack_of(rel: str) -> str:
+    """The stack of a run id: the combination path, or reference/<model>."""
     if rel.startswith("combinations/"):
         return rel.removeprefix("combinations/").split("/benchmarks/")[0]
     return "reference/" + rel.split("/")[-2]
@@ -160,25 +170,25 @@ def commits_for(log: str, sid: int) -> list[str]:
     return [b.strip() for b in reversed(blocks) if pat.search(b)]
 
 
-def build_attempt(run: Path, repo: Path, sdir: Path, metrics: dict, log: str) -> dict | None:
+def build_attempt(run_id: str, run: Path, sdir: Path, metrics: dict, log: str) -> dict | None:
     sid = sdir.name
     # The held-out result is private: this machine's copy, else the private repo's (heldout.find).
     accept_path = heldout.find(run, f"stories/{sid}/accept.json")
-    if accept_path is None or claims.event_log(sdir) is None:
+    if accept_path is None or claims.event_log(sdir, compact_first=True) is None:
         return None
     accept = json.loads(accept_path.read_text())
     own = (accept.get("by_story") or {}).get(sid) or {}
     failed = [{"title": t.get("title"), "error": first_line(t.get("error"))}
               for t in accept.get("tests") or [] if t.get("status") != "passed" and t.get("file", "").startswith(f"story-{sid}")]
-    lines = claims.event_lines(sdir)
+    lines = claims.event_lines(sdir, compact_first=True)   # what the review shows is all in the compact copy
     s = story_entry(metrics, sid)
     agent = s.get("agent") or {}
     gate = {}
     if (sdir / "gate.json").exists():
         gate = json.loads((sdir / "gate.json").read_text())
     return {
-        "id": f"{run.relative_to(repo).as_posix()}#{sid}",
-        "stack": stack_of(run, repo),
+        "id": f"{run_id}#{sid}",
+        "stack": stack_of(run_id),
         "run": run.name,
         "story": int(sid),
         "title": s.get("title") or "",
@@ -226,33 +236,36 @@ def coverage_order(attempts: list[dict]) -> list[dict]:
 
 
 def fingerprint(runs: list[Path]) -> str:
+    """Which records the attempts were made from: each run's held-out results and metrics.json, by path and content.
+    Content, not mtime: the collector rewrites a lake file it pulls again with the same bytes and a new mtime."""
     h = hashlib.sha256()
     for r in runs:
         results = [heldout.find(r, f"stories/{d.name}/accept.json") for d in heldout.result_dirs(r)]
         for p in [*results, r / "metrics.json"]:
-            h.update(f"{p}:{p.stat().st_mtime_ns}".encode())
+            h.update(f"{p}:{hashlib.sha256(p.read_bytes()).hexdigest()}".encode())
     return h.hexdigest()[:16]
 
 
-def load_attempts(repo: Path, cache: Path, rebuild: bool) -> list[dict]:
-    runs = run_dirs(repo)
-    fp = fingerprint(runs)
+def load_attempts(runs: list[tuple[str, Path]], cache: Path, rebuild: bool) -> list[dict]:
+    """The attempts of `runs` ((run id, folder) pairs, as run_dirs gives them), from the cache when it was made from
+    these same records."""
+    fp = fingerprint([d for _, d in runs])
     if cache.exists() and not rebuild:
         data = json.loads(cache.read_text())
         if data.get("fingerprint") == fp:
             return data["attempts"]
     attempts = []
-    for run in runs:
+    for rid, run in runs:
         metrics = json.loads((run / "metrics.json").read_text())
         log = (run / "workspace-git-log.txt").read_text() if (run / "workspace-git-log.txt").exists() else ""
         if not (run / "stories").is_dir():
-            print(f"  {run.relative_to(repo)}: no per-story records (built outside the harness), skipped")
+            print(f"  {rid}: no per-story records (built outside the harness), skipped")
             continue
         for sdir in sorted(p for p in (run / "stories").iterdir() if p.is_dir()):
-            a = build_attempt(run, repo, sdir, metrics, log)
+            a = build_attempt(rid, run, sdir, metrics, log)
             if a:
                 attempts.append(a)
-        print(f"  {run.relative_to(repo)}: {sum(1 for a in attempts if a['id'].startswith(run.relative_to(repo).as_posix()))} attempts")
+        print(f"  {rid}: {sum(1 for a in attempts if a['id'].startswith(rid + '#'))} attempts")
     attempts = coverage_order(attempts)
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps({"fingerprint": fp, "attempts": attempts}))
@@ -342,7 +355,7 @@ def main() -> None:
     if not private.is_dir():
         raise SystemExit(f"no private repo at {private}: the labels and attempt data belong there")
     print("building attempts from the run records…")
-    attempts = load_attempts(REPO, private / "state" / "annotate" / "attempts.json", a.rebuild)
+    attempts = load_attempts(run_dirs(), private / "state" / "annotate" / "attempts.json", a.rebuild)
     labels_path = private / "analysis" / "labels.csv"
     server = http.server.ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(attempts, labels_path))
     url = f"http://127.0.0.1:{a.port}/"

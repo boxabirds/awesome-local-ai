@@ -21,15 +21,18 @@ HOME_MARK = "~"
 EVENTS = "agent-events.compact.jsonl.gz"      # the compact copy: stream deltas dropped; older runs have only this
 
 
-def event_log(sdir: Path) -> Path | None:
-    """A story's event log: the raw one when it is there, else the compact copy, else None."""
-    return next((p for p in (sdir / RAW_EVENTS, sdir / EVENTS) if p.is_file()), None)
+def event_log(sdir: Path, compact_first: bool = False) -> Path | None:
+    """A story's event log: the raw one when it is there, else the compact copy, else None. With compact_first the
+    compact copy wins: a reader that needs only what the compact copy keeps (annotate) never reads the raw log,
+    which the lake holds beside it at up to 200 MB a story."""
+    order = (sdir / EVENTS, sdir / RAW_EVENTS) if compact_first else (sdir / RAW_EVENTS, sdir / EVENTS)
+    return next((p for p in order if p.is_file()), None)
 
 
-def event_lines(sdir: Path) -> list[str]:
-    """The lines of the story's event log (raw, else compact); [] when it has none. The raw log is read as the
-    compact copy was written: this machine's home directory shown as ~."""
-    path = event_log(sdir)
+def event_lines(sdir: Path, compact_first: bool = False) -> list[str]:
+    """The lines of the story's event log (raw, else compact; compact first with compact_first, as event_log); []
+    when it has none. The raw log is read as the compact copy was written: this machine's home directory shown as ~."""
+    path = event_log(sdir, compact_first)
     if path is None:
         return []
     if path.suffix == ".gz":

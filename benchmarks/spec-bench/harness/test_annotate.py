@@ -3,15 +3,20 @@ import _thread
 import csv
 import gzip
 import json
+import os
 import socket
+import subprocess
 import threading
 import urllib.request
 
 import pytest
 
 import annotate
+import benchlake
+import claims
 from conftest import record_before_archive
 import heldout
+import lake_testing
 import packdir
 
 
@@ -86,51 +91,88 @@ def test_labels_are_saved_updated_and_validated(tmp_path):
         annotate.write_label(path, "run#03", "maybe", "", lock)
 
 
-REAL_PRIVATE = annotate.REPO.parent / "awesome-local-ai-bench-private"
+REAL_PRIVATE = benchlake.REPO.parent / "awesome-local-ai-bench-private"
 
 
-# The current records hold this many story attempts or more (99 on 4 Oct 2026, after the v1 runs were archived).
+# A sample of the lake's runs, every REAL_SAMPLE_STRIDE-th by id, holds this many story attempts or more (126 on
+# 6 Nov 2026 with a stride of 6, from 12 runs of 10 stacks).
+REAL_SAMPLE_STRIDE = 6
 FEWEST_REAL_ATTEMPTS = 90
 PI03 = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03"   # archived 4 Oct 2026
 
 
 # The real runs' held-out detail is in the private repo's copy (the public record keeps counts): read it there,
 # read-only, and skip where it isn't checked out.
-@pytest.mark.skipif(not (REAL_PRIVATE / heldout.PRIVATE_RUNS).is_dir(), reason="no private repo copy of the runs")
+# The real runs come from the real lake (story 23, through bench-lake), read-only; skipped where this machine has none.
+@pytest.mark.skipif(not (benchlake.DEFAULT_STATE / benchlake.COLLECTED).is_dir(), reason="no lake on this machine")
 def test_attempts_build_from_the_real_records(tmp_path, monkeypatch):
     monkeypatch.setenv(heldout.PRIVATE_ENV, str(REAL_PRIVATE))
-    attempts = annotate.load_attempts(annotate.REPO, tmp_path / "cache.json", rebuild=True)
+    monkeypatch.delenv(benchlake.STATE_ENV, raising=False)
+    # Every REAL_SAMPLE_STRIDE-th run by id, across the stacks: the whole lake is 696 attempts (6 Nov 2026), whose
+    # compact logs take minutes to read; a sample checks the same thing (real records build) in seconds.
+    sample = annotate.run_dirs()[::REAL_SAMPLE_STRIDE]
+    attempts = annotate.load_attempts(sample, tmp_path / "cache.json", rebuild=True)
     ids = {a["id"] for a in attempts}
     assert len(ids) == len(attempts) and len(attempts) >= FEWEST_REAL_ATTEMPTS
-    # cached on the second load
-    again = annotate.load_attempts(annotate.REPO, tmp_path / "cache.json", rebuild=False)
+    # cached on the second load, though the collector may have rewritten some of these files in between
+    again = annotate.load_attempts(annotate.run_dirs()[::REAL_SAMPLE_STRIDE], tmp_path / "cache.json", rebuild=False)
     assert [a["id"] for a in again] == [a["id"] for a in attempts]
-    # One attempt checked in detail: the 4090's story 7, from the record as it was before it was archived.
-    old = tmp_path / "before-archive"
-    record_before_archive(PI03, old)
-    pi03_s7 = next(a for a in annotate.load_attempts(old, tmp_path / "old-cache.json", rebuild=True) if a["id"].endswith(f"{PI03}#07"))
+    # One attempt checked in detail: the 4090's story 7, from the record as it was before it was archived (it was
+    # archived before the lake existed, so only git history holds it).
+    old = record_before_archive(PI03, tmp_path / "before-archive")
+    pi03_s7 = next(a for a in annotate.load_attempts([(PI03, old)], tmp_path / "old-cache.json", rebuild=True)
+                   if a["id"].endswith(f"{PI03}#07"))
     assert pi03_s7["title"].startswith("Select") and pi03_s7["timeline"] and pi03_s7["commits"]
     assert pi03_s7["behaviour"]["own_total"] == 8
 
 
-def test_review_leaves_out_known_good_runs(tmp_path):
-    """EVALUATION-POLICY rule 7: partial reruns are diagnostic and never mixed with full runs."""
-    runs = tmp_path / "combinations" / "some" / "stack" / "benchmarks" / "vidi"
-    for name, extra in (("full-01", {}), ("kg-3", {"known_good": {"from_run": "x", "commit": "c", "story": 3}})):
-        (runs / name).mkdir(parents=True)
-        (runs / name / "metrics.json").write_text(json.dumps({"stories": {}, **extra}))
-    assert [p.name for p in annotate.run_dirs(tmp_path)] == ["full-01"]
+STACK = "m/1/size/linux/hw/eng-cli"
+VIDI = f"combinations/{STACK}/benchmarks/vidi"
+
+
+def lake_run(state, run_id, metrics, node=lake_testing.NODE):
+    """A run in the lake with this metrics.json (a reference run when the id names one)."""
+    if run_id.startswith(benchlake.REFERENCE_ID_PREFIX + "/"):
+        run = state / benchlake.REFERENCE / run_id.removeprefix(benchlake.REFERENCE_ID_PREFIX + "/")
+        run.mkdir(parents=True)
+        (run / "run.json").write_text("{}")
+    else:
+        run = lake_testing.add_run(state, None, {}, node=node, run_id=run_id)
+    (run / "metrics.json").write_text(metrics if isinstance(metrics, str) else json.dumps(metrics))
+    return run
+
+
+def test_review_lists_the_lakes_vidi_runs_once_each_and_leaves_out_known_good_and_archived_ones(tmp_path, monkeypatch):
+    """EVALUATION-POLICY rule 7: partial reruns are diagnostic and never mixed with full runs. The runs come from the
+    lake through bench-lake: one entry per run id however many machines hold it, the operator's archive honoured, and
+    other benchmarks than vidi left out."""
+    state = lake_testing.lake(tmp_path, monkeypatch)
+    full = lake_run(state, f"{VIDI}/full-01", {"stories": {}})
+    lake_run(state, f"{VIDI}/full-01", {"stories": {}}, node="node-u")   # the same run, carried to a second machine
+    lake_run(state, f"{VIDI}/kg-3", {"stories": {}, "known_good": {"from_run": "x", "commit": "c", "story": 3}})
+    lake_run(state, f"{VIDI}/gone", {"stories": {}})
+    lake_run(state, f"combinations/{STACK}/benchmarks/todoodle/t-1", {"stories": {}})
+    ref = lake_run(state, "benchmarks/reference/vidi/opus/r1", {"stories": {}})
+    lake_run(state, "benchmarks/reference/todoodle/opus/r1", {"stories": {}})
+    subprocess.run([str(benchlake.binary()), str(state), "annotate", "set", "archived", f"{VIDI}/gone",
+                    "--reason", "a test"], check=True, capture_output=True)
+    got = annotate.run_dirs()
+    assert [rid for rid, _ in got] == ["benchmarks/reference/vidi/opus/r1", f"{VIDI}/full-01"]
+    assert got[0][1] == ref and got[1][1].name == full.name and got[1][1].is_relative_to(state / "collected")
+    # a metrics.json that cannot be read says nothing about a known good base: the run is reviewed
+    (state / "collected" / lake_testing.NODE / f"{VIDI}/kg-3" / "metrics.json").write_text("{not json")
+    assert [rid for rid, _ in annotate.run_dirs()] == ["benchmarks/reference/vidi/opus/r1", f"{VIDI}/full-01",
+                                                       f"{VIDI}/kg-3"]
 
 
 SERVER_WAIT_S = 20            # how long a test waits for the review server to answer before giving up
 POLLS_PER_S = 10
 PAST_THE_BROWSER_TIMER_S = 1.0  # the command opens the browser 0.5 s after it starts
-RUN_REL = "combinations/qwen/27b/benchmarks/vidi/run-1"
+RUN_REL = lake_testing.RUN_ID
 
 
-def tiny_repo(root, gate=True):
-    """A repo with one recorded run: story 1 has results and an event stream; story 2 has results but no events."""
-    run = root / RUN_REL
+def tiny_run(run, gate=True):
+    """One recorded run in folder `run`: story 1 has results and an event stream; story 2 has results but no events."""
     for sid in ("01", "02"):
         (run / "stories" / sid).mkdir(parents=True)
         (run / "stories" / sid / "accept.json").write_text(json.dumps(
@@ -146,41 +188,82 @@ def tiny_repo(root, gate=True):
     return run
 
 
+def tiny_lake(tmp_path, monkeypatch, gate=True):
+    """A lake holding that one run, the way the collector lays it out."""
+    return tiny_run(lake_testing.add_run(lake_testing.lake(tmp_path, monkeypatch), None, {}), gate)
+
+
 def test_a_story_without_a_self_check_file_has_no_self_check_verdict(tmp_path):
-    run = tiny_repo(tmp_path, gate=False)
+    run = tiny_run(tmp_path / "run", gate=False)
     metrics = json.loads((run / "metrics.json").read_text())
-    got = annotate.build_attempt(run, tmp_path, run / "stories" / "01", metrics, "")
+    got = annotate.build_attempt(RUN_REL, run, run / "stories" / "01", metrics, "")
     assert got["self_check_green"] is None
-    assert got["story"] == 1 and got["stack"] == "qwen/27b"
+    assert got["story"] == 1 and got["stack"] == STACK and got["id"] == f"{RUN_REL}#01"
     assert got["behaviour"]["failed"] == [{"title": "pans", "error": "boom"}]  # first line of the error only
 
 
 def test_a_story_with_a_self_check_file_carries_its_verdict(tmp_path):
-    run = tiny_repo(tmp_path)
+    run = tiny_run(tmp_path / "run")
     metrics = json.loads((run / "metrics.json").read_text())
-    got = annotate.build_attempt(run, tmp_path, run / "stories" / "01", metrics, "")
+    got = annotate.build_attempt(RUN_REL, run, run / "stories" / "01", metrics, "")
     assert got["self_check_green"] is True
     assert got["completion"]["agent_minutes"] == 1.5 and got["behaviour"]["own_total"] == 2
     assert got["timeline"][0]["text"] == "read a.ts"
 
 
-def test_a_story_with_results_but_no_event_stream_is_left_out_of_the_attempts(tmp_path):
-    tiny_repo(tmp_path)
-    attempts = annotate.load_attempts(tmp_path, tmp_path / "cache" / "attempts.json", rebuild=True)
+def test_a_story_with_both_logs_is_read_from_its_compact_copy(tmp_path):
+    """The lake holds a story's raw log beside its compact copy (up to 200 MB a story; git only ever carried the
+    compact one). The review reads the compact copy, as it always did: the same attempts, and a rebuild that takes
+    seconds, not the raw logs' gigabytes. The raw log is read only for a story without a compact copy."""
+    run = tiny_run(tmp_path / "run")
+    raw = run / "stories" / "01" / claims.RAW_EVENTS
+    raw.write_text(ev(type="tool_execution_start", toolName="bash", args={"command": "from the raw log"}) + "\n")
+    raw.chmod(0)
+    try:
+        metrics = json.loads((run / "metrics.json").read_text())
+        got = annotate.build_attempt(RUN_REL, run, run / "stories" / "01", metrics, "")
+    finally:
+        raw.chmod(0o644)
+    assert got["timeline"][0]["text"] == "read a.ts"
+
+
+def test_a_story_with_results_but_no_event_stream_is_left_out_of_the_attempts(tmp_path, monkeypatch):
+    tiny_lake(tmp_path, monkeypatch)
+    attempts = annotate.load_attempts(annotate.run_dirs(), tmp_path / "cache" / "attempts.json", rebuild=True)
     assert [a["id"] for a in attempts] == [f"{RUN_REL}#01"]  # story 02 had no events
     assert json.loads((tmp_path / "cache" / "attempts.json").read_text())["attempts"] == attempts
 
 
-def test_a_cache_from_other_records_is_rebuilt_and_one_from_these_is_reused(tmp_path):
-    tiny_repo(tmp_path)
+def test_a_cache_from_other_records_is_rebuilt_and_one_from_these_is_reused(tmp_path, monkeypatch):
+    tiny_lake(tmp_path, monkeypatch)
     cache = tmp_path / "attempts.json"
     cache.write_text(json.dumps({"fingerprint": "from-other-records", "attempts": [{"id": "stale"}]}))
-    rebuilt = annotate.load_attempts(tmp_path, cache, rebuild=False)
+    rebuilt = annotate.load_attempts(annotate.run_dirs(), cache, rebuild=False)
     assert [a["id"] for a in rebuilt] == [f"{RUN_REL}#01"]
     cached = json.loads(cache.read_text())
     cached["attempts"] = [{"id": "marker"}]
     cache.write_text(json.dumps(cached))
-    assert annotate.load_attempts(tmp_path, cache, rebuild=False) == [{"id": "marker"}]
+    assert annotate.load_attempts(annotate.run_dirs(), cache, rebuild=False) == [{"id": "marker"}]
+
+
+def test_a_record_rewritten_with_the_same_bytes_keeps_the_cache(tmp_path, monkeypatch):
+    """The collector rewrites a lake file it pulls again (a new mtime, the same bytes): the attempts made from it are
+    still these records', so the cache is reused; a changed record is not the same records, so it is rebuilt."""
+    run = tiny_lake(tmp_path, monkeypatch)
+    cache = tmp_path / "attempts.json"
+    annotate.load_attempts(annotate.run_dirs(), cache, rebuild=True)
+    cached = json.loads(cache.read_text())
+    cache.write_text(json.dumps({**cached, "attempts": [{"id": "marker"}]}))
+    for f in (run / "metrics.json", run / "stories" / "01" / "accept.json"):
+        f.write_bytes(f.read_bytes())                                  # rewritten, same bytes
+        os.utime(f, ns=(f.stat().st_atime_ns, f.stat().st_mtime_ns + MTIME_STEP_NS))
+    assert annotate.load_attempts(annotate.run_dirs(), cache, rebuild=False) == [{"id": "marker"}]
+    accept = run / "stories" / "01" / "accept.json"
+    accept.write_text(accept.read_text().replace('"passed": 3', '"passed": 4'))
+    assert [a["id"] for a in annotate.load_attempts(annotate.run_dirs(), cache, rebuild=False)] == [f"{RUN_REL}#01"]
+
+
+MTIME_STEP_NS = 5_000_000_000
 
 
 def free_port():
@@ -190,10 +273,9 @@ def free_port():
 
 
 def serve_main(monkeypatch, tmp_path, argv, probe):
-    """Run annotate.main() as the command line does, against a tiny repo and a private repo in tmp_path. `probe`
+    """Run annotate.main() as the command line does, against a tiny lake and a private repo in tmp_path. `probe`
     runs on another thread once the server answers; Ctrl-C is sent to main when it returns, as the owner would."""
-    tiny_repo(tmp_path / "repo")
-    monkeypatch.setattr(annotate, "REPO", tmp_path / "repo")
+    tiny_lake(tmp_path, monkeypatch)
     monkeypatch.setattr(packdir, "REPO_ROOT", tmp_path / "repo")
     private = packdir.private_checkout()
     private.mkdir()
@@ -256,3 +338,19 @@ def test_the_command_stops_when_there_is_no_private_repo(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as stop:
         annotate.main()
     assert str(stop.value) == f"no private repo at {tmp_path / 'awesome-local-ai-bench-private'}: the labels and attempt data belong there"
+
+
+def test_the_command_stops_naming_bench_lakes_message_when_bench_lake_fails(tmp_path, monkeypatch):
+    """The runs come only from bench-lake: when it cannot answer, the command stops with its message and reads no
+    checkout instead."""
+    monkeypatch.setattr(packdir, "REPO_ROOT", tmp_path / "repo")
+    packdir.private_checkout().mkdir(parents=True)
+    failing = tmp_path / "bench-lake"
+    failing.write_text("#!/bin/sh\necho 'E-LAKE-UNREADABLE: permission denied' >&2\nexit 1\n")
+    failing.chmod(0o755)
+    monkeypatch.setenv(benchlake.BIN_ENV, str(failing))
+    monkeypatch.setenv(benchlake.STATE_ENV, str(tmp_path / "state"))
+    monkeypatch.setattr("sys.argv", ["annotate.py", "--no-browser"])
+    with pytest.raises(SystemExit) as stop:
+        annotate.main()
+    assert str(stop.value) == "bench-lake records failed (exit 1): E-LAKE-UNREADABLE: permission denied"

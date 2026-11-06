@@ -47,6 +47,22 @@ def ask(*words: str) -> dict:
     return json.loads(r.stdout)
 
 
+def preferred(run: str) -> Path:
+    """The folder of the copy of run id `run` that the lake prefers (bench-lake's `preferred`). A run the lake does not
+    hold stops the caller, naming it."""
+    answer = ask("preferred", run)
+    if answer.get("status") != "found":
+        raise SystemExit(f"no run {run} in the lake at {state()}")
+    return state() / answer["preferred"]["dir"]
+
+
+def preferred_runs() -> list[tuple[str, Path]]:
+    """Every run in the lake as (id, folder of its preferred copy), ordered by id; runs the operator archived are left
+    out (bench-lake's `records`)."""
+    answer = ask("records")
+    return [(r["id"], state() / r["dir"]) for r in answer["runs"]]
+
+
 def run_id(run: Path) -> str | None:
     """The lake's name for a run folder: its path in this checkout (the id bench-lake gives the preferred copy), or,
     for a folder in the lake itself, `<node>@<id>` (a collected copy) or `benchmarks/reference/...`. None for a folder

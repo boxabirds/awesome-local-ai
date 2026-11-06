@@ -363,4 +363,18 @@ prep TFC_STORY_DIR="$STORY" /bin/bash "$DRIVER" --prepare-only
 assert_eq "no log at all: exit 2" 2 "$?"
 assert_ok "...naming the folder it looked in" grep -q "no agent log in $STORY" "$WORK/out"
 
+echo
+echo "the default session is this Mac's own run, in its results root, never the code's checkout (story 23)"
+RESULTS="$WORK/results"
+OWN="$RESULTS/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/stories/10"
+mkdir -p "$OWN"; : > "$OWN/agent-events.jsonl"
+unprepared
+prep SPEC_BENCH_RESULTS_ROOT="$RESULTS" /bin/bash "$DRIVER" --prepare-only
+assert_eq "the results root's run is rendered" 1 "$(calls node "capture_pi_requests.mjs --log $OWN/agent-events.jsonl ")"
+rm -f "$OWN/agent-events.jsonl"
+unprepared
+prep SPEC_BENCH_RESULTS_ROOT="$RESULTS" /bin/bash "$DRIVER" --prepare-only
+assert_eq "not there: exit 2, though the checkout may hold a copy" 2 "$?"
+assert_ok "...naming the results root's folder" grep -q "no agent log in $OWN" "$WORK/out"
+
 finish

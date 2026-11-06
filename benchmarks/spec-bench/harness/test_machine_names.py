@@ -8,13 +8,10 @@ MECE by what the module decides:
   A. which names are local: the node list's names, the machine's hostname (full and short), minus generic ones
   B. what counts as a name in a text: whole names, any case, whatever separates them
   C. which files are checked: everything the harness writes, not the agent's own work
-  D. the repo check: tracked files outside the agent's work, skipped without a node list
 Run: uv run --with pytest pytest test_machine_names.py
 """
 from __future__ import annotations
 
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -28,7 +25,6 @@ token = "not-a-real-token"
 [nodes.boxwood]
 url = "http://100.64.0.2:7717"
 """
-G = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
 
 
 def nodes_file(tmp_path: Path, text: str = NODES) -> Path:
@@ -160,81 +156,3 @@ def test_C1_every_file_the_harness_writes_is_checked(rel):
 ])
 def test_C2_the_agents_own_work_is_its_own(rel):
     assert mn.in_file(rel, "on boxwood", NAMES) == []
-
-
-# ---------- D. the repo check ----------
-
-def repo(tmp_path: Path, files: dict[str, str]) -> Path:
-    r = tmp_path / "repo"
-    r.mkdir()
-    subprocess.run(["git", "init", "-q", "-b", "main", str(r)], check=True)
-    for rel, text in files.items():
-        (r / rel).parent.mkdir(parents=True, exist_ok=True)
-        (r / rel).write_text(text)
-    subprocess.run([*G, "add", "-A"], cwd=r, check=True)
-    return r
-
-
-def test_D1_a_tracked_file_with_a_name_is_reported_with_the_name(tmp_path):
-    r = repo(tmp_path, {"README.md": "Runs on boxwood.\n", "docs/a.md": "Runs on the Strix Halo box.\n"})
-    assert mn.tracked(r, NAMES) == {"README.md": ["boxwood"]}
-
-
-def test_D2_the_agents_own_work_in_the_repo_is_not_reported(tmp_path):
-    r = repo(tmp_path, {"c/benchmarks/vidi/r1/workspace/x.md": "boxwood", "c/benchmarks/vidi/r1/stories/01/gate.json": "boxwood"})
-    assert mn.tracked(r, NAMES) == {}
-
-
-def test_D3_untracked_files_are_not_the_repos(tmp_path):
-    r = repo(tmp_path, {"README.md": "clean\n"})
-    (r / "scratch.md").write_text("boxwood")
-    assert mn.tracked(r, NAMES) == {}
-
-
-def test_D4_a_name_found_only_in_another_case_is_reported(tmp_path):
-    r = repo(tmp_path, {"a.json": '{"host": "BOXWOOD"}'})
-    assert mn.tracked(r, NAMES) == {"a.json": ["boxwood"]}
-
-
-def test_D9_with_no_names_to_look_for_nothing_is_reported_and_git_is_not_asked(tmp_path):
-    assert mn.tracked(tmp_path / "not-a-repo", set()) == {}
-
-
-def test_D10_a_tracked_file_deleted_in_the_working_tree_is_skipped(tmp_path):
-    r = repo(tmp_path, {"gone.md": "boxwood", "kept.md": "boxwood"})
-    (r / "gone.md").unlink()
-    assert mn.tracked(r, NAMES) == {"kept.md": ["boxwood"]}
-
-
-def test_D11_a_binary_file_is_checked_by_its_name_only(tmp_path):
-    r = repo(tmp_path, {})
-    (r / "boxwood-shot.png").write_bytes(b"\x89PNG\0boxwood")
-    (r / "plain-shot.png").write_bytes(b"\x89PNG\0boxwood")
-    subprocess.run([*G, "add", "-A"], cwd=r, check=True)
-    assert mn.tracked(r, NAMES) == {"boxwood-shot.png": ["boxwood"]}
-
-
-def cli(tmp_path: Path, r: Path, nodes: Path) -> subprocess.CompletedProcess:
-    return subprocess.run([sys.executable, str(Path(mn.__file__)), "tracked", str(r)], capture_output=True, text=True,
-                          env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path), mn.NODES_ENV: str(nodes)})
-
-
-def test_D5_the_command_fails_and_names_each_file_when_a_name_is_tracked(tmp_path):
-    r = repo(tmp_path, {"README.md": "Runs on node-a.\n"})
-    p = cli(tmp_path, r, nodes_file(tmp_path))
-    assert p.returncode == 1 and "README.md" in p.stdout, p
-
-
-def test_D6_the_command_passes_on_a_clean_repo(tmp_path):
-    p = cli(tmp_path, repo(tmp_path, {"README.md": "Runs on the RTX 4090 machine.\n"}), nodes_file(tmp_path))
-    assert p.returncode == 0, p
-
-
-def test_D7_without_a_node_list_the_command_skips(tmp_path):
-    p = cli(tmp_path, repo(tmp_path, {"README.md": "Runs on node-a.\n"}), tmp_path / "absent.toml")
-    assert p.returncode == 0 and "skip" in p.stdout.lower(), p
-
-
-def test_D8_a_broken_node_list_fails_the_command(tmp_path):
-    p = cli(tmp_path, repo(tmp_path, {"README.md": "clean\n"}), nodes_file(tmp_path, "[nodes.x\n"))
-    assert p.returncode == 2, p

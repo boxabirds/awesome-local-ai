@@ -1,15 +1,18 @@
 //! A varied, reproducible set of texts to count: the repository's own tracked files (prose, code in several
-//! languages, JSON, configuration) and the long strings inside its tracked agent logs (thinking, replies,
-//! tool-call inputs, tool results) from every client the harness drives. A story's log is its raw
-//! `agent-events.jsonl` where that is tracked, else the compact copy older runs published; stream deltas are skipped.
+//! languages, JSON, configuration) and the long strings inside the runs' agent logs (thinking, replies, tool-call
+//! inputs, tool results) from every client the harness drives. The logs come from the lake (story 23), through the
+//! bench-lake library: every run's preferred copy, a story's raw `agent-events.jsonl` where the lake has it, else its
+//! compact copy; stream deltas are skipped. A log is named `<run id>/stories/<NN>/<file>`.
 //!
-//! Only files git tracks in the public repository are read, and anything that touches the held-out suite is left out.
-//! Every choice is by a hash of the text's name, so the same repository gives the same corpus.
+//! Of the repository, only files git tracks are read, and never a run's: a path at or below a run folder
+//! (`combinations/<six parts>/benchmarks/<pack>/<run>/...`, `benchmarks/reference/<pack>/<stack>/<run>/...`) is run data,
+//! which the lake holds. Anything that touches the held-out suite is left out. Every choice is by a hash of the text's
+//! name, so the same repository and lake give the same corpus.
 
 use anyhow::{Context, Result};
+use bench_lake::{Form, Lake, Log};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::io::Read;
 use std::path::Path;
 
 pub const MIN_CHARS: usize = 200;
@@ -17,8 +20,11 @@ pub const MAX_CHARS: usize = 6000;
 /// A string inside a log is only a sample if it is at least this long.
 pub const MIN_STRING_CHARS: usize = 300;
 const MAX_FILE_BYTES: u64 = 3 * 1024 * 1024;
-const LOG_SUFFIX: &str = ".compact.jsonl.gz";
-const RAW_LOG_NAME: &str = "agent-events.jsonl";
+/// Below `combinations/`: family, version, variant, os, machine, engine-client, the literal `benchmarks`, pack, run.
+const COMBINATION_RUN_DEPTH: usize = 9;
+const COMBINATION_BENCHMARKS_LEVEL: usize = 6;
+/// Below `benchmarks/reference/`: pack, stack, run.
+const REFERENCE_RUN_DEPTH: usize = 3;
 /// Per-token stream events: the raw log has one for every chunk, carrying partial text and partial tool output.
 /// The compact copy kept only the first of each model call; none is a sample.
 const STREAM_DELTA_EVENTS: [&str; 2] = ["message_update", "tool_execution_update"];
@@ -137,38 +143,56 @@ fn tracked(repo: &Path) -> Result<Vec<String>> {
     Ok(String::from_utf8_lossy(&out.stdout).split('\0').filter(|p| !p.is_empty()).map(String::from).collect())
 }
 
-fn read_gz(path: &Path) -> Result<String> {
-    let mut text = String::new();
-    flate2::read::GzDecoder::new(std::fs::File::open(path)?).read_to_string(&mut text)?;
-    Ok(text)
-}
-
-/// A story's log: the raw one if it is tracked, else the compact copy (a story with both is read once, from the raw one).
-fn story_logs(paths: &[String]) -> Vec<String> {
-    let folder = |p: &str, name: &str| p.strip_suffix(name).map(|d| d.to_string());
-    let raw: std::collections::BTreeSet<String> = paths.iter().filter_map(|p| folder(p, RAW_LOG_NAME).filter(|d| d.is_empty() || d.ends_with('/'))).collect();
-    paths
-        .iter()
-        .filter(|p| match (folder(p, RAW_LOG_NAME), p.ends_with(LOG_SUFFIX)) {
-            (Some(d), _) => d.is_empty() || d.ends_with('/'),
-            (None, true) => !raw.contains(&p[..p.rfind('/').map_or(0, |i| i + 1)]),
-            _ => false,
-        })
-        .cloned()
-        .collect()
-}
-
-fn read_log(path: &Path) -> Result<String> {
-    if path.extension().is_some_and(|e| e == "gz") {
-        read_gz(path)
-    } else {
-        Ok(std::fs::read_to_string(path)?)
+/// Whether a tracked path is a run's (at or below a run folder): run data, which the corpus reads from the lake only.
+pub fn in_run_folder(path: &str) -> bool {
+    let parts: Vec<&str> = path.split('/').collect();
+    match parts.as_slice() {
+        ["combinations", rest @ ..] => rest.len() > COMBINATION_RUN_DEPTH && rest[COMBINATION_BENCHMARKS_LEVEL] == "benchmarks",
+        ["benchmarks", "reference", rest @ ..] => rest.len() > REFERENCE_RUN_DEPTH,
+        _ => false,
     }
 }
 
-/// The corpus for `repo`, leaving out any source whose path starts with one of `skip_prefixes`.
-pub fn build(repo: &Path, plan: Plan, skip_prefixes: &[String]) -> Result<Vec<Sample>> {
-    let paths: Vec<String> = tracked(repo)?.into_iter().filter(|p| !excluded(p) && !skip_prefixes.iter().any(|s| p.starts_with(s.as_str()))).collect();
+/// Every story log in the lake at `state` (its state folder), from each run's preferred copy, in run id and story
+/// order: (name, log). A story with no log is skipped; a lake with neither root is an error naming it.
+fn lake_logs(state: &Path) -> Result<Vec<(String, Log)>> {
+    let lake = Lake::in_state_dir(state);
+    let found = lake.discover();
+    anyhow::ensure!(
+        found.missing_roots.len() < 2,
+        "no lake at {}: neither collected/ nor reference/ is there",
+        state.display()
+    );
+    let ids: std::collections::BTreeSet<&str> = found.runs.iter().map(|r| r.id.as_str()).collect();
+    let mut logs = Vec::new();
+    for id in ids {
+        let Some(run) = lake.preferred(&found, id) else { continue };
+        let Ok(entries) = std::fs::read_dir(run.dir.join(bench_lake::records::STORIES_DIR)) else { continue };
+        let mut stories: Vec<(i64, String)> = entries
+            .filter_map(|e| e.ok()?.file_name().into_string().ok())
+            .filter_map(|name| {
+                let story = bench_lake::records::parse_story_arg(&name).ok()?;
+                (bench_lake::records::story_dir(story).ok()? == name).then_some((story, name))
+            })
+            .collect();
+        stories.sort();
+        for (story, dir) in stories {
+            let Ok(log) = lake.log(run, story) else { continue };
+            let file = match log.form() {
+                Form::Raw => bench_lake::logs::RAW_LOG,
+                Form::Compact => bench_lake::logs::COMPACT_LOG,
+            };
+            logs.push((format!("{id}/stories/{dir}/{file}"), log));
+        }
+    }
+    Ok(logs)
+}
+
+/// The corpus for `repo` and the lake at `lake` (its state folder), leaving out any source whose name starts with one
+/// of `skip_prefixes`.
+pub fn build(repo: &Path, lake: &Path, plan: Plan, skip_prefixes: &[String]) -> Result<Vec<Sample>> {
+    let wanted = |p: &str| !excluded(p) && !skip_prefixes.iter().any(|s| p.starts_with(s.as_str()));
+    let paths: Vec<String> = tracked(repo)?.into_iter().filter(|p| wanted(p) && !in_run_folder(p)).collect();
     let mut samples = Vec::new();
 
     let mut by_kind: std::collections::BTreeMap<&'static str, Vec<(String, String)>> = Default::default();
@@ -191,10 +215,11 @@ pub fn build(repo: &Path, plan: Plan, skip_prefixes: &[String]) -> Result<Vec<Sa
         }
     }
 
-    let logs: Vec<(String, String)> = story_logs(&paths).into_iter().map(|p| (p.clone(), p)).collect();
+    let logs: Vec<(String, (String, Log))> = lake_logs(lake)?.into_iter().filter(|(name, _)| wanted(name)).map(|(name, log)| (name.clone(), (name, log))).collect();
     let mut strings: std::collections::BTreeMap<String, Vec<(String, Sample)>> = Default::default();
-    for rel in pick(logs, plan.logs) {
-        let Ok(text) = read_log(&repo.join(&rel)) else { continue };
+    for (rel, log) in pick(logs, plan.logs) {
+        let Ok(bytes) = log.bytes() else { continue };
+        let Ok(text) = String::from_utf8(bytes) else { continue };
         for (n, line) in text.lines().enumerate() {
             let Ok(value) = serde_json::from_str::<Value>(line) else { continue };
             if value.get("type").and_then(Value::as_str).is_some_and(|t| STREAM_DELTA_EVENTS.contains(&t)) {
@@ -309,6 +334,18 @@ mod tests {
         dir
     }
 
+    /// A run's id in the scratch lakes: a combination run, nine parts below `combinations/` as the lake lays it out.
+    const RUN_ID: &str = "combinations/fam/1/size/linux/hw/eng-cli/benchmarks/vidi/r1";
+
+    /// A lake (its state folder) holding one run, RUN_ID, collected from one machine: (state folder, run folder).
+    fn lake(tag: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let state = scratch(tag);
+        std::fs::create_dir_all(state.join("reference")).unwrap();
+        let run = state.join("collected").join("node-t").join(RUN_ID);
+        write(&run, "run.json", b"{}");
+        (state, run)
+    }
+
     fn git(dir: &Path, args: &[&str]) {
         let out = std::process::Command::new("git").arg("-C").arg(dir).args(GIT_IDENTITY).args(args).output().unwrap();
         assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
@@ -371,12 +408,13 @@ mod tests {
             serde_json::json!({"message": {"content": [{"type": "thinking", "thinking": long.clone()}, {"type": "text", "text": "short"}]}}),
             serde_json::json!({"result": long.clone()})
         );
-        write(&dir, "combinations/x/stories/01/agent-events.compact.jsonl.gz", &gz(&log));
-        write(&dir, "combinations/x/stories/02/agent-events.compact.jsonl.gz", b"not gzip");
+        let (state, run) = lake("build-lake");
+        write(&run, "stories/01/agent-events.compact.jsonl.gz", &gz(&log));
+        write(&run, "stories/02/agent-events.compact.jsonl.gz", b"not gzip");
         git(&dir, &["add", "."]);
         std::fs::remove_file(dir.join("gone.md")).unwrap();
 
-        let samples = build(&dir, ALL, &["skipped/".to_string()]).unwrap();
+        let samples = build(&dir, &state, ALL, &["skipped/".to_string()]).unwrap();
         let got: Vec<(&str, &str)> = samples.iter().map(|s| (s.kind.as_str(), s.source.as_str())).collect();
         // The copy of README.md has the same text as README.md and is dropped, whichever is met second.
         assert_eq!(got.iter().filter(|(k, _)| *k == "markdown").count(), 1, "{got:?}");
@@ -389,6 +427,7 @@ mod tests {
         }
         assert!(samples.iter().all(|s| s.text.chars().count() >= MIN_CHARS));
         let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&state);
     }
 
     #[test]
@@ -398,15 +437,16 @@ mod tests {
         let thinking = "t".repeat(MIN_STRING_CHARS);
         let result = "r".repeat(MIN_STRING_CHARS);
         let log = format!("{}\n", serde_json::json!({"thinking": thinking, "result": result}));
-        write(&dir, "combinations/x/stories/01/agent-events.compact.jsonl.gz", &gz(&log));
-        git(&dir, &["add", "."]);
-        let samples = build(&dir, ALL, &[]).unwrap();
+        let (state, run) = lake("kinds-lake");
+        write(&run, "stories/01/agent-events.compact.jsonl.gz", &gz(&log));
+        let samples = build(&dir, &state, ALL, &[]).unwrap();
         let mut kinds: Vec<&str> = samples.iter().map(|s| s.kind.as_str()).collect();
         kinds.sort();
         assert_eq!(kinds, vec!["log:result", "log:thinking"]);
-        let none = build(&dir, Plan { logs: 0, ..ALL }, &[]).unwrap();
+        let none = build(&dir, &state, Plan { logs: 0, ..ALL }, &[]).unwrap();
         assert!(none.is_empty());
         let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&state);
     }
 
     // ---- a story's raw log and its compact copy ----
@@ -426,20 +466,19 @@ mod tests {
     #[test]
     fn a_story_gives_the_same_log_samples_from_its_raw_log_and_from_its_compact_copy() {
         for client in ["pi", "opencode", "claude"] {
-            let raw = scratch("raw-log");
-            git(&raw, &["init", "-q"]);
-            write(&raw, "combinations/x/stories/01/agent-events.jsonl", &excerpt(client, "agent-events.jsonl"));
-            git(&raw, &["add", "."]);
-            let compact = scratch("compact-log");
-            git(&compact, &["init", "-q"]);
-            write(&compact, "combinations/x/stories/01/agent-events.compact.jsonl.gz", &excerpt(client, "agent-events.compact.jsonl.gz"));
-            git(&compact, &["add", "."]);
-            let from_raw = texts_of(&build(&raw, ALL, &[]).unwrap());
-            let from_compact = texts_of(&build(&compact, ALL, &[]).unwrap());
+            let repo = scratch("repo");
+            git(&repo, &["init", "-q"]);
+            let (raw, raw_run) = lake("raw-log");
+            write(&raw_run, "stories/01/agent-events.jsonl", &excerpt(client, "agent-events.jsonl"));
+            let (compact, compact_run) = lake("compact-log");
+            write(&compact_run, "stories/01/agent-events.compact.jsonl.gz", &excerpt(client, "agent-events.compact.jsonl.gz"));
+            let from_raw = texts_of(&build(&repo, &raw, ALL, &[]).unwrap());
+            let from_compact = texts_of(&build(&repo, &compact, ALL, &[]).unwrap());
             assert!(!from_raw.is_empty(), "{client}: no samples");
             assert_eq!(from_raw, from_compact, "{client}");
-            let _ = std::fs::remove_dir_all(&raw);
-            let _ = std::fs::remove_dir_all(&compact);
+            for d in [&repo, &raw, &compact] {
+                let _ = std::fs::remove_dir_all(d);
+            }
         }
     }
 
@@ -455,23 +494,90 @@ mod tests {
             serde_json::json!({"_rx": 2.0, "type": "tool_execution_end", "result": final_result})
         );
         let compact_only = format!("{}\n", serde_json::json!({"_rx": 2.0, "type": "tool_execution_end", "result": "c".repeat(MIN_STRING_CHARS + MIN_CHARS)}));
-        write(&dir, "combinations/x/stories/01/agent-events.jsonl", raw.as_bytes());
-        write(&dir, "combinations/x/stories/01/agent-events.compact.jsonl.gz", &gz(&compact_only));
-        write(&dir, "combinations/x/stories/02/agent-events.compact.jsonl.gz", &gz(&compact_only));
-        git(&dir, &["add", "."]);
-        let samples = build(&dir, ALL, &[]).unwrap();
+        let (state, run) = lake("both-forms-lake");
+        write(&run, "stories/01/agent-events.jsonl", raw.as_bytes());
+        write(&run, "stories/01/agent-events.compact.jsonl.gz", &gz(&compact_only));
+        write(&run, "stories/02/agent-events.compact.jsonl.gz", &gz(&compact_only));
+        let samples = build(&dir, &state, ALL, &[]).unwrap();
         let got: Vec<(&str, char)> = samples.iter().map(|s| (s.source.as_str(), s.text.chars().next().unwrap())).collect();
-        assert!(got.contains(&("combinations/x/stories/01/agent-events.jsonl", 'f')), "{got:?}");
+        let source = |s: &str, f: &str| format!("{RUN_ID}/stories/{s}/{f}");
+        let got: Vec<(String, char)> = got.into_iter().map(|(s, c)| (s.to_string(), c)).collect();
+        assert!(got.contains(&(source("01", "agent-events.jsonl"), 'f')), "{got:?}");
         assert!(!got.iter().any(|(_, c)| *c == 'p'), "a delta's partial result is not a sample: {got:?}");
         assert!(!got.iter().any(|(s, _)| s.contains("stories/01/agent-events.compact")), "story 1 is read from its raw log only: {got:?}");
-        assert!(got.contains(&("combinations/x/stories/02/agent-events.compact.jsonl.gz", 'c')), "story 2 has only the compact copy: {got:?}");
+        assert!(got.contains(&(source("02", "agent-events.compact.jsonl.gz"), 'c')), "story 2 has only the compact copy: {got:?}");
         let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&state);
     }
 
     #[test]
     fn a_directory_that_is_not_a_repository_has_no_corpus() {
         let dir = scratch("not-a-repo");
-        assert!(build(&dir, ALL, &[]).is_err());
+        let (state, _) = lake("not-a-repo-lake");
+        assert!(build(&dir, &state, ALL, &[]).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&state);
+    }
+
+    // ---- story 23: run data comes from the lake, never from a checkout ----
+
+    #[test]
+    fn a_runs_files_and_logs_are_read_from_the_lake_and_never_from_the_checkout() {
+        let dir = scratch("runs-from-lake");
+        git(&dir, &["init", "-q"]);
+        write(&dir, "docs/guide.md", prose("guide").as_bytes());
+        // A combination's own files sit above its runs: they are the repository's, and samples.
+        write(&dir, "combinations/fam/1/size/linux/hw/eng-cli/config.sh", prose("config").as_bytes());
+        // A run that git carried into this checkout: neither its files nor its log is read.
+        let tracked_run = "combinations/fam/1/size/linux/hw/eng-cli/benchmarks/vidi/r0";
+        write(&dir, &format!("{tracked_run}/summary.md"), prose("checkout-run-file").as_bytes());
+        write(&dir, &format!("{tracked_run}/stories/01/agent-events.jsonl"), format!("{}\n", serde_json::json!({"result": "k".repeat(MIN_STRING_CHARS)})).as_bytes());
+        write(&dir, "benchmarks/reference/vidi/opus/run-1/README.md", prose("checkout-reference-run").as_bytes());
+        write(&dir, "benchmarks/reference/vidi/opus/NOTES.md", prose("stack").as_bytes());
+        git(&dir, &["add", "."]);
+        let (state, run) = lake("runs-from-lake-lake");
+        write(&run, "stories/01/agent-events.jsonl", format!("{}\n", serde_json::json!({"result": "l".repeat(MIN_STRING_CHARS)})).as_bytes());
+        // The same run collected from a second machine: one run, read once, from the copy the lake prefers.
+        write(&state.join("collected/node-u").join(RUN_ID), "run.json", b"{}");
+
+        let samples = build(&dir, &state, ALL, &[]).unwrap();
+        let mut sources: Vec<&str> = samples.iter().map(|s| s.source.as_str()).collect();
+        sources.sort();
+        let lake_log = format!("{RUN_ID}/stories/01/agent-events.jsonl");
+        assert_eq!(
+            sources,
+            vec!["benchmarks/reference/vidi/opus/NOTES.md", lake_log.as_str(), "combinations/fam/1/size/linux/hw/eng-cli/config.sh", "docs/guide.md"]
+        );
+        assert!(samples.iter().any(|s| s.text.starts_with('l')) && !samples.iter().any(|s| s.text.starts_with('k')));
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&state);
+    }
+
+    #[test]
+    fn the_held_out_story_is_left_out_of_the_lakes_logs_by_its_run_id() {
+        let dir = scratch("held-out-lake");
+        git(&dir, &["init", "-q"]);
+        let state = scratch("held-out-lake-state");
+        std::fs::create_dir_all(state.join("collected")).unwrap();
+        let run = state.join("reference/vidi/opus/r1");
+        write(&run, "run.json", b"{}");
+        for (story, c) in [("04", "h"), ("05", "o")] {
+            write(&run, &format!("stories/{story}/agent-events.jsonl"), format!("{}\n", serde_json::json!({"result": c.repeat(MIN_STRING_CHARS)})).as_bytes());
+        }
+        let samples = build(&dir, &state, ALL, &["benchmarks/reference/vidi/opus/r1/stories/04/".to_string()]).unwrap();
+        let sources: Vec<&str> = samples.iter().map(|s| s.source.as_str()).collect();
+        assert_eq!(sources, vec!["benchmarks/reference/vidi/opus/r1/stories/05/agent-events.jsonl"]);
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&state);
+    }
+
+    #[test]
+    fn a_lake_that_is_not_there_is_an_error_naming_it() {
+        let dir = scratch("no-lake");
+        git(&dir, &["init", "-q"]);
+        let missing = dir.join("no-such-state");
+        let err = build(&dir, &missing, ALL, &[]).unwrap_err().to_string();
+        assert_eq!(err, format!("no lake at {}: neither collected/ nor reference/ is there", missing.display()));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

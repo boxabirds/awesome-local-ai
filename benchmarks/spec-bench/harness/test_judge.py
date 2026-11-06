@@ -77,7 +77,7 @@ def test_a_whole_run_rescore_wins_over_the_last_story(tmp_path):
 
 
 def test_scorer_faults_are_caught_on_real_records(tmp_path):
-    ref = judge.REPO / "benchmarks" / "reference" / "vidi" / "opus-5.5"
+    ref = benchlake.REPO / "benchmarks" / "reference" / "vidi" / "opus-5.5"
     # run-2's story 12 as it was first recorded (re-scored since): every test failed to launch a browser
     broken = tmp_path / "accept.json"
     broken.write_text(json.dumps({"passed": 0, "total": 75, "tests": [{"title": "golden path", "status": "failed",
@@ -95,7 +95,7 @@ def test_scorer_faults_are_caught_on_real_records(tmp_path):
 def test_scored_commit_is_the_last_recorded_story_commit(tmp_path):
     (tmp_path / "metrics.json").write_text(json.dumps({"stories": {"11": {"commit": "aaa"}, "12": {"commit": "bbb"}, "13": {}}}))
     assert judge.scored_commit(tmp_path) == "bbb"
-    real = judge.REPO / "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1"
+    real = benchlake.REPO / "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r1"
     assert judge.scored_commit(real).startswith("b478230")
 
 
@@ -122,7 +122,11 @@ def test_commit_log_is_put_in_build_order():
 
 
 def fake_record(tmp_path, scored="bbbbbbb"):
-    rec = tmp_path / "rec"
+    return fake_record_in(tmp_path / "rec", scored)
+
+
+def fake_record_in(rec, scored="bbbbbbb"):
+    """A run record in folder `rec`: its app in workspace/, its commit log, and the scored commit for story 2."""
     (rec / "workspace" / "src").mkdir(parents=True)
     (rec / "workspace" / "src" / "b.ts").write_text("export const b = 1\n")
     (rec / "workspace-git-log.txt").write_text(LOG)
@@ -147,19 +151,19 @@ FEWEST_FINISHED_RECORDS = 10
 
 
 def test_every_finished_record_snapshot_matches_its_scored_commit():
-    logs = subprocess.run(["git", "-C", str(judge.REPO), "ls-files", "--", "combinations/*/workspace-git-log.txt",
+    logs = subprocess.run(["git", "-C", str(benchlake.REPO), "ls-files", "--", "combinations/*/workspace-git-log.txt",
                            "benchmarks/reference/*/workspace-git-log.txt"], capture_output=True, text=True, check=True).stdout.split()
     status = lambda r: json.loads((r / "run-status.json").read_text()) if (r / "run-status.json").exists() else {}
-    finished = [r for r in (judge.REPO / p.rsplit("/", 1)[0] for p in logs) if status(r).get("state") == "finished"]
+    finished = [r for r in (benchlake.REPO / p.rsplit("/", 1)[0] for p in logs) if status(r).get("state") == "finished"]
     assert len(finished) >= FEWEST_FINISHED_RECORDS
     # Opus run-1 was built outside the harness and has no run-status.json; its snapshot is checked all the same.
-    for r in [*finished, judge.REPO / "benchmarks/reference/vidi/opus-5.5/run-1"]:
+    for r in [*finished, benchlake.REPO / "benchmarks/reference/vidi/opus-5.5/run-1"]:
         head = (r / "workspace-git-log.txt").read_text().split("\n", 1)[0].split()[-1]
         assert head.startswith(judge.scored_commit(r)[:7]), r
 
 
 def test_claims_come_from_agent_reports_for_a_run_built_outside_the_harness(tmp_path):
-    run1 = judge.REPO / "benchmarks" / "reference" / "vidi" / "opus-5.5" / "run-1"
+    run1 = benchlake.REPO / "benchmarks" / "reference" / "vidi" / "opus-5.5" / "run-1"
     ids = judge.record_claims(run1, tmp_path / "claims")
     assert "01" in ids and (tmp_path / "claims" / "story-01.md").read_text().strip()
 
@@ -173,9 +177,14 @@ echo "# summary" > summary.md
 """
 
 
+VIDI = "combinations/m/1/size/linux/hw/eng-cli/benchmarks/vidi"
+RUNS = {"opus": f"{VIDI}/alpha", "pi": f"{VIDI}/beta"}       # label -> run id
+
+
 class JudgingJob:
-    """What `judge.py --name ...` needs, all inside tmp_path: two recorded runs in the results repo, a private repo that
-    ignores state/, and a pack in it with its spec, scope, held-out suite and grading brief."""
+    """What `judge.py --name ...` needs, all inside tmp_path: two recorded runs in a scratch lake (story 23: the runs
+    are named by their ids and read from the lake, never from a checkout), a private repo that ignores state/, and a
+    pack in it with its spec, scope, held-out suite and grading brief."""
 
     def __init__(self, tmp_path, monkeypatch, accept=None):
         self.tmp = tmp_path
@@ -194,17 +203,19 @@ class JudgingJob:
         (pack / "acceptance" / "package.json").write_text("{}")  # the suite's package.json is copied; it has no lock file
         (pack / "GRADING.md").write_text("grade it")
         self.repo.mkdir()
-        for name in ("alpha", "beta"):
-            rec = fake_record(self.repo / name)
+        self.lake = lake_testing.lake(tmp_path, monkeypatch)
+        self.recs = {}
+        for label, run_id in RUNS.items():
+            rec = fake_record_in(lake_testing.add_run(self.lake, None, {}, run_id=run_id))
             (rec / "accept.json").write_text(json.dumps(accept or {"passed": 3, "total": 4, "tests": []}))
             (rec / "agent-reports").mkdir()
-            (rec / "agent-reports" / "story-01.md").write_text(f"{name} says done")
-        monkeypatch.setattr(judge, "REPO", self.repo)
+            (rec / "agent-reports" / "story-01.md").write_text(f"{label} says done")
+            self.recs[label] = rec
         monkeypatch.setattr(packdir, "REPO_ROOT", self.repo)
         monkeypatch.setenv(packdir.ENV, str(pack))
 
-    def argv(self, monkeypatch, *args, name="job"):
-        builds = ["--build", "opus=alpha/rec", "--build", "pi=beta/rec"]
+    def argv(self, monkeypatch, *args, name="job", runs=RUNS):
+        builds = [w for label, run_id in runs.items() for w in ("--build", f"{label}={run_id}")]
         monkeypatch.setattr("sys.argv", ["judge.py", "--name", name, "--label", "fake", *builds, *args])
 
 
@@ -217,7 +228,7 @@ def test_the_command_needs_macos(tmp_path, monkeypatch):
 
 def test_the_command_needs_exactly_two_builds(tmp_path, monkeypatch):
     JudgingJob(tmp_path, monkeypatch)
-    monkeypatch.setattr("sys.argv", ["judge.py", "--name", "job", "--label", "fake", "--build", "opus=alpha/rec"])
+    monkeypatch.setattr("sys.argv", ["judge.py", "--name", "job", "--label", "fake", "--build", f"opus={RUNS['opus']}"])
     with pytest.raises(SystemExit, match="exactly two --build entries"):
         judge.main()
 
@@ -242,7 +253,7 @@ def test_the_command_refuses_a_name_that_was_used(tmp_path, monkeypatch):
 
 def test_the_command_refuses_a_run_whose_final_score_is_a_scorer_fault(tmp_path, monkeypatch):
     job = JudgingJob(tmp_path, monkeypatch)
-    (job.repo / "beta" / "rec" / "accept.json").write_text(json.dumps(BROWSERLESS))
+    (job.recs["pi"] / "accept.json").write_text(json.dumps(BROWSERLESS))
     job.argv(monkeypatch)
     with pytest.raises(SystemExit, match="pi: .*accept.json is a scorer fault, not a result .*no browser.* Re-score the run before judging it"):
         judge.main()
@@ -267,6 +278,26 @@ def test_prepare_only_builds_the_blinded_package_with_real_commit_logs_and_stops
     assert out[-4:-1] == ["installing dependencies in package/acceptance", "installing dependencies in package/build-A/workspace",
                           "installing dependencies in package/build-B/workspace"]
     assert out[-1] == f"package ready, judge not run: {package}"
+
+
+def test_the_command_refuses_a_run_id_the_lake_does_not_hold(tmp_path, monkeypatch):
+    job = JudgingJob(tmp_path, monkeypatch)
+    job.argv(monkeypatch, runs={"opus": RUNS["opus"], "pi": f"{VIDI}/not-collected"})
+    with pytest.raises(SystemExit, match=f"pi: no run {VIDI}/not-collected in the lake at {job.lake}"):
+        judge.main()
+    assert not (job.private / "state" / "judging" / "job" / "package").exists()
+
+
+def test_the_command_stops_naming_bench_lakes_message_when_bench_lake_fails(tmp_path, monkeypatch):
+    job = JudgingJob(tmp_path, monkeypatch)
+    failing = tmp_path / "bench-lake"
+    failing.write_text("#!/bin/sh\necho 'E-LAKE-UNREADABLE: permission denied' >&2\nexit 1\n")
+    failing.chmod(EXECUTABLE)
+    monkeypatch.setenv(benchlake.BIN_ENV, str(failing))
+    job.argv(monkeypatch)
+    with pytest.raises(SystemExit) as stop:
+        judge.main()
+    assert str(stop.value) == f"opus: bench-lake preferred {RUNS['opus']} failed (exit 1): E-LAKE-UNREADABLE: permission denied"
 
 
 @mac_only
@@ -382,7 +413,7 @@ REAL_RUN = "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/be
 
 
 def test_a_real_runs_lake_code_gives_the_files_its_workspace_folder_has(tmp_path):
-    run = judge.REPO / REAL_RUN
+    run = benchlake.REPO / REAL_RUN
     if not (run / "workspace").is_dir() or not (benchlake.state() / "code.git").is_dir():
         pytest.skip("the run has no workspace folder here, or this machine has no lake")
     from_lake = tmp_path / "from-lake"

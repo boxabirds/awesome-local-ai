@@ -26,6 +26,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import benchlake
 import credentials
 import machine_names as mn
 import packdir
@@ -33,7 +34,7 @@ import publicise as pub
 
 # Where the private repo is: this variable, else the checkout beside this repo (packdir.private_checkout).
 PRIVATE_ENV = "SPEC_BENCH_PRIVATE_REPO"
-PRIVATE_RUNS = "runs"          # the private repo's copy of each run's detail: runs/<repo-relative run dir>/
+PRIVATE_RUNS = "runs"          # the private repo's copy of each run's detail: runs/<run id>/
 METRICS = "metrics.json"
 # Directories never walked for held-out results or private files: the agent's work and build output.
 SKIP_PARTS = {"workspace", "node_modules", ".git"}
@@ -53,12 +54,30 @@ def repo_of(d: Path) -> tuple[Path, str] | None:
     return None
 
 
+def lake_name(d: Path) -> str | None:
+    """A directory in the lake as the private repo names it (story 23): the run id, the same on every machine that
+    holds a copy, then the path below the run folder ("" for a folder above any run). None outside the lake."""
+    d, lake = d.resolve(), benchlake.state().resolve()
+    if d.is_relative_to(lake / benchlake.COLLECTED):
+        return "/".join(d.relative_to(lake / benchlake.COLLECTED).parts[1:])   # without the machine's folder
+    if d.is_relative_to(lake / benchlake.REFERENCE):
+        rel = d.relative_to(lake / benchlake.REFERENCE).as_posix()
+        return "" if rel == "." else f"{benchlake.REFERENCE_ID_PREFIX}/{rel}"
+    if d.is_relative_to(lake):
+        return ""
+    return None
+
+
 def private_copy(d: Path, private: Path | None = None) -> Path | None:
-    """Where the private repo keeps this directory's detail: <private>/runs/<its path in its checkout>."""
-    found = repo_of(d)
-    if not found or found[1] in ("", "."):
+    """Where the private repo keeps this directory's detail: <private>/runs/<run id>[/<path below the run>]. A
+    directory in the lake is named by its run id; one in a checkout (a node's own run) by its path there."""
+    name = lake_name(d)
+    if name is None:
+        found = repo_of(d)
+        name = found[1] if found else ""
+    if name in ("", "."):
         return None
-    return (private or private_repo()) / PRIVATE_RUNS / found[1]
+    return (private or private_repo()) / PRIVATE_RUNS / name
 
 
 def find(d: Path, rel: str, private: Path | None = None) -> Path | None:

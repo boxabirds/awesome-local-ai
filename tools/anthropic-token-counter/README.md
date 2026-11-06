@@ -33,6 +33,11 @@ tool-call inputs, tool results; pi, OpenCode and Claude Code). Held-out suite ma
 corpus was scanned for secrets before anything was sent. Each text was counted once with the endpoint (795 calls and
 one probe); the endpoint adds 8 tokens around any message, which is taken off.
 
+Since 6 Nov 2026 (story 23) `corpus` reads no run's files from the checkout: the agent logs come from the lake
+(`--lake`, else `$BENCH_LAKE_STATE`, else the private repository's `state/` beside the checkout), each run's preferred
+copy, raw log where the lake has it. A corpus built now is therefore not the 10 Oct one; the fitted model above was
+calibrated on that one and is unchanged.
+
 Five-fold cross-validation, every source file held out in turn. Median and 90th-percentile error are per text, as a
 percentage of the true count; "total off by" is the sum of estimates over the sum of true counts, which is what a long
 text's total is off by.
@@ -73,7 +78,7 @@ newlines. Counting a handful of JSON-serialised samples would show whether that 
 cargo build --release -p anthropic-token-counter
 B=tools/target/release/anthropic-token-counter
 
-$B corpus    --out corpus.jsonl                    # 795 texts from tracked files and compact logs
+$B corpus    --out corpus.jsonl                    # tracked files, and the runs' agent logs from the lake
 $B calibrate --corpus corpus.jsonl --cache counts.jsonl --env-file .env --model claude-opus-5-5
 $B fit       --corpus corpus.jsonl --cache counts.jsonl --model claude-opus-5-5 --out model.json
 $B estimate  --model-file model.json notes.txt

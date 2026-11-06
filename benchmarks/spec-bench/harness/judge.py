@@ -9,10 +9,11 @@
         --label codex-<model>-high --model <model> [--effort high] [--repeat 2]
 
 One command does the whole flow, so no human has to type an instruction to the judge:
-1. Takes everything from the run records in this repo, not from the machines that ran them: the
-   final workspace snapshot (`workspace/`, checked against the commit its score was taken on), the
-   commit log (`workspace-git-log.txt`), each story's completion claims and the final held-out
-   results.
+1. Takes everything from the lake (story 23: each --build names a run id, read through bench-lake from the copy
+   the lake prefers; never a checkout, never the machines that ran them): the app at the commit its score was
+   taken on (the lake's code repository, else the record's `workspace/` folder), the commit log
+   (`workspace-git-log.txt`), each story's completion claims and the final held-out results (the record's, else
+   the private repo's copy under the run id).
 2. Builds the blinded package (grading_package.py) in <private>/state/judging/<name>/package. The
    key goes to <private>/state/keys/<name>.json. state/ is git-ignored, so neither is ever committed.
 3. Installs the builds' and the held-out suite's dependencies, because the judge gets no internet.
@@ -41,7 +42,6 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 import benchlake  # noqa: E402
 import claims  # noqa: E402
@@ -242,7 +242,8 @@ def run_judge(run_dir: Path, package: Path, args: argparse.Namespace) -> Path:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--name", required=True)
-    ap.add_argument("--build", action="append", required=True, help="label=<run record dir in this repo>, exactly two")
+    ap.add_argument("--build", action="append", required=True,
+                    help="label=<run id>, exactly two; the run is read from the lake (bench-lake), never a checkout")
     ap.add_argument("--label", required=True, help="names the judge: model and effort, e.g. codex-<model>-high")
     ap.add_argument("--model")
     ap.add_argument("--effort")
@@ -266,10 +267,13 @@ def main() -> None:
     src = job / "src"
     src.mkdir(parents=True)
     specs = []
+    records = {}
     for b in a.build:
-        label, _, rest = b.partition("=")
-        record = rest
-        rec = REPO / record
+        label, _, run = b.partition("=")
+        try:
+            rec = records[label] = benchlake.preferred(run)
+        except SystemExit as e:
+            raise SystemExit(f"{label}: {e}") from None
         fault = scorer_fault(last_accept(rec))
         if fault:
             raise SystemExit(f"{label}: {last_accept(rec)} is a scorer fault, not a result "
@@ -288,7 +292,6 @@ def main() -> None:
     # grading_package wrote a one-commit history; replace it with each build's real commit log.
     sys.path.insert(0, str(HERE))
     import grading_package
-    records = {b.partition("=")[0]: REPO / b.partition("=")[2] for b in a.build}
     for letter, label in json.loads(key.read_text()).items():
         log = (records[label] / "workspace-git-log.txt").read_text()
         (package / f"build-{letter}" / "commits.txt").write_text(grading_package.scrub(commits_oldest_first(log)))

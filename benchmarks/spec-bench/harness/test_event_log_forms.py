@@ -96,7 +96,7 @@ def test_an_attempt_is_built_from_a_story_that_has_only_its_raw_log(tmp_path):
         (run / "stories" / SID / "accept.json").write_text(json.dumps({"passed": 1, "total": 2, "tests": [], "by_story": {}}))
         (run / "metrics.json").write_text(json.dumps({"stories": {SID: {"title": "t", "status": "done", "agent": {}}}}))
         metrics = json.loads((run / "metrics.json").read_text())
-        out[form] = annotate.build_attempt(run, repo, run / "stories" / SID, metrics, "")
+        out[form] = annotate.build_attempt("benchmarks/reference/vidi/m/run-1", run, run / "stories" / SID, metrics, "")
     assert out["raw"] is not None
     assert {k: v for k, v in out["raw"].items() if k != "id"} == {k: v for k, v in out["compact"].items() if k != "id"}
 

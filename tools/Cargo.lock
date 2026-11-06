@@ -86,6 +86,7 @@ name = "anthropic-token-counter"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bench-lake",
  "clap",
  "flate2",
  "reqwest",

@@ -30,6 +30,10 @@ const FRAMING_PROBE_TOKENS: u64 = 1;
 const PROBE_ID: &str = "framing-probe";
 const PROGRESS_EVERY: usize = 50;
 /// The story that was counted by hand first. It is kept out of the corpus so that it can be used as the test.
+/// The lake's state folder, as bench-lake's other callers name it (benchmarks/spec-bench/harness/benchlake.py).
+const LAKE_STATE_ENV: &str = "BENCH_LAKE_STATE";
+const PRIVATE_REPO: &str = "awesome-local-ai-bench-private";
+const LAKE_STATE_DIR: &str = "state";
 const HELD_OUT_STORY: &str = "benchmarks/reference/vidi/opus-5.5/v2-r1/stories/04/";
 
 #[derive(Parser)]
@@ -60,6 +64,10 @@ enum Command {
     Corpus {
         #[arg(long, default_value = ".")]
         repo: PathBuf,
+        /// The lake's state folder, which the runs' logs are read from (story 23): else $BENCH_LAKE_STATE, else the
+        /// private repository's beside the checkout, as bench-lake's other callers default.
+        #[arg(long)]
+        lake: Option<PathBuf>,
         #[arg(long)]
         out: PathBuf,
         #[arg(long, default_value_t = 40)]
@@ -146,9 +154,13 @@ struct CvSummary {
 fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Story { events, env_file, model, tokenizer_json, fitted, skip_api } => story(&events, &env_file, &model, tokenizer_json.as_deref(), fitted.as_deref(), skip_api),
-        Command::Corpus { repo, out, files_per_kind, chunks_per_file, logs, strings_per_kind, mut skip_prefix } => {
+        Command::Corpus { repo, lake, out, files_per_kind, chunks_per_file, logs, strings_per_kind, mut skip_prefix } => {
             skip_prefix.push(HELD_OUT_STORY.to_string());
-            build_corpus(&repo, &out, corpus::Plan { files_per_kind, chunks_per_file, logs, strings_per_kind }, &skip_prefix)
+            let lake = match lake.or_else(|| std::env::var_os(LAKE_STATE_ENV).map(PathBuf::from)) {
+                Some(lake) => lake,
+                None => default_lake(&repo)?,
+            };
+            build_corpus(&repo, &lake, &out, corpus::Plan { files_per_kind, chunks_per_file, logs, strings_per_kind }, &skip_prefix)
         }
         Command::Calibrate { corpus, cache, env_file, model } => calibrate(&corpus, &cache, &env_file, &model),
         Command::Fit { corpus, cache, model, tokenizer_json, method, out } => fit_command(&corpus, &cache, &model, tokenizer_json.as_deref(), &method, &out),
@@ -186,8 +198,15 @@ fn story(events: &Path, env_file: &Path, model: &str, tokenizer_json: Option<&Pa
     Ok(())
 }
 
-fn build_corpus(repo: &Path, out: &Path, plan: corpus::Plan, skip: &[String]) -> Result<()> {
-    let samples = corpus::build(repo, plan, skip)?;
+/// The lake's state folder when none is named: the private repository's, beside the checkout.
+fn default_lake(repo: &Path) -> Result<PathBuf> {
+    let repo = repo.canonicalize().with_context(|| format!("{}", repo.display()))?;
+    let beside = repo.parent().with_context(|| format!("{} has no parent folder", repo.display()))?;
+    Ok(beside.join(PRIVATE_REPO).join(LAKE_STATE_DIR))
+}
+
+fn build_corpus(repo: &Path, lake: &Path, out: &Path, plan: corpus::Plan, skip: &[String]) -> Result<()> {
+    let samples = corpus::build(repo, lake, plan, skip)?;
     let mut file = std::io::BufWriter::new(std::fs::File::create(out)?);
     let mut by_kind: BTreeMap<&str, (usize, usize)> = BTreeMap::new();
     for s in &samples {

@@ -719,7 +719,7 @@ def test_E8_judge_prep_and_annotate_take_the_results_from_the_private_copy(tmp_p
     judge_prep.copy_run(run, tmp_path / "bundle")
     assert json.loads((tmp_path / "bundle/stories/01/accept.json").read_text()) == STORY_1
     assert (tmp_path / "bundle/stories/01/screenshots/a.png").exists()
-    attempt = annotate.build_attempt(run, run.parents[5], run / "stories/01", {"stories": {"1": {"title": "S"}}}, "")
+    attempt = annotate.build_attempt(RUN_REL, run, run / "stories/01", {"stories": {"1": {"title": "S"}}}, "")
     assert [f["title"] for f in attempt["behaviour"]["failed"]] == [f"{OTHER} {ANCHOR}"]
 
 
