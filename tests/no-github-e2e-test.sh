@@ -90,7 +90,10 @@ echo "the benchmarker shows it"
 echo '{"name": "vidi", "pack_ref": "kat-v1"}' > "$HOST/benchmarks/vidi/bench.json"
 # A port the system has free now: a fixed one can be held by a benchmarker already running on this machine.
 BM_PORT="$(uv run --quiet python -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
-(cd "$REPO/tools/benchmarker" && bun server/main.ts --repo "$HOST" --lake "$STATE" --bench-lake "$BENCH_LAKE" \
+# Its own empty home: the benchmarker lists live runs from the nodes in ~/.config/dbench/nodes.toml, and this machine's
+# real nodes must not appear in the test's lake (7 Nov 2026: three live runs on a real node failed the listing).
+mkdir -p "$TMP/bmhome"
+(cd "$REPO/tools/benchmarker" && HOME="$TMP/bmhome" bun server/main.ts --repo "$HOST" --lake "$STATE" --bench-lake "$BENCH_LAKE" \
   --port "$BM_PORT" --conversations-url http://127.0.0.1:1 > "$TMP/bm.out" 2> "$TMP/bm.err") &
 PIDS+=($!)
 # The server's first read of the lake can take a while on a busy machine (the release runs this after its builds).
