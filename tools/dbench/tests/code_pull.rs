@@ -650,5 +650,110 @@ async fn a_node_without_the_code_route_still_has_its_files_pulled_and_the_missin
         refs(&state.join(lake_code::CODE_REPO), "refs/").is_empty(),
         "the lake's code refs unchanged"
     );
+    // The code is still owed: once the node has the new dbench, a pass asks for it though the run is complete.
+    assert!(lake_code::is_pending(&state.join(lake_code::CODE_REPO), NODE, OLD_RUN));
     std::fs::remove_dir_all(state).unwrap();
+}
+
+#[tokio::test]
+async fn a_code_pull_that_fails_with_a_server_error_is_tried_again_on_the_next_pass_though_the_run_is_complete() {
+    // 23.28: a 5xx (the node's git failed, a restart mid-answer) is retried on the next pass. A run's code is pulled on
+    // the passes that look at it (files changed, or not yet complete), the last being the one where it becomes complete;
+    // if that pull fails, the run is complete and unchanged from then on, and its code must still reach the lake.
+    use axum::http::StatusCode;
+    use axum::routing::get;
+    use axum::Json;
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Arc;
+    const DONE_RUN: &str = "combinations/f/v/x/os/m/eng-pi/benchmarks/p/r2";
+    // The run's code as the node would serve it: one branch and its story tag, as a bundle.
+    let work = lake("server-error-src").parent().unwrap().join("work");
+    std::fs::create_dir_all(&work).unwrap();
+    git(&work, &["init", "-q", "-b", "main"]);
+    std::fs::write(work.join("a.ts"), "1").unwrap();
+    git(&work, &["add", "-A"]);
+    git(&work, &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "story 1"]);
+    git(&work, &["tag", "story-01"]);
+    let bundle_file = work.join("code.bundle");
+    git(&work, &["bundle", "create", bundle_file.to_str().unwrap(), "--branches", "--tags"]);
+    let bundle = std::fs::read(&bundle_file).unwrap();
+    let tip = git(&work, &["rev-parse", "HEAD"]).trim().to_string();
+    let code_calls = Arc::new(AtomicU32::new(0));
+    let failing = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let calls = code_calls.clone();
+    let fails = failing.clone();
+    let listing = serde_json::json!({"run": DONE_RUN, "job": null, "run_state": "finished", "job_state": null, "final": true,
+        "files": [{"name": "run.json", "size": 2, "mtime": 1.0, "final": true}], "streams": [], "stories": []});
+    let app = axum::Router::new()
+        .route(
+            "/v1/runs",
+            get(|| async { Json(serde_json::json!([{"run": DONE_RUN, "job": null, "run_status": null, "job_state": null}])) }),
+        )
+        .route("/v1/runs/scopes", get(move || std::future::ready(Json(listing.clone()))))
+        .route(
+            "/v1/runs/scope-file",
+            get(|| async {
+                (
+                    [
+                        ("x-dbench-from", "0"),
+                        ("x-dbench-size", "2"),
+                        ("x-dbench-mtime", "1.0"),
+                        ("x-dbench-eof", "1"),
+                        ("x-dbench-final", "1"),
+                    ],
+                    "{}",
+                )
+            }),
+        )
+        .route(
+            "/v1/runs/code",
+            get(move || {
+                calls.fetch_add(1, Ordering::SeqCst);
+                let fail = fails.load(Ordering::SeqCst);
+                let bundle = bundle.clone();
+                async move {
+                    if fail {
+                        (StatusCode::SERVICE_UNAVAILABLE, b"git upload-pack failed".to_vec())
+                    } else {
+                        (StatusCode::OK, bundle)
+                    }
+                }
+            }),
+        );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let state = lake("server-error").parent().unwrap().to_path_buf();
+    let store = state.join("collected");
+    let l = dbench::collector::Lake {
+        store: &store,
+        reference: &state.join("reference"),
+    };
+    let ctx = ctx_for(format!("http://{addr}"));
+    let code = state.join(lake_code::CODE_REPO);
+    // Passes while every code pull fails, up to the one where the run becomes complete.
+    let mut pass = 0u64;
+    loop {
+        pass += 1;
+        assert!(pass < 10, "the run never became complete");
+        let out = dbench::collector::collect_node_with(&ctx, NODE, l, &[], &Default::default(), &cadence(), pass, true).await;
+        assert!(out.problems.iter().any(|p| p.contains(DONE_RUN) && p.contains("503")), "pass {pass}: {:?}", out.problems);
+        if out.runs.iter().all(|r| r.complete) {
+            break;
+        }
+    }
+    assert!(refs(&code, "refs/").is_empty(), "nothing taken from a failed pull");
+    let asked = code_calls.load(Ordering::SeqCst);
+    // The node is well again. The run is complete and its files unchanged: its code is still owed to the lake.
+    failing.store(false, Ordering::SeqCst);
+    let next = dbench::collector::collect_node_with(&ctx, NODE, l, &[], &Default::default(), &cadence(), pass + 1, true).await;
+    assert!(next.problems.is_empty(), "{:?}", next.problems);
+    assert_eq!(code_calls.load(Ordering::SeqCst), asked + 1, "the code was asked for again on the next pass");
+    assert_eq!(refs(&code, &lake_code::head_ref(NODE, DONE_RUN, "main")).into_values().next(), Some(tip.clone()));
+    // Pulled now: a further pass of the complete, unchanged run does not ask again.
+    let after = dbench::collector::collect_node_with(&ctx, NODE, l, &[], &Default::default(), &cadence(), pass + 2, true).await;
+    assert!(after.problems.is_empty(), "{:?}", after.problems);
+    assert_eq!(code_calls.load(Ordering::SeqCst), asked + 1);
+    std::fs::remove_dir_all(state).unwrap();
+    let _ = std::fs::remove_dir_all(work.parent().unwrap());
 }

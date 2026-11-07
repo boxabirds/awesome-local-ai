@@ -593,8 +593,9 @@ pub async fn collect_node_with(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs:
         };
         match result {
             Ok(s) => {
-                // The run's code follows its files, on the passes that looked at the run (story 23, code.lake_repo).
-                if scopes && (!s.complete || s.changed) {
+                // The run's code follows its files, on the passes that looked at the run (story 23, code.lake_repo), and
+                // on every pass while a pull of it has not yet succeeded (lake_code::is_pending).
+                if scopes && (!s.complete || s.changed || code_owed(lake, node, &r.run)) {
                     if let Some(problem) = pull_run_code(&api, lake, node, &r.run).await {
                         out.problems.push(problem);
                     }
@@ -615,13 +616,31 @@ pub async fn collect_node_with(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs:
 /// when the code could not be pulled; the run's files are kept either way.
 async fn pull_run_code(api: &crate::client::Api, lake: Lake<'_>, node: &str, run: &str) -> Option<String> {
     use crate::lake_code::{self, Pulled};
-    let code = lake.store.parent().unwrap_or(Path::new("")).join(lake_code::CODE_REPO);
-    let segment = if run.starts_with(REFERENCE_RUN_PREFIX) { lake_code::REFERENCE_NODE } else { node };
-    match lake_code::pull_code(api, &code, segment, run).await {
-        Ok(Pulled::NothingNew | Pulled::Applied { .. } | Pulled::NoCode(_)) => None,
-        Ok(Pulled::EndpointMissing) => Some(format!("{}: {run}: needs the new dbench (no /v1/runs/code)", lake_code::E_CODE_ENDPOINT_MISSING)),
-        Err(e) => Some(format!("{run}: code: {e:#}")),
+    let (code, segment) = code_place(lake, node, run);
+    let (owed, problem) = match lake_code::pull_code(api, &code, segment, run).await {
+        Ok(Pulled::NothingNew | Pulled::Applied { .. } | Pulled::NoCode(_)) => (false, None),
+        Ok(Pulled::EndpointMissing) => {
+            (true, Some(format!("{}: {run}: needs the new dbench (no /v1/runs/code)", lake_code::E_CODE_ENDPOINT_MISSING)))
+        }
+        Err(e) => (true, Some(format!("{run}: code: {e:#}"))),
+    };
+    let noted = if owed { lake_code::mark_pending(&code, segment, run) } else { lake_code::clear_pending(&code, segment, run) };
+    match (problem, noted) {
+        (p, Ok(())) => p,
+        (p, Err(e)) => Some(format!("{}{run}: code: the pending note could not be kept: {e:#}", p.map(|p| p + "; ").unwrap_or_default())),
     }
+}
+
+/// The lake's code repository and the node segment of a run's refs there: `reference` for a reference run.
+fn code_place<'a>(lake: Lake<'_>, node: &'a str, run: &str) -> (PathBuf, &'a str) {
+    let code = lake.store.parent().unwrap_or(Path::new("")).join(crate::lake_code::CODE_REPO);
+    (code, if run.starts_with(REFERENCE_RUN_PREFIX) { crate::lake_code::REFERENCE_NODE } else { node })
+}
+
+/// A pull of the run's code has not yet succeeded.
+fn code_owed(lake: Lake<'_>, node: &str, run: &str) -> bool {
+    let (code, segment) = code_place(lake, node, run);
+    crate::lake_code::is_pending(&code, segment, run)
 }
 
 /// The free bytes of the disk that holds `path`, as the system counts them for a write that matters: on macOS the

@@ -354,6 +354,37 @@ pub enum Pulled {
     EndpointMissing,
 }
 
+/// Runs whose code is still owed to the lake: a pull failed (a server error, a connection cut) or met a node without the
+/// code route. A collector pass pulls a run's code when its files changed or it is not complete yet; a run that became
+/// complete on the pass whose pull failed would otherwise never be asked again. One empty file per run, inside the code
+/// repository (git ignores it): `<code.git>/dbench-pending/<node>/<run>`.
+const PENDING_DIR: &str = "dbench-pending";
+
+fn pending_file(lake_code: &Path, node: &str, run: &str) -> Result<PathBuf> {
+    check_names(node, run)?;
+    Ok(lake_code.join(PENDING_DIR).join(node).join(run))
+}
+
+/// Notes that the run's code is still owed.
+pub fn mark_pending(lake_code: &Path, node: &str, run: &str) -> Result<()> {
+    let f = pending_file(lake_code, node, run)?;
+    std::fs::create_dir_all(f.parent().context("a pending file has a folder")?)?;
+    std::fs::write(&f, b"")?;
+    Ok(())
+}
+
+/// The run's code is in the lake, or the node has none for it: nothing is owed.
+pub fn clear_pending(lake_code: &Path, node: &str, run: &str) -> Result<()> {
+    match std::fs::remove_file(pending_file(lake_code, node, run)?) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
+        _ => Ok(()),
+    }
+}
+
+pub fn is_pending(lake_code: &Path, node: &str, run: &str) -> bool {
+    pending_file(lake_code, node, run).is_ok_and(|f| f.is_file())
+}
+
 static INCOMING: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 const INCOMING_PREFIX: &str = "incoming-";
 const BUNDLE_SUFFIX: &str = ".bundle";
@@ -423,6 +454,26 @@ pub async fn pull_code(api: &crate::client::Api, lake_code: &Path, node: &str, r
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_runs_owed_code_is_marked_until_cleared_and_only_for_a_valid_name() {
+        let code = std::env::temp_dir().join(format!("dbench-pending-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&code);
+        const PENDING_RUN: &str = "combinations/f/v/x/os/m/eng-pi/benchmarks/p/r1";
+        assert!(!super::is_pending(&code, "thing2", PENDING_RUN));
+        super::mark_pending(&code, "thing2", PENDING_RUN).unwrap();
+        super::mark_pending(&code, "thing2", PENDING_RUN).unwrap(); // marking twice is one mark
+        assert!(super::is_pending(&code, "thing2", PENDING_RUN));
+        assert!(!super::is_pending(&code, "gruntus", PENDING_RUN), "per node");
+        super::clear_pending(&code, "thing2", PENDING_RUN).unwrap();
+        super::clear_pending(&code, "thing2", PENDING_RUN).unwrap(); // clearing what is not there is fine
+        assert!(!super::is_pending(&code, "thing2", PENDING_RUN));
+        // A name the lake would refuse never reaches the file system.
+        assert!(super::mark_pending(&code, "../x", PENDING_RUN).is_err());
+        assert!(super::mark_pending(&code, "thing2", "../../etc").is_err());
+        assert!(!super::is_pending(&code, "thing2", "../../etc"));
+        let _ = std::fs::remove_dir_all(&code);
+    }
+
     use super::*;
 
     const RUN: &str = "combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r4";
