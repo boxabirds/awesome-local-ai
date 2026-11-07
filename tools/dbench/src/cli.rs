@@ -77,8 +77,9 @@ pub enum Cmd {
         #[arg(long, value_delimiter = ',')]
         stories: Option<Vec<u32>>,
         /// A partial rerun: run --stories on a finished run's code as it was when the story before
-        /// ended. A run directory relative to the repo, e.g. combinations/…/benchmarks/vidi/v2-r1;
-        /// the node needs its workspace.bundle and metrics.json. The result is diagnostic.
+        /// ended. The run's id in the lake, e.g. combinations/…/benchmarks/vidi/v2-r1. Its code and
+        /// metrics.json are read from the lake here ($BENCH_LAKE_STATE, else beside [collect] store)
+        /// and sent with the job. The result is diagnostic.
         #[arg(long)]
         from_run: Option<String>,
         /// With --from-run (instead of --stories): run this story and every later story of the

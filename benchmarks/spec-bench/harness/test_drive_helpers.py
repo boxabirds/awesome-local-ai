@@ -230,39 +230,46 @@ def reference_run(tmp_path: Path, spec_files: dict[str, str] | None = None, tag_
         git(ws, "tag", "after-story-3")
         git(ws, "branch", "side")
     run.mkdir()
-    git(ws, "bundle", "create", str(run / "workspace.bundle"), "--all")
+    # As the host sends it from the lake (story 23): the run's story refs; with tag_last, a tag and a branch as well.
+    for sid, s in stories.items():
+        git(ws, "update-ref", f"refs/runs/node-t/ref-run/story/{int(sid):02d}", s["commit"])
+    git(ws, "bundle", "create", str(run / "code.bundle"), "--glob=refs/runs", *(["--tags", "--branches"] if tag_last else []))
     (run / "metrics.json").write_text(json.dumps({"stories": stories}))
-    return run, stories
+    return (LAKE_RUN, run / "code.bundle", run / "metrics.json"), stories
+
+
+LAKE_RUN = "combinations/q/s/benchmarks/vidi/ref-run"
 
 
 def test_known_good_base_takes_the_stories_before_from_a_record_without_a_processed_queue(tmp_path):
     ref, stories = reference_run(tmp_path)
-    base = drive.known_good_base(ref, 3)
-    assert base == {"bundle": ref / "workspace.bundle", "from_run": ref, "story": 3, "commit": stories["2"]["commit"],
+    base = drive.known_good_base(*ref, 3)
+    assert base == {"bundle": ref[1], "from_run": LAKE_RUN, "story": 3, "commit": stories["2"]["commit"],
                     "processed": [{"id": 1, "title": "feature 1", "status": drive.DONE, "ended_by": drive.KNOWN_GOOD_BY},
                                   {"id": 2, "title": "feature 2", "status": drive.DONE, "ended_by": drive.KNOWN_GOOD_BY}]}
 
 
-@pytest.mark.parametrize("sid, bundle, message", [
-    (2, False, "has no workspace.bundle"),
-    (9, True, "partial rerun: the reference run never processed story 9"),
-    (1, True, "partial rerun: story 1 is the reference run's first; run it from empty instead"),
+@pytest.mark.parametrize("sid, missing, message", [
+    (2, 1, "code.bundle is missing (the job's input from the lake)"),
+    (2, 2, "metrics.json is missing (the job's input from the lake)"),
+    (9, None, "partial rerun: the reference run never processed story 9"),
+    (1, None, "partial rerun: story 1 is the reference run's first; run it from empty instead"),
 ])
-def test_known_good_base_stops_when_there_is_no_base_to_build_on(tmp_path, sid, bundle, message):
+def test_known_good_base_stops_when_there_is_no_base_to_build_on(tmp_path, sid, missing, message):
     ref, _ = reference_run(tmp_path)
-    if not bundle:
-        (ref / "workspace.bundle").unlink()
+    if missing:
+        ref[missing].unlink()
     with pytest.raises(SystemExit) as e:
-        drive.known_good_base(ref, sid)
+        drive.known_good_base(*ref, sid)
     assert message in str(e.value)
-    if not bundle:
-        assert str(e.value) == f"partial rerun: {ref} has no workspace.bundle"
+    if missing:
+        assert str(e.value) == f"partial rerun: {ref[missing]} is missing (the job's input from the lake)"
 
 
 def test_a_known_good_workspace_keeps_only_main_at_the_base_with_a_read_only_spec(tmp_path):
     ref, stories = reference_run(tmp_path, {"prd.md": "the spec", "stories/001/story.md": "# One"}, tag_last=True)
     spec = tmp_path / "ref-ws" / "spec"
-    base = drive.known_good_base(ref, 3)
+    base = drive.known_good_base(*ref, 3)
     ws = tmp_path / "work" / "run" / "workspace"
     drive.setup_workspace_from(ws, base, spec)
     assert git(ws, "rev-parse", "HEAD") == stories["2"]["commit"] and base["spec_updated"] is False
@@ -279,14 +286,14 @@ OTHER_BRANCH = "side"       # the branch reference_run(tag_last=True) leaves bes
 
 
 def test_a_known_good_workspace_is_on_main_whichever_branch_the_clone_took_for_head(tmp_path, monkeypatch):
-    """A bundle doesn't say which branch HEAD was on: where two branches end at HEAD's commit, git clone guesses
-    (init.defaultBranch first, then by name). A clone that guessed the other branch lost HEAD when that branch
-    was deleted, and `git rev-parse HEAD` exited 128 (on CI, whose git has no init.defaultBranch of main)."""
+    """A bundle doesn't say which branch HEAD was on: where two branches end at HEAD's commit, git clone guessed
+    (init.defaultBranch first, then by name), and a clone that guessed the other branch lost HEAD when that branch
+    was deleted (`git rev-parse HEAD` exited 128). The workspace is made on main whatever init.defaultBranch says."""
     ref, stories = reference_run(tmp_path, tag_last=True)
     for k, v in {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "init.defaultBranch", "GIT_CONFIG_VALUE_0": OTHER_BRANCH}.items():
         monkeypatch.setenv(k, v)
     ws = tmp_path / "work" / "run" / "workspace"
-    drive.setup_workspace_from(ws, drive.known_good_base(ref, 3), tmp_path / "ref-ws" / "spec")
+    drive.setup_workspace_from(ws, drive.known_good_base(*ref, 3), tmp_path / "ref-ws" / "spec")
     assert git(ws, "rev-parse", "HEAD") == stories["2"]["commit"]
     assert git(ws, "symbolic-ref", "HEAD") == "refs/heads/main"
     assert git(ws, "for-each-ref", "--format=%(refname)") == "refs/heads/main"
@@ -378,7 +385,7 @@ def test_a_known_good_workspace_gets_this_pack_s_spec_in_a_harness_commit_when_i
     current.mkdir()
     (current / "prd.md").write_text("the new spec")
     (current / ".DS_Store").write_text("finder")
-    base = drive.known_good_base(ref, 3)
+    base = drive.known_good_base(*ref, 3)
     ws = tmp_path / "work" / "workspace"
     drive.setup_workspace_from(ws, base, current)
     assert base["spec_updated"] is True

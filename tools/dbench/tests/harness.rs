@@ -68,7 +68,7 @@ const HARNESS: &str = r#"#!/usr/bin/env bash
 set -euo pipefail
 VERSION="@VERSION@"
 INSTALL_ID="$1"; shift
-RUN_ID=""; PACK=""; RECORD=0; FROM_RUN=""; FROM_STORY=""
+RUN_ID=""; PACK=""; RECORD=0; FROM_RUN=""; FROM_STORY=""; FROM_CODE=""; FROM_METRICS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pack) PACK="$2"; shift 2 ;;
@@ -76,6 +76,8 @@ while [[ $# -gt 0 ]]; do
     --scope|--client|--only) shift 2 ;;
     --from-run) FROM_RUN="$2"; shift 2 ;;
     --from-story) FROM_STORY="$2"; shift 2 ;;
+    --from-code) FROM_CODE="$2"; shift 2 ;;
+    --from-metrics) FROM_METRICS="$2"; shift 2 ;;
     --record) RECORD=1; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
@@ -87,6 +89,8 @@ echo "harness: $VERSION"
 echo "code-root: $CODE_ROOT"
 echo "results-root: ${SPEC_BENCH_RESULTS_ROOT:-unset}"
 if [[ -n "$FROM_RUN" ]]; then echo "from-run: $FROM_RUN"; fi
+if [[ -n "$FROM_CODE" ]]; then echo "from-code: $FROM_CODE = $(cat "$FROM_CODE")"; fi
+if [[ -n "$FROM_METRICS" ]]; then echo "from-metrics: $FROM_METRICS = $(cat "$FROM_METRICS")"; fi
 if [[ -n "$FROM_STORY" ]]; then echo "from-story: $FROM_STORY"; fi
 if [[ -f "$CODE_ROOT/RELEASE.json" ]]; then echo "manifest: $(tr -d ' \n' < "$CODE_ROOT/RELEASE.json")"; fi
 COMBINATION="$(sed -n 's/^COMBINATION="\(.*\)"/\1/p' "$HOME/.local/share/$INSTALL_ID/install.env")"
@@ -837,23 +841,27 @@ async fn old_release_directories_are_pruned_but_never_the_one_a_job_runs_from() 
     assert!(present.contains(&TAG_2.to_string()), "{present:?}");
 }
 
-/// What the harness's a partial rerun reads from a reference run (drive.py known_good_base).
-const REFERENCE_FILES: [&str; 2] = ["workspace.bundle", "metrics.json"];
+/// A partial rerun's inputs as `dbench submit` sends them from the lake (job_inputs.rs): a bundle (here any bytes,
+/// as the fake harness only prints it) and the reference run's record.
+const BUNDLE_BYTES: &str = "bundle bytes";
+const BUNDLE_BASE64: &str = "YnVuZGxlIGJ5dGVz";
+const REFERENCE_METRICS: &str = r#"{"stories": {}}"#;
 const KNOWN_GOOD_STORY: u32 = 2;
 
+fn inputs() -> serde_json::Value {
+    json!({"code_bundle": BUNDLE_BASE64, "metrics": REFERENCE_METRICS})
+}
+
 #[tokio::test(flavor = "multi_thread")]
-async fn a_known_good_job_on_a_release_reads_its_reference_run_from_the_checkout() {
-    // The release's own directory holds code only. A finished run is a result, so the path the
-    // harness is given is in the node's checkout, where results are, whichever harness runs.
+async fn a_known_good_job_on_a_release_gets_its_reference_run_s_inputs_from_the_job_s_folder() {
+    // Story 23: the reference run is named as the lake knows it, and nothing of it is read from the checkout; its
+    // code and record are the job's inputs, kept in the job's folder whichever harness runs.
     let env = setup();
     release(&env, TAG_1, "v1", "");
     let reference = format!("combinations/{COMBINATION}/benchmarks/{PACK_NAME}/v2-r3");
-    for f in REFERENCE_FILES {
-        write(&env.repo, &format!("{reference}/{f}"), "{}");
-    }
     let srv = start(&env, &[]);
     let spec = json!({"install_id": INSTALL_ID, "pack": PACK, "run_id": "kg", "client": "pi", "record": false,
-                      "stories": [KNOWN_GOOD_STORY], "from_run": reference});
+                      "stories": [KNOWN_GOOD_STORY], "from_run": reference, "inputs": inputs()});
     let resp = srv
         .http
         .put(format!("{}/v1/jobs/kg", srv.base))
@@ -865,22 +873,25 @@ async fn a_known_good_job_on_a_release_reads_its_reference_run_from_the_checkout
     assert_eq!(resp.status().as_u16(), 201, "{}", resp.text().await.unwrap());
     srv.wait_status("kg", "done").await;
     let log = srv.log("kg").await;
+    let inputs_dir = env.home.join("jobs/kg.inputs");
     assert!(log.contains(&format!("code-root: {}", release_dir(&env, TAG_1).display())), "{log}");
-    assert!(log.contains(&format!("from-run: {}", env.repo.join(&reference).display())), "{log}");
-    assert!(!release_dir(&env, TAG_1).join(&reference).exists());
+    assert!(log.contains(&format!("from-run: {reference}\n")), "{log}");
+    assert!(log.contains(&format!("from-code: {} = {BUNDLE_BYTES}", inputs_dir.join("code.bundle").display())), "{log}");
+    assert!(
+        log.contains(&format!("from-metrics: {} = {REFERENCE_METRICS}", inputs_dir.join("metrics.json").display())),
+        "{log}"
+    );
+    assert!(!env.repo.join(&reference).exists() && !release_dir(&env, TAG_1).join(&reference).exists());
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_job_from_a_story_on_a_release_passes_it_with_the_reference_run_in_the_checkout() {
+async fn a_job_from_a_story_on_a_release_passes_it_with_the_job_s_inputs() {
     let env = setup();
     release(&env, TAG_1, "v1", "");
     let reference = format!("combinations/{COMBINATION}/benchmarks/{PACK_NAME}/v2-r3");
-    for f in REFERENCE_FILES {
-        write(&env.repo, &format!("{reference}/{f}"), "{}");
-    }
     let srv = start(&env, &[]);
     let spec = json!({"install_id": INSTALL_ID, "pack": PACK, "run_id": "fs", "client": "pi", "record": false,
-                      "from_run": reference, "from_story": KNOWN_GOOD_STORY});
+                      "from_run": reference, "from_story": KNOWN_GOOD_STORY, "inputs": inputs()});
     let resp = srv
         .http
         .put(format!("{}/v1/jobs/fs", srv.base))
@@ -892,6 +903,7 @@ async fn a_job_from_a_story_on_a_release_passes_it_with_the_reference_run_in_the
     assert_eq!(resp.status().as_u16(), 201, "{}", resp.text().await.unwrap());
     srv.wait_status("fs", "done").await;
     let log = srv.log("fs").await;
-    assert!(log.contains(&format!("from-run: {}", env.repo.join(&reference).display())), "{log}");
+    assert!(log.contains(&format!("from-run: {reference}\n")), "{log}");
     assert!(log.contains(&format!("from-story: {KNOWN_GOOD_STORY}")), "{log}");
+    assert!(log.contains(&format!("from-code: {}", env.home.join("jobs/fs.inputs/code.bundle").display())), "{log}");
 }

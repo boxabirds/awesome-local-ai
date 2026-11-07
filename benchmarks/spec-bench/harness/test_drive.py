@@ -1149,8 +1149,8 @@ def test_a_tool_call_written_as_text_is_recognised():
 
 
 def _reference_run(tmp_path, spec_text="the spec"):
-    """A finished reference run: workspace.bundle with one commit per story, and metrics naming
-    each story's end commit, as a real run leaves them."""
+    """A finished reference run as a partial rerun's job brings it: a bundle of its story refs (one commit per
+    story) and metrics naming each story's end commit."""
     import subprocess
     ws, run = tmp_path / "ref-ws", tmp_path / "ref-run"
     (ws / "spec").mkdir(parents=True)
@@ -1165,9 +1165,15 @@ def _reference_run(tmp_path, spec_text="the spec"):
         stories[str(sid)] = {"title": f"feature {sid}", "commit": git("rev-parse", "HEAD")}
         processed.append({"id": sid, "title": f"feature {sid}", "status": "DONE", "ended_by": "agent"})
     run.mkdir()
-    git("bundle", "create", str(run / "workspace.bundle"), "--all")
+    # As the host sends it from the lake (story 23): the run's story refs, no branch.
+    for sid, s in stories.items():
+        git("update-ref", f"refs/runs/node-t/ref-run/story/{int(sid):02d}", s["commit"])
+    git("bundle", "create", str(run / "code.bundle"), "--glob=refs/runs")
     (run / "metrics.json").write_text(json.dumps({"stories": stories, "processed": processed}))
-    return run, stories
+    return (LAKE_RUN, run / "code.bundle", run / "metrics.json"), stories
+
+
+LAKE_RUN = "combinations/q/s/benchmarks/vidi/ref-run"
 
 
 def test_known_good_base_is_the_reference_runs_code_at_the_end_of_the_previous_story(tmp_path):
@@ -1175,25 +1181,25 @@ def test_known_good_base_is_the_reference_runs_code_at_the_end_of_the_previous_s
     when the previous story ended, with the earlier stories counted as processed."""
     from drive import known_good_base
     ref, stories = _reference_run(tmp_path)
-    base = known_good_base(ref, 3)
+    base = known_good_base(*ref, 3)
     assert base["commit"] == stories["2"]["commit"]
     assert [p["id"] for p in base["processed"]] == [1, 2]
     assert all(p["ended_by"] == "known-good base" for p in base["processed"])
     with pytest.raises(SystemExit, match="story 1"):
-        known_good_base(ref, 1)   # nothing before it: a full run from empty is the same thing
+        known_good_base(*ref, 1)   # nothing before it: a full run from empty is the same thing
     with pytest.raises(SystemExit, match="story 9"):
-        known_good_base(ref, 9)   # the reference run never got there
+        known_good_base(*ref, 9)   # the reference run never got there
 
 
 def test_known_good_workspace_holds_no_trace_of_later_stories(tmp_path):
-    """The bundle holds the reference run's whole history: the agent must not be able to read how
+    """The bundle may hold more of the reference run than the base: the agent must not be able to read how
     the story it is about to build was done."""
     import subprocess
     from drive import known_good_base, setup_workspace_from
     ref, stories = _reference_run(tmp_path)
     spec = tmp_path / "ref-ws" / "spec"
     ws = tmp_path / "work" / "workspace"
-    setup_workspace_from(ws, known_good_base(ref, 3), spec)
+    setup_workspace_from(ws, known_good_base(*ref, 3), spec)
     git = lambda *a: subprocess.run(["git", *a], cwd=ws, check=True, capture_output=True, text=True).stdout
     assert git("rev-parse", "HEAD").strip() == stories["2"]["commit"]
     assert git("branch", "--show-current").strip() == "main"
@@ -1214,7 +1220,7 @@ def test_known_good_brings_an_older_reference_up_to_this_packs_spec(tmp_path):
     (current / "prd.md").write_text("the spec as it is now")
     (current / ".DS_Store").write_bytes(b"finder noise")
     ws = tmp_path / "work" / "workspace"
-    base = known_good_base(ref, 3)
+    base = known_good_base(*ref, 3)
     setup_workspace_from(ws, base, current)
     assert (ws / "spec" / "prd.md").read_text() == "the spec as it is now"
     assert base["spec_updated"] is True
@@ -1231,7 +1237,7 @@ def test_known_good_ignores_finder_files_when_comparing_specs(tmp_path):
     current.mkdir()
     (current / "prd.md").write_text("the spec")
     (current / ".DS_Store").write_bytes(b"finder noise")
-    base = known_good_base(ref, 3)
+    base = known_good_base(*ref, 3)
     setup_workspace_from(tmp_path / "work" / "workspace", base, current)
     assert base["spec_updated"] is False
 

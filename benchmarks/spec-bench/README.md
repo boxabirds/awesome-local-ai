@@ -22,8 +22,13 @@ names a pack (`dbench submit … --pack benchmarks/<name>`).
 ## A partial rerun: one story on its own
 
 ```sh
-benchmarks/spec-bench/harness/run.sh <install-id> --only 7 --from-run benchmarks/reference/vidi/opus-5.5/run-3 --run-id kg-07-01
+benchmarks/spec-bench/harness/run.sh <install-id> --only 7 --from-run benchmarks/reference/vidi/opus-5.5/run-3 \
+  --from-code <bundle> --from-metrics <metrics.json> --run-id kg-07-01
 ```
+
+`--from-run` names the reference run as the lake knows it. Its code and record come as two files (story 23): a git
+bundle of the run's story refs up to the story before, and its `metrics.json`. `dbench submit --from-run` takes both
+from the lake on the host and sends them with the job, so this is normally queued with dbench, not run by hand.
 
 Runs one story on another finished run's code as it was when the story before ended, so a stack's
 work on that story is measured without earlier mistakes carried in, in the time of one story instead of
@@ -35,7 +40,8 @@ built from the same spec.
 To carry on from there to the end of the scope, give `--from-story N` in place of `--only N`:
 
 ```sh
-benchmarks/spec-bench/harness/run.sh <install-id> --from-story 10 --from-run combinations/<combination>/benchmarks/vidi/<run-id> --run-id kg-from-10-01
+benchmarks/spec-bench/harness/run.sh <install-id> --from-story 10 --from-run combinations/<combination>/benchmarks/vidi/<run-id> \
+  --from-code <bundle> --from-metrics <metrics.json> --run-id kg-from-10-01
 ```
 
 Story N is built on the reference run's code as before, and every later story of the scope on the one before it

@@ -45,6 +45,8 @@ async fn main() -> Result<()> {
             let ctx = Ctx::load(cli.config, cli.json)?;
             let jobs = dbench::ids::expand_repeats(&id, &run_id, repeat, repeat_from)
                 .map_err(anyhow::Error::msg)?;
+            // A partial rerun's code and record come from the lake here, once for every repeat (story 23).
+            let mut inputs = None;
             for (job_id, job_run_id) in jobs {
                 let spec = JobSpec {
                     install_id: install_id.clone().unwrap_or_default(),
@@ -62,7 +64,11 @@ async fn main() -> Result<()> {
                 spec.validate()
                     .map_err(anyhow::Error::msg)
                     .context("job spec")?;
-                client::cmd_submit(&ctx, &node, &job_id, spec).await?;
+                if let (Some(r), None) = (spec.from_run.as_deref(), &inputs) {
+                    let first = dbench::job_inputs::first_story(&spec).context("a partial rerun names its stories")?;
+                    inputs = Some(dbench::job_inputs::from_lake(&ctx.lake_state()?, r, first).map_err(anyhow::Error::msg)?);
+                }
+                client::cmd_submit(&ctx, &node, &job_id, spec, inputs.as_ref()).await?;
             }
             Ok(())
         }

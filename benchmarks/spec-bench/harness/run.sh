@@ -3,7 +3,7 @@
 #
 #   benchmarks/spec-bench/harness/run.sh <install-id> [--pack benchmarks/vidi] [--client pi|opencode]
 #       [--scope NAME | --epic NAME] [--run-id ID] [--only 1,2] [--record] [--meter]
-#       [--from-run DIR (--only N | --from-story N)]
+#       [--from-run NAME --from-code BUNDLE --from-metrics FILE (--only N | --from-story N)]
 #
 # Starts the combination's own server launcher (<install-id>-server) on a bench
 # port and drives a coding agent (pi by default) through the pack's stories one at
@@ -14,9 +14,10 @@
 # Re-running with the same --run-id resumes at the first unfinished story.
 # BENCH_CONTEXT=<tokens> overrides the context (server and agent together); CLIENT_THINKING=<level>
 # makes pi send a reasoning effort (for servers that can't apply one).
-# A partial rerun (diagnostic, not comparable with full runs): --only N --from-run <finished run dir>
-# runs story N alone on that run's code as it was when the story before ended; --from-story N --from-run <dir>
-# runs story N and every later story of the scope, each built on the one before in this run.
+# A partial rerun (diagnostic, not comparable with full runs): --only N --from-run <run> runs story N alone on that
+# finished run's code as it was when the story before ended; --from-story N --from-run <run> runs story N and every
+# later story of the scope, each built on the one before in this run. The run is named as the lake knows it; its code
+# (a bundle of its story refs) and record come as files with the job (--from-code, --from-metrics; story 23).
 set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,12 +33,12 @@ SERVER_READY_TIMEOUT_S=900
 POLL_S="${SPEC_BENCH_POLL_S:-5}"   # seconds between readiness checks (whole seconds); a test sets it lower
 THERMAL_TIMEOUT_S=1800
 
-usage() { sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 [[ $# -ge 1 && "$1" != -h && "$1" != --help ]] || { usage; exit 0; }
 RESULTS_ROOT="$(python3 "$HARNESS/roots.py" results)" || exit 1
 INSTALL_ID="$1"; shift
-PACK="benchmarks/vidi"; SCOPE=""; EPIC=""; RUN_ID="$(date +%Y%m%d-%H%M)"; ONLY=""; METER=0; CLIENT_NAME=pi; RECORD=""; FROM_RUN=""; FROM_STORY=""
+PACK="benchmarks/vidi"; SCOPE=""; EPIC=""; RUN_ID="$(date +%Y%m%d-%H%M)"; ONLY=""; METER=0; CLIENT_NAME=pi; RECORD=""; FROM_RUN=""; FROM_STORY=""; FROM_CODE=""; FROM_METRICS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pack) PACK="${2%/}"; shift 2 ;;
@@ -46,7 +47,9 @@ while [[ $# -gt 0 ]]; do
     --run-id) RUN_ID="$2"; shift 2 ;;
     --only) ONLY="$2"; shift 2 ;;
     --client) CLIENT_NAME="$2"; shift 2 ;;
-    --from-run) FROM_RUN="$(cd "$2" && pwd)"; shift 2 ;;
+    --from-run) FROM_RUN="$2"; shift 2 ;;
+    --from-code) FROM_CODE="$2"; shift 2 ;;
+    --from-metrics) FROM_METRICS="$2"; shift 2 ;;
     --from-story) FROM_STORY="$2"; shift 2 ;;
     # Commit and push this run's directory after every story (a per-story record).
     --record) RECORD=1; shift ;;
@@ -59,6 +62,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -z "$FROM_RUN" || "$ONLY" =~ ^[0-9]+$ || "$FROM_STORY" =~ ^[0-9]+$ ]] || { echo "--from-run needs --only N (that one story) or --from-story N (story N and every later story of the scope)" >&2; exit 2; }
+[[ -z "$FROM_RUN" || ( -f "$FROM_CODE" && -f "$FROM_METRICS" ) ]] || { echo "--from-run needs --from-code and --from-metrics: the reference run's code and record, which the job brings from the lake" >&2; exit 2; }
+[[ -n "$FROM_RUN" || ( -z "$FROM_CODE" && -z "$FROM_METRICS" ) ]] || { echo "--from-code and --from-metrics go with --from-run" >&2; exit 2; }
+if [[ -n "$FROM_RUN" ]]; then   # absolute, as the harness may run from another directory
+  FROM_CODE="$(cd "$(dirname "$FROM_CODE")" && pwd)/$(basename "$FROM_CODE")"
+  FROM_METRICS="$(cd "$(dirname "$FROM_METRICS")" && pwd)/$(basename "$FROM_METRICS")"
+fi
 
 ENV_FILE="$HOME/.local/share/$INSTALL_ID/install.env"
 [[ -f "$ENV_FILE" ]] || { echo "$INSTALL_ID is not installed (no $ENV_FILE)" >&2; exit 1; }
@@ -282,7 +291,7 @@ ENGINE_SETTINGS_JSON="$(printf '%s' "$IDENTITY_JSON" | python3 "$HARNESS/engine_
 [[ -f "$RUN_DIR/run.json" ]] && { tr -d '\n' < "$RUN_DIR/run.json"; echo; } >> "$RUN_DIR/run-history.jsonl"
 cat > "$RUN_DIR/run.json" <<JSON
 {"install_id": "$INSTALL_ID", "combination": "$COMBINATION", "model_id": "$MODEL_ID",
- "pack": "$SPEC_BENCH_PACK_NAME", "scope": "${SCOPE:-${EPIC:+epic:$EPIC}}", "metered": $METER, "reasoning_effort": "$EFFORT_RECORDED", "client_thinking": "${CLIENT_THINKING:-}", "known_good_from": "${FROM_RUN#"$RESULTS_ROOT"/}", "context_limit": $CONTEXT_LIMIT,
+ "pack": "$SPEC_BENCH_PACK_NAME", "scope": "${SCOPE:-${EPIC:+epic:$EPIC}}", "metered": $METER, "reasoning_effort": "$EFFORT_RECORDED", "client_thinking": "${CLIENT_THINKING:-}", "known_good_from": "$FROM_RUN", "context_limit": $CONTEXT_LIMIT,
  "output_limit": $OUTPUT_LIMIT, "backend_version": "$( [[ "$BACKEND" == mtplx ]] && mtplx --version 2>/dev/null | awk '{print $NF}' )", "mtplx_memory_limit_bytes": "$( [[ "$BACKEND" == mtplx ]] && echo "${MTPLX_MEMORY_LIMIT_BYTES:-default}" )", "compact_at": "${COMPACT_AT:-client default}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$HOST_DESC",
  "harness_commit": "$HARNESS_COMMIT", "harness_release": $HARNESS_RELEASE_JSON, "pack_version": "$PACK_VERSION", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
  "sandbox": $SANDBOX_JSON,
@@ -298,7 +307,7 @@ uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$
   --model-id "$MODEL_ID" --pack "$PACK" ${SCOPE:+--scope "$SCOPE"} ${EPIC:+--epic "$EPIC"} \
   --context-limit "$CONTEXT_LIMIT" --output-limit "$OUTPUT_LIMIT" \
   ${ONLY:+--only "$ONLY"} ${RECORD:+--record} ${COMPACT_AT:+--compact-at "$COMPACT_AT"} \
-  ${CLIENT_THINKING:+--client-thinking "$CLIENT_THINKING"} ${FROM_RUN:+--from-run "$FROM_RUN"} \
+  ${CLIENT_THINKING:+--client-thinking "$CLIENT_THINKING"} ${FROM_RUN:+--from-run "$FROM_RUN" --from-code "$FROM_CODE" --from-metrics "$FROM_METRICS"} \
   ${FROM_STORY:+--from-story "$FROM_STORY"} \
   ${NO_CONDITION_WAIT:+--no-condition-wait}
 uv run --quiet report.py "$RUN_DIR"

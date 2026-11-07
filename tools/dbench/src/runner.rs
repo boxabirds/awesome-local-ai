@@ -9,7 +9,7 @@ use tokio::process::Command;
 
 use crate::failure::{self, FailureMark, SAME_FAILURE_REASON};
 use crate::harness::{self, Harness, Materialised};
-use crate::job::{harness_args, reference_run_problem, resolve_entry, JobState, PullRecord};
+use crate::job::{harness_args, resolve_entry, JobState, PullRecord};
 use crate::progress::{self, install_env_path};
 use crate::server::Shared;
 use crate::sys;
@@ -438,11 +438,15 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
         fail(st, id, format!("{} missing", env.display()));
         return None;
     }
-    // After the pull, which may be what brings the reference run to this node.
-    if let Some(problem) = spec.from_run.as_deref().and_then(|r| reference_run_problem(&st.cfg.repo, r)) {
-        fail(st, id, problem);
-        return None;
-    }
+    // A partial rerun's inputs came with the job (job_inputs.rs): nothing of the reference run is read from here.
+    let inputs = match spec.from_run.as_ref().map(|_| crate::job_inputs::stored(&st.cfg.jobs_dir, id)) {
+        None => None,
+        Some(Ok(paths)) => Some(paths),
+        Some(Err(problem)) => {
+            fail(st, id, problem);
+            return None;
+        }
+    };
     let chosen = match choose_harness(st, id).await {
         Ok(h) => h,
         Err(reason) => {
@@ -460,7 +464,7 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
         fail(st, id, format!("no harness for pack {} in {}", spec.pack, code_root.display()));
         return None;
     };
-    let args = harness_args(&entry, &spec, &st.cfg.repo);
+    let args = harness_args(&entry, &spec, inputs.as_ref());
     let log = match std::fs::OpenOptions::new()
         .create(true)
         .append(true)

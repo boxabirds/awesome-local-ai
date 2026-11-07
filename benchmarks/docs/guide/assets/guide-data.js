@@ -2001,9 +2001,9 @@ GUIDE_DATA.flows = [
     caption: "The reference run supplies only the base; everything after it is a new sample.",
     diagram: {
       w: 520, h: 700,
-      desc: "A finished run's workspace bundle and commits are the source. dbench submit names the run and story. run.sh, run as a partial rerun, rebuilds a workspace from that run's history up to the story before N, scores the base with the held-out suite, then runs story N through the normal loop and, with --from-story, the later stories. The record carries a known_good field and is labelled diagnostic, never mixed with full runs.",
+      desc: "A finished run in the lake is the source: its story refs in the lake's code repository and its metrics.json. dbench submit, on the host, takes the run's code up to the story before N and its record from the lake and sends both with the job. run.sh, run as a partial rerun, rebuilds a workspace from that code up to the story before N, scores the base with the held-out suite, then runs story N through the normal loop and, with --from-story, the later stories. The record carries a known_good field and is labelled diagnostic, never mixed with full runs.",
       nodes: [
-        { id: "fr", label: "A finished run\nworkspace.bundle + commits", kind: "store", x: 260, y: 34, w: 250 },
+        { id: "fr", label: "A finished run in the lake\nstory refs + metrics.json", kind: "store", x: 260, y: 34, w: 250 },
         { id: "sub", label: "dbench submit\n--from-run … --stories N\nor --from-story N", x: 260, y: 118, w: 250 },
         { id: "rs", label: "run.sh: a partial rerun\n--only N or --from-story N", x: 260, y: 210, w: 260 },
         { id: "ws", label: "Workspace rebuilt:\nreference history up to story N-1", kind: "store", x: 260, y: 298, w: 280 },
@@ -2021,26 +2021,26 @@ GUIDE_DATA.flows = [
     steps: [
       {
         title: "Pick a finished run and a story", nodes: ["fr"], edges: [],
-        text: ["A finished run that has its `workspace.bundle` (its whole workspace history) and the commit each story ended on can supply any story's exact starting point; `drive.py` refuses a run without a bundle. The reference run must have been built from the same spec."],
+        text: ["A finished run whose code the lake holds (a story ref per story in the lake's code repository, `code.git`) and whose record (`metrics.json`, naming the commit each story ended on) it holds can supply any story's exact starting point. The node need not have the run: since story 23 nothing of it is read from a node's checkout. The reference run must have been built from the same spec."],
         where: [["benchmarks/spec-bench/README.md", "spec-bench README: partial reruns"], ["combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/analysis/README.md", "gufo analysis: what can be run again"]],
         state: "built",
       },
       {
         title: "Submit it", nodes: ["fr", "sub"], edges: ["fr>sub"],
-        text: ["`--from-run` names the reference run's directory and needs `--stories N` or `--from-story N`. It is part of the job's identity, and a path that is absolute or contains `..` is refused. `--repeat 5` queues five separate runs.", "Queueing a known-good job needs the dbench built on 1 October on the node."],
+        text: ["`--from-run` names the reference run as the lake knows it and needs `--stories N` or `--from-story N`. It is part of the job's identity, and a path that is absolute or contains `..` is refused. `--repeat 5` queues five separate runs.", "`dbench submit` runs on the host, where the lake is (`$BENCH_LAKE_STATE`, else beside `[collect] store`). It bundles the run's story refs up to the story before the first one to run, takes its `metrics.json`, and sends both with the job, which the node keeps in the job's folder. It refuses, and queues nothing, when the lake has no code for that story, no record, or no such run, or when the two together are over the job-input limit (32 MiB). A node and host must both have story 23's dbench."],
         cmd: "dbench submit <node> --id v2-r3-s2 --combination <combination> \\\n  --pack benchmarks/vidi --scope canvas --run-id v2-r3-s2 \\\n  --stories 2 --repeat 5 \\\n  --from-run combinations/<combination>/benchmarks/vidi/v2-r3",
         where: [["tools/dbench/README.md", "dbench README: CLI examples"]],
         state: "built",
       },
       {
         title: "run.sh runs the partial rerun", nodes: ["sub", "rs"], edges: ["sub>rs"],
-        text: ["`run.sh <install-id> --only N --from-run <run>` runs story N alone. {g:from-story|`--from-story N`} with `--from-run <run>` runs story N and every later story of the scope, each built on the one before in this new run. The reference run supplies only the base, so it need not have run the later stories. A restart resumes at the first unfinished story, like any run. `--from-story` is on main only."],
+        text: ["`run.sh <install-id> --only N --from-run <run> --from-code <bundle> --from-metrics <file>` runs story N alone; dbench gives the two files from the job's folder. {g:from-story|`--from-story N`} with `--from-run <run>` runs story N and every later story of the scope, each built on the one before in this new run. The reference run supplies only the base, so it need not have run the later stories. A restart resumes at the first unfinished story, like any run. `--from-story` is on main only."],
         where: [["benchmarks/spec-bench/harness/run.sh", "harness/run.sh"], ["benchmarks/spec-bench/harness/drive.py", "drive.py (known_good_base)"]],
         state: "built",
       },
       {
         title: "Rebuild the starting point", nodes: ["rs", "ws"], edges: ["rs>ws"],
-        text: ["The workspace keeps the reference run's history up to that point and nothing after. Dependencies are installed. The pack's spec is put in as the reference run had it, or updated if it changed (`spec_updated`)."],
+        text: ["The workspace is a new repository holding the reference run's history up to that point and nothing after, on `main`. Dependencies are installed. The pack's spec is put in as the reference run had it, or updated if it changed (`spec_updated`)."],
         where: [["benchmarks/spec-bench/harness/drive.py", "drive.py (setup_workspace_from)"]],
         state: "built",
       },

@@ -12,10 +12,6 @@ use crate::ids::{valid_id, valid_pack, valid_run_dir};
 pub const SPEC_BENCH_ENTRY: &str = "benchmarks/spec-bench/harness/run.sh";
 /// Path of a pack's own entry point, relative to the pack directory.
 pub const PACK_ENTRY: &str = "harness/run.sh";
-/// What a partial rerun reads from the run it starts from (drive.py known_good_base): the run's
-/// whole workspace history, and its record, which names the commit each story ended on.
-pub const REFERENCE_BUNDLE: &str = "workspace.bundle";
-pub const REFERENCE_METRICS: &str = "metrics.json";
 
 /// Environment a job may set for its harness, and through it the model server
 /// run.sh starts: which GPU backend a multi-backend build runs on, and the
@@ -207,39 +203,12 @@ pub fn resolve_entry(repo: &Path, pack: &str) -> Option<Entry> {
     })
 }
 
-/// Why a reference run can't be started from, or None when it has what a partial rerun reads.
-/// `from_run` is relative to `results_root`, the node's checkout: a finished run is a result, and a
-/// harness release's own directory holds none.
-pub fn reference_run_problem(results_root: &Path, from_run: &str) -> Option<String> {
-    let dir = results_root.join(from_run);
-    let root = results_root.display();
-    let (Ok(real_root), Ok(real_dir)) = (results_root.canonicalize(), dir.canonicalize()) else {
-        return Some(format!("reference run {from_run}: no such directory in {root}"));
-    };
-    if !real_dir.is_dir() {
-        return Some(format!("reference run {from_run}: no such directory in {root}"));
-    }
-    if !real_dir.starts_with(&real_root) {
-        return Some(format!("reference run {from_run} is outside {root}"));
-    }
-    let missing: Vec<&str> = [REFERENCE_BUNDLE, REFERENCE_METRICS]
-        .into_iter()
-        .filter(|f| !real_dir.join(f).is_file())
-        .collect();
-    if missing.is_empty() {
-        return None;
-    }
-    Some(format!(
-        "reference run {from_run} has no {}: a job can only start from a finished run that kept them",
-        missing.join(" and no ")
-    ))
-}
-
 /// Arguments for `bash`:
-/// `<run.sh> <install_id> [--pack P] --run-id R [--scope X] [--only 1,2] [--from-run DIR [--from-story N]] --client C [--record]`.
-/// The reference run is given as an absolute path in `results_root` (the node's checkout), so it
-/// names the same directory whether the harness runs from that checkout or from a release.
-pub fn harness_args(entry: &Entry, spec: &JobSpec, results_root: &Path) -> Vec<OsString> {
+/// `<run.sh> <install_id> [--pack P] --run-id R [--scope X] [--only 1,2]
+/// [--from-run RUN --from-code BUNDLE --from-metrics FILE [--from-story N]] --client C [--record]`.
+/// A partial rerun's reference run is named as the lake knows it; its code and record are the job's inputs
+/// (`inputs`: the files job_inputs.rs stored), never a run folder in the node's checkout (story 23).
+pub fn harness_args(entry: &Entry, spec: &JobSpec, inputs: Option<&(PathBuf, PathBuf)>) -> Vec<OsString> {
     let mut a: Vec<OsString> = vec![entry.script.clone().into(), spec.install_id.clone().into()];
     if entry.uses_pack_flag {
         a.push("--pack".into());
@@ -256,9 +225,13 @@ pub fn harness_args(entry: &Entry, spec: &JobSpec, results_root: &Path) -> Vec<O
         a.push("--only".into());
         a.push(list.join(",").into());
     }
-    if let Some(from_run) = &spec.from_run {
+    if let (Some(from_run), Some((code, metrics))) = (&spec.from_run, inputs) {
         a.push("--from-run".into());
-        a.push(results_root.join(from_run).into());
+        a.push(from_run.into());
+        a.push("--from-code".into());
+        a.push(code.into());
+        a.push("--from-metrics".into());
+        a.push(metrics.into());
     }
     if let Some(n) = spec.from_story {
         a.push("--from-story".into());
@@ -426,7 +399,7 @@ mod tests {
         }
     }
 
-    const RESULTS_ROOT: &str = "/node/checkout";
+    const INPUTS: &str = "/node/dbench/jobs/kg.inputs";
     const REFERENCE_RUN: &str = "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r3";
 
     fn known_good() -> JobSpec {
@@ -437,7 +410,8 @@ mod tests {
     }
 
     fn args_of(entry: &Entry, spec: &JobSpec) -> Vec<String> {
-        harness_args(entry, spec, Path::new(RESULTS_ROOT))
+        let inputs = (PathBuf::from(INPUTS).join("code.bundle"), PathBuf::from(INPUTS).join("metrics.json"));
+        harness_args(entry, spec, spec.from_run.as_ref().map(|_| &inputs))
             .into_iter()
             .map(|a| a.into_string().unwrap())
             .collect()
@@ -465,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn the_reference_run_reaches_the_harness_as_a_path_in_the_results_checkout() {
+    fn the_reference_run_reaches_the_harness_by_name_with_the_job_s_inputs() {
         let generic = Entry {
             script: "/release/benchmarks/spec-bench/harness/run.sh".into(),
             uses_pack_flag: true,
@@ -484,7 +458,11 @@ mod tests {
                 "--only",
                 "2",
                 "--from-run",
-                &format!("{RESULTS_ROOT}/{REFERENCE_RUN}"),
+                REFERENCE_RUN,
+                "--from-code",
+                &format!("{INPUTS}/code.bundle"),
+                "--from-metrics",
+                &format!("{INPUTS}/metrics.json"),
                 "--client",
                 "pi",
                 "--record"
@@ -543,66 +521,6 @@ mod tests {
         assert_eq!(submit_decision(Some(&none), &a), SubmitOutcome::Conflict);
     }
 
-    #[test]
-    fn a_reference_run_without_its_bundle_or_metrics_is_a_problem_with_a_plain_reason() {
-        let root = std::env::temp_dir().join(format!("dbench-job-ref-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&root).unwrap();
-        let root = root.canonicalize().unwrap();
-        let run = |name: &str, files: &[&str]| {
-            let rel = format!("combinations/c/benchmarks/vidi/{name}");
-            std::fs::create_dir_all(root.join(&rel)).unwrap();
-            for f in files {
-                std::fs::write(root.join(&rel).join(f), "{}").unwrap();
-            }
-            rel
-        };
-        let whole = run("whole", &[REFERENCE_BUNDLE, REFERENCE_METRICS]);
-        assert_eq!(reference_run_problem(&root, &whole), None);
-
-        let no_bundle = run("no-bundle", &[REFERENCE_METRICS]);
-        let why = reference_run_problem(&root, &no_bundle).expect("no bundle");
-        assert!(why.contains(REFERENCE_BUNDLE) && why.contains(&no_bundle), "{why}");
-        assert!(!why.contains(REFERENCE_METRICS), "{why}");
-
-        let no_metrics = run("no-metrics", &[REFERENCE_BUNDLE]);
-        let why = reference_run_problem(&root, &no_metrics).expect("no metrics");
-        assert!(why.contains(REFERENCE_METRICS) && !why.contains(REFERENCE_BUNDLE), "{why}");
-
-        let empty = run("empty", &[]);
-        let why = reference_run_problem(&root, &empty).expect("empty");
-        assert!(why.contains(REFERENCE_BUNDLE) && why.contains(REFERENCE_METRICS), "{why}");
-
-        let why = reference_run_problem(&root, "combinations/c/benchmarks/vidi/absent").expect("absent");
-        assert!(why.contains("no such directory"), "{why}");
-
-        // A link out of the checkout is not a run in the checkout, whatever it points at.
-        let outside = root.with_extension("outside");
-        let _ = std::fs::remove_dir_all(&outside);
-        std::fs::create_dir_all(&outside).unwrap();
-        for f in [REFERENCE_BUNDLE, REFERENCE_METRICS] {
-            std::fs::write(outside.join(f), "{}").unwrap();
-        }
-        std::os::unix::fs::symlink(&outside, root.join("combinations/c/benchmarks/vidi/link")).unwrap();
-        let why = reference_run_problem(&root, "combinations/c/benchmarks/vidi/link").expect("link");
-        assert!(why.contains("outside"), "{why}");
-
-        let _ = std::fs::remove_dir_all(&root);
-        let _ = std::fs::remove_dir_all(&outside);
-    }
-
-    #[test]
-    fn a_reference_run_that_is_a_file_not_a_directory_is_no_such_directory() {
-        let root = std::env::temp_dir().join(format!("dbench-job-ref-file-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&root).unwrap();
-        let root = root.canonicalize().unwrap();
-        std::fs::write(root.join("a-file"), "not a run").unwrap();
-        let why = reference_run_problem(&root, "a-file").expect("a file is not a run");
-        assert_eq!(why, format!("reference run a-file: no such directory in {}", root.display()));
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
     fn from_story_spec() -> JobSpec {
         let mut s = spec();
         s.from_run = Some(REFERENCE_RUN.into());
@@ -638,10 +556,12 @@ mod tests {
         let got = args_of(&generic, &from_story_spec());
         assert!(!got.contains(&"--only".to_string()), "{got:?}");
         let at = got.iter().position(|a| a == "--from-run").unwrap();
-        assert_eq!(got[at + 1], format!("{RESULTS_ROOT}/{REFERENCE_RUN}"));
-        assert_eq!(got[at + 2], "--from-story");
-        assert_eq!(got[at + 3], FROM_STORY.to_string());
-        assert_eq!(got[at + 4], "--client");
+        assert_eq!(got[at + 1], REFERENCE_RUN);
+        assert_eq!(got[at + 2], "--from-code");
+        assert_eq!(got[at + 4], "--from-metrics");
+        assert_eq!(got[at + 6], "--from-story");
+        assert_eq!(got[at + 7], FROM_STORY.to_string());
+        assert_eq!(got[at + 8], "--client");
         assert!(!args_of(&generic, &known_good()).contains(&"--from-story".to_string()));
     }
 

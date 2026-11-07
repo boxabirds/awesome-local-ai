@@ -370,6 +370,10 @@ NEEDS_ONE = ("--from-run needs --only N (that one story, built on the reference 
 NOT_BOTH = "--from-run takes --only N or --from-story N, not both"
 ONE_STORY = "--from-run with --only runs exactly one story; for story N and every later one use --from-story N"
 NEEDS_FROM_RUN = "--from-story needs --from-run: the finished run whose code the stories are built on"
+LAKE_RUN = "combinations/q/s/benchmarks/covpack/ref-run"     # the reference run, as the lake names it
+NEEDS_INPUTS = ("--from-run needs --from-code and --from-metrics: the reference run's code and record, which the job "
+                "brings from the lake")
+INPUTS_NEED_RUN = "--from-code and --from-metrics go with --from-run"
 
 
 @pytest.mark.parametrize("args, message", [
@@ -380,11 +384,17 @@ NEEDS_FROM_RUN = "--from-story needs --from-run: the finished run whose code the
     (("--from-story", "2"), NEEDS_FROM_RUN),
     (("--from-story", "2", "--only", "2"), NEEDS_FROM_RUN),
     (("--from-run", "REF", "--from-story", "9"), "--from-story 9: story 9 is not in the scope (all: stories [1, 2, 3])"),
+    (("--from-run", LAKE_RUN, "--only", "3"), NEEDS_INPUTS),
+    (("--from-run", LAKE_RUN, "--from-code", "CODE", "--only", "3"), NEEDS_INPUTS),
+    (("--from-run", LAKE_RUN, "--from-metrics", "METRICS", "--only", "3"), NEEDS_INPUTS),
+    (("--from-code", "CODE", "--from-metrics", "METRICS", "--only", "3"), INPUTS_NEED_RUN),
+    (("--from-metrics", "METRICS", "--only", "3"), INPUTS_NEED_RUN),
 ])
 @pytest.mark.parametrize("dry", [False, True])
 def test_known_good_mode_is_refused_unless_it_is_told_plainly_which_stories_to_run(whole, tmp_path, capsys, args, message, dry):
     ref, _ = reference_run(whole, tmp_path)
-    given = [str(ref) if a == "REF" else a for a in args]
+    by_name = {"REF": list(ref[1:]), "CODE": [ref[3]], "METRICS": [ref[5]]}
+    given = [x for a in args for x in by_name.get(a, [a])]
     with pytest.raises(SystemExit) as e:
         whole.bare("--dry-run", *given) if dry else whole.main(*given)
     assert e.value.code == 2 and f"error: {message}\n" in capsys.readouterr().err
@@ -706,7 +716,7 @@ def test_a_known_good_run_restores_the_spec_its_base_was_given_not_the_reference
     (whole.pack / "spec" / "README.md").write_text("# covpack, revised\n")             # the pack moved on since
     monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
     whole.plan(s3={"tamper": "committed"})
-    whole.main("--from-run", str(ref), "--only", "3")
+    whole.main(*ref, "--only", "3")
     m = whole.metrics()
     assert m["known_good"]["spec_updated"] is True
     assert git(whole.ws, "log", "-1", "--format=%s", m["known_good"]["spec_commit"]) == (
@@ -1103,8 +1113,9 @@ def test_a_restarted_story_with_no_record_of_where_it_began_begins_at_the_worksp
 
 # ======================= a partial rerun =======================
 
-def reference_run(loop: Loop, root: Path, ran: tuple[int, ...] = (1, 2, 3)) -> tuple[Path, dict]:
-    """A finished run of the same pack: its bundle (one commit per story it ran) and its metrics."""
+def reference_run(loop: Loop, root: Path, ran: tuple[int, ...] = (1, 2, 3)) -> tuple[tuple[str, ...], dict]:
+    """A finished run of the same pack as a partial rerun's job brings it from the lake: a bundle of its story refs
+    (one commit per story it ran) and its metrics. Returns the harness's arguments that name them."""
     ws, run = root / "ref-ws", root / "ref-run"
     ws.mkdir()
     subprocess.run(["cp", "-R", str(loop.pack / "spec"), str(ws / "spec")], check=True)
@@ -1118,9 +1129,11 @@ def reference_run(loop: Loop, root: Path, ran: tuple[int, ...] = (1, 2, 3)) -> t
         git(ws, "commit", "-qm", f"story {sid}")
         stories[str(sid)] = {"title": TITLES[sid], "commit": git(ws, "rev-parse", "HEAD"), "finished": 1.0}
     run.mkdir()
-    git(ws, "bundle", "create", str(run / "workspace.bundle"), "--all")
+    for sid, s in stories.items():
+        git(ws, "update-ref", f"refs/runs/node-t/ref-run/story/{int(sid):02d}", s["commit"])
+    git(ws, "bundle", "create", str(run / "code.bundle"), "--glob=refs/runs")
     (run / "metrics.json").write_text(json.dumps({"stories": stories}))
-    return run, stories
+    return ("--from-run", LAKE_RUN, "--from-code", str(run / "code.bundle"), "--from-metrics", str(run / "metrics.json")), stories
 
 
 def known_good_processed() -> list[dict]:
@@ -1131,9 +1144,9 @@ def test_a_known_good_run_builds_one_story_on_another_run_s_code_and_scores_the_
     ref, stories = reference_run(whole, tmp_path)
     installed = []
     monkeypatch.setattr(drive, "install_base_deps", installed.append)
-    whole.main("--from-run", str(ref), "--only", "3")
+    whole.main(*ref, "--only", "3")
     m = whole.metrics()
-    assert m["known_good"] == {"from_run": str(ref.resolve()), "commit": stories["2"]["commit"], "story": 3,
+    assert m["known_good"] == {"from_run": LAKE_RUN, "commit": stories["2"]["commit"], "story": 3,
                                "spec_updated": False, "spec_commit": stories["2"]["commit"], "continues": False}
     assert m["processed"][:2] == known_good_processed() and [p["id"] for p in m["processed"]] == [1, 2, 3]
     assert sorted(m["stories"]) == ["3"] and m["stories"]["3"]["status"] == drive.DONE and m["scope"] == "all"
@@ -1149,24 +1162,24 @@ def test_a_known_good_run_builds_one_story_on_another_run_s_code_and_scores_the_
     assert whole.agent_runs()[0]["prompt"].splitlines()[:2] == [
         "STORY 3: Third", "Stories already implemented in this repository, in order: 1, 2."]
     # Started again: the base is not scored twice, its record is kept, and the story is not run again.
-    whole.main("--from-run", str(ref), "--only", "3")
+    whole.main(*ref, "--only", "3")
     assert "[partial rerun]" not in capsys.readouterr().out and len(whole.agent_runs()) == 1
     assert whole.metrics()["known_good"] == m["known_good"] and len(whole.strays) == 3
 
 
-def test_a_known_good_run_names_a_reference_inside_the_results_by_its_path_there(whole, tmp_path, monkeypatch):
+def test_a_known_good_run_records_the_reference_run_by_the_name_the_job_gave_it(whole, tmp_path, monkeypatch):
+    """The run's code and record come as files in the job's folder; the record names the run as the lake knows it."""
     ref, _ = reference_run(whole, tmp_path)
-    monkeypatch.setattr(drive, "REPO_ROOT", tmp_path.resolve())
     monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
-    whole.main("--from-run", str(ref), "--only", "3")
-    assert heldout.load_metrics(whole.run)["known_good"]["from_run"] == "ref-run"
+    whole.main(*ref, "--only", "3")
+    assert heldout.load_metrics(whole.run)["known_good"]["from_run"] == LAKE_RUN
 
 
 def test_a_dry_run_in_known_good_mode_names_the_base_and_prompts_with_its_stories(whole, tmp_path, capsys):
     ref, stories = reference_run(whole, tmp_path)
-    whole.bare("--dry-run", "--from-run", str(ref), "--only", "3")
+    whole.bare("--dry-run", *ref, "--only", "3")
     out = capsys.readouterr().out
-    assert f"partial rerun's base: {ref.resolve()} at {stories['2']['commit'][:12]}, processed [1, 2]\n" in out
+    assert f"partial rerun's base: {LAKE_RUN} at {stories['2']['commit'][:12]}, processed [1, 2]\n" in out
     assert out.endswith(prompt(3, "Stories already implemented in this repository, in order: 1, 2.", note="") + "\n")
     assert not whole.run.exists()
 
@@ -1178,9 +1191,9 @@ def base_entry(sid: int) -> dict:
 def test_a_known_good_continuation_runs_the_story_and_every_later_one_each_built_on_the_one_before(whole, tmp_path, monkeypatch, capsys):
     ref, stories = reference_run(whole, tmp_path)
     monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
-    whole.main("--from-run", str(ref), "--from-story", "2")
+    whole.main(*ref, "--from-story", "2")
     m = whole.metrics()
-    assert m["known_good"] == {"from_run": str(ref.resolve()), "commit": stories["1"]["commit"], "story": 2,
+    assert m["known_good"] == {"from_run": LAKE_RUN, "commit": stories["1"]["commit"], "story": 2,
                                "spec_updated": False, "spec_commit": stories["1"]["commit"], "continues": True}
     assert m["processed"][0] == base_entry(1) and [p["id"] for p in m["processed"]] == [1, 2, 3]
     assert [(p["status"], p["ended_by"]) for p in m["processed"][1:]] == [(drive.DONE, "agent")] * 2
@@ -1204,7 +1217,7 @@ def test_a_known_good_continuation_runs_the_story_and_every_later_one_each_built
 def test_a_known_good_continuation_survives_a_harness_restart_between_its_stories(whole, tmp_path, monkeypatch, capsys):
     ref, stories = reference_run(whole, tmp_path)
     monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
-    args = ("--from-run", str(ref), "--from-story", "2")
+    args = (*ref, "--from-story", "2")
     whole.plan(s3={"silent": True, "exit": 1})                               # the harness stops at story 3
     with pytest.raises(SystemExit):
         whole.main(*args)
@@ -1227,7 +1240,7 @@ def test_a_known_good_continuation_survives_a_harness_restart_between_its_storie
 def test_a_reference_run_that_stopped_before_the_end_of_the_scope_still_supplies_the_base(whole, tmp_path, monkeypatch):
     ref, stories = reference_run(whole, tmp_path, ran=(1, 2))                # it never ran story 3
     monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
-    whole.main("--from-run", str(ref), "--from-story", "2")
+    whole.main(*ref, "--from-story", "2")
     m = whole.metrics()
     assert [p["id"] for p in m["processed"]] == [1, 2, 3] and m["known_good"]["commit"] == stories["1"]["commit"]
     assert m["stories"]["3"]["status"] == drive.DONE
@@ -1236,17 +1249,17 @@ def test_a_reference_run_that_stopped_before_the_end_of_the_scope_still_supplies
 def test_a_continuation_from_the_scope_s_last_story_runs_that_story(whole, tmp_path, monkeypatch):
     ref, stories = reference_run(whole, tmp_path)
     monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
-    whole.main("--from-run", str(ref), "--from-story", "3")
+    whole.main(*ref, "--from-story", "3")
     m = whole.metrics()
     assert sorted(m["stories"]) == ["3"] and m["known_good"]["continues"] is True and m["known_good"]["story"] == 3
 
 
 def test_a_dry_run_of_a_known_good_continuation_names_the_base_and_the_stories_it_would_run(whole, tmp_path, capsys):
     ref, stories = reference_run(whole, tmp_path)
-    whole.bare("--dry-run", "--from-run", str(ref), "--from-story", "2")
+    whole.bare("--dry-run", *ref, "--from-story", "2")
     out = capsys.readouterr().out
     assert "scope all: stories [2, 3]\n" in out
-    assert f"partial rerun's base: {ref.resolve()} at {stories['1']['commit'][:12]}, processed [1]\n" in out
+    assert f"partial rerun's base: {LAKE_RUN} at {stories['1']['commit'][:12]}, processed [1]\n" in out
     assert out.endswith(prompt(2, "Stories already implemented in this repository, in order: 1.", note="") + "\n")
     assert not whole.run.exists()
 
@@ -1270,7 +1283,10 @@ def test_run_sh_passes_the_story_to_continue_from_to_the_harness():
     (("--only", "2"), True), (("--from-story", "2"), True),
 ])
 def test_run_sh_refuses_known_good_mode_without_one_story_or_a_story_to_continue_from(tmp_path, args, accepted):
-    r = run_sh("--from-run", str(tmp_path), *args)
+    code, metrics = tmp_path / "code.bundle", tmp_path / "metrics.json"
+    code.write_bytes(b"bundle")
+    metrics.write_text("{}")
+    r = run_sh("--from-run", LAKE_RUN, "--from-code", str(code), "--from-metrics", str(metrics), *args)
     if accepted:
         assert r.returncode == 1 and f"{NOT_INSTALLED} is not installed" in r.stderr and RUN_SH_REFUSAL not in r.stderr
     else:
@@ -1279,8 +1295,9 @@ def test_run_sh_refuses_known_good_mode_without_one_story_or_a_story_to_continue
 
 def test_run_sh_s_help_describes_both_forms_of_known_good_mode():
     out = subprocess.run(["bash", str(drive.HARNESS / "run.sh"), "--help"], capture_output=True, text=True).stdout
-    assert "[--from-run DIR (--only N | --from-story N)]" in out
-    assert out.rstrip().endswith("runs story N and every later story of the scope, each built on the one before in this run.")
+    assert "[--from-run NAME --from-code BUNDLE --from-metrics FILE (--only N | --from-story N)]" in out
+    assert "later story of the scope, each built on the one before in this run." in out
+    assert out.rstrip().endswith("(a bundle of its story refs) and record come as files with the job (--from-code, --from-metrics; story 23).")
 
 
 # ======================= --record =======================

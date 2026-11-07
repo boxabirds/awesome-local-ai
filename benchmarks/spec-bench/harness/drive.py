@@ -788,14 +788,16 @@ def setup_workspace(ws: Path) -> None:
 KNOWN_GOOD_BY = "known-good base"
 
 
-def known_good_base(ref_run: Path, sid: int) -> dict:
+def known_good_base(from_run: str, code: Path, metrics: Path, sid: int) -> dict:
     """Another run's code as it was when the story before sid ended, and the stories it had processed
     by then: the base a partial rerun builds story sid on (and, in a continuation, every story after it:
-    the reference run supplies only the base, so it need not have run those)."""
-    bundle = ref_run / "workspace.bundle"
-    if not bundle.exists():
-        raise SystemExit(f"partial rerun: {ref_run} has no workspace.bundle")
-    m = json.loads((ref_run / "metrics.json").read_text())
+    the reference run supplies only the base, so it need not have run those). The job brings both from the lake
+    (story 23): `code`, a git bundle of the run's story refs, and `metrics`, its record. `from_run` names the run
+    for this run's own record."""
+    for f in (code, metrics):
+        if not f.is_file():
+            raise SystemExit(f"partial rerun: {f} is missing (the job's input from the lake)")
+    m = json.loads(metrics.read_text())
     processed = load_processed(m, [{"id": int(k)} for k in sorted(m["stories"], key=int)])
     ids = [p["id"] for p in processed]
     if sid not in ids:
@@ -803,25 +805,25 @@ def known_good_base(ref_run: Path, sid: int) -> dict:
     before = processed[:ids.index(sid)]
     if not before:
         raise SystemExit(f"partial rerun: story {sid} is the reference run's first; run it from empty instead")
-    return {"bundle": bundle, "from_run": ref_run, "story": sid,
+    return {"bundle": code, "from_run": from_run, "story": sid,
             "commit": m["stories"][str(before[-1]["id"])]["commit"],
             "processed": [{**p, "ended_by": KNOWN_GOOD_BY} for p in before]}
 
 
 WORKSPACE_BRANCH_REF = "refs/heads/main"     # the one branch a workspace has
+BASE_REFS = "refs/base"                       # where a partial rerun's bundle refs are fetched to, then removed
 
 
 def setup_workspace_from(ws: Path, base: dict, spec: Path) -> None:
     """The workspace as the reference run left it at base["commit"], on main, with every later commit
-    gone: the bundle holds the whole run, including how the story about to be built was done."""
+    gone: the bundle may hold more of the run than the base, including how the story about to be built was done."""
     if (ws / ".git").exists():
         return
-    ws.parent.mkdir(parents=True, exist_ok=True)
-    sh(["git", "clone", "-q", "--no-checkout", str(base["bundle"]), str(ws)], ws.parent)
-    # A bundle doesn't say which branch HEAD was on, and git guesses among those at its commit: main, whatever it took.
-    sh(["git", "symbolic-ref", "HEAD", WORKSPACE_BRANCH_REF], ws)
+    ws.mkdir(parents=True, exist_ok=True)
+    sh(["git", "init", "-q", "-b", WORKSPACE_BRANCH_REF.removeprefix("refs/heads/")], ws)
+    # Every ref the bundle holds, whatever its name: the lake's are refs/runs/<node>/<run>/story/NN, not branches.
+    sh(["git", "fetch", "-q", "--no-tags", str(base["bundle"]), f"+refs/*:{BASE_REFS}/*"], ws)
     sh(["git", "reset", "-q", "--hard", base["commit"]], ws)
-    sh(["git", "remote", "remove", "origin"], ws)
     for ref in sh(["git", "for-each-ref", "--format=%(refname)"], ws).split():
         if ref != WORKSPACE_BRANCH_REF:
             sh(["git", "update-ref", "-d", ref], ws)
@@ -2144,10 +2146,15 @@ def main() -> None:
     ap.add_argument("--no-condition-wait", action="store_true",
                     help="don't wait for AC power and nominal thermals before each story (cloud models)")
     ap.add_argument("--only", help="comma list of story ids to run (smoke tests)")
-    ap.add_argument("--from-run", type=Path,
+    ap.add_argument("--from-run",
                     help="a partial rerun (diagnostic): build on this finished run's code as it was when the story "
                          "before ended. With --only N: that one story. With --from-story N: story N and every later "
-                         "story of the scope")
+                         "story of the scope. The run's name, as the lake knows it; its code and record are "
+                         "--from-code and --from-metrics")
+    ap.add_argument("--from-code", type=Path,
+                    help="with --from-run: a git bundle of that run's story refs, from the lake (the job's input)")
+    ap.add_argument("--from-metrics", type=Path,
+                    help="with --from-run: that run's metrics.json, from the lake (the job's input)")
     ap.add_argument("--from-story", type=int, metavar="N",
                     help="with --from-run: run story N and every later story of the scope in order, each built on "
                          "the one before in this run (a partial rerun that continues)")
@@ -2164,7 +2171,13 @@ def main() -> None:
         wanted = {int(x) for x in a.only.split(",")}
         stories = [s for s in stories if s["id"] in wanted]
     scope_label = a.scope or (f"epic:{a.epic}" if a.epic else "all")
-    # A partial rerun is told plainly which stories to run: one (--only N), or N and every later one (--from-story N).
+    # A partial rerun brings the reference run's code and record with it, and is told plainly which stories to run:
+    # one (--only N), or N and every later one (--from-story N).
+    if a.from_run and not (a.from_code and a.from_metrics):
+        ap.error("--from-run needs --from-code and --from-metrics: the reference run's code and record, which the "
+                 "job brings from the lake")
+    if (a.from_code or a.from_metrics) and not a.from_run:
+        ap.error("--from-code and --from-metrics go with --from-run")
     if a.from_story is not None:
         if not a.from_run:
             ap.error("--from-story needs --from-run: the finished run whose code the stories are built on")
@@ -2186,7 +2199,7 @@ def main() -> None:
         print(f"pack {PK.name} at {PK.dir}")
         print(f"scope {scope_label}: stories {[s['id'] for s in stories]}")
         print(f"held-out suite: {PK.acceptance or 'none (acceptance reported n/a)'}; gate: {PK.gate}")
-        kg = known_good_base(a.from_run.resolve(), stories[0]["id"]) if a.from_run else None
+        kg = known_good_base(a.from_run, a.from_code.resolve(), a.from_metrics.resolve(), stories[0]["id"]) if a.from_run else None
         if kg:
             print(f"partial rerun's base: {kg['from_run']} at {kg['commit'][:12]}, "
                   f"processed {[p['id'] for p in kg['processed']]}")
@@ -2207,7 +2220,7 @@ def main() -> None:
     link_work_dir(run, work)
     view = sandbox.view_root(work)
     ws = work / WORKSPACE_DIR
-    known_good = known_good_base(a.from_run.resolve(), stories[0]["id"]) if a.from_run else None
+    known_good = known_good_base(a.from_run, a.from_code.resolve(), a.from_metrics.resolve(), stories[0]["id"]) if a.from_run else None
     if known_good:
         setup_workspace_from(ws, known_good, SPEC)
         install_base_deps(ws)
@@ -2227,8 +2240,7 @@ def main() -> None:
     metrics.update({"pack": PK.name, "scope": scope_label, "model_id": a.model_id, "client": a.client,
                     "compact_at": a.compact_at, "client_thinking": a.client_thinking})
     if known_good:
-        ref = known_good["from_run"]
-        metrics.setdefault("known_good", {"from_run": str(ref.relative_to(REPO_ROOT)) if ref.is_relative_to(REPO_ROOT) else str(ref),
+        metrics.setdefault("known_good", {"from_run": known_good["from_run"],
                                  "commit": known_good["commit"], "story": known_good["story"],
                                  "spec_updated": known_good.get("spec_updated", False),
                                  # The harness commit that holds this pack's spec (restore_spec): the base's

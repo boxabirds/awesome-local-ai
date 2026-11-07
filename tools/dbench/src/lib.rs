@@ -19,6 +19,7 @@ pub mod harness;
 pub mod ids;
 pub mod ingest;
 pub mod job;
+pub mod job_inputs;
 pub mod label;
 pub mod lake_code;
 pub mod node;

@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use axum::body::{Body, Bytes};
-use axum::extract::{ConnectInfo, Path as UrlPath, Query, Request, State};
+use axum::extract::{ConnectInfo, DefaultBodyLimit, Path as UrlPath, Query, Request, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -25,6 +25,7 @@ use crate::collect::{self, FileKind, FileName, Manifest, RunListing};
 use crate::control::{self, SkipStory, SkipStoryRequest};
 use crate::events::parse_log;
 use crate::ids::valid_id;
+use crate::job_inputs;
 use crate::job::{resolve_entry, submit_decision, Job, JobSpec, JobState, SubmitOutcome};
 use crate::progress::{self, install_env_path, Progress};
 use crate::recovery::{self, ProcessCheck, Recovery};
@@ -256,7 +257,10 @@ pub fn router(shared: Arc<Shared>) -> Router {
         .route("/v1/hold", post(hold))
         .route("/v1/release", post(release))
         .route("/v1/jobs", get(list_jobs))
-        .route("/v1/jobs/{id}", get(get_job).put(submit))
+        .route(
+            "/v1/jobs/{id}",
+            get(get_job).put(submit).layer(DefaultBodyLimit::max(job_inputs::SUBMIT_BODY_LIMIT_BYTES)),
+        )
         .route("/v1/jobs/{id}/cancel", post(cancel))
         .route("/v1/jobs/{id}/move", post(move_job))
         .route("/v1/jobs/{id}/skip-story", post(skip_story))
@@ -374,14 +378,30 @@ async fn submit(
     State(st): State<Arc<Shared>>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     UrlPath(id): UrlPath<String>,
-    Json(mut spec): Json<JobSpec>,
+    Json(mut body): Json<serde_json::Value>,
 ) -> Response {
+    // A partial rerun's inputs come beside the spec's fields (job_inputs.rs); they are not part of the spec.
+    let inputs = match body.as_object_mut().and_then(|o| o.remove(job_inputs::INPUTS_FIELD)) {
+        None => None,
+        Some(v) => match serde_json::from_value::<job_inputs::JobInputs>(v) {
+            Ok(i) => Some(i),
+            Err(e) => return err(StatusCode::UNPROCESSABLE_ENTITY, format!("{}: {e}", job_inputs::INPUTS_FIELD)),
+        },
+    };
+    let mut spec: JobSpec = match serde_json::from_value(body) {
+        Ok(s) => s,
+        Err(e) => return err(StatusCode::UNPROCESSABLE_ENTITY, format!("job spec: {e}")),
+    };
     if !valid_id(&id) {
         return err(StatusCode::BAD_REQUEST, format!("invalid job id {id:?}"));
     }
     if let Err(e) = spec.validate() {
         return err(StatusCode::BAD_REQUEST, e);
     }
+    let code = match job_inputs::check(&spec, inputs.as_ref()) {
+        Ok(code) => code,
+        Err(e) => return err(StatusCode::BAD_REQUEST, e),
+    };
     // Before the idempotency check, so the same job submitted by combination and
     // by install id compares equal instead of conflicting.
     if let Some(combination) = spec.combination.take() {
@@ -454,6 +474,12 @@ async fn submit(
                 ),
                 _ => (StatusCode::OK, Json(st.view(j))).into_response(),
             };
+        }
+        // The inputs are on disk before the job is queued, so the runner never starts one without them.
+        if let (Some(code), Some(i)) = (&code, &inputs) {
+            if let Err(e) = job_inputs::store(&st.cfg.jobs_dir, &id, code, &i.metrics) {
+                return err(StatusCode::INTERNAL_SERVER_ERROR, format!("storing the job's inputs: {e:#}"));
+            }
         }
         let mut job = Job::new(id.clone(), spec, now_secs());
         job.seq = inner.jobs.values().map(|j| j.seq).max().unwrap_or(0) + 1;

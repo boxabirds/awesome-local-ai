@@ -21,9 +21,14 @@ const SIGKILL_EXIT: i32 = 128 + libc::SIGKILL;
 
 /// A finished run to start a partial rerun from, as a job names it: relative to the repo.
 const REFERENCE_RUN: &str = "combinations/test/combo/fake/benchmarks/fakepack/v2-r3";
-/// What the harness's a partial rerun reads from that run (drive.py known_good_base).
-const BUNDLE_FILE: &str = "workspace.bundle";
-const METRICS_FILE: &str = "metrics.json";
+/// A partial rerun's inputs, as `dbench submit` sends them from the lake (job_inputs.rs).
+const INPUT_BUNDLE_BASE64: &str = "YnVuZGxl"; // "bundle"
+const INPUT_METRICS: &str = r#"{"stories": {}}"#;
+/// The node folder the lake holds the reference run under, in the lake the CLI tests build.
+const LAKE_NODE: &str = "node-x";
+const LAKE_STORIES: u32 = 3;
+/// The reference run in that lake: a run id as bench-lake accepts one (the test checkout's combination is shallower).
+const LAKE_RUN: &str = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r3";
 const KNOWN_GOOD_STORY: u32 = 2;
 const NODE_NAME: &str = "node-t";
 
@@ -39,7 +44,7 @@ impl Drop for TempRoot {
 const HEADER: &str = r#"#!/usr/bin/env bash
 set -euo pipefail
 INSTALL_ID="$1"; shift
-RUN_ID=""; SCOPE=""; CLIENT=""; RECORD=0; ONLY=""; FROM_RUN=""; FROM_STORY=""
+RUN_ID=""; SCOPE=""; CLIENT=""; RECORD=0; ONLY=""; FROM_RUN=""; FROM_STORY=""; FROM_CODE=""; FROM_METRICS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --run-id) RUN_ID="$2"; shift 2 ;;
@@ -48,6 +53,8 @@ while [[ $# -gt 0 ]]; do
     --only) ONLY="$2"; shift 2 ;;
     --from-run) FROM_RUN="$2"; shift 2 ;;
     --from-story) FROM_STORY="$2"; shift 2 ;;
+    --from-code) FROM_CODE="$2"; shift 2 ;;
+    --from-metrics) FROM_METRICS="$2"; shift 2 ;;
     --record) RECORD=1; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
@@ -58,6 +65,7 @@ mkdir -p "$RUN_DIR"
 echo "path-head: ${PATH%%:*}"
 echo "args: $INSTALL_ID $RUN_ID $SCOPE $CLIENT $RECORD"
 if [[ -n "$FROM_RUN" ]]; then echo "partial rerun: only=$ONLY from-run=$FROM_RUN"; fi
+if [[ -n "$FROM_CODE" ]]; then echo "inputs: code=$FROM_CODE metrics=$FROM_METRICS"; fi
 if [[ -n "$FROM_STORY" ]]; then echo "continuing: from-story=$FROM_STORY only=[$ONLY] from-run=$FROM_RUN"; fi
 "#;
 
@@ -1408,26 +1416,58 @@ async fn jobs_submitted_in_the_same_second_keep_their_order_across_a_restart() {
     drop(env.root);
 }
 
-/// A reference run directory in the node's repo holding only the named files.
-fn reference_run(env: &Env, rel: &str, files: &[&str]) {
-    let dir = env.repo.join(rel);
-    std::fs::create_dir_all(&dir).unwrap();
-    for f in files {
-        std::fs::write(dir.join(f), "{}").unwrap();
+/// The inputs a partial rerun's job carries.
+fn inputs() -> Value {
+    json!({"code_bundle": INPUT_BUNDLE_BASE64, "metrics": INPUT_METRICS})
+}
+
+fn git(dir: &std::path::Path, args: &[&str]) -> String {
+    let out = Command::new("git")
+        .args(["-c", "user.name=t", "-c", "user.email=t@t", "-c", "init.defaultBranch=main"])
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+/// A lake (`<root>/lake-state`) holding LAKE_RUN under LAKE_NODE, with its record and a story ref per story in
+/// the lake's code repository: what `dbench submit --from-run` reads.
+fn lake(env: &Env) -> PathBuf {
+    let state = env.root.0.join("lake-state");
+    let run = state.join("collected").join(LAKE_NODE).join(LAKE_RUN);
+    std::fs::create_dir_all(&run).unwrap();
+    std::fs::write(run.join("run.json"), "{}").unwrap();
+    let work = env.root.0.join("lake-work");
+    std::fs::create_dir_all(&work).unwrap();
+    git(&work, &["init", "-q"]);
+    let mut stories = serde_json::Map::new();
+    git(&state, &["init", "-q", "--bare", "code.git"]);
+    for n in 1..=LAKE_STORIES {
+        std::fs::write(work.join(format!("s{n}.ts")), n.to_string()).unwrap();
+        git(&work, &["add", "-A"]);
+        git(&work, &["commit", "-qm", &format!("story {n}")]);
+        let commit = git(&work, &["rev-parse", "HEAD"]);
+        let r = format!("refs/runs/{LAKE_NODE}/{LAKE_RUN}/story/{n:02}");
+        git(&work, &["push", "-q", state.join("code.git").to_str().unwrap(), &format!("{commit}:{r}")]);
+        stories.insert(n.to_string(), json!({"commit": commit, "finished": 1.0}));
     }
+    std::fs::write(run.join("metrics.json"), json!({"stories": stories}).to_string()).unwrap();
+    state
 }
 
 fn known_good_spec(run_id: &str, from_run: &str) -> Value {
     let mut s = spec("fakepack", run_id);
     s["stories"] = json!([KNOWN_GOOD_STORY]);
     s["from_run"] = json!(from_run);
+    s["inputs"] = inputs();
     s
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_known_good_job_names_its_reference_run_to_the_harness_and_keeps_it_across_a_restart() {
     let env = setup();
-    reference_run(&env, REFERENCE_RUN, &[BUNDLE_FILE, METRICS_FILE]);
     let other_run = format!("{REFERENCE_RUN}-other");
     let mut a = start(&env, false);
 
@@ -1441,16 +1481,21 @@ async fn a_known_good_job_names_its_reference_run_to_the_harness_and_keeps_it_ac
     assert_eq!(a.submit("kg-1", &known_good_spec("kg-1", &other_run)).await.0, 409);
     let mut plain = s.clone();
     plain.as_object_mut().unwrap().remove("from_run");
+    plain.as_object_mut().unwrap().remove("inputs");
     assert_eq!(a.submit("kg-1", &plain).await.0, 409);
 
-    // The harness gets the story and the reference run as a path in the node's checkout.
+    // The harness gets the story, the reference run by its name, and the job's inputs (story 23): nothing of the
+    // reference run is in this node's checkout.
     a.wait_status("kg-1", "done").await;
     let log = a.log("kg-1").await;
-    let want = format!(
-        "partial rerun: only={KNOWN_GOOD_STORY} from-run={}",
-        env.repo.join(REFERENCE_RUN).display()
-    );
+    let want = format!("partial rerun: only={KNOWN_GOOD_STORY} from-run={REFERENCE_RUN}\n");
     assert!(log.contains(&want), "want {want:?} in {log}");
+    let dir = env.home.join("jobs/kg-1.inputs");
+    let want = format!("inputs: code={} metrics={}", dir.join("code.bundle").display(), dir.join("metrics.json").display());
+    assert!(log.contains(&want), "want {want:?} in {log}");
+    assert_eq!(std::fs::read(dir.join("code.bundle")).unwrap(), b"bundle");
+    assert_eq!(std::fs::read_to_string(dir.join("metrics.json")).unwrap(), INPUT_METRICS);
+    assert!(!env.repo.join(REFERENCE_RUN).exists());
 
     // What can be checked without the node's files is checked at submit, and says why.
     for (bad, why) in [
@@ -1493,25 +1538,50 @@ async fn a_known_good_job_names_its_reference_run_to_the_harness_and_keeps_it_ac
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_known_good_job_whose_reference_run_is_incomplete_fails_before_it_starts() {
+async fn a_partial_rerun_without_its_inputs_and_inputs_without_a_partial_rerun_are_refused_at_submit() {
+    // Story 23: an older host's dbench sends a partial rerun with no inputs; nothing is queued for it.
     let env = setup();
-    let no_bundle = format!("{REFERENCE_RUN}-nobundle");
-    let no_metrics = format!("{REFERENCE_RUN}-nometrics");
-    let absent = format!("{REFERENCE_RUN}-absent");
-    reference_run(&env, &no_bundle, &[METRICS_FILE]);
-    reference_run(&env, &no_metrics, &[BUNDLE_FILE]);
     let srv = start(&env, false);
-    for (id, from_run, missing) in [
-        ("kg-nobundle", &no_bundle, BUNDLE_FILE),
-        ("kg-nometrics", &no_metrics, METRICS_FILE),
-        ("kg-absent", &absent, "no such directory"),
-    ] {
-        let (code, v) = srv.submit(id, &known_good_spec(id, from_run)).await;
-        assert_eq!(code, 201, "{v}");
+    let mut bare = known_good_spec("kg-bare", REFERENCE_RUN);
+    bare.as_object_mut().unwrap().remove("inputs");
+    let (code, v) = srv.submit("kg-bare", &bare).await;
+    assert_eq!(code, 400, "{v}");
+    let e = v["error"].as_str().unwrap_or_default();
+    assert!(e.contains(&format!("partial rerun of {REFERENCE_RUN} needs its inputs")), "{e}");
+    let mut stray = spec("fakepack", "plain");
+    stray["inputs"] = inputs();
+    let (code, v) = srv.submit("plain", &stray).await;
+    assert_eq!(code, 400, "{v}");
+    assert!(v["error"].as_str().unwrap_or_default().contains("only with from_run"), "{v}");
+    let mut bad = known_good_spec("kg-b64", REFERENCE_RUN);
+    bad["inputs"]["code_bundle"] = json!("not base64!");
+    assert_eq!(srv.submit("kg-b64", &bad).await.0, 400);
+    let mut extra = known_good_spec("kg-extra", REFERENCE_RUN);
+    extra["inputs"]["path"] = json!("/etc/passwd");
+    assert_eq!(srv.submit("kg-extra", &extra).await.0, 422, "unknown input fields are rejected");
+    for id in ["kg-bare", "plain", "kg-b64", "kg-extra"] {
+        assert_eq!(srv.call(reqwest::Method::GET, &format!("/v1/jobs/{id}"), None).await.0, 404, "{id}");
+        assert!(!env.home.join(format!("jobs/{id}.inputs")).exists(), "{id}");
+    }
+    drop(env.root);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_queued_partial_rerun_whose_inputs_are_gone_fails_before_it_starts() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("blocker", &spec("slowpack", "run-b")).await.0, 201);
+    srv.wait_status("blocker", "running").await;
+    for (id, file) in [("kg-gone", "code.bundle"), ("fs-gone", "metrics.json")] {
+        let s = if id == "kg-gone" { known_good_spec(id, REFERENCE_RUN) } else { from_story_spec(id, REFERENCE_RUN) };
+        assert_eq!(srv.submit(id, &s).await.0, 201);
+        std::fs::remove_file(env.home.join(format!("jobs/{id}.inputs/{file}"))).unwrap();
+    }
+    assert_eq!(srv.cancel("blocker").await.0, 202);
+    for (id, file) in [("kg-gone", "code.bundle"), ("fs-gone", "metrics.json")] {
         let v = srv.wait_status(id, "failed").await;
         let reason = v["state"]["reason"].as_str().unwrap();
-        assert!(reason.contains(missing), "{id}: {reason}");
-        assert!(reason.contains(from_run.as_str()), "{id}: {reason}");
+        assert!(reason.contains(file) && reason.contains("missing"), "{id}: {reason}");
         assert_eq!(v["attempt"], 0, "the harness never started: {v}");
         assert!(!srv.log(id).await.contains("args:"), "the harness never started");
     }
@@ -1531,6 +1601,7 @@ fn dbench_cli(env: &Env, srv: &Server, args: &[&str]) -> std::process::Output {
         .arg(&config)
         .args(args)
         .env("HOME", &env.user_home)
+        .env("BENCH_LAKE_STATE", env.root.0.join("lake-state"))
         .output()
         .unwrap()
 }
@@ -1539,11 +1610,11 @@ fn dbench_cli(env: &Env, srv: &Server, args: &[&str]) -> std::process::Output {
 async fn submit_takes_a_reference_run_and_repeats_it_as_separate_runs() {
     const REPEATS: usize = 2;
     let env = setup();
-    reference_run(&env, REFERENCE_RUN, &[BUNDLE_FILE, METRICS_FILE]);
+    lake(&env);
     let srv = start(&env, false);
     let story = KNOWN_GOOD_STORY.to_string();
     let repeats = REPEATS.to_string();
-    let tab_completed = format!("{REFERENCE_RUN}/");
+    let tab_completed = format!("{LAKE_RUN}/");
     let submit = |from_run: &'static str, extra: &[&'static str]| {
         let mut args = vec!["submit", NODE_NAME, "--id", "kg", "--install-id", INSTALL_ID];
         args.extend(["--pack", "fakepack", "--scope", "canvas", "--run-id", "kg-s2"]);
@@ -1560,7 +1631,7 @@ async fn submit_takes_a_reference_run_and_repeats_it_as_separate_runs() {
     for n in 1..=REPEATS {
         let id = format!("kg-r{n}");
         let v = srv.wait_status(&id, "done").await;
-        assert_eq!(v["spec"]["from_run"], REFERENCE_RUN, "{v}");
+        assert_eq!(v["spec"]["from_run"], LAKE_RUN, "{v}");
         assert_eq!(v["spec"]["run_id"], format!("kg-s2-r{n}"), "{v}");
         assert_eq!(v["spec"]["stories"], json!([KNOWN_GOOD_STORY]), "{v}");
     }
@@ -1573,11 +1644,11 @@ async fn submit_takes_a_reference_run_and_repeats_it_as_separate_runs() {
     let status = dbench_cli(&env, &srv, &["status", NODE_NAME, "kg-r1"]);
     let shown = String::from_utf8_lossy(&status.stdout).into_owned();
     assert!(status.status.success(), "{}", String::from_utf8_lossy(&status.stderr));
-    assert!(shown.contains(&format!("from run  {REFERENCE_RUN}")), "{shown}");
+    assert!(shown.contains(&format!("from run  {LAKE_RUN}")), "{shown}");
 
     // Refused before anything is sent: no stories, or a path that isn't inside the repo.
     for (from_run, extra, why) in [
-        (REFERENCE_RUN, &[][..], "--stories"),
+        (LAKE_RUN, &[][..], "--stories"),
         ("../outside", &["--stories", "2"][..], "from_run"),
         ("/etc", &["--stories", "2"][..], "from_run"),
     ] {
@@ -1593,13 +1664,13 @@ fn from_story_spec(run_id: &str, from_run: &str) -> Value {
     let mut s = spec("fakepack", run_id);
     s["from_run"] = json!(from_run);
     s["from_story"] = json!(KNOWN_GOOD_STORY);
+    s["inputs"] = inputs();
     s
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_job_from_a_story_names_it_to_the_harness_and_keeps_it_across_a_restart() {
     let env = setup();
-    reference_run(&env, REFERENCE_RUN, &[BUNDLE_FILE, METRICS_FILE]);
     let mut a = start(&env, false);
 
     let s = from_story_spec("fs-1", REFERENCE_RUN);
@@ -1617,10 +1688,7 @@ async fn a_job_from_a_story_names_it_to_the_harness_and_keeps_it_across_a_restar
     // The harness gets --from-story and the reference run, and no --only.
     a.wait_status("fs-1", "done").await;
     let log = a.log("fs-1").await;
-    let want = format!(
-        "continuing: from-story={KNOWN_GOOD_STORY} only=[] from-run={}",
-        env.repo.join(REFERENCE_RUN).display()
-    );
+    let want = format!("continuing: from-story={KNOWN_GOOD_STORY} only=[] from-run={REFERENCE_RUN}\n");
     assert!(log.contains(&want), "want {want:?} in {log}");
 
     // Refused at submit, without the node's files, and says why.
@@ -1651,25 +1719,10 @@ async fn a_job_from_a_story_names_it_to_the_harness_and_keeps_it_across_a_restar
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_job_from_a_story_whose_reference_run_is_incomplete_fails_before_it_starts() {
-    let env = setup();
-    let no_bundle = format!("{REFERENCE_RUN}-nobundle");
-    reference_run(&env, &no_bundle, &[METRICS_FILE]);
-    let srv = start(&env, false);
-    let (code, v) = srv.submit("fs-nobundle", &from_story_spec("fs-nobundle", &no_bundle)).await;
-    assert_eq!(code, 201, "{v}");
-    let v = srv.wait_status("fs-nobundle", "failed").await;
-    let reason = v["state"]["reason"].as_str().unwrap();
-    assert!(reason.contains(BUNDLE_FILE) && reason.contains(&no_bundle), "{reason}");
-    assert_eq!(v["attempt"], 0, "the harness never started: {v}");
-    drop(env.root);
-}
-
-#[tokio::test(flavor = "multi_thread")]
 async fn submit_takes_a_first_story_and_repeats_it_as_separate_runs() {
     const REPEATS: usize = 3;
     let env = setup();
-    reference_run(&env, REFERENCE_RUN, &[BUNDLE_FILE, METRICS_FILE]);
+    lake(&env);
     let srv = start(&env, false);
     let story = KNOWN_GOOD_STORY.to_string();
     let repeats = REPEATS.to_string();
@@ -1680,30 +1733,30 @@ async fn submit_takes_a_first_story_and_repeats_it_as_separate_runs() {
         args.extend(extra);
         dbench_cli(&env, &srv, &args)
     };
-    let out = run(&["--from-run", REFERENCE_RUN, "--from-story", &story, "--repeat", &repeats]);
+    let out = run(&["--from-run", LAKE_RUN, "--from-story", &story, "--repeat", &repeats]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     for n in 1..=REPEATS {
         let v = srv.wait_status(&format!("fs-r{n}"), "done").await;
         assert_eq!(v["spec"]["from_story"], KNOWN_GOOD_STORY, "{v}");
-        assert_eq!(v["spec"]["from_run"], REFERENCE_RUN, "{v}");
+        assert_eq!(v["spec"]["from_run"], LAKE_RUN, "{v}");
         assert_eq!(v["spec"]["run_id"], format!("fs-s2-r{n}"), "{v}");
         assert!(v["spec"].get("stories").is_none(), "{v}");
     }
-    let again = run(&["--from-run", REFERENCE_RUN, "--from-story", &story, "--repeat", &repeats]);
+    let again = run(&["--from-run", LAKE_RUN, "--from-story", &story, "--repeat", &repeats]);
     assert!(String::from_utf8_lossy(&again.stderr).contains("no change"));
 
     let status = dbench_cli(&env, &srv, &["status", NODE_NAME, "fs-r1"]);
     let shown = String::from_utf8_lossy(&status.stdout).into_owned();
     assert!(shown.contains(&format!("from story  {KNOWN_GOOD_STORY}")), "{shown}");
-    assert!(shown.contains(&format!("from run  {REFERENCE_RUN}")), "{shown}");
+    assert!(shown.contains(&format!("from run  {LAKE_RUN}")), "{shown}");
 
     // Refused before anything is sent.
     for (extra, why) in [
         (vec!["--from-story", "2"], "--from-run"),
-        (vec!["--from-run", REFERENCE_RUN, "--from-story", "2", "--stories", "2"], "--stories"),
-        (vec!["--from-run", REFERENCE_RUN, "--from-story", "0"], "from-story"),
-        (vec!["--from-run", REFERENCE_RUN, "--from-story", "two"], "from-story"),
-        (vec!["--from-run", REFERENCE_RUN, "--from-story=-1"], "from-story"),
+        (vec!["--from-run", LAKE_RUN, "--from-story", "2", "--stories", "2"], "--stories"),
+        (vec!["--from-run", LAKE_RUN, "--from-story", "0"], "from-story"),
+        (vec!["--from-run", LAKE_RUN, "--from-story", "two"], "from-story"),
+        (vec!["--from-run", LAKE_RUN, "--from-story=-1"], "from-story"),
     ] {
         let out = run(&extra);
         let said = String::from_utf8_lossy(&out.stderr).into_owned();

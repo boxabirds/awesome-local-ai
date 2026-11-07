@@ -257,16 +257,18 @@ impl Api {
             .events)
     }
 
+    /// PUT the job; a partial rerun's inputs (job_inputs.rs) go beside the spec's fields.
     pub async fn submit(
         &self,
         id: &str,
         spec: &JobSpec,
+        inputs: Option<&crate::job_inputs::JobInputs>,
     ) -> Result<(reqwest::StatusCode, serde_json::Value)> {
-        self.send(
-            self.req(reqwest::Method::PUT, &format!("/v1/jobs/{id}"))
-                .json(spec),
-        )
-        .await
+        let mut body = serde_json::to_value(spec)?;
+        if let (Some(i), Some(o)) = (inputs, body.as_object_mut()) {
+            o.insert(crate::job_inputs::INPUTS_FIELD.into(), serde_json::to_value(i)?);
+        }
+        self.send(self.req(reqwest::Method::PUT, &format!("/v1/jobs/{id}")).json(&body)).await
     }
 
     pub async fn hold(&self, reason: &str) -> Result<(reqwest::StatusCode, serde_json::Value)> {
@@ -363,7 +365,24 @@ pub struct Ctx {
     pub json: bool,
 }
 
+/// Where the lake's state folder is: $BENCH_LAKE_STATE, else the folder holding nodes.toml's `[collect] store`.
+pub const LAKE_STATE_ENV: &str = "BENCH_LAKE_STATE";
+
 impl Ctx {
+    pub fn lake_state(&self) -> Result<PathBuf> {
+        if let Some(s) = std::env::var_os(LAKE_STATE_ENV).filter(|s| !s.is_empty()) {
+            return Ok(PathBuf::from(s));
+        }
+        self.collect
+            .store
+            .as_deref()
+            .and_then(Path::parent)
+            .map(Path::to_path_buf)
+            .with_context(|| {
+                format!("a partial rerun reads the reference run from the lake: set {LAKE_STATE_ENV}, or [collect] store in nodes.toml")
+            })
+    }
+
     pub fn load(config: Option<PathBuf>, json: bool) -> Result<Ctx> {
         let path = match config {
             Some(p) => p,
@@ -526,8 +545,14 @@ pub async fn cmd_nodes(ctx: &Ctx) -> Result<()> {
 
 const SHORT_SHA: usize = 7;
 
-pub async fn cmd_submit(ctx: &Ctx, node: &str, id: &str, spec: JobSpec) -> Result<()> {
-    let (status, v) = ctx.api(node)?.submit(id, &spec).await?;
+pub async fn cmd_submit(
+    ctx: &Ctx,
+    node: &str,
+    id: &str,
+    spec: JobSpec,
+    inputs: Option<&crate::job_inputs::JobInputs>,
+) -> Result<()> {
+    let (status, v) = ctx.api(node)?.submit(id, &spec, inputs).await?;
     if ctx.json {
         print_json(&v)?;
     }
