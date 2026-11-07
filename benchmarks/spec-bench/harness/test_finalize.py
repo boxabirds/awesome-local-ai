@@ -76,14 +76,13 @@ def test_a_finished_run_is_scored_from_its_own_repository_and_says_so(tmp_path):
     # TC-83: the re-score takes the run's own repository (which the node keeps and serves to the lake); no bundle
     work = workspace_with_history(tmp_path)
     run = run_dir(tmp_path, work)
-    calls, messages = [], []
+    calls = []
     out = finalize.finalize(run, pack_ref="vidi-v2.0-pre2", version="vidi-v2.0-pre2",
-                            rescore=fake_rescore(74, 75, calls), record=messages.append)
+                            rescore=fake_rescore(74, 75, calls))
     assert calls == [(run, work / "workspace", "vidi-v2.0-pre2")]
     assert not (run / "workspace.bundle").exists()
     assert out["code"] == finalize.CODE_REPOSITORY and out["score"] == "74/75" and out["rescore"] == "done"
     assert json.loads((run / "finalize.json").read_text())["score"] == "74/75"
-    assert messages == ["final score 74/75 under vidi-v2.0-pre2"]
 
 
 def test_where_the_suite_checkout_is_no_longer_decides_whether_a_run_is_scored(tmp_path):
@@ -94,7 +93,7 @@ def test_where_the_suite_checkout_is_no_longer_decides_whether_a_run_is_scored(t
     run = run_dir(tmp_path, workspace_with_history(tmp_path))
     calls = []
     out = finalize.finalize(run, pack_ref="vidi-v2.0-pre2", version="vidi-v2.0-pre2",
-                            rescore=fake_rescore(75, 75, calls), record=None)
+                            rescore=fake_rescore(75, 75, calls))
     assert len(calls) == 1 and out["rescore"] == "done" and out["version"] == "vidi-v2.0-pre2"
     assert not hasattr(finalize, "decide")                      # the rule that skipped is gone, not bypassed
 
@@ -102,36 +101,33 @@ def test_where_the_suite_checkout_is_no_longer_decides_whether_a_run_is_scored(t
 def test_a_run_already_finalized_is_left_alone(tmp_path):
     run = run_dir(tmp_path, workspace_with_history(tmp_path))
     calls = []
-    finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=fake_rescore(75, 75, calls), record=None)
-    finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=fake_rescore(75, 75, calls), record=None)
+    finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=fake_rescore(75, 75, calls))
+    finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=fake_rescore(75, 75, calls))
     assert len(calls) == 1
 
 
 def test_a_failed_rescore_is_reported_not_raised(tmp_path):
     run = run_dir(tmp_path, workspace_with_history(tmp_path))
-    messages = []
 
     def broken(run, code, version):
         raise RuntimeError("no browser")
-    out = finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=broken, record=messages.append)
+    out = finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=broken)
     assert out["rescore"] == "failed" and "no browser" in out["reason"]
     assert (tmp_path / "work" / "workspace" / ".git").is_dir()
-    assert "re-score failed" in messages[0]
 
 
 def test_a_rescore_the_machine_spoiled_is_not_a_score_and_does_not_block_a_retry(tmp_path):
     """30 Sep 2026: Swift v2-r2's re-score ran under a Node too old for Playwright; the runner crashed before
     any test, and the record said "final score 0/0"."""
     run = run_dir(tmp_path, workspace_with_history(tmp_path))
-    calls, messages = [], []
+    calls = []
     out = finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2",
-                            rescore=fake_rescore(0, 0, calls, fault="scoring interrupted: the held-out runner failed to start"),
-                            record=messages.append)
+                            rescore=fake_rescore(0, 0, calls, fault="scoring interrupted: the held-out runner failed to start"))
     assert out["rescore"] == "failed" and "score" not in out and "runner failed to start" in out["reason"]
-    assert messages and "0/0" not in messages[0] and "failed" in messages[0]
+    assert "0/0" not in out["reason"]
     assert not (run / "rescore" / "vidi-v2.0-pre2").exists()          # set aside, so the page never shows it
     assert [p.name.startswith("vidi-v2.0-pre2-") for p in (run / "rescore-spoiled").iterdir()] == [True]
-    finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=fake_rescore(61, 75, calls), record=None)
+    finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=fake_rescore(61, 75, calls))
     assert len(calls) == 2                                             # and the next finalize tries again
 
 
@@ -157,11 +153,11 @@ def live_run(tmp_path: Path, passed: int | None, total: int = 75, version: str |
     return run
 
 
-def finalize_with(run: Path, rescore, messages: list | None = None) -> dict:
-    return finalize.finalize(run, VERSION, VERSION, rescore=rescore, record=(messages.append if messages is not None else None))
+def finalize_with(run: Path, rescore) -> dict:
+    return finalize.finalize(run, VERSION, VERSION, rescore=rescore)
 
 
-def assert_not_recorded(run: Path, out: dict, messages: list, *reason_parts: str) -> None:
+def assert_not_recorded(run: Path, out: dict, *reason_parts: str) -> None:
     assert out["rescore"] == "flagged" and "score" not in out
     for part in reason_parts:
         assert part in out["reason"], (part, out["reason"])
@@ -169,38 +165,33 @@ def assert_not_recorded(run: Path, out: dict, messages: list, *reason_parts: str
     [spoiled] = list((run / "rescore-spoiled").iterdir())
     assert json.loads((spoiled / finalize.SET_ASIDE).read_text())["reason"] == out["reason"]
     assert (spoiled / "rescore.json").is_file()                      # kept for whoever looks into it
-    assert messages and "flagged" in messages[0] and "not recorded" in messages[0]
 
 
 def test_replay_the_refused_install_0_of_75_against_a_live_63_is_flagged_not_recorded(tmp_path):
     """30 Sep 2026, Swift 1.5 v2-r2: `npm ci` refused the lockfile, the build found no vite, and every held-out
     test got "connection refused". Replayed as the old scorer recorded it, with no harness fault set."""
     run = live_run(tmp_path, 63)
-    messages = []
     out = finalize_with(run, fake_rescore(0, 75, [], errors=lambda i: REFUSED.replace("18800", str(18800 + 2 * (i % 4)))),
-                        messages)
-    assert_not_recorded(run, out, messages, "63", "0/75", "63/75")
+                        )
+    assert_not_recorded(run, out, "63", "0/75", "63/75")
     assert out["guard"]["difference"] == -63 and out["guard"]["one_signature"] is True
-    assert "live 63/75" in messages[0] and not messages[0].startswith("final score")
+    assert out["guard"]["live"] == "63/75"
 
 
 def test_replay_the_crashed_runner_0_of_0_is_flagged_even_without_a_harness_fault(tmp_path):
     """30 Sep 2026: under a Node too old for Playwright the runner crashed before any test; the record said
     "final score 0/0". Since then gates.interrupted() catches it; the guard catches it again if that ever misses."""
     run = live_run(tmp_path, 63)
-    messages = []
-    out = finalize_with(run, fake_rescore(0, 0, []), messages)
-    assert_not_recorded(run, out, messages, "0 tests", "75")
+    out = finalize_with(run, fake_rescore(0, 0, []))
+    assert_not_recorded(run, out, "0 tests", "75")
 
 
 def test_a_small_difference_from_the_live_score_is_recorded(tmp_path):
     """gufo v2-r1: 68/75 in the record against a live 67 (one test, the scorer's OS: methods review C3)."""
     run = live_run(tmp_path, 67)
-    messages = []
-    out = finalize_with(run, fake_rescore(68, 75, []), messages)
+    out = finalize_with(run, fake_rescore(68, 75, []))
     assert out["rescore"] == "done" and out["score"] == "68/75"
     assert out["guard"]["difference"] == 1 and out["guard"]["flagged"] is None and out["guard"]["comparable"] is True
-    assert messages == [f"final score 68/75 under {VERSION}"]
     assert json.loads((run / "finalize.json").read_text())["guard"]["live"] == "67/75"
 
 
@@ -333,13 +324,11 @@ def test_a_story_whose_agent_reached_outside_its_workspace_is_recorded_and_said(
     for sid, ev in (("07", reach), ("08", own)):
         (run / "stories" / sid).mkdir(parents=True)
         (run / "stories" / sid / "agent-events.jsonl").write_text(json.dumps(ev) + "\n")
-    messages = []
-    out = finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=messages.append)
+    out = finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []))
     assert out["outside_workspace"]["ok"] is False and out["outside_workspace"]["reached"] == ["07"]
     m = drive.load_metrics(run)
     assert m["stories"]["7"]["outside_workspace"]["ok"] is False and m["stories"]["8"]["outside_workspace"]["ok"] is True
     assert m["stories"]["7"]["outside_workspace"]["reaches"][0]["route"] == "reference_build"
-    assert "reached outside its workspace" in messages[0] and "story 7" in messages[0]
 
 
 def test_the_scan_leaves_the_storys_process_containment_record_alone(tmp_path):
@@ -351,7 +340,7 @@ def test_the_scan_leaves_the_storys_process_containment_record_alone(tmp_path):
     (run / "stories" / "07").mkdir(parents=True)
     (run / "stories" / "07" / "agent-events.jsonl").write_text(json.dumps({"type": "message_end", "message": {
         "role": "assistant", "content": [{"type": "toolCall", "id": "c", "name": "bash", "arguments": {"command": "ls src"}}]}}) + "\n")
-    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=None)
+    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []))
     rec = drive.load_metrics(run)["stories"]["7"]
     assert rec["containment"] == scope and rec["outside_workspace"]["ok"] is True
 
@@ -396,16 +385,13 @@ OUTCOMES = [
 @pytest.mark.parametrize("make,state,kind,person", OUTCOMES, ids=[o[2] + "-" + o[1] for o in OUTCOMES])
 def test_every_outcome_says_whether_a_person_is_needed(tmp_path, make, state, kind, person):
     run = live_run(tmp_path, 63)
-    messages = []
-    out = finalize_with(run, make(), messages)
+    out = finalize_with(run, make())
     fin = status(run)
     assert (fin["rescore"], fin["reason_kind"], fin["needs_person"]) == (state, kind, person), fin
     assert fin["attempts"] == 1 and fin["last_attempt_at"] == fin["at"] and fin["max_attempts"] == finalize.MAX_ATTEMPTS
     assert bool(fin["reason"]) is (state != "done")
     assert ("score" in fin) is (state == "done")
     assert out["needs_person"] is person
-    assert ("needs a person" in messages[0]) is person
-    assert ("will be retried" in messages[0]) is (state != "done" and not person)
 
 
 def test_a_run_with_no_repository_and_no_bundle_left_needs_a_person(tmp_path):
@@ -450,12 +436,10 @@ def test_the_runs_repository_wins_over_an_old_bundle(tmp_path):
 def test_attempts_are_counted_and_a_retryable_failure_needs_a_person_at_the_cap(tmp_path):
     run = live_run(tmp_path, 63)
     for n in range(1, finalize.MAX_ATTEMPTS + 1):
-        messages = []
-        finalize_with(run, raising(RuntimeError(f"rescore.py exited {n}")), messages)
+        finalize_with(run, raising(RuntimeError(f"rescore.py exited {n}")))
         fin = status(run)
         assert fin["attempts"] == n and len(fin["history"]) == n
         assert fin["needs_person"] is (n == finalize.MAX_ATTEMPTS), n
-        assert f"attempt {n} of {finalize.MAX_ATTEMPTS}" in messages[0]
     assert [h["reason"] for h in fin["history"]] == [f"rescore.py exited {n}" for n in range(1, finalize.MAX_ATTEMPTS + 1)]
     assert all(h["rescore"] == "failed" and h["reason_kind"] == finalize.KIND_RESCORE_FAILED and h["at"] for h in fin["history"])
     assert fin["reason"] == f"rescore.py exited {finalize.MAX_ATTEMPTS}" and fin["retries_exhausted"] is True
@@ -496,9 +480,8 @@ def test_a_run_already_scored_is_not_another_attempt_and_says_nobody_is_needed(t
     run = live_run(tmp_path, 63)
     finalize_with(run, fake_rescore(62, 75, []))
     before = status(run)
-    messages = []
-    out = finalize_with(run, fake_rescore(62, 75, []), messages)
-    assert status(run) == before and messages == []                   # idempotent: nothing rewritten, nothing recorded
+    out = finalize_with(run, fake_rescore(62, 75, []))
+    assert status(run) == before                                      # idempotent: nothing rewritten
     assert out["rescore"] == "done" and out["needs_person"] is False and out["score"] == "62/75"
 
 
@@ -508,12 +491,10 @@ def test_a_record_from_before_these_fields_is_read_as_no_attempts_yet(tmp_path):
     (run / finalize.STATUS).write_text(json.dumps({
         "version": "vidi-v2.0-pre2+28ace8b", "pack_ref": VERSION, "at": "2026-10-01T08:26:00Z", "bundle": "workspace.bundle",
         "rescore": "skipped", "reason": f"the suite checkout is at vidi-v2.0-pre2+28ace8b, not the pack's {VERSION}"}))
-    messages = []
-    finalize_with(run, fake_rescore(66, 75, []), messages)
+    finalize_with(run, fake_rescore(66, 75, []))
     fin = status(run)
     assert fin["rescore"] == "done" and fin["score"] == "66/75" and fin["version"] == VERSION
     assert fin["attempts"] == 1 and fin["needs_person"] is False
-    assert messages == [f"final score 66/75 under {VERSION}"]
 
 
 def test_a_score_of_an_earlier_checkpoint_is_not_the_runs_score(tmp_path):
@@ -690,19 +671,15 @@ STALE = [("an older accounting version", dict(version=0)), ("a failed check", di
 
 
 @pytest.mark.parametrize("what,kw", STALE, ids=[w for w, _ in STALE])
-def test_a_stale_record_is_recomputed_from_the_full_log_before_the_run_is_recorded(tmp_path, monkeypatch, what, kw):
+def test_a_stale_record_is_recomputed_from_the_full_log_when_the_run_is_finalized(tmp_path, monkeypatch, what, kw):
     import accounting
     import heldout
     run = run_with_stories(tmp_path, {"3": accounted(**kw), "4": accounted()}, logs=("3", "4"))
-    calls, events = [], []
+    calls = []
     fake_backfill(monkeypatch, {"3": accounted()}, calls)
-    real = heldout.load_metrics
-
-    def record(message):
-        events.append(("recorded", finalize.needing_repair(real(run))))
-    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=record)
+    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []))
     assert calls == [(run, True)]                                       # recompute: stale ones are redone
-    assert events == [("recorded", {})]                                 # repaired before the record was made
+    assert finalize.needing_repair(heldout.load_metrics(run)) == {}     # and the run folder holds the repaired records
     rep = status(run)["repair"]
     assert rep["repaired"] == ["3"] and rep["left"] == {} and rep["accounting_version"] == accounting.VERSION
     assert "error" not in rep and rep["at"]
@@ -712,7 +689,7 @@ def test_records_that_are_current_are_left_alone(tmp_path, monkeypatch):
     run = run_with_stories(tmp_path, {"3": accounted(), "4": accounted()}, logs=("3", "4"))
     calls = []
     fake_backfill(monkeypatch, {}, calls)
-    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=None)
+    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []))
     rep = status(run)["repair"]
     assert calls == [] and rep["repaired"] == [] and rep["left"] == {} and "at" not in rep
 
@@ -721,7 +698,7 @@ def test_a_stale_record_without_its_full_log_is_left_with_a_note(tmp_path, monke
     run = run_with_stories(tmp_path, {"3": accounted(ok=False), "4": accounted(version=0)}, logs=("4",))
     calls = []
     fake_backfill(monkeypatch, {"4": accounted()}, calls)
-    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=None)
+    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []))
     rep = status(run)["repair"]
     assert rep["repaired"] == ["4"] and list(rep["left"]) == ["3"]
     assert "check failed" in rep["left"]["3"] and "no full log on this machine" in rep["left"]["3"]
@@ -731,14 +708,14 @@ def test_with_no_full_logs_at_all_nothing_is_recomputed(tmp_path, monkeypatch):
     run = run_with_stories(tmp_path, {"3": accounted(version=0)})
     calls = []
     fake_backfill(monkeypatch, {}, calls)
-    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=None)
+    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []))
     assert calls == [] and "no full log" in status(run)["repair"]["left"]["3"]
 
 
 def test_a_record_the_recomputation_does_not_fix_is_left_with_a_note(tmp_path, monkeypatch):
     run = run_with_stories(tmp_path, {"3": accounted(ok=False)}, logs=("3",))
     fake_backfill(monkeypatch, {}, [])
-    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=None)
+    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []))
     rep = status(run)["repair"]
     assert rep["repaired"] == [] and "recomputed from the full log, still" in rep["left"]["3"]
 
@@ -747,9 +724,8 @@ def test_a_repair_that_crashes_is_recorded_and_the_run_is_still_scored(tmp_path,
     import backfill_timing
     run = run_with_stories(tmp_path, {"3": accounted(version=0)}, logs=("3",))
     monkeypatch.setattr(backfill_timing, "backfill_all", lambda run, recompute=False: 1 / 0)
-    messages = []
-    out = finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=messages.append)
-    assert out["score"] == "75/75" and messages == [f"final score 75/75 under {VERSION}"]
+    out = finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []))
+    assert out["score"] == "75/75"
     rep = status(run)["repair"]
     assert "ZeroDivisionError" in rep["error"] and status(run)["needs_person"] is False
     assert rep["repaired"] == [] and "the repair failed" in rep["left"]["3"]     # marked as tried by this harness
@@ -757,18 +733,17 @@ def test_a_repair_that_crashes_is_recorded_and_the_run_is_still_scored(tmp_path,
 
 def test_a_scored_run_whose_records_went_stale_is_repaired_and_recorded_without_another_rescore(tmp_path, monkeypatch):
     """The accounting changed after the run was scored (a new VERSION): the next finalize brings the records up
-    to date and records that, and does not score again."""
+    to date, and does not score again."""
     run = run_with_stories(tmp_path, {"3": accounted()}, logs=("3",))
-    calls, backfills, messages = [], [], []
-    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, calls), record=None)
+    calls, backfills = [], []
+    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, calls))
     import heldout
     m = heldout.load_metrics(run)
     m["stories"]["3"] = accounted(version=0)
     heldout.save_metrics(run, m)
     fake_backfill(monkeypatch, {"3": accounted()}, backfills)
-    out = finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, calls), record=messages.append)
+    out = finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, calls))
     assert len(calls) == 1 and len(backfills) == 1
-    assert messages == ["records repaired: story 3"]
     fin = status(run)
     assert fin["repair"]["repaired"] == ["3"] and fin["score"] == "75/75" and fin["attempts"] == 1
     assert out["rescore"] == "done"
@@ -804,7 +779,7 @@ def test_every_field_of_finalize_json_is_in_the_telemetry_doc(tmp_path, monkeypa
     (tmp_path / "r").mkdir()
     run = run_with_stories(tmp_path / "r", {"3": accounted(ok=False), "4": accounted(version=0)}, logs=("4",))
     fake_backfill(monkeypatch, {"4": accounted()}, [])
-    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=None)
+    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []))
     keys(status(run))
     keys(finalize.note_failure(live_run(tmp_path, 63), "the harness did not load"))
     assert {"needs_person", "reason_kind", "attempts", "last_attempt_at", "history", "repair", "repaired"} <= written
@@ -838,50 +813,15 @@ def test_a_rescore_in_progress_is_stopped_when_this_process_is_told_to_end(tmp_p
     assert marker.exists() and not (run / finalize.STATUS).exists()
 
 
-# ---------- the record that repair_run makes of a repair (finalize._recorder, reached through repair_run) ----------
+# ---------- repair_run (story 23: it records nothing; the repaired records stay in the run folder) ----------
 
-def stale_run_with_recorder(tmp_path, monkeypatch, answers: list[dict]):
-    """A run with one stale story, the pack left as it is, and drive.record_story replaced by a stand-in that answers
-    from `answers` and notes how it was called (a push to a remote is not what this tests)."""
+def test_repair_run_repairs_the_records_in_the_run_folder(tmp_path, monkeypatch):
     import drive
     run = run_with_stories(tmp_path, {"3": accounted(version=0)}, logs=("3",))
     fake_backfill(monkeypatch, {"3": accounted()}, [])
     monkeypatch.setattr(drive, "set_pack", lambda pack: None)
-    calls = []
-
-    def record_story(repo_root, run_, message, **kw):
-        calls.append((repo_root, run_, message))
-        return answers[len(calls) - 1]
-    monkeypatch.setattr(drive, "record_story", record_story)
-    return run, calls
-
-
-def test_repair_run_records_the_repair_under_the_runs_name_and_says_nothing_when_it_was_pushed(tmp_path, monkeypatch, capsys):
-    import drive
-    run, calls = stale_run_with_recorder(tmp_path, monkeypatch, [{"pushed": True}])
-    new = finalize.repair_run(run, "benchmarks/vidi", record=True)
-    assert new["repair"]["repaired"] == ["3"]
-    assert calls == [(drive.REPO_ROOT, run, f"{drive.PK.name} {drive.combination_label(run)} {run.name}: records repaired: story 3")]
-    assert capsys.readouterr().err == ""
-
-
-def test_repair_run_reports_on_stderr_a_record_that_was_not_pushed_with_the_reason(tmp_path, monkeypatch, capsys):
-    run, calls = stale_run_with_recorder(tmp_path, monkeypatch, [{"pushed": False, "error": "non-fast-forward"}])
-    finalize.repair_run(run, "benchmarks/vidi", record=True)
-    assert len(calls) == 1
-    assert capsys.readouterr().err == "finalize: not pushed: non-fast-forward\n"
-
-
-def test_repair_run_reports_a_record_not_pushed_even_when_no_reason_is_given(tmp_path, monkeypatch, capsys):
-    run, calls = stale_run_with_recorder(tmp_path, monkeypatch, [{"pushed": False}])
-    finalize.repair_run(run, "benchmarks/vidi", record=True)
-    assert capsys.readouterr().err == "finalize: not pushed: \n"
-
-
-def test_repair_run_without_record_repairs_and_commits_nothing(tmp_path, monkeypatch):
-    run, calls = stale_run_with_recorder(tmp_path, monkeypatch, [])
     new = finalize.repair_run(run, "benchmarks/vidi")
-    assert new["repair"]["repaired"] == ["3"] and calls == []
+    assert new["repair"]["repaired"] == ["3"] and status(run)["repair"]["repaired"] == ["3"]
 
 
 # ---------- giving the work dir back once a run is finished and scored ----------
@@ -905,7 +845,7 @@ def scored_run(tmp_path: Path, monkeypatch, state: str | None = "finished", faul
     (run / "work_dir.txt").write_text(str(own) + "\n")
     if state:
         (run / "run-status.json").write_text(json.dumps({"state": state}))
-    out = finalize.finalize(run, pack_ref=VERSION, version=VERSION, rescore=fake_rescore(74, 75, [], fault=fault), record=None)
+    out = finalize.finalize(run, pack_ref=VERSION, version=VERSION, rescore=fake_rescore(74, 75, [], fault=fault))
     return run, own, out
 
 

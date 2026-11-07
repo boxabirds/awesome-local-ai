@@ -103,11 +103,10 @@ for tool in $(python3 -c 'import json, sys; print(" ".join(json.load(open(sys.ar
 done
 
 echo "repos"
-if git -C "$REPO_ROOT" ls-remote --exit-code origin HEAD >/dev/null 2>&1; then ok "public repo reachable (records are pushed here)"
-else bad "push access to the public repo's origin (records are committed and pushed per story)"; fi
-if [[ -n "$(git -C "$REPO_ROOT" config user.email)" && -n "$(git -C "$REPO_ROOT" config user.name)" ]]; then
-  ok "git identity $(git -C "$REPO_ROOT" config user.name) <$(git -C "$REPO_ROOT" config user.email)> (records are committed as it)"
-else bad "a git identity: git config --global user.name '…' && git config --global user.email '…' (every story is a commit)"; fi
+# Records are not pushed (story 23: the collector takes them through the node's API); the harness's releases are
+# pulled from the public repo, so it must be reachable. No git identity is needed: nothing is committed there.
+if git -C "$REPO_ROOT" ls-remote --exit-code origin HEAD >/dev/null 2>&1; then ok "public repo reachable (harness releases are pulled from it)"
+else bad "the public repo's origin is not reachable (harness releases are pulled from it)"; fi
 PACK_ROOT="$(dirname "$REPO_ROOT")/$PRIVATE_REPO_NAME"
 if [[ -z "$PACK_REF" ]]; then
   ok "$PACK has no pack_ref in bench.json: it runs from this repo, no private pack needed"

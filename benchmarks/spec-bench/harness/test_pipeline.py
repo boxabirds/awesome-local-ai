@@ -368,7 +368,7 @@ def pack_version(pack: Path) -> str:
 def finalize_run(run: Path, mp: pytest.MonkeyPatch) -> dict:
     """finalize under the version the harness records for the pack: its tag, wherever the checkout is."""
     version = tagsuite.version_for(finalize.load_pack(PACK))
-    return finalize.finalize(run, PACK_REF, version, rescore=rescore_here(mp), record=None)
+    return finalize.finalize(run, PACK_REF, version, rescore=rescore_here(mp))
 
 
 def copy_run(src_root: Path, dest_root: Path) -> Path:
@@ -577,7 +577,7 @@ def test_a_run_left_unscored_for_a_passing_reason_is_scored_when_the_next_run_st
     run = ended_unscored(run_copy, results, monkeypatch)
     fin = json.loads((run / finalize.STATUS).read_text())
     assert (fin["rescore"], fin["reason_kind"], fin["needs_person"], fin["attempts"]) == ("failed", "tool_missing", False, 1)
-    assert MISSING_TOOL in fin["reason"] and "score" not in fin and (run / finalize.BUNDLE).is_file()
+    assert MISSING_TOOL in fin["reason"] and "score" not in fin and not (run / finalize.BUNDLE).exists()   # story 23: no bundle
 
     m = heldout.load_metrics(run)               # and its records are behind: one story has no conversation profile,
     profile = m["stories"]["1"].pop("conversation")                 # which the full log can give back;
@@ -670,9 +670,9 @@ def split_roots_main(root: str, results: str, run_id: str) -> None:
     must land there. Run in a process of its own (the roots are fixed when the modules load); what it saw goes to
     root/SPLIT_OUT.
 
-    It commits and pushes for real, so it first makes sure they can only reach the test's own directory
-    (refuse_unless_throwaway): if the variable were ever not honoured, the records would otherwise be committed
-    and pushed in the checkout this code is in."""
+    It writes into a checkout for real, so it first makes sure that can only be the test's own (refuse_unless_throwaway):
+    if the variable were ever not honoured, the records would otherwise be written in the checkout this code is in.
+    Since story 23 nothing is committed or pushed; the check of where the checkout pushes is kept all the same."""
     import record_event
     root = Path(root)
     refuse_unless_throwaway(root.resolve(), Path(results).resolve())
@@ -687,13 +687,13 @@ def split_roots_main(root: str, results: str, run_id: str) -> None:
         # The run's own finalize can't find a tool: the run ends unscored, and its record says it will be retried.
         with mp.context() as m:
             m.setattr(scoring_tools, "TOOLS", (*scoring_tools.TOOLS, MISSING_TOOL))
-            finalize.main([str(run), "--pack", PACK, "--record"])
+            finalize.main([str(run), "--pack", PACK])
         mp.setattr(sys, "argv", ["record_event.py", str(run), "finished"])
         record_event.main()
         # The sweep, as run.sh calls it: no --root, so it sweeps the results root the harness resolved.
         mp.setattr(finalize, "rescore_with_harness", lambda pack, timeout_s=None: rescore_here(mp))
         mp.setattr(finalize_pending, "busy", lambda: [])
-        finalize_pending.main(["--record"])
+        finalize_pending.main([])
     (root / SPLIT_OUT).write_text(json.dumps({
         "results_root": str(drive.REPO_ROOT), "code_root": str(drive.CODE_ROOT),
         "label": drive.combination_label(run)}))
@@ -703,7 +703,7 @@ def test_the_story_loop_with_the_results_in_another_checkout(tmp_path):
     """A node runs the harness of a release from its own directory and keeps results in its checkout of main
     (dbench sets $SPEC_BENCH_RESULTS_ROOT). The run's directory, every record commit and push, the combination's
     label, finalize and its score all belong to the results checkout; the harness's
-    commit and release are those of the code."""
+    commit and release are those of the code. Nothing is committed or pushed (story 23): the remote never moves."""
     remote = tmp_path / "remote.git"
     repo = tmp_path / "checkout"
     env = {**os.environ, **GIT_IDENTITY}
@@ -716,6 +716,9 @@ def test_the_story_loop_with_the_results_in_another_checkout(tmp_path):
     (repo / DEFAULT_PACK_STORY / "story.md").write_text("# A story\n")
     for args in (["add", "-A"], ["commit", "-qm", "another run"], ["push", "-q", "origin", "HEAD:main"]):
         subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, env=env)
+    remote_log = lambda: subprocess.run(["git", "--git-dir", str(remote), "log", "--format=%s", "main"],
+                                        capture_output=True, text=True).stdout.splitlines()
+    pushed_before = remote_log()
 
     run_id = f"r-{uuid.uuid4().hex[:SPLIT_RUN_ID_CHARS]}"       # its own name, so a stray copy anywhere else is this run's
     r = subprocess.run([sys.executable, "-c", "import sys, conftest, test_pipeline; test_pipeline.split_roots_main(*sys.argv[1:])",
@@ -731,23 +734,18 @@ def test_the_story_loop_with_the_results_in_another_checkout(tmp_path):
     run = repo / SPLIT_RUN_BASE / run_id
     got = recorded(run)
     assert_known_answer(got)
-    assert (run / "summary.md").is_file() and (run / "workspace.bundle").is_file()
+    assert (run / "summary.md").is_file() and not (run / "workspace.bundle").exists()
     assert not (HARNESS.parents[2] / SPLIT_RUN_BASE / run_id).exists()       # nothing of it where the code is
-    # Every record is a commit in the checkout, pushed to its remote, under the combination's label.
-    pushed = subprocess.run(["git", "--git-dir", str(remote), "log", "--format=%s", "main"], capture_output=True,
-                            text=True).stdout.splitlines()
-    prefix = f"{PACK} {SPLIT_COMBINATION} {run_id}: "
-    for event in ("run started: by the self-test", "story 1 done", "story 2 done", "final score 4/5 under kat-v1"):
-        assert prefix + event in pushed, pushed
+    # Every record is in the run's folder; nothing reached the remote.
+    assert remote_log() == pushed_before
+    assert json.loads((run / "run-status.json").read_text())["state"] == "finished"
     # ...the score by the sweep, after the run's own finalize had recorded why it had none.
-    failed = next(m for m in pushed if m.startswith(prefix + "final re-score failed"))
-    assert MISSING_TOOL in failed and failed.endswith(f"(attempt 1 of {finalize.MAX_ATTEMPTS}; will be retried)")
-    assert pushed.index(prefix + "final score 4/5 under kat-v1") < pushed.index(failed)      # newest first
     fin = json.loads((run / finalize.STATUS).read_text())
-    assert (fin["needs_person"], fin["attempts"], fin["version"]) == (False, 2, PACK_REF)
+    assert (fin["needs_person"], fin["attempts"], fin["version"], fin["score"]) == (False, 2, PACK_REF, "4/5")
+    assert fin["history"][0]["rescore"] == "failed" and MISSING_TOOL in fin["history"][0]["reason"]
     m = heldout.load_metrics(run)
     for sid in ("1", "2"):
-        assert m["stories"][sid]["record"]["pushed"] is True, m["stories"][sid]["record"]
+        assert "record" not in m["stories"][sid]
         # ...and each story names the harness that ran it: this code's commit and release (null in a checkout).
         p = m["stories"][sid]["provenance"]
         assert p["harness_commit"] == roots.harness_commit() and p["harness_release"] == roots.release_tag()

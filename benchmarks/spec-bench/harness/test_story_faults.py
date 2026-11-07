@@ -46,13 +46,13 @@ ALWAYS = {
     "conversation profile": (conversation, "profile"),
     "lines of code": (drive, "loc"),
     "workspace git log": (drive, "write_workspace_git_log"),
-    "workspace bundle": (drive, "write_workspace_bundle"),
+    "story commit": (drive, "snapshot_story"),
     "task table": (progress, "task_table"),
     "progress file": (progress, "write_progress"),
 }
 RECORDING = {            # only with --record
     "summary": (report, "write_summary"),
-    "record": (drive, "record_story"),
+    "records": (drive, "prepare_records"),       # story 23: the records' kept form, nothing committed
 }
 ENDED_BY_OPERATOR = {    # only for a story the operator ended, and the stories after it
     "stub markers": (progress, "stub_markers"),
@@ -79,10 +79,6 @@ class SkipsStoryOne:
 def run_with(tmp_path: Path, mp: pytest.MonkeyPatch, broken: dict, record=False, skip_one=False, only="1") -> Path:
     root = tmp_path / "kat"
     with mp.context() as m:
-        recorded = []
-        if record:
-            m.setattr(drive, "record_story", lambda repo, run, message, **k: recorded.append(message) or
-                      {"committed": True, "pushed": True, "commit": "abc1234"})
         if skip_one:
             m.setattr(drive, "SkipWatcher", SkipsStoryOne)
         for module, name in broken.values():

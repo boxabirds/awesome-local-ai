@@ -1,34 +1,24 @@
-"""heldout.py — where a run's held-out detail lives, and the check that keeps it out of the public repo.
+"""heldout.py: where a run's held-out detail lives.
 
 publicise.py says what may be public; this applies it to a run directory:
 
-- metrics.json is written public (publicise.strip_metrics) with the held-out detail beside it in a git-ignored
-  sidecar (publicise.HELDOUT_DETAIL); load_metrics puts the two back together, so a resumed run and the machine's
-  own tools (report, history) see everything, and the file git commits never holds a test title or runner output.
+- metrics.json is written public (publicise.strip_metrics) with the held-out detail beside it in a sidecar
+  (publicise.HELDOUT_DETAIL); load_metrics puts the two back together, so a resumed run and the machine's own tools
+  (report, history) see everything.
 - each held-out result (accept.json, accept-final.json) gets its public summary beside it (write_accept,
-  write_summaries); the result itself stays git-ignored.
-- the full detail is copied to the private repo (copy_private), at runs/<the run's path in this repo>/, so it
-  outlives the machine. find() looks for a detail file in the run, then in that copy: on the Mac, where a run's
-  directory comes from git, the detail is only in the copy.
-- staged_problems is the check record_story runs before every commit: a private file, a held-out test title
-  (publicise.fingerprints of the private suite), or a local machine name (machine_names.py: the dbench node list's
-  names and this machine's hostname, read at run time) in any staged file of the run, and nothing is committed.
-Tests: test_publish_gate.py, which also takes a whole run through drive.record_story.
+  write_summaries).
+- find() looks for a detail file in the run, then in the private repo's copy (runs/<the run's path>/), where runs from
+  before story 23 had theirs copied. Since story 23 the detail stays in the run folder, and the collector takes it to
+  the lake (harness.no_publish): nothing is copied or committed anywhere.
+Tests: test_publish_gate.py.
 """
 from __future__ import annotations
 
-import functools
-import gzip
-import hashlib
 import json
 import os
-import shutil
-import subprocess
 from pathlib import Path
 
 import benchlake
-import credentials
-import machine_names as mn
 import packdir
 import publicise as pub
 
@@ -221,129 +211,8 @@ def make_public(run: Path) -> dict:
 
 # ---------- the private copy ----------
 
-def private_files(run: Path, repo_root: Path) -> list[str]:
-    """The run's private files (publicise.is_private), relative to the run."""
-    base = run.resolve().relative_to(repo_root.resolve()).as_posix()
-    return sorted(f.relative_to(run).as_posix() for f in _walk(run)
-                  if f.is_file() and pub.is_private(f"{base}/{f.relative_to(run).as_posix()}"))
-
-
-def copy_private(run: Path, repo_root: Path, private: Path) -> list[str]:
-    """Copy the run's private files to <private>/runs/<run's path in repo_root>/, the ones new or changed since the
-    last copy. Nothing is deleted there: it is the archive. Returns what was copied, relative to the run."""
-    dest = private / PRIVATE_RUNS / run.resolve().relative_to(repo_root.resolve())
-    copied = []
-    for rel in private_files(run, repo_root):
-        src, dst = run / rel, dest / rel
-        s = src.stat()
-        if dst.exists() and dst.stat().st_size == s.st_size and int(dst.stat().st_mtime) == int(s.st_mtime):
-            continue
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dst)
-        copied.append(rel)
-    return copied
 
 
 # ---------- the check before a commit ----------
 
-@functools.lru_cache(maxsize=None)
-def _fingerprints(private: str) -> frozenset[str]:
-    return frozenset(pub.fingerprints(Path(private))) if (Path(private) / ".git").exists() else frozenset()
 
-
-def fingerprints(private: Path | None = None) -> set[str]:
-    """Held-out titles from the private checkout, read once per process; none without a checkout (the anchor
-    mark is still caught)."""
-    return set(_fingerprints(str((private or private_repo()).resolve())))
-
-
-def digest(fingerprint: str) -> str:
-    """A stand-in for a held-out title in public records: the title itself would be the leak."""
-    return hashlib.sha256(fingerprint.encode()).hexdigest()[:FINGERPRINT_DIGEST_CHARS]
-
-
-def _text(rel: str, data: bytes) -> str:
-    if rel.endswith(".gz"):
-        try:
-            data = gzip.decompress(data)
-        except (OSError, EOFError):
-            pass              # not really gzip: check the bytes as they are
-    return data.decode("utf-8", errors="replace")
-
-
-PRIVATE_FILE = "private file"
-HELD_OUT = "held-out detail"
-MACHINE_NAME = "machine name"
-CHECK_FAILED = "check failed"
-NODE_LIST_UNREADABLE = f"{CHECK_FAILED}: the local dbench node list can't be read"
-
-
-def local_names() -> tuple[set[str], list[dict]]:
-    """The local machine names (machine_names.local_names), read now; a node list that can't be read is a
-    CHECK_FAILED problem (it fails closed), named without its path, which is under the owner's home."""
-    try:
-        return mn.local_names(), []
-    except ValueError:
-        return set(), [{"file": mn.NODES_REL, "why": NODE_LIST_UNREADABLE, "fingerprint": None}]
-
-
-def staged_problems(repo_root: Path, rel: str, git: list[str], fps: set[str], env: dict | None = None,
-                    names: set[str] | None = None) -> list[dict]:
-    """Every staged file under rel that must not be committed, as {"file", "why", "fingerprint"}: why is
-    PRIVATE_FILE (a private path, whatever it holds), HELD_OUT (fingerprint is the held-out title, or the anchor
-    mark, found in it), MACHINE_NAME (fingerprint is a local machine name found in its path or text; names, else
-    local_names()) or CHECK_FAILED (the check could not read it: it fails closed). The staged content is what
-    is read (the index, not the working tree; env may name another index, GIT_INDEX_FILE)."""
-    problems: list[dict] = []
-    if names is None:
-        names, problems = local_names()
-    listed = subprocess.run([*git, "diff", "--cached", "--name-only", "-z", "--diff-filter=ACMRT", "--", rel],
-                            cwd=repo_root, capture_output=True, env=env)
-    if listed.returncode != 0:
-        return [*problems, {"file": rel, "why": f"{CHECK_FAILED}: {listed.stderr.decode(errors='replace')[-200:]}",
-                            "fingerprint": None}]
-    for path in filter(None, listed.stdout.decode().split("\0")):
-        if pub.is_private(path):
-            problems.append({"file": path, "why": PRIVATE_FILE, "fingerprint": None})
-            continue
-        if pub.is_own_work(path):
-            continue
-        blob = subprocess.run([*git, "show", f":{path}"], cwd=repo_root, capture_output=True, env=env)
-        if blob.returncode != 0:
-            problems.append({"file": path, "why": f"{CHECK_FAILED}: could not read the staged file", "fingerprint": None})
-            continue
-        text = _text(path, blob.stdout)
-        problems += [{"file": path, "why": HELD_OUT, "fingerprint": fp} for fp in pub.leaks_in_file(path, text, fps)]
-        problems += [{"file": path, "why": MACHINE_NAME, "fingerprint": n} for n in mn.in_file(path, text, names)]
-    return problems
-
-
-def redact_staged(repo_root: Path, rel: str, git: list[str], env: dict | None = None) -> tuple[list[str], list[dict]]:
-    """The credential scan of the publishing step (credentials.py): every file staged under rel for this commit
-    (new or changed since HEAD) is redacted in place and staged again, so no path into a public commit goes round
-    it. Returns what was found, by name and never by value, and CHECK_FAILED problems where the scan could not be
-    done: it fails closed, and the commit is refused. Private files are skipped: they are never committed."""
-    failed = lambda why: {"file": rel, "why": f"{CHECK_FAILED}: {why}", "fingerprint": None}
-    listed = subprocess.run([*git, "diff", "--cached", "--name-only", "-z", "--diff-filter=ACMRT", "--", rel],
-                            cwd=repo_root, capture_output=True, env=env)
-    if listed.returncode != 0:
-        return [], [failed(f"the credential scan could not list the staged files: {listed.stderr.decode(errors='replace')[-200:]}")]
-    found: list[str] = []
-    changed: list[str] = []
-    for path in filter(None, listed.stdout.decode().split("\0")):
-        if pub.is_private(path):
-            continue
-        names = credentials.redact_file(repo_root / path)
-        if names:
-            found += names
-            changed.append(path)
-    if changed:
-        add = subprocess.run([*git, "add", "--", *changed], cwd=repo_root, capture_output=True, text=True, env=env)
-        if add.returncode != 0:
-            return found, [failed("a file redacted by the credential scan could not be staged again")]
-    return found, []
-
-
-def message_problems(message: str, names: set[str], where: str) -> list[dict]:
-    """A commit message is as public as the files: the local machine names in it, as problems of `where`."""
-    return [{"file": where, "why": MACHINE_NAME, "fingerprint": n} for n in mn.found(message, names)]

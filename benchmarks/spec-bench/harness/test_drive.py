@@ -117,9 +117,6 @@ def test_the_agent_reads_its_own_run_and_nothing_else_under_the_bench_home():
             shutil.rmtree(d, ignore_errors=True)
 
 
-
-
-
 # ---- sandbox: the workspace's spec is read-only for the agent, whatever the files' modes say ----
 SPEC_FILE = "spec/stories/001-first/tasks.md"
 SPEC_TEXT = "| # | Task | Status |\n|---|---|---|\n| 1 | Build it | proposed |\n"
@@ -317,7 +314,6 @@ def test_condition_sampler_record_that_cannot_be_written_does_not_stop_the_guard
     assert res["samples"] >= 1
     assert "conditions record failed" in capsys.readouterr().out
     # The story's gitignore keeps the file on the machine: it is collected, never pushed.
-    assert "stories/*/conditions.jsonl" in drive.RUN_GITIGNORE
 
 
 def test_opencode_error_event_is_detected_and_session_captured(tmp_path):
@@ -370,204 +366,6 @@ def test_server_stats_windows_by_time_and_bands_context(tmp_path):
     assert s["decode_by_context"]["0-16k"]["decode_tok_s_median"] == 90
     assert s["decode_by_context"]["64-100k"]["decode_tok_s_median"] == 40
     assert server_stats(None, 0, 1) == {}
-
-
-def test_record_story_commits_only_the_run_dir_and_pushes(tmp_path):
-    import subprocess
-    from drive import record_story
-    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
-    remote = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
-    repo = tmp_path / "repo"
-    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True)
-    (repo / "unrelated.txt").write_text("user's own uncommitted work")
-    run = repo / "combos" / "x" / "benchmarks" / "vidi" / "r1"
-    (run / "stories" / "01").mkdir(parents=True)
-    (run / "metrics.json").write_text("{}")
-    (run / "stories" / "01" / "agent-events.jsonl").write_text("huge raw log")
-    (run / "work_dir.txt").write_text("/abs/path")
-    res = record_story(repo, run, "vidi x r1: story 1 done", git=g)
-    assert res["pushed"], res
-    files = subprocess.run(["git", "--git-dir", str(remote), "show", "--name-only", "--format=%s", "main"],
-                           capture_output=True, text=True).stdout
-    assert "vidi x r1: story 1 done" in files and "metrics.json" in files
-    assert "unrelated.txt" not in files and "agent-events.jsonl" not in files and "work_dir.txt" not in files
-
-
-def test_record_story_rebases_when_remote_moved(tmp_path):
-    import subprocess
-    from drive import record_story
-    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
-    remote = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
-    repo, other = tmp_path / "repo", tmp_path / "other"
-    for d in (repo, other):
-        subprocess.run(["git", "clone", "-q", str(remote), str(d)], check=True)
-    (other / "elsewhere.md").write_text("someone else's commit")
-    subprocess.run([*g, "add", "-A"], cwd=other, check=True)
-    subprocess.run([*g, "commit", "-qm", "other"], cwd=other, check=True)
-    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
-    subprocess.run([*g, "commit", "-q", "--allow-empty", "-m", "base"], cwd=repo, check=True)  # diverged history
-    run = repo / "c" / "benchmarks" / "vidi" / "r"
-    run.mkdir(parents=True)
-    (run / "metrics.json").write_text("{}")
-    (repo / "dirty.txt").write_text("uncommitted user work")
-    res = record_story(repo, run, "story 1 done", git=g)
-    assert res["pushed"], res
-    assert (repo / "dirty.txt").read_text() == "uncommitted user work"
-
-
-
-def test_record_story_after_the_remote_moved_never_stashes_or_rewrites_uncommitted_work(tmp_path):
-    """1 Oct 2026: recording from a checkout where another process was editing files ran pull --rebase --autostash,
-    which stashed that process's uncommitted work and wrote it back. The replay onto the remote now leaves every
-    file the remote didn't change exactly as it was (same inode, same mtime), and never starts a rebase."""
-    import os, subprocess
-    from drive import record_story
-    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
-    remote = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
-    repo, other = tmp_path / "repo", tmp_path / "other"
-    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True)
-    (repo / "app.ts").write_text("v1")
-    subprocess.run([*g, "add", "-A"], cwd=repo, check=True)
-    subprocess.run([*g, "commit", "-qm", "app"], cwd=repo, check=True)
-    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=repo, check=True)
-    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
-    (other / "elsewhere.md").write_text("another machine's record")
-    subprocess.run([*g, "add", "-A"], cwd=other, check=True)
-    subprocess.run([*g, "commit", "-qm", "other"], cwd=other, check=True)
-    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
-    (repo / "app.ts").write_text("v2, being edited")              # tracked and modified: what autostash takes
-    (repo / "new.ts").write_text("untracked work")
-    before = {f: os.stat(repo / f) for f in ("app.ts", "new.ts")}
-    run = repo / "c" / "benchmarks" / "vidi" / "r"
-    run.mkdir(parents=True)
-    (run / "metrics.json").write_text("{}")
-    res = record_story(repo, run, "story 1 done", git=g)
-    assert res["pushed"], res
-    for f, st in before.items():
-        now = os.stat(repo / f)
-        assert (now.st_ino, now.st_mtime_ns) == (st.st_ino, st.st_mtime_ns), f"{f} was rewritten"
-    assert (repo / "app.ts").read_text() == "v2, being edited"
-    assert (repo / "elsewhere.md").read_text() == "another machine's record"     # the remote's change is checked out
-    reflog = subprocess.run(["git", "reflog", "--format=%gs"], cwd=repo, capture_output=True, text=True).stdout
-    assert "rebase" not in reflog and "autostash" not in reflog, reflog
-    log = subprocess.run(["git", "log", "--format=%s", "main"], cwd=repo, capture_output=True, text=True).stdout.split()
-    assert subprocess.run(["git", "--git-dir", str(remote), "rev-parse", "main"], capture_output=True, text=True).stdout == \
-        subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout
-    assert subprocess.run(["git", "status", "--porcelain", "--", "c"], cwd=repo, capture_output=True, text=True).stdout == ""
-
-
-def test_record_story_leaves_the_checkout_alone_when_the_remote_changed_a_file_being_edited(tmp_path):
-    """The remote changed a file this checkout has uncommitted edits to: nothing is overwritten and nothing moves,
-    but the story is published all the same, from the replayed commit's own ref (the M5 Max, 4 Oct 2026, where this
-    held fourteen stories back); the record names the file the checkout waits on."""
-    import subprocess
-    from drive import record_story
-    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
-    remote = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
-    repo, other = tmp_path / "repo", tmp_path / "other"
-    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True)
-    (repo / "app.ts").write_text("v1")
-    subprocess.run([*g, "add", "-A"], cwd=repo, check=True)
-    subprocess.run([*g, "commit", "-qm", "app"], cwd=repo, check=True)
-    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=repo, check=True)
-    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
-    (other / "app.ts").write_text("v1, changed on the remote")
-    subprocess.run([*g, "commit", "-qam", "other"], cwd=other, check=True)
-    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
-    (repo / "app.ts").write_text("v2, being edited")
-    run = repo / "c" / "benchmarks" / "vidi" / "r"
-    run.mkdir(parents=True)
-    (run / "metrics.json").write_text("{}")
-    head_before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout
-    res = record_story(repo, run, "story 1 done", git=g)
-    assert res["committed"] and res["pushed"] and not res.get("unpushed"), res
-    assert res["checkout_behind"] == ["app.ts"]
-    assert (repo / "app.ts").read_text() == "v2, being edited"
-    head = subprocess.run(["git", "log", "-1", "--format=%s"], cwd=repo, capture_output=True, text=True).stdout.strip()
-    assert head == "story 1 done"
-    parent = subprocess.run(["git", "rev-parse", "HEAD~1"], cwd=repo, capture_output=True, text=True).stdout
-    assert parent == head_before                                   # not moved onto the remote
-    published = subprocess.run(["git", "log", "--format=%s", "main"], cwd=remote, capture_output=True, text=True).stdout.strip().split("\n")
-    assert published[:2] == ["story 1 done", "other"]                # on the remote's tip, over the other clone's commit
-
-
-def test_record_story_survives_a_conflicting_remote_and_pushes_the_backlog_later(tmp_path):
-    """The remote changed this run's own files (as the 24GB -> nvidia4090 rename did to the RTX 4090 machine's
-    canvas-pi-02): the pull-and-rebase conflicts. The checkout must not be left mid-rebase, each
-    story must still be committed locally and reported unpushed, and once the remote no longer
-    conflicts the next story pushes the backlog."""
-    import subprocess
-    from drive import record_story
-    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
-    remote = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
-    repo, other = tmp_path / "repo", tmp_path / "other"
-    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True)
-    rel = "c/benchmarks/vidi/r"
-    run = repo / rel
-    run.mkdir(parents=True)
-    (run / "metrics.json").write_text('{"story": 1}')
-    assert record_story(repo, run, "story 1 done", git=g)["pushed"]
-    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
-    (other / rel / "metrics.json").write_text('{"changed": "elsewhere"}')
-    subprocess.run([*g, "commit", "-qam", "someone else rewrites the run"], cwd=other, check=True)
-    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
-
-    (repo / "todoodle-spec.md").write_text("a user's untracked work")
-    in_rebase = lambda: any((repo / ".git" / d).exists() for d in ("rebase-merge", "rebase-apply"))
-    for story in (2, 3):
-        (run / "metrics.json").write_text(f'{{"story": {story}}}')
-        res = record_story(repo, run, f"story {story} done", git=g)
-        assert res["committed"] and not res["pushed"], res
-        assert res.get("unpushed") and "conflict" in res["error"], res
-        assert not in_rebase(), f"story {story} left the checkout mid-rebase"
-        head = subprocess.run(["git", "log", "-1", "--format=%s"], cwd=repo, capture_output=True, text=True).stdout
-        assert head.strip() == f"story {story} done"
-        assert (repo / "todoodle-spec.md").read_text() == "a user's untracked work"
-
-    subprocess.run([*g, "revert", "--no-edit", "HEAD"], cwd=other, check=True, capture_output=True)
-    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
-    (run / "metrics.json").write_text('{"story": 4}')
-    res = record_story(repo, run, "story 4 done", git=g)
-    assert res["pushed"], res
-    pushed = subprocess.run(["git", "--git-dir", str(remote), "log", "--format=%s", "main"],
-                            capture_output=True, text=True).stdout
-    assert all(f"story {n} done" in pushed for n in (2, 3, 4)), pushed
-
-
-def test_record_story_clears_a_rebase_left_by_a_killed_harness(tmp_path):
-    """A harness killed mid-rebase leaves the checkout in that state; committing into it would bury
-    the story. The next recording aborts the stale rebase first."""
-    import subprocess
-    from drive import record_story
-    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
-    remote = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
-    repo, other = tmp_path / "repo", tmp_path / "other"
-    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True)
-    rel = "c/benchmarks/vidi/r"
-    (repo / rel).mkdir(parents=True)
-    (repo / rel / "metrics.json").write_text('{"story": 1}')
-    assert record_story(repo, repo / rel, "story 1 done", git=g)["pushed"]
-    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
-    (other / rel / "metrics.json").write_text('{"theirs": 1}')
-    subprocess.run([*g, "commit", "-qam", "theirs"], cwd=other, check=True)
-    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
-    (repo / rel / "metrics.json").write_text('{"story": 2}')
-    subprocess.run([*g, "commit", "-qam", "story 2 done"], cwd=repo, check=True)
-    subprocess.run([*g, "pull", "-q", "--rebase", "origin", "main"], cwd=repo, capture_output=True)
-    assert (repo / ".git" / "rebase-merge").exists() or (repo / ".git" / "rebase-apply").exists()
-
-    (repo / rel / "notes.md").write_text("story 3")
-    res = record_story(repo, repo / rel, "story 3 done", git=g)
-    assert res["committed"], res
-    assert not any((repo / ".git" / d).exists() for d in ("rebase-merge", "rebase-apply"))
-    log = subprocess.run(["git", "log", "--format=%s"], cwd=repo, capture_output=True, text=True).stdout
-    assert log.splitlines()[:2] == ["story 3 done", "story 2 done"], log
 
 
 def test_tool_hang_guard_interrupts_only_a_silent_tool_call(tmp_path):
@@ -789,7 +587,6 @@ def test_hang_guard_spares_the_agent_whose_cwd_is_the_workspace(tmp_path):
             p.kill()
 
 
-
 def test_continue_uses_the_same_session_not_a_fork(tmp_path):
     from clients import PiClient, OpenCodeClient
     pi = PiClient(tmp_path).command("m", "go on", resume_from="abc", fork=False)
@@ -820,8 +617,6 @@ def test_sampler_aborts_when_swap_grows(monkeypatch):
     res = s.stop()
     assert res["aborted_swap"] and s.aborted.is_set() and killed and drive.RUN_ABORT.is_set()
     drive.RUN_ABORT.clear()
-
-
 
 
 def test_last_session_is_found_so_a_restarted_story_continues_it(tmp_path):
@@ -863,7 +658,6 @@ def test_sampler_aborts_when_free_memory_runs_out(monkeypatch):
     assert res["aborted_memory"] and killed and drive.RUN_ABORT.is_set()
     assert res["free_min_pct"] == drive.MEM_FREE_ABORT_PCT - 1
     drive.RUN_ABORT.clear()
-
 
 
 def test_sampler_records_what_held_memory_at_its_lowest(monkeypatch):
@@ -986,8 +780,6 @@ def test_the_time_cap_ends_the_running_story_like_an_operator_skip(tmp_path):
         assert drive.STORY_SKIP.is_set()
     finally:
         drive.STORY_SKIP.clear()
-
-
 
 
 def test_missing_resources_stop_the_run_with_their_own_exit_code_and_reason(capsys):
@@ -1123,7 +915,6 @@ def test_the_final_reply_of_an_opencode_session_is_its_last_messages_text(tmp_pa
     assert drive.final_reply_text(ev) == done
 
 
-
 def test_event_times_skip_an_unstamped_event_whose_message_is_a_string(tmp_path):
     """The history's event times read a message's own timestamp when an event has no receive stamp; a refused tool
     call's message is a string, which has none."""
@@ -1143,9 +934,6 @@ def test_a_tool_call_written_as_text_is_recognised():
     assert drive.tool_call_as_text("Now fixing the import.\n" + LEAKED_CALL)
     assert not drive.tool_call_as_text("All tasks are done and committed.")
     assert not drive.tool_call_as_text("")
-
-
-
 
 
 def _reference_run(tmp_path, spec_text="the spec"):

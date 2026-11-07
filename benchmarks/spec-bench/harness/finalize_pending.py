@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.11"
 # ///
-"""finalize_pending.py [--record] [--list] [--even-if-busy] [--limit N] [--budget-s S] [--exclude RUN_DIR] [--root DIR]
+"""finalize_pending.py [--list] [--even-if-busy] [--limit N] [--budget-s S] [--exclude RUN_DIR] [--root DIR]
                       [--invalid-from FILE]
 
 The sweep: every run on this machine that ended without its score of record gets another try, with nobody asking.
@@ -10,7 +10,7 @@ then) and again at the end, after its own finalize. An operator can run it by ha
 would do and what is waiting for a person.
 
 What it does for each run it picks, through finalize.py: bundle the workspace if its work dir is still there,
-re-score the final build under the pack's tag, repair stale records, and (--record) commit and push the result.
+re-score the final build under the pack's tag, and repair stale records. The result stays in the run folder (story 23).
 
 Which runs (survey): under the results root (roots.py), with
   - run-status.json saying the run ended: finished, failed or stopped. A failed or stopped run still has a final
@@ -263,10 +263,10 @@ def pack_ref(name: str) -> str | None:
     return finalize.load_pack(f"benchmarks/{name}").pack_ref
 
 
-def finalize_one(run: Path, pack: str, record: bool, timeout_s: float, action: str) -> dict:
+def finalize_one(run: Path, pack: str, timeout_s: float, action: str) -> dict:
     if action == REPAIR:
-        return finalize.repair_run(run, pack, record)
-    out = finalize.finalize_run(run, pack, record, timeout_s)
+        return finalize.repair_run(run, pack)
+    out = finalize.finalize_run(run, pack, timeout_s)
     finalize.release_work(run)      # a run scored late is finished too; its dir goes only if it passes release_work's checks
     return out
 
@@ -279,7 +279,7 @@ def _label(run: Path, root: Path) -> str:
 
 
 def sweep(root: Path, pack_ref_of: Callable[[str], str | None] | None = None, harness_commit: str | None = None,
-          record: bool = False, limit: int = SWEEP_MAX_RUNS, budget_s: float = SWEEP_BUDGET_S,
+          limit: int = SWEEP_MAX_RUNS, budget_s: float = SWEEP_BUDGET_S,
           even_if_busy: bool = False, exclude: list[Path] | tuple = (), busy: Callable[[], list[str]] | None = None,
           finalize_one: Callable | None = None, clock: Callable[[], float] = time.monotonic,
           log: Callable[[str], None] = print, invalid: frozenset[str] = frozenset()) -> dict:
@@ -305,7 +305,7 @@ def sweep(root: Path, pack_ref_of: Callable[[str], str | None] | None = None, ha
             break
         log(f"finalize_pending: {_label(run, root)}: {action} ({reason})")
         try:
-            out = finalize_one(run, f"benchmarks/{pack_of(run)}", record, remaining, action) or {}
+            out = finalize_one(run, f"benchmarks/{pack_of(run)}", remaining, action) or {}
             outcome = "repaired" if action == REPAIR else str(out.get("score") and "done" or out.get("rescore") or "?")
             log(f"finalize_pending: {_label(run, root)}: {out.get('score') or out.get('rescore') or outcome} {out.get('reason') or ''}".rstrip())
         except (Exception, SystemExit) as e:
@@ -368,7 +368,6 @@ def show(root: Path, exclude: list[Path], invalid: frozenset[str] = frozenset())
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--record", action="store_true", help="commit and push each result with its run's record")
     ap.add_argument("--list", action="store_true", help="show what is pending and what needs a person; change nothing")
     ap.add_argument("--even-if-busy", action="store_true", help="sweep although another harness run is active")
     ap.add_argument("--limit", type=int, default=SWEEP_MAX_RUNS, help="runs handled this sweep")
@@ -389,7 +388,7 @@ def main(argv: list[str] | None = None) -> int:
                 print("finalize_pending: another sweep is running on this machine; leaving it to that one")
                 return 0
             with hard_stop(a.budget_s + HARD_STOP_GRACE_S):
-                out = sweep(root, record=a.record, limit=a.limit, budget_s=a.budget_s, even_if_busy=a.even_if_busy,
+                out = sweep(root, limit=a.limit, budget_s=a.budget_s, even_if_busy=a.even_if_busy,
                             exclude=a.exclude, invalid=invalid)
             if not out["handled"] and not out["stopped"]:
                 print("finalize_pending: nothing pending")

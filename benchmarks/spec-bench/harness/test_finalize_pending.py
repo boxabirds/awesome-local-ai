@@ -187,8 +187,8 @@ class Clock:
 
 def scorer(calls: list, clock: Clock | None = None, seconds: float = 0, fail: tuple[str, ...] = ()):
     """Stands in for finalize: scores the run (writes what finalize would), or crashes for the named runs."""
-    def finalize_one(run, pack, record, timeout_s, action):
-        calls.append((run.name, pack, record, timeout_s, action))
+    def finalize_one(run, pack, timeout_s, action):
+        calls.append((run.name, pack, timeout_s, action))
         if clock:
             clock.t += seconds
         if run.name in fail:
@@ -214,9 +214,9 @@ def test_the_sweep_scores_what_is_pending_and_a_second_sweep_finds_nothing(root)
     make_run(root, f"{COMBO}/stale", fin=DONE, stories={"1": story(stale=True)}, logs=("1",), at="2026-09-30T08:00:00Z")
     make_run(root, f"{COMBO}/scored", fin=DONE)
     calls = []
-    first = sweep(root, calls, record=True)
-    assert [(c[0], c[1], c[2], c[4]) for c in calls] == [("unscored", f"benchmarks/{PACK}", True, "score"),
-                                                         ("stale", f"benchmarks/{PACK}", True, "repair")]
+    first = sweep(root, calls)
+    assert [(c[0], c[1], c[3]) for c in calls] == [("unscored", f"benchmarks/{PACK}", "score"),
+                                                         ("stale", f"benchmarks/{PACK}", "repair")]
     assert [name for name, _ in first["handled"]] == ["unscored", "stale"] and first["left"] == 0
     again = sweep(root, calls)
     assert len(calls) == 2 and again["handled"] == [] and again["left"] == 0           # idempotent
@@ -260,7 +260,7 @@ def test_the_sweep_stops_at_its_time_budget(root):
     budget = fp.RESCORE_RESERVE_S * 2
     out = sweep(root, calls, clock=clock, budget_s=budget,
                 finalize_one=scorer(calls, clock, seconds=fp.RESCORE_RESERVE_S * 0.75))
-    assert [(c[0], c[3]) for c in calls] == [("r3", budget), ("r2", budget - fp.RESCORE_RESERVE_S * 0.75)]
+    assert [(c[0], c[2]) for c in calls] == [("r3", budget), ("r2", budget - fp.RESCORE_RESERVE_S * 0.75)]
     assert out["left"] == 1 and "time" in out["stopped"]
     assert not (root / COMBO / "r1" / finalize.STATUS).exists()
 
@@ -300,7 +300,7 @@ def test_a_run_that_keeps_failing_stops_being_swept_at_the_cap(root):
     run = make_run(root, f"{COMBO}/r1")
     calls = []
 
-    def failing(run, pack, record, timeout_s, action):
+    def failing(run, pack, timeout_s, action):
         calls.append(run.name)
         return finalize.note_failure(run, "rescore.py exited 1", finalize.KIND_RESCORE_FAILED)
     for _ in range(finalize.MAX_ATTEMPTS + 2):
@@ -355,8 +355,8 @@ def test_the_command_sweeps_the_root_it_is_given_and_never_fails(root, quiet_mac
     mine = make_run(root, f"{COMBO}/mine", state="failed")
     calls = []
     monkeypatch.setattr(fp, "finalize_one", scorer(calls))
-    assert fp.main(["--root", str(root), "--exclude", str(mine), "--record"]) == 0
-    assert [(c[0], c[2]) for c in calls] == [("unscored", True)]
+    assert fp.main(["--root", str(root), "--exclude", str(mine)]) == 0
+    assert [c[0] for c in calls] == ["unscored"]
     assert "unscored" in capsys.readouterr().out
 
     def broken(*a, **k):
@@ -395,7 +395,7 @@ def test_the_command_is_stopped_for_good_shortly_after_its_budget(root, quiet_ma
     monkeypatch.setattr(fp, "HARD_STOP_GRACE_S", 0)
     monkeypatch.setattr(fp, "RESCORE_RESERVE_S", 0)
 
-    def hangs(run, pack, record, timeout_s, action):
+    def hangs(run, pack, timeout_s, action):
         try:
             time.sleep(30)
         except Exception:               # even a step that swallows ordinary errors is stopped
@@ -420,7 +420,7 @@ from test_roots import TAG, make_release, probe, writable_again  # noqa: E402,F4
 SWEEP_AS_A_RELEASE = (
     "import json, sys, finalize, finalize_pending as fp\n"
     "fp.busy = lambda: []\n"
-    "def scored(run, pack, record, timeout_s, action):\n"
+    "def scored(run, pack, timeout_s, action):\n"
     "    out = {'rescore': 'done', 'score': '4/5', 'needs_person': False, 'pack': pack}\n"
     "    finalize.write_status(run, out)\n"
     "    return out\n"
@@ -494,7 +494,7 @@ def test_run_sh_can_never_fail_because_of_the_sweep_and_leaves_its_own_run_out()
     assert len(calls) == 2
     for call in calls:
         assert call.rstrip().endswith("|| true"), call                 # set -e: whatever it returns, the run goes on
-        assert '--exclude "$RUN_DIR"' in call and "${RECORD:+--record}" in call
+        assert '--exclude "$RUN_DIR"' in call and "--record" not in call      # story 23: a sweep records nothing
         assert "2>&1" in call                                          # its messages are not this run's errors
         assert "--even-if-busy" not in call
 
@@ -509,17 +509,17 @@ def test_run_sh_remembers_its_tools_for_later_rescores_before_it_sweeps():
 
 def test_a_run_scored_by_the_sweep_gives_back_its_work_dir_after_the_score(tmp_path, monkeypatch):
     order = []
-    monkeypatch.setattr(finalize, "finalize_run", lambda run, pack, record, timeout_s: order.append("score") or {"rescore": "done"})
+    monkeypatch.setattr(finalize, "finalize_run", lambda run, pack, timeout_s: order.append("score") or {"rescore": "done"})
     monkeypatch.setattr(finalize, "release_work", lambda run: order.append("release"))
-    out = fp.finalize_one(tmp_path / "run", PACK, False, 1.0, fp.SCORE)
+    out = fp.finalize_one(tmp_path / "run", PACK, 1.0, fp.SCORE)
     assert order == ["score", "release"] and out == {"rescore": "done"}
 
 
 def test_a_repair_does_not_give_back_a_work_dir(tmp_path, monkeypatch):
     order = []
-    monkeypatch.setattr(finalize, "repair_run", lambda run, pack, record: order.append("repair") or {})
+    monkeypatch.setattr(finalize, "repair_run", lambda run, pack: order.append("repair") or {})
     monkeypatch.setattr(finalize, "release_work", lambda run: order.append("release"))
-    fp.finalize_one(tmp_path / "run", PACK, False, 1.0, fp.REPAIR)
+    fp.finalize_one(tmp_path / "run", PACK, 1.0, fp.REPAIR)
     assert order == ["repair"]
 
 

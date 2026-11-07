@@ -1,14 +1,5 @@
-"""Every test runs with the private repo pointed at a directory that doesn't exist, so nothing a test records
-(drive.record_story copies held-out detail to the private repo) can reach the real private checkout beside this
-repo. A test that needs a private repo makes one in tmp_path and passes it, or sets heldout.PRIVATE_ENV itself.
-
-Likewise the owner's machine names (machine_names.py): no test reads the real dbench node list or depends on the
-real hostname. Both are set here, at import, so module-scoped fixtures get them too; a test that needs names
-makes its own node list (machine_names.NODES_ENV) or patches machine_names.this_hostname.
-
-And the public repo itself: on 1 Oct 2026 a test whose results root fell back to this checkout committed made-up
-records on its main and pushed them. roots.NO_RECORD_ENV names this checkout as off limits for records, for
-every test and every process a test starts.
+"""Every test runs with the private repo pointed at a directory that doesn't exist, so no test reads the real private
+checkout beside this repo (heldout.find looks there for older runs' detail). A test that needs a private repo makes one in tmp_path and passes it, or sets heldout.PRIVATE_ENV itself.
 
 And the scoring home (scoring_tools.home(): the suites kept at their tags, the remembered tool paths): every test
 gets a temporary one, set at import and removed when the tests end, so no test reads or writes the machine's own
@@ -32,26 +23,14 @@ import pytest
 
 import heldout
 import hostenv
-import machine_names
-import roots
 import sandbox
 import scoring_tools
-
-# No test, and no process a test starts, records in the roots the tests run with (drive.record_refusal): the
-# checkout this code is in, and, in a release's self-test on a node, the node's results checkout. Set in the
-# environment at import, so it is inherited; a process a test starts keeps what it inherited (its own results
-# root is the repository the test made for it to record in). A test that records makes a repository of its own.
-os.environ.setdefault(roots.NO_RECORD_ENV,
-                      os.pathsep.join(dict.fromkeys([str(roots.CODE_ROOT), str(roots.RESULTS_ROOT)])))
 
 os.environ[scoring_tools.HOME_ENV] = tempfile.mkdtemp(prefix="spec-bench-test-scoring-home-")
 atexit.register(shutil.rmtree, os.environ[scoring_tools.HOME_ENV], ignore_errors=True)
 
 os.environ.setdefault(sandbox.CACHE_ENV, str(Path(tempfile.gettempdir()) / "spec-bench-test-agent-sandbox"))
 
-TEST_HOSTNAME = "made-up-bench-box.local"
-os.environ[machine_names.NODES_ENV] = "/nonexistent/dbench/nodes.toml"
-machine_names.this_hostname = lambda: TEST_HOSTNAME
 
 
 SANDBOX_TOOL = "sandbox-exec" if hostenv.IS_MAC else "bwrap"

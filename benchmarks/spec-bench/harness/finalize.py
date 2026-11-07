@@ -1,4 +1,4 @@
-"""finalize.py <run-dir> [--pack benchmarks/vidi] [--record]
+"""finalize.py <run-dir> [--pack benchmarks/vidi]
 
 At the end of a run: bring the run's own records up to date, then re-score the final build with the held-out suite
 (rescore.py --final) from the run's own repository (story 23: the node keeps it, and serves it to the lake's code
@@ -25,9 +25,9 @@ that failed to load. needs_person is true only for what will not change: no repo
 that fails from a clean clone, a tag that doesn't exist, nothing to score, or MAX_ATTEMPTS failures in a row.
 
 A run already scored under the version, at its final checkpoint, is left alone (its records are still repaired).
-With --record the result is committed and pushed with the run's record, through drive.record_story like every
-story: the re-score's held-out results go to the private repo and only their summaries to this one. Never fails
-the caller: problems are reported, and written to finalize.json.
+The result stays in the run folder (finalize.json, rescore/), with the held-out results' summaries beside them; the
+collector takes it to the lake. Nothing is committed or pushed (story 23, harness.no_publish). Never fails the
+caller: problems are reported, and written to finalize.json.
 """
 from __future__ import annotations
 
@@ -419,16 +419,11 @@ def eventful(repair: dict) -> bool:
     return bool(repair.get("repaired") or repair.get("left") or repair.get("error"))
 
 
-def repaired_note(repair: dict) -> str:
-    ids = repair.get("repaired") or []
-    return f"records repaired: stor{'y' if len(ids) == 1 else 'ies'} {', '.join(ids)}" if ids else ""
-
-
 # ---------- finalize ----------
 
-def _keep_scored(run: Path, version: str, prior: dict, out: dict, record: Callable[[str], None] | None) -> dict:
+def _keep_scored(run: Path, version: str, prior: dict, out: dict) -> dict:
     """The run already has its score under this version: nothing is scored again. Its status is brought up to
-    what this harness writes (and recorded) only if that changes it."""
+    what this harness writes only if that changes it."""
     if prior.get("rescore") == "done" and prior.get("version") == version:
         new = dict(prior)
     else:               # scored by hand, or by a harness that left no status
@@ -442,12 +437,10 @@ def _keep_scored(run: Path, version: str, prior: dict, out: dict, record: Callab
         new["repair"] = out["repair"]
     if new != prior:
         write_status(run, new)
-        if record:
-            record(repaired_note(out["repair"]) or f"score of record {new.get('score')} under {version}: status brought up to date")
     return {**new, "reason": f"already re-scored under {version}"}
 
 
-def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: Callable[[str], None] | None) -> dict:
+def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore) -> dict:
     now = stamp()
     prior = read_status(run)
     same = prior if prior.get("version") == version else {}     # attempts are counted per suite version
@@ -462,7 +455,7 @@ def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: C
     out["repair"] = repair_records(run)
     done, stale = scored_already(run, version)
     if done:
-        return _keep_scored(run, version, prior, out, record)
+        return _keep_scored(run, version, prior, out)
     if stale and no_code is None:
         set_aside(run, version, f"not the run's final build: {stale}")
     attempts, history = int(same.get("attempts") or 0), list(same.get("history") or [])
@@ -479,18 +472,13 @@ def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: C
         if check["flagged"]:
             set_aside(run, version, check["flagged"])
             state, kind, reason = "flagged", KIND_FLAGGED, check["flagged"]
-            message = (f"final re-score {check['record']} under {version} flagged, not recorded: {check['flagged']}"
-                       f" (live {check['live'] or 'none'})")
         else:
             state, kind, reason = "done", KIND_SCORED, ""
             out["score"] = score_of(run, version)
-            message = f"final score {out['score']} under {version}"
     except Unscored as e:
         state, kind, reason, person, counted = "failed", e.kind, public(e), e.needs_person, e.counted
-        message = f"final re-score failed: {reason}"
     except (Exception, SystemExit) as e:  # a broken scorer must not lose the run's record
         state, kind, reason = "failed", KIND_RESCORE_FAILED, public(e) or type(e).__name__
-        message = f"final re-score failed: {reason}"
     if counted:
         attempts += 1
         history = [*history, {"at": now, "rescore": state, "reason_kind": kind, "reason": reason}][-HISTORY_KEPT:]
@@ -498,22 +486,7 @@ def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: C
     out.update(rescore=state, reason=reason, reason_kind=kind, needs_person=state != "done" and (person or exhausted),
                retries_exhausted=exhausted, attempts=attempts, max_attempts=MAX_ATTEMPTS,
                last_attempt_at=now if counted else same.get("last_attempt_at"), history=history)
-    if state != "done":
-        if exhausted:
-            message += f" (attempt {attempts} of {MAX_ATTEMPTS}: needs a person)"
-        elif person:
-            message += " (needs a person)"
-        elif counted:
-            message += f" (attempt {attempts} of {MAX_ATTEMPTS}; will be retried)"
-        else:
-            message += " (will be retried)"
     write_status(run, out)
-    if out["outside_workspace"]["reached"]:
-        message += "; reached outside its workspace in " + ", ".join(f"story {int(s)}" for s in out["outside_workspace"]["reached"])
-    if note := repaired_note(out["repair"]):
-        message += f"; {note}"
-    if record:
-        record(message)
     return out
 
 
@@ -591,28 +564,17 @@ def rescore_with_harness(pack: str, timeout_s: float | None = None) -> Rescore:
     return rescore
 
 
-def _recorder(run: Path) -> Callable[[str], None]:
-    import drive
-
-    def rec(message: str) -> None:
-        res = drive.record_story(drive.REPO_ROOT, run, f"{drive.PK.name} {drive.combination_label(run)} {run.name}: {message}")
-        if not res.get("pushed"):
-            print(f"finalize: not pushed: {res.get('error', '')}", file=sys.stderr)
-    return rec
-
-
-def finalize_run(run: Path, pack: str, record: bool = False, timeout_s: float | None = None) -> dict:
-    """finalize(), for a run of this pack, with the harness's own re-score and record."""
+def finalize_run(run: Path, pack: str, timeout_s: float | None = None) -> dict:
+    """finalize(), for a run of this pack, with the harness's own re-score."""
     import drive
     import tagsuite
     drive.set_pack(pack)
     version = tagsuite.version_for(drive.PK)
     limit = {} if timeout_s is None else {"timeout_s": timeout_s}
-    return finalize(run, drive.PK.pack_ref or "", version, rescore_with_harness(pack, **limit),
-                    _recorder(run) if record else None)
+    return finalize(run, drive.PK.pack_ref or "", version, rescore_with_harness(pack, **limit))
 
 
-def repair_only(run: Path, record: Callable[[str], None] | None) -> dict:
+def repair_only(run: Path) -> dict:
     """Bring the run's records up to date and nothing else (no bundle, no re-score): for a run that has its score,
     or is waiting for a person, whose records went stale. The status says what was repaired and what was left."""
     prior = read_status(run)
@@ -620,16 +582,13 @@ def repair_only(run: Path, record: Callable[[str], None] | None) -> dict:
     new = {**prior, "repair": repair}
     if eventful(repair) and new != prior:
         write_status(run, new)
-        if record:
-            record(repaired_note(repair) or "stale records recomputed from the full logs, unchanged: stories "
-                   + ", ".join(repair.get("left") or []) + (f" ({repair['error']})" if repair.get("error") else ""))
     return new
 
 
-def repair_run(run: Path, pack: str, record: bool = False) -> dict:
+def repair_run(run: Path, pack: str) -> dict:
     import drive
     drive.set_pack(pack)
-    return repair_only(run, _recorder(run) if record else None)
+    return repair_only(run)
 
 
 class Stopped(BaseException):
@@ -654,7 +613,6 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run", type=Path)
     ap.add_argument("--pack", default="benchmarks/vidi")
-    ap.add_argument("--record", action="store_true", help="commit and push the result with the run's record")
     ap.add_argument("--release-work", action="store_true",
                     help="only give back a finished, scored run's work dir (release_work); no re-score")
     a = ap.parse_args(argv)
@@ -668,7 +626,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     before = stop_on_sigterm()      # the re-score runs in a process group of its own: it is stopped with this process
     try:
-        out = finalize_run(run, a.pack, a.record)
+        out = finalize_run(run, a.pack)
         print(f"finalize: {out.get('score', out.get('rescore'))} {out.get('reason', '')}".strip()
               + ("" if out.get("rescore") == "done" else f" (needs a person: {'yes' if out.get('needs_person') else 'no, it will be retried'})"))
     except Stopped:

@@ -282,9 +282,15 @@ def install(tmp_path: Path) -> Path:
     return home
 
 
+def remote_log(remote: Path) -> list[str]:
+    return subprocess.run(["git", "--git-dir", str(remote), "log", "--format=%s", "main"], capture_output=True,
+                          text=True).stdout.splitlines()
+
+
 def test_run_sh_from_a_release_writes_and_records_in_the_results_checkout(tmp_path, writable_again):
     release = make_release(tmp_path, read_only=True)
     repo, remote = results_checkout(tmp_path)
+    remote_before = remote_log(remote)
     home = install(tmp_path)
     pack = fake_pack(tmp_path)
     (pack / "acceptance" / "node_modules").mkdir(parents=True)
@@ -300,11 +306,9 @@ def test_run_sh_from_a_release_writes_and_records_in_the_results_checkout(tmp_pa
     # The combination's config is read from the checkout (the release has no combinations/ at all).
     assert (doc["context_limit"], doc["output_limit"]) == (4096, 512)
     assert doc["harness_commit"] == COMMIT_SHORT and doc["harness_release"] == TAG
-    # The run's events are commits in the checkout, pushed to its remote, labelled by the combination.
-    log = subprocess.run(["git", "--git-dir", str(remote), "log", "--format=%s", "main"], capture_output=True,
-                         text=True).stdout.splitlines()
-    assert log[0] == "vidi test/combo r1: run finished", log
-    assert log[1].startswith(f"vidi test/combo r1: run started: harness {COMMIT_SHORT} ({TAG}),"), log
+    # The run's events are recorded in its folder in the checkout; nothing is committed or pushed (story 23).
+    assert json.loads((run / "run-status.json").read_text())["state"] == "finished"
+    assert remote_log(remote) == remote_before
     # Nothing was written into the release.
     assert not (release / "combinations").exists() and not (release / ".git").exists()
 
@@ -330,6 +334,7 @@ def test_run_sh_in_a_checkout_records_no_release(tmp_path):
     subprocess.run(["git", "-C", str(repo), "commit", "-qm", "harness"], check=True, env=env0)
     subprocess.run(["git", "-C", str(repo), "push", "-q", "origin", "HEAD:main"], check=True, capture_output=True)
     head = subprocess.run(["git", "-C", str(repo), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
+    remote_before = remote_log(remote)
     home = install(tmp_path)
     pack = fake_pack(tmp_path)
     (pack / "acceptance" / "node_modules").mkdir(parents=True)
@@ -342,87 +347,9 @@ def test_run_sh_in_a_checkout_records_no_release(tmp_path):
     assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
     doc = json.loads((repo / "combinations/test/combo/benchmarks/vidi/r1/run.json").read_text())
     assert doc["harness_commit"] == head and doc["harness_release"] is None
-    log = subprocess.run(["git", "--git-dir", str(remote), "log", "--format=%s", "main"], capture_output=True,
-                         text=True).stdout.splitlines()
-    assert log[1].startswith(f"vidi test/combo r1: run started: harness {head}, client"), log   # as it always read
-
-
-# ---------- records go only where they belong ----------
-# On 1 Oct 2026 a test of the two-root story loop ran against a harness that did not read the variable yet. The
-# results root fell back, silently, to the checkout the code was in, and four made-up records were committed on
-# its main and pushed to the public repository. Three things now stand in the way of that, each tested here.
-
-def commits(repo: Path) -> list[str]:
-    return subprocess.run(["git", "-C", str(repo), "log", "--format=%s"], capture_output=True, text=True).stdout.splitlines()
-
-
-def checkout_with_a_commit(tmp_path: Path, monkeypatch) -> tuple[Path, Path]:
-    for k, v in IDENTITY.items():
-        monkeypatch.setenv(k, v)
-    repo, remote = repo_with_remote(tmp_path)
-    (repo / "README.md").write_text("x\n")
-    for args in (["add", "-A"], ["commit", "-qm", "init"], ["push", "-q", "origin", "HEAD:main"]):
-        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
-    return repo, remote
-
-
-def test_a_run_outside_the_results_root_is_not_recorded(tmp_path, monkeypatch):
-    import drive
-    repo, remote = checkout_with_a_commit(tmp_path, monkeypatch)
-    run = tmp_path / "elsewhere" / "benchmarks" / "kat" / "r1"
-    run.mkdir(parents=True)
-    (run / "metrics.json").write_text("{}")
-    res = drive.record_story(repo, run, "kat x r1: story 1 done")
-    assert res["committed"] is False and res["pushed"] is False
-    assert "not inside the results root" in res["error"]
-    assert str(tmp_path) not in res["error"]                  # it goes into metrics.json, which is public
-    assert commits(repo) == ["init"] and commits(remote) == ["init"]
-    assert sorted(p.name for p in run.iterdir()) == ["metrics.json"]       # and the run was left as it was
-
-
-def test_a_results_root_that_is_not_the_top_of_a_checkout_is_not_recorded_in(tmp_path, monkeypatch):
-    """git looks upwards for a repository: a root that is merely inside one (a release's directory under a home
-    that is a checkout, a subdirectory given by mistake) would commit into whatever checkout contains it."""
-    import drive
-    repo, remote = checkout_with_a_commit(tmp_path, monkeypatch)
-    inside = repo / "releases" / "harness-v1"
-    run = inside / "combinations" / "x" / "benchmarks" / "kat" / "r1"
-    run.mkdir(parents=True)
-    (run / "metrics.json").write_text("{}")
-    res = drive.record_story(inside, run, "kat x r1: story 1 done")
-    assert res["committed"] is False and "not the top of a git checkout" in res["error"]
-    assert commits(repo) == ["init"] and commits(remote) == ["init"]
-    nowhere = tmp_path / "no-such-checkout"
-    res = drive.record_story(nowhere, nowhere / "r1", "kat x r1: story 1 done")
-    assert res["committed"] is False and "not the top of a git checkout" in res["error"]
-
-
-def test_a_checkout_named_as_off_limits_is_never_recorded_in(tmp_path, monkeypatch):
-    import drive
-    repo, remote = checkout_with_a_commit(tmp_path, monkeypatch)
-    run = repo / "combinations" / "x" / "benchmarks" / "kat" / "r1"
-    run.mkdir(parents=True)
-    (run / "metrics.json").write_text("{}")
-    monkeypatch.setenv(roots.NO_RECORD_ENV, str(repo))
-    res = drive.record_story(repo, run, "kat x r1: story 1 done")
-    assert res["committed"] is False and roots.NO_RECORD_ENV in res["error"]
-    assert commits(repo) == ["init"] and commits(remote) == ["init"]
-    monkeypatch.delenv(roots.NO_RECORD_ENV)
-    assert drive.record_story(repo, run, "kat x r1: story 1 done")["pushed"] is True
-    assert commits(remote)[0] == "kat x r1: story 1 done"
-
-
-def test_every_test_process_has_the_checkout_it_runs_from_off_limits(tmp_path):
-    """conftest.py names the checkout the tests run from as off limits for records, in the environment, so the
-    processes a test starts (a probe, run.sh, the two-root story loop) inherit it."""
-    here = HARNESS.parents[2]
-    assert here in roots.off_limits() and roots.RESULTS_ROOT in roots.off_limits()
-    r = probe("import roots; print(*roots.off_limits(), sep='\\n')", None, tmp_path)
-    assert str(here) in r.stdout.splitlines(), r.stderr
-    # Several may be named: the code's checkout and, in a release's self-test, the node's results checkout.
-    both = {roots.NO_RECORD_ENV: os.pathsep.join(["/a/code", "/b/results"])}
-    assert roots.off_limits(both) == [Path("/a/code").resolve(), Path("/b/results").resolve()]
-    assert roots.off_limits({}) == []
+    run = repo / "combinations/test/combo/benchmarks/vidi/r1"
+    assert json.loads((run / "run-status.json").read_text())["state"] == "finished"
+    assert remote_log(remote) == remote_before
 
 
 def test_a_release_with_no_results_root_does_not_fall_back_to_itself(tmp_path):

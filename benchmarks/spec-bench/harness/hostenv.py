@@ -37,7 +37,7 @@ HOST_DESC_TIMEOUT_S = 30
 
 def host_desc(run=subprocess.run) -> str:
     """This machine as public records name it: its hardware ("<cpu> <ram>GB, <gpu>"), from host-desc.sh, the
-    same line run.sh puts in run.json. Never its hostname (machine_names.py). "" when it can't be read."""
+    same line run.sh puts in run.json. Never its hostname. "" when it can't be read."""
     try:
         r = run(["bash", "-c", f'. "{HOST_DESC_SH}"; host_desc'], capture_output=True, text=True,
                 timeout=HOST_DESC_TIMEOUT_S)

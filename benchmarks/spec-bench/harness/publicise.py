@@ -15,10 +15,9 @@ anything converting old records:
   it in a git-ignored sidecar (HELDOUT_DETAIL) that the machine's own tools read back;
 - the size limit of each kind of committed file (size_limit), used by the harness and tests/privacy-test.sh
   (`publicise.py over-limit <repo>`), so the two can't disagree.
-The agent's own work (its gate and git log; its workspace/ and conversation stay on the machine and in the lake) is its own and always
-public, except a credential in it: every file staged for a public commit is put through the credential scanner
-(credentials.py, heldout.redact_staged), which replaces the value by a marker naming it.
-The harness applies these rules in heldout.py and drive.record_story.
+The agent's own work (its gate and git log; its workspace/ and conversation stay on the machine and in the lake) is its own.
+The harness applies these rules in heldout.py (make_public, run by drive.prepare_records). Since story 23 it commits
+nothing: a run's records reach the lake through the collector, and nothing of a run is published from a node.
 Tests: test_publicise.py.
 """
 from __future__ import annotations

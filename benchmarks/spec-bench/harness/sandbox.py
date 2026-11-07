@@ -14,7 +14,7 @@ host nobody had listed. Now nothing exists for the agent unless it is named here
 
 The harness itself (gates, held-out scoring, snapshots, records) runs outside it and reaches the same directory by its
 real path. `SPEC_BENCH_SANDBOX=permissive` runs the agent with no sandbox at all, for the harness's own tests; it
-refuses to run a recording benchmark, and a run that used it cannot be published (drive.record_refusal).
+refuses to run a recording benchmark (run.sh and drive.py both check).
 """
 from __future__ import annotations
 

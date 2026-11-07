@@ -182,7 +182,6 @@ class Loop:
         self.ws_links = root / "links"                                       # drive.WORK_LINKS: the long names
         self.strays: list[Path] = []
         self.recorded: list[tuple] = []
-        self.record_result: dict = {"committed": True, "pushed": True, "commit": "abc1234"}
         self._make_pack(default_scope)
         (root / "plan.json").write_text("{}")
         script = root / "agent.py"
@@ -211,8 +210,7 @@ class Loop:
                    lambda work, ws, real: self.browser_links.append(("story", work, ws)) or [])
         mp.setattr(drive, "harness_provenance", lambda code_root: dict(HARNESS_PROVENANCE))
         mp.setattr(drive.provenance, "pack_version", lambda pack_dir, name: PACK_VERSION)
-        mp.setattr(drive, "record_story", lambda repo, run, message, **k: self.recorded.append((repo, run, message))
-                   or dict(self.record_result))
+        mp.setattr(drive, "prepare_records", self.recorded.append)      # the records' kept form: no git (story 23)
 
     def _make_pack(self, default_scope: str | None) -> None:
         for n, slug in STORY_DIRS.items():
@@ -1303,17 +1301,16 @@ def test_run_sh_s_help_describes_both_forms_of_known_good_mode():
 # ======================= --record =======================
 
 def test_each_story_is_recorded_with_its_summary_and_no_compacted_log(loop, monkeypatch, capsys):
+    """--record writes the run's summary and brings its records to their kept form after every story, in the run
+    folder; nothing is committed or pushed, so a story has no record result (story 23, harness.no_publish)."""
     monkeypatch.setattr(drive, "SkipWatcher", ends_story(2, {**REQUEST, "story": 2}))
     loop.main("--record")
-    label = drive.combination_label(loop.run)
-    assert loop.recorded == [(drive.REPO_ROOT, loop.run.resolve(), f"{PACK} {label} run: story 1 done"),
-                             (drive.REPO_ROOT, loop.run.resolve(), f"{PACK} {label} run: story 2 partial (ended by operator)")]
+    assert loop.recorded == [loop.run.resolve(), loop.run.resolve()]
     for sid in (1, 2):
-        assert loop.story(sid)["record"] == loop.record_result and "harness_faults" not in loop.story(sid)
+        assert "record" not in loop.story(sid) and "harness_faults" not in loop.story(sid)
         assert not list((loop.run / "stories" / f"{sid:02d}").glob("*.compact.jsonl.gz"))
     assert (loop.run / "summary.md").exists()
-    out = capsys.readouterr().out
-    assert "[story 1] recorded: commit abc1234 pushed=True\n" in out
+    assert "recorded:" not in capsys.readouterr().out
 
 
 def test_a_recording_run_with_no_sandbox_is_refused_before_anything_starts(loop, monkeypatch):
@@ -1328,22 +1325,25 @@ def test_a_recording_run_with_no_sandbox_is_refused_before_anything_starts(loop,
     assert loop.story(1)["status"] == drive.DONE
 
 
-def test_a_record_that_was_not_pushed_says_so_with_its_error(loop, capsys):
-    loop.record_result = {"committed": True, "pushed": False, "unpushed": True, "error": "remote: " + "e" * 300}
-    loop.main("--record", "--only", "1")
-    assert loop.story(1)["record"] == loop.record_result
-    assert ("[story 1] recorded: commit - pushed=False  NOT PUSHED, kept locally; the next story retries  remote: "
-            + "e" * 192 + "\n") in capsys.readouterr().out
-
-
-def test_a_record_that_fails_outright_leaves_the_story_saved_with_the_fault(loop, monkeypatch):
-    def broken(*a, **k):
+def test_records_that_cannot_be_prepared_leave_the_story_saved_with_the_fault(loop, monkeypatch):
+    def broken(run):
         raise OSError("disk full")
-    monkeypatch.setattr(drive, "record_story", broken)
+    monkeypatch.setattr(drive, "prepare_records", broken)
     loop.main("--record", "--only", "1")
     rec = loop.story(1)
-    assert rec["record"] == {"committed": False, "pushed": False, "error": "recording failed: see harness_faults"}
-    assert [f["step"] for f in rec["harness_faults"]] == ["record"] and rec["status"] == drive.DONE
+    assert "record" not in rec and [f["step"] for f in rec["harness_faults"]] == ["records"]
+    assert rec["status"] == drive.DONE
+
+
+def test_a_story_commit_that_fails_is_a_harness_fault_and_the_story_is_recorded_at_the_repository_s_commit(loop, monkeypatch):
+    """TC-20b's other half: the commit of the agent's uncommitted work fails in the run's own repository."""
+    def broken(ws, sid):
+        raise subprocess.CalledProcessError(128, ["git", "commit"], stderr="fatal: index.lock exists")
+    monkeypatch.setattr(drive, "snapshot_story", broken)
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert [f["step"] for f in rec["harness_faults"]] == ["story commit"] and rec["status"] == drive.DONE
+    assert rec["commit"] == git(loop.ws, "rev-parse", "HEAD")
 
 
 # ======================= run as a script =======================

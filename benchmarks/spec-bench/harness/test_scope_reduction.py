@@ -84,47 +84,6 @@ def test_2b_make_publishable_writes_no_compact_log_for_a_raw_log_outside_stories
     assert not list(run.rglob("*.compact.jsonl.gz"))
 
 
-def test_3_a_record_commits_the_records_and_none_of_the_three_forbidden_kinds(tmp_path):
-    repo, remote = pg.cloned(tmp_path, "public")
-    run = run_with_everything(repo)
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
-    assert res["committed"] is True and res["pushed"] is True, res
-    got = committed(repo)
-    assert set(KEPT) <= got, sorted(set(KEPT) - got)
-    assert not got & set(FORBIDDEN), sorted(got & set(FORBIDDEN))
-    assert not [p for p in got if p.startswith("workspace/") or "agent-events" in p or p.endswith(".compact.jsonl.gz")]
-    pushed = set(subprocess.run(["git", "--git-dir", str(remote), "ls-tree", "-r", "--name-only", "main"],
-                                capture_output=True, text=True, check=True).stdout.split())
-    assert not [p for p in pushed if "agent-events" in p or "/workspace/" in p or p.endswith(".compact.jsonl.gz")]
-    for rel in FORBIDDEN:
-        assert (run / rel).exists(), rel                    # on the machine, as they were
-    assert git(repo, "status", "--porcelain", "--", RUN_REL).strip() == ""
-
-
-def test_3b_a_forbidden_file_is_not_added_even_when_a_nested_gitignore_is_missing(tmp_path):
-    """record_story writes the run's .gitignore itself: a stale one that lets them through is replaced."""
-    repo, _ = pg.cloned(tmp_path, "public")
-    run = run_with_everything(repo)
-    write(run / ".gitignore", "# stale: ignores nothing\n")
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
-    assert res["committed"] is True
-    assert not committed(repo) & set(FORBIDDEN)
-
-
-def test_3c_copies_an_older_harness_committed_are_dropped_on_the_next_record_and_the_record_succeeds(tmp_path):
-    repo, _ = pg.cloned(tmp_path, "public")
-    run = run_with_everything(repo)
-    git(repo, "add", "-f", "--", RUN_REL)
-    git(repo, "commit", "-qm", "an older harness's record: compact log, raw log and mirror")
-    assert set(FORBIDDEN) <= committed(repo)
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
-    assert res["committed"] is True and res["pushed"] is True, res
-    assert not committed(repo) & set(FORBIDDEN)
-    assert set(KEPT) <= committed(repo)
-    for rel in FORBIDDEN:
-        assert (run / rel).exists(), rel
-
-
 @pytest.mark.parametrize("rel,lake_only", [
     (f"{RUN_REL}/stories/01/agent-events.jsonl", True),
     (f"{RUN_REL}/stories/01/agent-events-restart2.jsonl", True),
@@ -142,18 +101,6 @@ def test_3c_copies_an_older_harness_committed_are_dropped_on_the_next_record_and
 ])
 def test_3d_what_publicise_keeps_out_of_git(rel, lake_only):
     assert pub.is_lake_only(rel) is lake_only
-
-
-def test_3e_the_run_gitignore_ignores_exactly_what_is_lake_only(tmp_path):
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    run = tmp_path / RUN_REL
-    write(run / ".gitignore", drive.RUN_GITIGNORE)
-    every = FORBIDDEN + KEPT + ["stories/01/accept-summary.json", "summary.md"]
-    for rel in every:
-        write(run / rel, "x")
-    ignored = set(subprocess.run(["git", "check-ignore", "--stdin"], cwd=run, input="\n".join(every),
-                                 capture_output=True, text=True).stdout.split())
-    assert ignored == set(FORBIDDEN)
 
 
 def test_5_the_limits_that_remain_still_apply(tmp_path):

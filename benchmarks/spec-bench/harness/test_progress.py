@@ -253,10 +253,6 @@ def test_progress_json_lists_every_story_with_its_status(tmp_path):
     assert [(s["id"], s["status"]) for s in doc["stories"]] == [(1, DONE), (2, "running"), (3, "pending")]
 
 
-def test_run_gitignore_keeps_live_state_out_of_git():
-    assert "progress.json" in drive.RUN_GITIGNORE and "control/" in drive.RUN_GITIGNORE
-
-
 def test_gates_env_carries_story_status():
     import gates
     assert gates.processed_env([{"id": 1, "status": DONE}, {"id": 3, "status": PARTIAL}]) == "1:DONE,3:PARTIAL"

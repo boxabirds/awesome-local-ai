@@ -1,10 +1,12 @@
-"""record_event.py: a run's start, end and failures are committed and pushed, not only its stories,
-so a machine that can only be watched through its commits can't fail silently."""
+"""record_event.py: a run's start, end and failures are recorded in its folder (run-status.json), not only its stories,
+so a run that refuses to start or dies mid-story says so. Since story 23 nothing is committed or pushed: the collector
+takes the run folder to the lake, and these tests check the remote never moves."""
 import json
 import os
 import shutil
 import subprocess
 from pathlib import Path
+import pytest
 from sandbox_testing import fake_sandbox_env
 
 HARNESS = Path(__file__).parent
@@ -22,6 +24,10 @@ def repo_with_remote(tmp_path: Path) -> tuple[Path, Path]:
 def last_pushed(remote: Path) -> str:
     return subprocess.run(["git", "--git-dir", str(remote), "log", "-1", "--format=%s", "main"],
                           capture_output=True, text=True).stdout.strip()
+
+
+def run_status(run: Path) -> dict:
+    return json.loads((run / "run-status.json").read_text())
 
 
 def remembered_scoring_env() -> bytes | None:
@@ -53,21 +59,45 @@ def fake_pack(tmp_path: Path) -> Path:
     return pack
 
 
-def test_records_the_event_in_the_run_dir_and_pushes_it(tmp_path, monkeypatch):
+def test_records_the_event_in_the_run_dir_and_pushes_nothing(tmp_path, monkeypatch):
     import record_event
-    for k, v in IDENTITY.items():
-        monkeypatch.setenv(k, v)
     repo, remote = repo_with_remote(tmp_path)
     run = repo / "combos" / "x" / "benchmarks" / "vidi" / "r1"
     run.mkdir(parents=True)
-    res = record_event.record(repo, run, "failed", "the held-out suite can't launch its browser")
-    assert res["pushed"], res
-    status = json.loads((run / "run-status.json").read_text())
-    assert status["state"] == "failed" and "browser" in status["reason"]
-    assert last_pushed(remote) == "vidi r1 r1: run failed: the held-out suite can't launch its browser"
+    res = record_event.record(run, "failed", "the held-out suite can't  launch\nits browser")
+    assert res == run_status(run)
+    assert res["state"] == "failed" and res["reason"] == "the held-out suite can't launch its browser"
+    assert last_pushed(remote) == "" and not (run / ".gitignore").exists()
 
 
-def test_a_run_that_refuses_to_start_says_so_in_a_pushed_commit(tmp_path):
+def test_the_command_records_the_event_with_its_reason_and_refuses_an_unknown_state(tmp_path, monkeypatch, capsys):
+    import sys
+    import record_event
+    run = tmp_path / "run"
+    run.mkdir()
+    monkeypatch.setattr(sys, "argv", ["record_event.py", str(run), "stopped", "by", "the", "operator"])
+    record_event.main()
+    assert run_status(run)["state"] == "stopped" and run_status(run)["reason"] == "by the operator"
+    monkeypatch.setattr(sys, "argv", ["record_event.py", str(run), "paused"])
+    with pytest.raises(SystemExit) as e:
+        record_event.main()
+    assert "record_event.py <run-dir>" in str(e.value) and run_status(run)["state"] == "stopped"
+
+
+def test_records_that_cannot_be_prepared_are_reported_and_the_event_is_still_recorded(tmp_path, monkeypatch, capsys):
+    import drive
+    import record_event
+    run = tmp_path / "run"
+    run.mkdir()
+
+    def broken(run):
+        raise OSError("disk full")
+    monkeypatch.setattr(drive, "prepare_records", broken)
+    assert record_event.record(run, "finished")["state"] == "finished" == run_status(run)["state"]
+    assert "record_event: the records were not brought to their kept form: OSError: disk full" in capsys.readouterr().err
+
+
+def test_a_run_that_refuses_to_start_says_so_in_its_run_status(tmp_path):
     # A copy of the harness in a throwaway repo, a cloud stack, and a held-out suite that can't install.
     repo, remote = repo_with_remote(tmp_path)
     shutil.copytree(HARNESS, repo / "benchmarks/spec-bench/harness",
@@ -84,8 +114,9 @@ def test_a_run_that_refuses_to_start_says_so_in_a_pushed_commit(tmp_path):
     r = run_sh([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r9",
                         "--client", "claude", "--record"], env=env, capture_output=True, text=True)
     assert r.returncode != 0
-    msg = last_pushed(remote)
-    assert msg.startswith("vidi r9 r9: run failed:") and "acceptance suite install failed" in msg, (msg, r.stderr)
+    status = run_status(repo / "runs/fake/r9")
+    assert status["state"] == "failed" and "acceptance suite install failed" in status["reason"], (status, r.stderr)
+    assert last_pushed(remote) == ""
 
 
 def test_a_cloud_run_that_completes_exits_0(tmp_path):
@@ -157,8 +188,9 @@ def test_a_run_stopped_for_missing_resources_exits_3_and_records_why(tmp_path):
     r = run_sh([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r4",
                         "--client", "claude", "--record"], env=env, capture_output=True, text=True)
     assert r.returncode == 3, r.stdout[-1500:] + r.stderr[-1500:]
-    msg = last_pushed(remote)
-    assert "missing resources" in msg.lower() and "browser not installed" in msg, (msg, r.stderr[-1500:])
+    status = run_status(repo / "runs/fake/r4")
+    assert "missing resources" in status["reason"].lower() and "browser not installed" in status["reason"], status
+    assert last_pushed(remote) == "init"                             # the commit the test made, and nothing since
 
 
 def test_a_reference_stack_puts_each_packs_runs_under_that_pack(tmp_path):
@@ -204,7 +236,7 @@ def test_the_status_names_the_machine_by_its_hardware_never_its_hostname(tmp_pat
     repo, _ = repo_with_remote(tmp_path)
     run = repo / "combos" / "x" / "benchmarks" / "vidi" / "r1"
     run.mkdir(parents=True)
-    record_event.record(repo, run, "started")
+    record_event.record(run, "started")
     text = (run / "run-status.json").read_text()
     assert json.loads(text)["host"] == "Made-up CPU 64GB, Made-up GPU 24 GB"
     assert "made-up-hostname" not in text
@@ -219,5 +251,5 @@ def test_without_a_hardware_description_the_status_names_no_host(tmp_path, monke
     repo, _ = repo_with_remote(tmp_path)
     run = repo / "combos" / "x" / "benchmarks" / "vidi" / "r1"
     run.mkdir(parents=True)
-    record_event.record(repo, run, "stopped", "by hand")
+    record_event.record(run, "stopped", "by hand")
     assert "host" not in json.loads((run / "run-status.json").read_text())

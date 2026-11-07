@@ -509,7 +509,7 @@ GUIDE_DATA.entities = [
     rel: [["cleans", "record"]],
     repo: [["benchmarks/spec-bench/harness/credentials.py", "harness/credentials.py"], ["benchmarks/spec-bench/harness/test_credentials.py", "harness/test_credentials.py"]],
     example: "An agent ran `env | grep -i -E \"PI_|WORK|CWD\"`; the pattern also matches every `…API_KEY`.",
-    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2." },
+    status: { state: "built", note: "Removed on main by story 23 (harness.no_publish): nothing is published from a node any more. The nodes run it until story 23's release (task 23.27), which also takes this entry out of the guide." },
     insights: ["credentials"],
   },
   {
@@ -1742,7 +1742,7 @@ GUIDE_DATA.flows = [
 
   // -------------------------------------------------------------------------------------------------- D: after the run
   {
-    id: "after", letter: "D", short: "After the run: score and publish", title: "After the run: finalize, re-score, the score of record, publishing",
+    id: "after", letter: "D", short: "After the run: score and keep", title: "After the run: finalize, re-score, the score of record, the records kept",
     intro: [
       "A run's live scores come from the agent's own workspace during the run. The number that ranks it comes afterwards, from the committed code on a clean install, and is checked against the live score before it is believed.",
     ],
@@ -1750,23 +1750,23 @@ GUIDE_DATA.flows = [
       built: ["The report, the workspace bundle, the re-score with its three scorings and `npm ci` fallback (exactly at the pack's tag, `tagsuite.py`, with bun installs), the live-versus-record guard and the set-aside, `finalize.json`, the publishing filter (with the credential scan), repair of stale records, the sweep with its 5 attempts and `needs_person`, and marking a story run not comparable (a manual step: since 4 Nov 2026 a decision in the lake's annotation store, set with `bench-lake annotate`). Release 1 (harness-v2026.10.01.1) re-scored only when the private suite checkout happened to be exactly at the pack's tag; every release since checks that itself."],
       planned: ["Showing unscored runs on the page, instead of leaving them out of every mean, is 'still to do' in EVALUATION-POLICY.md."],
     },
-    caption: "Finalize re-scores the final build; a guard decides whether the result may be recorded; publishing filters what leaves the machine.",
+    caption: "Finalize re-scores the final build; a guard decides whether the result may be recorded; the records stay in the run's folder for the collector.",
     diagram: {
       w: 520, h: 720,
       desc: "When a run ends, report.py writes the summary and finalize.py re-scores the final build on a clean install with three scorings. A guard compares the result with the live score. If it passes, the score of record is written to finalize.json. If it is flagged the re-score is set aside and the run is unscored; a sweep retries up to 5 times. Invalid runs are skipped. Publishing filters, scans, commits and pushes to the public record, with held-out detail going to the private repo.",
       nodes: [
         { id: "end", label: "Run ends\nlast story recorded", x: 260, y: 34, w: 200 },
         { id: "rep", label: "report.py\nsummary.md, counts only", x: 140, y: 112, w: 220 },
-        { id: "fz", label: "finalize.py\nbundle + repair records", x: 405, y: 112, w: 200 },
+        { id: "fz", label: "finalize.py\nrepair records", x: 405, y: 112, w: 200 },
         { id: "resc", label: "Re-score the final build\nclean install, three scorings", kind: "gate", x: 260, y: 202, w: 260 },
         { id: "guard", label: "Guard: live against record\nwithin 3 tests,\nno single shared error", kind: "guard", x: 260, y: 296, w: 230 },
         { id: "rec", label: "Score of record\nfinalize.json", kind: "out", x: 125, y: 392, w: 170 },
         { id: "aside", label: "Set aside, unscored\nrescore-spoiled/", x: 400, y: 392, w: 190 },
         { id: "inv", label: "Invalid run:\nnever re-scored,\nnever shown", x: 85, y: 488, w: 140 },
         { id: "sweep", label: "Sweep retries\nup to 5 attempts,\nthen a person", x: 400, y: 488, w: 160 },
-        { id: "pub", label: "Publish\nfilter, scan, commit, push", x: 260, y: 590, w: 240 },
-        { id: "pubrec", label: "Public record\nin this repo", kind: "store", x: 125, y: 678, w: 160 },
-        { id: "priv", label: "Private repo\n(held-out detail)", kind: "store", x: 400, y: 678, w: 170 },
+        { id: "pub", label: "Kept form\nsummaries, split metrics", x: 260, y: 590, w: 240 },
+        { id: "pubrec", label: "The run's folder\non the node", kind: "store", x: 125, y: 678, w: 170 },
+        { id: "priv", label: "The lake\n(collector, node API)", kind: "store", x: 400, y: 678, w: 170 },
       ],
       edges: [
         { from: "end", to: "rep" }, { from: "end", to: "fz" }, { from: "fz", to: "resc" }, { from: "resc", to: "guard" },
@@ -1774,7 +1774,7 @@ GUIDE_DATA.flows = [
         { from: "aside", to: "sweep" },
         { from: "sweep", to: "resc", via: [[508, 488], [508, 202]], label: "again", lx: 492, ly: 350 },
         { from: "sweep", to: "inv", dashed: true, label: "skips" },
-        { from: "rec", to: "pub" }, { from: "pub", to: "pubrec" }, { from: "pub", to: "priv" },
+        { from: "rec", to: "pub" }, { from: "pub", to: "pubrec" }, { from: "pubrec", to: "priv" },
       ],
     },
     steps: [
@@ -1785,8 +1785,8 @@ GUIDE_DATA.flows = [
         state: "built",
       },
       {
-        title: "Bundle the workspace and repair stale records", nodes: ["end", "fz"], edges: ["end>fz"],
-        text: ["`finalize.py` saves the workspace's whole history as a {g:bundle|`workspace.bundle`}, from which every story's code can be rebuilt. Before recording, it repairs records: a story whose time accounting was made by an older version, failed its check, or has no time split or conversation profile is recomputed from the machine's full logs (`backfill_timing.py`)."],
+        title: "Repair stale records", nodes: ["end", "fz"], edges: ["end>fz"],
+        text: ["`finalize.py` scores from the run's own repository, which the node keeps and serves to the lake's code repository (story 23); it no longer writes a {g:bundle|`workspace.bundle`}. Before scoring, it repairs records: a story whose time accounting was made by an older version, failed its check, or has no time split or conversation profile is recomputed from the machine's full logs (`backfill_timing.py`)."],
         where: [["benchmarks/spec-bench/harness/finalize.py", "harness/finalize.py"], ["benchmarks/spec-bench/harness/backfill_timing.py", "harness/backfill_timing.py"]],
         state: "built", stateNote: "The bundle is in release 1; the repair of stale records has been live since harness-v2026.10.01.2.",
       },
@@ -1811,7 +1811,7 @@ GUIDE_DATA.flows = [
       },
       {
         title: "Score of record, or set aside", nodes: ["guard", "rec", "aside", "sweep"], edges: ["guard>rec", "guard>aside", "aside>sweep", "sweep>resc"],
-        text: ["A pass becomes the score of record in `finalize.json`, for example `\"score\": \"68/75\"`, with the suite version, the guard's figures and whether a person is needed. A flagged or spoiled re-score is set aside in `rescore-spoiled/` with its reason; the run is recorded as {g:unscored|unscored}, with its live score in the commit message.", "`finalize.json` says whether trying again can help. The sweep (`finalize_pending.py`) retries what can change, at the start and end of every run on the machine, up to 5 attempts; after that, or for something that will not change, `needs_person` is true."],
+        text: ["A pass becomes the score of record in `finalize.json`, for example `\"score\": \"68/75\"`, with the suite version, the guard's figures and whether a person is needed. A flagged or spoiled re-score is set aside in `rescore-spoiled/` with its reason; the run is recorded as {g:unscored|unscored}, with its live score in the guard's figures.", "`finalize.json` says whether trying again can help. The sweep (`finalize_pending.py`) retries what can change, at the start and end of every run on the machine, up to 5 attempts; after that, or for something that will not change, `needs_person` is true."],
         where: [["benchmarks/spec-bench/TELEMETRY.md", "TELEMETRY.md: finalize.json"], ["benchmarks/spec-bench/harness/finalize_pending.py", "harness/finalize_pending.py"]],
         state: "built", stateNote: "Live on every machine since harness-v2026.10.01.2.",
       },
@@ -1823,11 +1823,10 @@ GUIDE_DATA.flows = [
         insights: ["reference-build"],
       },
       {
-        title: "Publish: filter, scan, commit, push", nodes: ["rec", "pub", "pubrec", "priv"], edges: ["rec>pub", "pub>pubrec", "pub>priv"],
-        text: ["`record_story` stages exactly the run's directory. Held-out results get a counts-only summary beside them and are git-ignored; their detail is copied to the private repo. A credential found in a staged file is replaced by a marker (the credential scanner). Then a check refuses the commit if any staged file, or the commit message, holds a held-out test title or a local machine name. The commit is built in an index of its own, so nothing else staged in the checkout goes with it, and is pushed; if the remote moved, the harness replays its commits onto it with git plumbing, never an autostash.", "`tests/privacy-test.sh` checks the tracked files for home paths, file sizes and credentials."],
-        where: [["benchmarks/spec-bench/harness/drive.py", "drive.py (record_story)"], ["benchmarks/spec-bench/harness/publicise.py", "harness/publicise.py"], ["benchmarks/spec-bench/harness/credentials.py", "harness/credentials.py"], ["tests/privacy-test.sh", "tests/privacy-test.sh"]],
-        state: "built", stateNote: "Live on every machine since harness-v2026.10.01.2.",
-        insights: ["credentials"],
+        title: "Keep the records, publish nothing", nodes: ["rec", "pub", "pubrec", "priv"], edges: ["rec>pub", "pub>pubrec", "pubrec>priv"],
+        text: ["After every story, at each run event and after finalize, the run's records are put in their kept form in its folder (`drive.prepare_records`): a counts-only summary beside every held-out result, `metrics.json` split from its held-out detail, home paths redacted. Since story 23 nothing is committed or pushed, to the public repo or the private one: the {f:collect|collector} takes the run folder to the lake through the node's API, and the code reaches the lake's code repository from the run's own repository. A guard test (`test_no_publish.py`) fails if any harness code writes git history outside the run's own repository.", "Until story 23 this step committed the run's directory and pushed it, with a credential scan and a check for held-out titles and machine names; that path is gone with the publishing."],
+        where: [["benchmarks/spec-bench/harness/drive.py", "drive.py (prepare_records)"], ["benchmarks/spec-bench/harness/publicise.py", "harness/publicise.py"], ["benchmarks/spec-bench/harness/test_no_publish.py", "harness/test_no_publish.py"]],
+        state: "built", stateNote: "On main; reaches the nodes with story 23's release.",
       },
     ],
   },

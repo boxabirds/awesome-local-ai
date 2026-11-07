@@ -1,16 +1,13 @@
-"""The publishing gate: no commit the harness makes carries the held-out suite's detail. The rules are
-publicise.py's; heldout.py and drive.record_story apply them.
+"""Held-out detail in a run's records: the public form a run's files are kept in (heldout.make_public, run by
+drive.prepare_records), and the resolver that finds the detail. The rules are publicise.py's.
 
-MECE by what the gate guarantees:
-  A. private files are never staged: the run's .gitignore, and untracking what an older harness committed
+Until story 23 this file was the publishing gate, which checked every commit the harness made; since story 23
+(harness.no_publish) the harness commits and pushes nothing, so what is left is:
   B. each held-out result has its public summary beside it: story, re-score story, final, run-level, base
-  C. metrics.json and the reports, as committed, hold counts only; the machine's tools still get the detail
-  D. the leak check refuses a commit that carries held-out detail, and allows the agent's own work
-  E. the detail is copied to the private repo, and the resolver finds it here or there
-  F. every writer of results goes through the same path: rescore, gates, finalize, backfill
-  G. end to end: a whole run through record_story into a git repo, and what was pushed
-  H. records written before the gate are made public before they are staged
-  I. the owner's machine names (local node list, hostname) are refused in harness files and the commit message
+  C. metrics.json is split into its public counts and its held-out detail; the machine's tools still get the detail
+  E. the resolver finds the detail in the run, or in the private repo's copy older runs had made
+  F. every writer of results goes through the same path: rescore, gates, backfill
+  H. records written before the split are put in their public form
 Every title and machine name here is made up: a real one in this public repo would itself be a leak.
 Run: uv run --with pytest pytest test_publish_gate.py
 """
@@ -18,17 +15,12 @@ from __future__ import annotations
 
 import gzip
 import json
-import os
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
-import pytest
 
 import drive
 import heldout
-import history
-import machine_names as mn
 import publicise as pub
 import report
 
@@ -41,30 +33,6 @@ RUN_REL = "combinations/some/stack/benchmarks/vidi/r1"
 VERSION = "vidi-v9"
 MESSAGE = "vidi some/stack r1: story 2 done"
 ERROR = "Error: expect(locator).toHaveText(expected) failed\nLocator: getByRole('note')\nExpected: \"x\""
-LOG = """commit bbbb
-vidi-agent  Sat Sep 26 09:44:15 2026 +0100
-
-    story 2: notes
-
-
- src/Note.tsx | 20 ++++
- 1 file changed, 20 insertions(+)
-
-commit aaaa
-vidi-agent  Sat Sep 26 08:00:00 2026 +0100
-
-    story 1: board
-
-
- src/Board.tsx | 10 ++++
- 1 file changed, 10 insertions(+)
-
-commit 0000
-harness  Sat Sep 26 07:00:00 2026 +0100
-
-    harness: empty repository with spec
-
-"""
 
 
 # ---------- fixtures: a private suite, a public repo, a whole run ----------
@@ -79,30 +47,6 @@ def write(p: Path, content: str | bytes | dict) -> Path:
         content = json.dumps(content, indent=2)
     (p.write_bytes if isinstance(content, bytes) else p.write_text)(content)
     return p
-
-
-def cloned(root: Path, name: str) -> tuple[Path, Path]:
-    """A checkout of a bare remote, with a first commit pushed."""
-    remote, repo = root / f"{name}.git", root / name
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
-    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True, capture_output=True)
-    write(repo / "README.md", name)
-    git(repo, "add", "-A")
-    git(repo, "commit", "-qm", "first")
-    git(repo, "push", "-q", "-u", "origin", "HEAD:main")
-    return repo, remote
-
-
-def private_suite(root: Path) -> Path:
-    """The private repo as it is beside this one: a tagged held-out suite, and a remote to push to."""
-    repo, _ = cloned(root, "private")
-    write(repo / "packs/vidi/acceptance/tests/story-01.spec.ts",
-          f"test('{TITLE} {ANCHOR}', async () => {{}});\ntest(\"{OTHER} @ref prd:made-up.other\", async () => {{}});\n")
-    git(repo, "add", "-A")
-    git(repo, "commit", "-qm", "suite")
-    git(repo, "tag", VERSION)
-    git(repo, "push", "-q", "origin", "HEAD:main", "--tags")
-    return repo
 
 
 def t(title: str, status: str, story: int = 1, error: str = "") -> dict:
@@ -147,21 +91,6 @@ def full_metrics() -> dict:
     }}
 
 
-# Every private file a run can hold (publicise.is_private), relative to the run.
-PRIVATE_KINDS = [
-    "stories/01/accept.json", "stories/01/accept-report.json", "stories/01/artifacts/story-01-x-chromium/error-context.md",
-    "stories/01/screenshots/a.png", "stories/01/scoring-2/accept-report.json", "stories/01/pre-suite-fix/accept.json",
-    "stories/02/accept.json", f"rescore/{VERSION}/stories/02/accept.json", f"rescore/{VERSION}/stories/02/accept-report.json",
-    f"rescore/{VERSION}/stories/02/artifacts/story-02-x/error-context.md", f"rescore/{VERSION}/stories/02/screenshots/s.png",
-    f"rescore/{VERSION}/stories/02/scoring-2/accept-report.json", f"rescore/{VERSION}/{pub.HELDOUT_DETAIL}",
-    "accept-final.json", "AUDIT.md", "audit.jsonl", pub.HELDOUT_DETAIL, pub.SUMMARY_DETAIL,
-    "base/accept.json", "base/screenshots/b.png", "base/artifacts/x/error-context.md",
-    "superseded/story-03-early-stop/accept.json", "superseded/story-03-early-stop/artifacts/x/error-context.md",
-]
-# The agent's own files that are committed: always public. Its workspace/ folder is not committed (the lake keeps it).
-OWN_KINDS = ["stories/01/gate.json", "workspace-git-log.txt"]
-WORKSPACE_KINDS = ["workspace/accept.json", "workspace/AUDIT.md", "workspace/tests/e2e/screenshots/w.png",
-                   "workspace/artifacts/notes.md", "workspace/tests/e2e/notes.spec.ts"]
 # Each held-out result, and its public summary beside it.
 SUMMARIES = {"stories/01/accept.json": "stories/01/accept-summary.json",
              "stories/02/accept.json": "stories/02/accept-summary.json",
@@ -171,76 +100,6 @@ SUMMARIES = {"stories/01/accept.json": "stories/01/accept-summary.json",
              "superseded/story-03-early-stop/accept.json": "superseded/story-03-early-stop/accept-summary.json"}
 
 
-def make_run(repo: Path) -> Path:
-    """A run directory with every kind of file a finished, re-scored run holds, as the machine has it just before
-    record_story: the results written plainly (the gate must summarise them), metrics and summary as drive wrote them."""
-    run = repo / RUN_REL
-    write(run / "run.json", {"combination": "some/stack", "model_id": "m", "host": "h"})
-    write(run / "run-status.json", {"state": "running"})
-    write(run / "interventions.md", "- nothing to note\n")
-    write(run / "workspace-git-log.txt", LOG + f"    test: {TITLE}\n")
-    for n, acc, base in ((1, STORY_1, "0000"), (2, STORY_2, "aaaa")):
-        s = run / "stories" / f"{n:02d}"
-        write(s / "prompt.md", f"Build story {n}.")
-        write(s / "base-commit", base + "\n")
-        write(s / "gate.json", {"all_green": True, "tail": f"ok {TITLE}"})
-        write(s / "agent-events.jsonl", json.dumps({"type": "tool", "text": TITLE}) + "\n")
-        write(s / "agent-events.compact.jsonl.gz", gzip.compress(json.dumps({"type": "tool", "text": TITLE}).encode()))
-        write(s / "accept.json", acc)
-    s1 = run / "stories" / "01"
-    write(s1 / "accept-report.json", {"suites": [{"title": TITLE}]})
-    write(s1 / "artifacts/story-01-x-chromium/error-context.md", f"# {TITLE}\n{ERROR}")
-    write(s1 / "screenshots/a.png", b"\x89PNG " + TITLE.encode())
-    write(s1 / "scoring-2/accept-report.json", {"suites": [{"title": TITLE}]})
-    write(s1 / "pre-suite-fix/accept.json", STORY_1)
-    rs = run / "rescore" / VERSION
-    write(rs / "stories/02/accept.json", RESCORED)
-    write(rs / "stories/02/accept-report.json", {"suites": [{"title": TITLE}]})
-    write(rs / "stories/02/artifacts/story-02-x/error-context.md", f"# {TITLE}")
-    write(rs / "stories/02/screenshots/s.png", b"\x89PNG")
-    write(rs / "stories/02/scoring-2/accept-report.json", {"suites": [{"title": TITLE}]})
-    write(rs / "rescore.json", {"pack_version": VERSION, "results": [{"story": 2, "passed": 2, "total": 3, "flaky": 1}]})
-    write(run / "accept-final.json", RESCORED)
-    write(run / "AUDIT.md", f"- {TITLE}: failed")
-    write(run / "audit.jsonl", json.dumps({"test": TITLE}) + "\n")
-    write(run / "base/accept.json", STORY_1)
-    write(run / "base/screenshots/b.png", b"\x89PNG")
-    write(run / "base/artifacts/x/error-context.md", f"# {TITLE}")
-    write(run / "superseded/story-03-early-stop/accept.json", STORY_1)
-    write(run / "superseded/story-03-early-stop/artifacts/x/error-context.md", f"# {TITLE}")
-    write(run / "superseded/story-03-early-stop/prompt.md", "Build story 3.")
-    write(run / "workspace/accept.json", {"mine": TITLE})
-    write(run / "workspace/AUDIT.md", f"my audit of {TITLE}")
-    write(run / "workspace/tests/e2e/screenshots/w.png", b"\x89PNG")
-    write(run / "workspace/artifacts/notes.md", "notes")
-    write(run / "workspace/tests/e2e/notes.spec.ts", f"test('{TITLE} {ANCHOR}', async () => {{}});\n")
-    for local in ("work_dir.txt", "current_story", "progress.json"):
-        write(run / local, "local")
-    drive.save_metrics(run, full_metrics())
-    heldout.save_metrics(rs, full_metrics())
-    (rs / "per-story.md").write_text(history.render_per_story(rs))
-    report.write_summary(run)
-    return run
-
-
-@pytest.fixture(scope="module")
-def recorded(tmp_path_factory):
-    """One whole run recorded through record_story: the public and private repos as they are after it."""
-    root = tmp_path_factory.mktemp("gate")
-    private = private_suite(root)
-    repo, remote = cloned(root, "public")
-    run = make_run(repo)
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
-    public = subprocess.run(["git", "--git-dir", str(remote), "ls-tree", "-r", "--name-only", "main"],
-                            capture_output=True, text=True, check=True).stdout.split()
-    in_private = subprocess.run(["git", "--git-dir", str(root / "private.git"), "ls-tree", "-r", "--name-only", "main"],
-                                capture_output=True, text=True, check=True).stdout.split()
-    blob = lambda rel: subprocess.run(["git", "--git-dir", str(remote), "show", f"main:{rel}"],
-                                      capture_output=True, check=True).stdout
-    return SimpleNamespace(root=root, private=private, repo=repo, remote=remote, run=run, res=res, public=public,
-                           in_private=in_private, blob=blob, fps=pub.fingerprints(private))
-
-
 def small_run(repo: Path) -> Path:
     run = repo / RUN_REL
     write(run / "run.json", {"combination": "some/stack"})
@@ -248,118 +107,10 @@ def small_run(repo: Path) -> Path:
     return run
 
 
-def remote_log(remote: Path) -> str:
-    return subprocess.run(["git", "--git-dir", str(remote), "log", "--format=%s", "main"], capture_output=True, text=True).stdout
-
-
 # ---------- A. private files are never staged ----------
-
-@pytest.mark.parametrize("kind", PRIVATE_KINDS)
-def test_A1_each_private_kind_stays_out_of_the_public_repo_and_on_the_machine(recorded, kind):
-    assert pub.is_private(f"{RUN_REL}/{kind}")
-    assert f"{RUN_REL}/{kind}" not in recorded.public
-    assert (recorded.run / kind).exists()
-
-
-@pytest.mark.parametrize("kind", OWN_KINDS)
-def test_A2_the_agents_own_files_are_published_whatever_their_names(recorded, kind):
-    assert f"{RUN_REL}/{kind}" in recorded.public
-
-
-@pytest.mark.parametrize("kind", WORKSPACE_KINDS)
-def test_A2b_the_agents_workspace_is_not_published_and_stays_on_the_machine(recorded, kind):
-    assert f"{RUN_REL}/{kind}" not in recorded.public and (recorded.run / kind).exists()
-
-
-CORPUS_PUBLIC = ["metrics.json", "summary.md", "run.json", "interventions.md", "workspace-git-log.txt",
-                 "stories/01/gate.json", "stories/01/accept-summary.json", "stories/01/prompt.md",
-                 f"rescore/{VERSION}/rescore.json",
-                 f"rescore/{VERSION}/per-story.md", f"rescore/{VERSION}/metrics.json",
-                 f"rescore/{VERSION}/stories/02/accept-summary.json", "accept-final-summary.json",
-                 "superseded/story-03-early-stop/prompt.md", "workspace.bundle"]
-CORPUS_LAKE_ONLY = ["stories/01/agent-events.compact.jsonl.gz", "stories/02/agent-events.compact.jsonl.gz",
-                    "stories/01/agent-events.jsonl", "stories/01/agent-events-restart2.jsonl", "other.compact.jsonl.gz",
-                    "workspace/accept.json", "workspace/AUDIT.md", "workspace/audit.jsonl",
-                    "workspace/tests/e2e/screenshots/a.png", "workspace/artifacts/notes.md",
-                    "workspace/src/stories/01/artifacts/x.ts", "workspace/test-results/x/error-context.md",
-                    "workspace/scoring-2/x.md"]
-CORPUS_PRIVATE = [*PRIVATE_KINDS, "accept.json", pub.PUBLISH_REFUSED, f"rescore/{VERSION}/stories/02/scoring-3/screenshots/s.png",
-                  f"rescore-spoiled/{VERSION}-20260930T000000/stories/02/accept.json", "stories/01/pre-suite-fix/screenshots/p.png"]
-
-
-def test_A3_the_runs_gitignore_ignores_exactly_the_private_and_lake_only_paths(tmp_path):
-    """The .gitignore record_story writes, as git reads it, against publicise.is_private and is_lake_only: same answer for
-    every path."""
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    run = tmp_path / RUN_REL
-    write(run / ".gitignore", drive.RUN_GITIGNORE)
-    every = CORPUS_PUBLIC + CORPUS_LAKE_ONLY + CORPUS_PRIVATE
-    for rel in every:
-        write(run / rel, "x")
-    ignored = set(subprocess.run(["git", "check-ignore", "--stdin"], cwd=run, input="\n".join(every),
-                                 capture_output=True, text=True).stdout.split())
-    assert {r: pub.is_private(f"{RUN_REL}/{r}") or pub.is_lake_only(f"{RUN_REL}/{r}") for r in every} == \
-           {r: r in ignored for r in every}
-
-
-def test_A4_private_files_an_older_harness_committed_are_untracked_and_kept_on_disk(tmp_path):
-    repo, remote = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "stories/01/accept.json", STORY_1)
-    write(run / "stories/01/screenshots/a.png", b"\x89PNG")
-    git(repo, "add", "-f", "--", RUN_REL)
-    git(repo, "commit", "-qm", "an older harness's record")
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
-    assert res["committed"] and res["untracked_private"] == 3, res      # and the metrics sidecar small_run wrote
-    tracked = git(repo, "ls-files", "--", RUN_REL).split()
-    assert not [f for f in tracked if pub.is_private(f)]
-    assert (run / "stories/01/accept.json").exists() and (run / "stories/01/screenshots/a.png").exists()
-
-
-@pytest.mark.parametrize("kind", ["stories/01/agent-events.compact.jsonl.gz", "stories/02/agent-events.compact.jsonl.gz",
-                                  "stories/01/agent-events.jsonl", *WORKSPACE_KINDS])
-def test_A5_the_conversation_logs_and_workspace_are_in_neither_repo_and_stay_on_the_machine(recorded, kind):
-    assert pub.is_lake_only(f"{RUN_REL}/{kind}")
-    assert f"{RUN_REL}/{kind}" not in recorded.public and f"{RUN_REL}/{kind}" not in recorded.in_private
-    assert (recorded.run / kind).exists()
-
-
-def test_A6_lake_only_files_an_older_harness_committed_are_untracked_counted_and_kept_on_disk(tmp_path):
-    repo, remote = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "stories/01/agent-events.compact.jsonl.gz", b"\x1f\x8b compact")
-    git(repo, "add", "-f", "--", RUN_REL)
-    git(repo, "commit", "-qm", "an older harness's record, compact log and all")
-    assert f"{RUN_REL}/stories/01/agent-events.compact.jsonl.gz" in git(repo, "ls-files", "--", RUN_REL).split()
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
-    assert res["committed"] and res["untracked_lake_only"] == 1 and res["untracked_private"] == 1, res      # and the metrics sidecar small_run wrote
-    assert f"{RUN_REL}/stories/01/agent-events.compact.jsonl.gz" not in git(repo, "ls-tree", "-r", "--name-only", "HEAD").split()
-    assert (run / "stories/01/agent-events.compact.jsonl.gz").exists()
-
-
-def test_A7_a_record_that_untracks_both_kinds_counts_each_kind_on_its_own(tmp_path):
-    repo, remote = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "stories/01/accept.json", STORY_1)
-    write(run / "stories/01/agent-events.compact.jsonl.gz", b"\x1f\x8b compact")
-    git(repo, "add", "-f", "--", RUN_REL)
-    git(repo, "commit", "-qm", "an older harness's record")
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
-    assert res["untracked_lake_only"] == 1 and res["untracked_private"] == 2, res      # accept.json and the metrics sidecar
 
 
 # ---------- B. each held-out result has its public summary beside it ----------
-
-@pytest.mark.parametrize("full,summary", SUMMARIES.items())
-def test_B1_each_result_is_published_as_its_summary(recorded, full, summary):
-    assert f"{RUN_REL}/{summary}" in recorded.public
-    local = json.loads((recorded.run / full).read_text())
-    assert json.loads(recorded.blob(f"{RUN_REL}/{summary}")) == pub.summarise_accept(local)
-
-
-def test_B2_a_repeat_or_superseded_scoring_gets_no_summary(recorded):
-    assert not (recorded.run / "stories/01/pre-suite-fix/accept-summary.json").exists()
-    assert not list(recorded.run.glob("**/scoring-*/*summary*"))
 
 
 def test_B3_write_accept_puts_the_summary_beside_each_kind_of_result(tmp_path):
@@ -383,36 +134,6 @@ def test_B4_write_summaries_finds_every_result_once_and_leaves_the_workspace_alo
 
 
 # ---------- C. metrics and reports as committed: counts only; the machine keeps the detail ----------
-
-@pytest.mark.parametrize("rel", ["metrics.json", f"rescore/{VERSION}/metrics.json"])
-def test_C1_committed_metrics_hold_counts_not_tests_or_runner_output(recorded, rel):
-    m = json.loads(recorded.blob(f"{RUN_REL}/{rel}"))
-    for rec in m["stories"].values():
-        assert "runner_tail" not in rec["accept"] and "tests" not in rec["accept"]
-        assert rec["accept"]["by_story"]
-    assert m["stories"]["2"]["partial_heldout_changes"] == {"1": {"fixed": 1, "regressed": 1}}
-    assert pub.leaks_in_file(f"{RUN_REL}/{rel}", recorded.blob(f"{RUN_REL}/{rel}").decode(), recorded.fps) == []
-
-
-@pytest.mark.parametrize("rel", ["summary.md", f"rescore/{VERSION}/per-story.md"])
-def test_C2_committed_reports_hold_counts_not_titles_or_errors(recorded, rel):
-    text = recorded.blob(f"{RUN_REL}/{rel}").decode()
-    assert pub.leaks_in_file(f"{RUN_REL}/{rel}", text, recorded.fps) == []
-    assert TITLE not in text and "Most common error" not in text
-
-
-def test_C3_the_summary_keeps_its_counts(recorded):
-    text = recorded.blob(f"{RUN_REL}/summary.md").decode()
-    assert "story 1: 1/2 → 1/2; broke 1; fixed 1." in text
-    assert "fixed 1, regressed 1" in text          # the partial story's tests, from counts
-
-
-def test_C4_the_machine_keeps_the_detail_for_its_own_tools(recorded):
-    assert heldout.load_metrics(recorded.run) == full_metrics()
-    detail = (recorded.run / pub.SUMMARY_DETAIL).read_text()
-    assert f"“{TITLE} {ANCHOR}”" in detail and "Most common error" in detail
-    assert TITLE in history.render(recorded.run)
-    assert history.per_story(recorded.run)[1]["regressions"] == 1
 
 
 def test_C5_the_partial_notes_read_the_same_from_titles_or_counts():
@@ -446,217 +167,8 @@ def test_C8_a_run_without_held_out_detail_leaves_no_sidecar(tmp_path):
 
 # ---------- D. the leak check: refuses held-out detail, allows the agent's own work ----------
 
-PLANTED = {
-    "a harness file": ("run-status.json", json.dumps({"state": "failed", "reason": f"story 2: {TITLE}"})),
-    "metrics": ("metrics.json", json.dumps({"stories": {"1": {"verdict": f"failed: {TITLE}"}}})),
-    "a summary": ("stories/01/accept-summary.json", json.dumps({"harness_fault": f"{TITLE} timed out"})),
-    # a line redact_markdown doesn't know (it redacts the ones history.render writes: H2): the check is the backstop
-    "the report": ("summary.md", f"- the test “{TITLE}” failed after story 2\n"),
-    "a gzipped record": ("notes.jsonl.gz", gzip.compress(TITLE.encode())),
-}
-
-
-@pytest.mark.parametrize("where", PLANTED)
-def test_D1_a_planted_held_out_title_stops_the_commit_and_is_named_only_privately(tmp_path, capsys, where):
-    private = private_suite(tmp_path)
-    repo, remote = cloned(tmp_path, "public")
-    run = small_run(repo)
-    rel, content = PLANTED[where]
-    write(run / rel, content)
-    before = remote_log(remote)
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
-    assert not res["committed"] and not res["pushed"], res
-    assert f"{RUN_REL}/{rel}" in res["error"] and heldout.digest(TITLE) in res["error"]
-    assert TITLE not in json.dumps(res) and pub.ANCHOR_MARK not in json.dumps(res)   # it goes into metrics.json
-    assert remote_log(remote) == before
-    assert git(repo, "diff", "--cached", "--name-only") == ""                        # nothing left staged
-    refused = run / pub.PUBLISH_REFUSED
-    assert TITLE in refused.read_text()
-    assert git(repo, "check-ignore", str(refused)).strip()
-    assert TITLE in capsys.readouterr().out                                          # the operator sees what
-
-
-def test_D2_without_a_private_checkout_the_anchor_mark_still_stops_the_commit(tmp_path):
-    repo, remote = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "interventions.md", f"- story 1 failed “something {ANCHOR}”\n")
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
-    assert not res["committed"] and res["private"]["skipped"]
-    assert [r["file"] for r in res["refused"]] == [f"{RUN_REL}/interventions.md"]
-
-
-@pytest.mark.parametrize("rel,content", [
-    ("workspace/tests/e2e/notes.spec.ts", f"test('{TITLE} {ANCHOR}', () => {{}});"),
-    ("stories/01/gate.json", json.dumps({"tail": f"ok {TITLE}"})),
-    ("stories/01/agent-events.compact.jsonl.gz", gzip.compress(json.dumps({"text": TITLE}).encode() + b"\n", mtime=0)),   # mtime=0: an id must not carry the clock
-    ("workspace-git-log.txt", f"    test: {TITLE}"),
-])
-def test_D3_the_agents_own_work_is_committed_even_when_it_matches(tmp_path, rel, content):
-    """Agents write their own tests from the same spec sentences the held-out titles come from."""
-    private = private_suite(tmp_path)
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / rel, content)
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
-    assert res["committed"] and res["pushed"], res
-
-
-def test_D4_the_agents_gate_output_inside_metrics_is_allowed(tmp_path):
-    private = private_suite(tmp_path)
-    repo, _ = cloned(tmp_path, "public")
-    run = repo / RUN_REL
-    run.mkdir(parents=True)
-    drive.save_metrics(run, {"stories": {"1": {"gate": {"steps": {"e2e": {"tail": f"ok {TITLE}"}}}}}})
-    assert drive.record_story(repo, run, MESSAGE, git=G, private=private)["committed"]
-
-
-def test_D5_a_private_file_forced_into_the_index_is_refused(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "stories/01/accept.json", {"passed": 1})
-    git(repo, "add", "-f", "--", RUN_REL)
-    problems = heldout.staged_problems(repo, RUN_REL, G, set())
-    assert problems == [{"file": f"{RUN_REL}/{f}", "why": heldout.PRIVATE_FILE, "fingerprint": None}
-                        for f in (pub.HELDOUT_DETAIL, "stories/01/accept.json")]
-
-
-def test_D6_what_is_checked_is_what_is_staged_not_the_working_tree(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    f = write(repo / RUN_REL / "run-status.json", TITLE)
-    git(repo, "add", "--", RUN_REL)
-    f.write_text("clean now, but not staged")
-    assert [p["fingerprint"] for p in heldout.staged_problems(repo, RUN_REL, G, {TITLE})] == [TITLE]
-
-
-def test_D7_only_the_runs_own_staged_files_are_checked(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    write(repo / "elsewhere.md", TITLE)
-    write(repo / RUN_REL / "run.json", "{}")
-    git(repo, "add", "-A")
-    assert heldout.staged_problems(repo, RUN_REL, G, {TITLE}) == []
-
-
-def test_D8_after_a_refusal_the_cleaned_run_commits_and_its_refusal_record_goes(tmp_path):
-    private = private_suite(tmp_path)
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "run-status.json", TITLE)
-    assert not drive.record_story(repo, run, MESSAGE, git=G, private=private)["committed"]
-    write(run / "run-status.json", "{}")
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
-    assert res["committed"] and res["pushed"], res
-    assert not (run / pub.PUBLISH_REFUSED).exists()
-
-
-def test_D9_fingerprints_are_read_from_the_private_suite_once_per_process(tmp_path, monkeypatch):
-    private = private_suite(tmp_path)
-    calls = []
-    real = pub.fingerprints
-    monkeypatch.setattr(pub, "fingerprints", lambda p: calls.append(p) or real(p))
-    heldout._fingerprints.cache_clear()
-    first, again = heldout.fingerprints(private), heldout.fingerprints(private)
-    assert first == again and TITLE in first and len(calls) == 1
-    assert heldout.fingerprints(tmp_path / "no-checkout") == set()
-
 
 # ---------- E. the private copy, and finding the detail here or there ----------
-
-def test_E1_the_private_repo_gets_every_private_file_and_the_record_is_pushed(recorded):
-    assert recorded.res["private"]["committed"] and recorded.res["private"]["pushed"], recorded.res
-    missing = [k for k in PRIVATE_KINDS if f"{heldout.PRIVATE_RUNS}/{RUN_REL}/{k}" not in recorded.in_private]
-    assert missing == []
-    assert not [f for f in recorded.in_private if f.startswith(heldout.PRIVATE_RUNS) and not pub.is_private(
-        f.removeprefix(f"{heldout.PRIVATE_RUNS}/"))]                        # only the private files
-
-
-def test_E2_the_copy_takes_only_what_is_new_or_changed(tmp_path):
-    repo = tmp_path / "public"
-    subprocess.run(["git", "init", "-q", str(repo)], check=True)
-    run = repo / RUN_REL
-    write(run / "stories/01/accept.json", STORY_1)
-    write(run / "metrics.json", "{}")
-    private = tmp_path / "private"
-    assert heldout.copy_private(run, repo, private) == ["stories/01/accept.json"]
-    assert heldout.copy_private(run, repo, private) == []
-    write(run / "stories/01/accept.json", STORY_2)
-    assert heldout.copy_private(run, repo, private) == ["stories/01/accept.json"]
-    assert json.loads((private / "runs" / RUN_REL / "stories/01/accept.json").read_text()) == STORY_2
-
-
-def test_E3_without_a_private_checkout_the_public_record_still_goes_ahead(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    res = drive.record_story(repo, small_run(repo), MESSAGE, git=G, private=tmp_path / "none")
-    assert res["committed"] and res["pushed"] and "no private checkout" in res["private"]["skipped"]
-
-
-def test_E4_a_failed_private_push_is_reported_and_the_next_record_pushes_it(tmp_path):
-    private = private_suite(tmp_path)
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "stories/01/accept.json", STORY_1)
-    (tmp_path / "private.git").rename(tmp_path / "away.git")
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
-    assert res["committed"] and res["pushed"], res                                # the public record is not held up
-    assert res["private"]["committed"] and not res["private"]["pushed"] and res["private"]["error"]
-    (tmp_path / "away.git").rename(tmp_path / "private.git")
-    res = drive.record_story(repo, run, "story 3 done", git=G, private=private)
-    assert res["private"] == {"copied": 0, "committed": True, "pushed": True}     # rebuilt on the remote's head
-    assert "stories/01/accept.json" in git(tmp_path / "private", "ls-tree", "-r", "--name-only", "origin/main")
-
-
-def _remote_main_files(tmp_path: Path) -> list[str]:
-    return subprocess.run(["git", "--git-dir", str(tmp_path / "private.git"), "ls-tree", "-r", "--name-only", "main"],
-                          capture_output=True, text=True, check=True).stdout.split()
-
-
-def _branches(private: Path) -> list[str]:
-    return git(private, "for-each-ref", "--format=%(refname)", "refs/heads").split()
-
-
-def test_E9_a_private_checkout_left_on_the_suite_tag_still_gets_the_detail_onto_main(tmp_path):
-    """setup-node.sh leaves the private checkout detached at the pack's tag, where the runs read their suite. On
-    1 Oct 2026 the detail was committed on that detached HEAD and never pushed. The record goes to main on the
-    remote; the checkout stays on its tag, with no branch made or moved."""
-    private = private_suite(tmp_path)
-    git(private, "checkout", "-q", VERSION)
-    tag, branches = git(private, "rev-parse", "HEAD").strip(), _branches(private)
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "stories/01/accept.json", STORY_1)
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
-    assert res["private"]["committed"] and res["private"]["pushed"] and "error" not in res["private"], res
-    assert f"{heldout.PRIVATE_RUNS}/{RUN_REL}/stories/01/accept.json" in _remote_main_files(tmp_path)
-    assert git(private, "rev-parse", "HEAD").strip() == tag
-    assert _branches(private) == branches
-    assert git(private, "status", "--porcelain", "--untracked-files=no") == ""   # the suite checkout is untouched
-
-
-def test_E10_detail_already_copied_but_not_on_the_remote_is_still_pushed(tmp_path):
-    """On 1 Oct 2026 the copy found nothing new to commit, called that an error, and left the detail unpushed."""
-    private = private_suite(tmp_path)
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "stories/01/accept.json", STORY_1)
-    heldout.copy_private(run, repo, private)                 # an earlier copy that never reached the remote
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
-    assert "error" not in res["private"] and res["private"]["pushed"], res
-    assert f"{heldout.PRIVATE_RUNS}/{RUN_REL}/stories/01/accept.json" in _remote_main_files(tmp_path)
-
-
-def test_E11_a_copy_with_new_timestamps_but_the_same_content_is_not_an_error(tmp_path):
-    """Files re-copied byte for byte (a checkout rewrote them, say): nothing new to record, and nothing wrong."""
-    private = private_suite(tmp_path)
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "stories/01/accept.json", STORY_1)
-    assert drive.record_story(repo, run, MESSAGE, git=G, private=private)["private"]["pushed"]
-    head = git(tmp_path / "private.git", "rev-parse", "main")
-    for f in run.rglob("*"):
-        if f.is_file():
-            os.utime(f, (f.stat().st_atime, f.stat().st_mtime + 60))
-    res = drive.record_story(repo, run, "story 3 done", git=G, private=private)
-    assert "error" not in res["private"] and not res["private"]["committed"], res
-    assert git(tmp_path / "private.git", "rev-parse", "main") == head          # no empty commit either
 
 
 def _here_and_private(tmp_path: Path) -> tuple[Path, Path]:
@@ -686,21 +198,6 @@ def test_E6_counts_come_from_the_summary_where_the_detail_is_nowhere(tmp_path):
     write(private / "runs" / RUN_REL / "stories/01/accept.json", STORY_1)
     assert heldout.accept_or_summary(run, "stories/01/accept.json", private) == STORY_1
     assert heldout.accept_or_summary(run, "gate.json", private) is None
-
-
-def test_E7_on_a_clone_without_the_detail_the_tools_read_the_private_copy(recorded, tmp_path, monkeypatch):
-    """The Mac: its run directory comes from git, so every held-out result is only in the private repo's copy."""
-    import judge
-    mac = tmp_path / "mac"
-    subprocess.run(["git", "clone", "-q", str(recorded.remote), str(mac)], check=True)
-    run = mac / RUN_REL
-    assert not (run / "stories/01/accept.json").exists()
-    monkeypatch.setenv(heldout.PRIVATE_ENV, str(recorded.private))
-    assert heldout.load_metrics(run) == full_metrics()
-    assert history.per_story(run) == history.per_story(recorded.run)
-    assert TITLE in history.render(run) and TITLE in report.summary(run)
-    assert judge.last_accept(run) == recorded.private / "runs" / RUN_REL / "accept-final.json"
-    assert judge.scorer_fault(judge.last_accept(run)) is None
 
 
 def test_E8_judge_prep_and_annotate_take_the_results_from_the_private_copy(tmp_path, monkeypatch):
@@ -759,27 +256,6 @@ def test_F2_gates_accept_from_the_command_line_writes_the_summary(tmp_path, monk
     assert json.loads((tmp_path / "out/accept-summary.json").read_text()) == pub.summarise_accept(STORY_1)
 
 
-def test_F3_finalize_records_its_rescore_through_the_gate(tmp_path):
-    import finalize
-    from test_finalize import workspace_with_history
-    private = private_suite(tmp_path)
-    repo, remote = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "work_dir.txt", str(workspace_with_history(tmp_path)))
-
-    def rescore(run: Path, bundle: Path, version: str) -> None:     # as an older rescore.py wrote it: no summary
-        write(run / "rescore" / version / "stories/12/accept.json", RESCORED)
-        write(run / "rescore" / version / "rescore.json", {"results": [{"story": 12, "passed": 2, "total": 3}]})
-
-    finalize.finalize(run, VERSION, VERSION, rescore,
-                      lambda message: drive.record_story(repo, run, message, git=G, private=private))
-    public = git(repo, "ls-tree", "-r", "--name-only", "origin/main").split()
-    assert f"{RUN_REL}/rescore/{VERSION}/stories/12/accept-summary.json" in public
-    assert f"{RUN_REL}/rescore/{VERSION}/stories/12/accept.json" not in public
-    assert "final score 2/3" in remote_log(remote)
-    assert (private / "runs" / RUN_REL / "rescore" / VERSION / "stories/12/accept.json").exists()
-
-
 def test_F4_backfill_keeps_metrics_public_and_the_detail_beside_it(tmp_path, monkeypatch):
     import backfill_timing
     import conversation
@@ -795,19 +271,6 @@ def test_F4_backfill_keeps_metrics_public_and_the_detail_beside_it(tmp_path, mon
 
 
 # ---------- G. end to end ----------
-
-def test_G1_the_whole_run_is_recorded_and_pushed(recorded):
-    assert recorded.res["committed"] and recorded.res["pushed"], recorded.res
-    assert MESSAGE in remote_log(recorded.remote)
-
-
-def test_G2_nothing_pushed_is_private_and_nothing_pushed_leaks(recorded):
-    """git ls-files of the public repo, after a whole run: no private path, and no file carrying a held-out title."""
-    run_files = [f for f in recorded.public if f.startswith(RUN_REL + "/")]
-    assert len(run_files) > len(OWN_KINDS)
-    assert [f for f in run_files if pub.is_private(f)] == []
-    leaking = {f: pub.leaks_in_file(f, heldout._text(f, recorded.blob(f)), recorded.fps) for f in run_files}
-    assert {f: v for f, v in leaking.items() if v} == {}
 
 
 # ---------- H. records written before the gate are made public before they are staged ----------
@@ -834,223 +297,18 @@ def test_H2_a_summary_with_titles_is_redacted_and_its_full_form_kept(tmp_path):
     assert heldout.make_public(tmp_path)["reports"] == []
 
 
-def test_H3_an_old_run_record_is_committed_after_being_made_public(tmp_path):
-    private = private_suite(tmp_path)
-    repo, _ = cloned(tmp_path, "public")
-    run = repo / RUN_REL
-    write(run / "metrics.json", full_metrics())                                    # as the old harness wrote them
-    write(run / f"rescore/{VERSION}/metrics.json", full_metrics())
-    write(run / "summary.md", f"- story 1: 2/2 → 1/2; broke 1: “{TITLE}”\n")
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
-    assert res["committed"] and res["pushed"], res
-
-
 # ---------- I. the owner's machine names: never in a harness-written file, nor in the commit message ----------
 # The names come from the local dbench node list and the machine's hostname, read at run time (machine_names.py);
 # conftest points the node list at a missing file and the hostname at a made-up one, so a test names its own.
 
-NODE = "node-q"                      # a made-up node name
-HOST = "made-up-bench-box"           # a made-up hostname: conftest sets this machine's to HOST + ".local"
-NODES_TOML = f'[nodes.{NODE}]\nurl = "http://{NODE}:7717"\ntoken = "not-a-real-token"\n'
-
-
-@pytest.fixture
-def node_list(tmp_path, monkeypatch):
-    f = write(tmp_path / "nodes.toml", NODES_TOML)
-    monkeypatch.setenv(mn.NODES_ENV, str(f))
-    return f
-
-
-NAMED = {
-    "the run's status": ("run-status.json", json.dumps({"state": "started", "host": NODE})),
-    "metrics": ("metrics.json", json.dumps({"stories": {"1": {"skip": {"by": f"operator ({NODE})"}}}})),
-    "the interventions": ("interventions.md", f"- 2026-09-26T08:57:29Z story 3: {NODE.upper()} froze\n"),
-    "the report": ("summary.md", f"| 3 | 26 Sep | 22 min | machine freeze | {NODE} froze |\n"),
-    "a re-score": (f"rescore/{VERSION}/rescore.json", json.dumps({"host": NODE})),
-    "a results file name in a log": ("bench.tsv", f"# written to 20260925-215328-{NODE}.tsv\n"),
-    "a gzipped record": ("notes.jsonl.gz", gzip.compress(f"on {NODE}".encode())),
-}
-
-
-@pytest.mark.parametrize("where", NAMED)
-def test_I1_a_planted_node_name_stops_the_commit_and_is_named_only_privately(tmp_path, capsys, node_list, where):
-    repo, remote = cloned(tmp_path, "public")
-    run = small_run(repo)
-    rel, content = NAMED[where]
-    write(run / rel, content)
-    before = remote_log(remote)
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
-    assert not res["committed"] and not res["pushed"], res
-    assert [(r["file"], r["why"]) for r in res["refused"]] == [(f"{RUN_REL}/{rel}", heldout.MACHINE_NAME)]
-    assert heldout.digest(NODE) in res["error"]
-    assert NODE not in json.dumps(res).lower()                                      # it goes into metrics.json
-    assert remote_log(remote) == before
-    assert git(repo, "diff", "--cached", "--name-only") == ""
-    assert NODE in (run / pub.PUBLISH_REFUSED).read_text()                         # git-ignored: the operator's own
-    assert NODE in capsys.readouterr().out
-
-
-@pytest.mark.parametrize("planted", [HOST, f"{HOST}.local"])
-def test_I2_the_machines_own_hostname_stops_the_commit_short_or_full(tmp_path, monkeypatch, planted):
-    """No node list at all (conftest): the hostname alone is looked for."""
-    monkeypatch.setattr(mn, "this_hostname", lambda: f"{HOST}.local")
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "run-status.json", json.dumps({"state": "failed", "host": planted}))
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
-    assert not res["committed"] and [r["why"] for r in res["refused"]] == [heldout.MACHINE_NAME], res
-
-
-@pytest.mark.parametrize("rel,content", [
-    ("workspace/src/hosts.ts", f"export const HOST = '{NODE}';"),
-    ("workspace/notes.md", f"I ran uname on {HOST}"),
-    ("stories/01/gate.json", json.dumps({"tail": f"server on {NODE}"})),
-    ("stories/01/agent-events.compact.jsonl.gz", gzip.compress(json.dumps({"text": NODE}).encode() + b"\n", mtime=0)),   # mtime=0: an id must not carry the clock
-    ("workspace-git-log.txt", f"    fix: works on {NODE}"),
-])
-def test_I3_the_agents_own_work_is_committed_even_when_it_names_the_machine(tmp_path, node_list, rel, content):
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / rel, content)
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
-    assert res["committed"] and res["pushed"], res
-
-
-def test_I4_without_a_node_list_a_run_naming_no_hostname_commits(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "run-status.json", json.dumps({"state": "started", "host": "Apple M5 Max 128GB"}))
-    write(run / "interventions.md", f"- story 3: {NODE} froze\n")        # no list: nothing says it's a name
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
-    assert res["committed"] and res["pushed"], res
-
-
-def test_I5_a_name_in_the_commit_message_stops_the_commit(tmp_path, node_list):
-    repo, remote = cloned(tmp_path, "public")
-    run = small_run(repo)
-    before = remote_log(remote)
-    res = drive.record_story(repo, run, f"vidi some/stack r1: run failed: {NODE} ran out of disk", git=G,
-                             private=tmp_path / "no-private")
-    assert not res["committed"] and [(r["file"], r["why"]) for r in res["refused"]] == [
-        (drive.COMMIT_MESSAGE, heldout.MACHINE_NAME)], res
-    assert NODE not in json.dumps(res) and remote_log(remote) == before
-
-
-def test_I6_a_node_list_that_cannot_be_read_stops_the_commit(tmp_path, monkeypatch):
-    monkeypatch.setenv(mn.NODES_ENV, str(write(tmp_path / "nodes.toml", "[nodes.node-q\n")))
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
-    assert not res["committed"] and res["refused"][0]["why"].startswith(heldout.CHECK_FAILED), res
-
-
-def test_I7_the_names_are_read_at_each_commit_not_once(tmp_path, monkeypatch):
-    nodes = write(tmp_path / "nodes.toml", "")
-    monkeypatch.setenv(mn.NODES_ENV, str(nodes))
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "interventions.md", f"- story 3: {NODE} froze\n")
-    assert drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")["committed"]
-    nodes.write_text(NODES_TOML)
-    write(run / "interventions.md", f"- story 3: {NODE} froze\n- story 4: {NODE} froze again\n")
-    assert not drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")["committed"]
-
-
-def test_I8_a_generic_hostname_does_not_refuse_the_combination_path(tmp_path, monkeypatch):
-    monkeypatch.setattr(mn, "this_hostname", lambda: "ubuntu")
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "run.json", {"combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"})
-    res = drive.record_story(repo, run, "vidi qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi r1: story 1 done", git=G,
-                             private=tmp_path / "no-private")
-    assert res["committed"], res
-
-
-def test_I9_held_out_titles_and_machine_names_are_both_reported(tmp_path, node_list):
-    private = private_suite(tmp_path)
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / "interventions.md", f"- story 2 on {NODE}: “{TITLE}” failed\n")
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
-    assert sorted(r["why"] for r in res["refused"]) == sorted([heldout.HELD_OUT, heldout.MACHINE_NAME])
-
-
-def test_I10_the_whole_run_names_no_local_machine(recorded):
-    """After a whole run, recorded with conftest's made-up hostname, no pushed file names it."""
-    run_files = [f for f in recorded.public if f.startswith(RUN_REL + "/")]
-    names = mn.local_names(Path("/nonexistent"), mn.this_hostname())
-    assert names and {f: mn.in_file(f, heldout._text(f, recorded.blob(f)), names) for f in run_files
-                      if mn.in_file(f, heldout._text(f, recorded.blob(f)), names)} == {}
-
-
-def test_I11_a_file_named_after_the_machine_is_refused_and_the_refusal_does_not_repeat_the_name(tmp_path, node_list):
-    repo, _ = cloned(tmp_path, "public")
-    run = small_run(repo)
-    write(run / f"backend-ab/20260925-215328-{NODE}.tsv", "# backend-ab on the Strix Halo box\n")
-    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
-    assert not res["committed"] and [r["why"] for r in res["refused"]] == [heldout.MACHINE_NAME], res
-    assert NODE not in json.dumps(res)
-    assert NODE in (run / pub.PUBLISH_REFUSED).read_text()
-
 
 # ---------- the checks that fail closed, called directly ----------
 
-SECRET_LINE = "DEEPSEEK_API_KEY=abcdefgh12345678\n"
-SECRET_MARKED = "DEEPSEEK_API_KEY=[redacted: 16 characters]\n"
 
-
-def test_D10_a_staged_list_that_cannot_be_read_fails_closed_with_git_s_own_reason(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    (repo / ".git" / "index").write_bytes(b"not an index")
-    problems = heldout.staged_problems(repo, RUN_REL, G, {TITLE}, names=set())
-    assert len(problems) == 1
-    assert problems[0]["file"] == RUN_REL and problems[0]["fingerprint"] is None
-    assert problems[0]["why"].startswith(f"{heldout.CHECK_FAILED}: ") and "index file" in problems[0]["why"]
-
-
-def test_D11_a_staged_file_whose_content_cannot_be_read_fails_closed_and_the_others_are_still_checked(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    write(repo / RUN_REL / "run-status.json", TITLE)
-    git(repo, "add", "--", RUN_REL)
-    # an entry the index lists but `git show :path` cannot print: a commit object that is not in this repository
-    git(repo, "update-index", "--add", "--cacheinfo", f"160000,{'1' * 40},{RUN_REL}/sub")
-    problems = heldout.staged_problems(repo, RUN_REL, G, {TITLE}, names=set())
-    assert problems == [
-        {"file": f"{RUN_REL}/run-status.json", "why": heldout.HELD_OUT, "fingerprint": TITLE},
-        {"file": f"{RUN_REL}/sub", "why": f"{heldout.CHECK_FAILED}: could not read the staged file", "fingerprint": None}]
-
-
-def test_D12_redact_staged_redacts_the_index_and_the_file_and_names_what_it_found_never_the_value(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    write(repo / RUN_REL / "log.txt", "before\n" + SECRET_LINE)
-    write(repo / RUN_REL / "clean.txt", "nothing here\n")
-    write(repo / RUN_REL / pub.HELDOUT_DETAIL, SECRET_LINE)           # private: never committed, so never scanned
-    git(repo, "add", "-f", "--", RUN_REL)
-    found, problems = heldout.redact_staged(repo, RUN_REL, G)
-    assert (found, problems) == (["DEEPSEEK_API_KEY"], [])
-    assert git(repo, "show", f":{RUN_REL}/log.txt") == "before\n" + SECRET_MARKED
-    assert (repo / RUN_REL / "log.txt").read_text() == "before\n" + SECRET_MARKED
-    assert (repo / RUN_REL / "clean.txt").read_text() == "nothing here\n"
-    assert (repo / RUN_REL / pub.HELDOUT_DETAIL).read_text() == SECRET_LINE
-
-
-def test_D13_redact_staged_fails_closed_when_the_list_cannot_be_read(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    (repo / ".git" / "index").write_bytes(b"not an index")
-    found, problems = heldout.redact_staged(repo, RUN_REL, G)
-    assert found == []
-    assert len(problems) == 1 and problems[0]["file"] == RUN_REL and problems[0]["fingerprint"] is None
-    assert problems[0]["why"].startswith(f"{heldout.CHECK_FAILED}: the credential scan could not list the staged files: ")
-    assert "index file" in problems[0]["why"]
-
-
-def test_D14_redact_staged_fails_closed_when_the_redacted_file_cannot_be_staged_again(tmp_path):
-    repo, _ = cloned(tmp_path, "public")
-    write(repo / RUN_REL / "log.txt", SECRET_LINE)
-    git(repo, "add", "--", RUN_REL)
-    (repo / ".git" / "index.lock").write_text("")                        # git add cannot take the index
-    found, problems = heldout.redact_staged(repo, RUN_REL, G)
-    assert found == ["DEEPSEEK_API_KEY"]
-    assert problems == [{"file": RUN_REL, "fingerprint": None, "why": f"{heldout.CHECK_FAILED}: a file redacted by the "
-                         "credential scan could not be staged again"}]
-    assert git(repo, "show", f":{RUN_REL}/log.txt") == SECRET_LINE         # the index still holds it: the commit is refused
+def test_metrics_are_saved_and_loaded_through_the_held_out_split(tmp_path):
+    """drive's save_metrics and load_metrics go through heldout's split (moved from test_drive_record.py, which tested
+    the recording path story 23 removed)."""
+    metrics = {"stories": {"1": story_record(1, STORY_1, "aaaa")}}
+    drive.save_metrics(tmp_path, metrics)
+    assert drive.load_metrics(tmp_path) == heldout.load_metrics(tmp_path)
+    assert drive.load_metrics(tmp_path)["stories"]["1"]["commit"] == "aaaa"

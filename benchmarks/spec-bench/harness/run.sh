@@ -54,7 +54,7 @@ while [[ $# -gt 0 ]]; do
     --from-code) FROM_CODE="$2"; shift 2 ;;
     --from-metrics) FROM_METRICS="$2"; shift 2 ;;
     --from-story) FROM_STORY="$2"; shift 2 ;;
-    # Commit and push this run's directory after every story (a per-story record).
+    # Record the run: its summary and kept records after every story, and its events (nothing is committed).
     --record) RECORD=1; shift ;;
     # Diagnosis only: put the metering proxy between agent and server. It rewrites
     # requests slightly (stream_options.include_usage) and was never cleared as a
@@ -114,8 +114,8 @@ RUN_DIR="$COMBO_DIR/benchmarks/$SPEC_BENCH_PACK_NAME/$RUN_ID"
 mkdir -p "$RUN_DIR"
 echo "run dir: $RUN_DIR"
 
-# With --record, the run's start, end and failures are pushed too (record_event.py), not only its
-# stories: a run that refuses to start or dies mid-story would otherwise commit nothing at all.
+# With --record, the run's start, end and failures are recorded in its folder too (record_event.py: run-status.json),
+# not only its stories, so a run that refuses to start or dies mid-story says so. Nothing is committed (story 23).
 ERR_LOG="$(mktemp)"
 exec 2> >(tee -a "$ERR_LOG" >&2)
 ERR_FLUSH_S=0.5      # let tee write the last error line before it's read
@@ -203,7 +203,7 @@ fi
 # platform override), so a re-score started later from a barer shell finds the same uv, node and npm
 # (scoring_tools.py). Neither can fail or stop this run; the sweep's messages are not this run's errors.
 python3 "$HARNESS/scoring_tools.py" remember || true
-(cd "$HARNESS" && uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${RECORD:+--record} ${INVALID_RUNS:+--invalid-from "$INVALID_RUNS"} 2>&1) || true
+(cd "$HARNESS" && uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${INVALID_RUNS:+--invalid-from "$INVALID_RUNS"} 2>&1) || true
 
 # A cloud model doesn't run on this machine: its run is never held up for the machine's power or temperature
 # (the conditions are still recorded with each story).
@@ -314,10 +314,9 @@ uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$
   ${FROM_STORY:+--from-story "$FROM_STORY"} \
   ${NO_CONDITION_WAIT:+--no-condition-wait}
 uv run --quiet report.py "$RUN_DIR"
-# The run's history as workspace.bundle, and its final build re-scored under the suite at the pack's tag
-# (finalize.py), so a finished run is scored and judgeable without anyone doing it by hand. Never fails the run;
+# The run's final build re-scored, from the run's own repository, under the suite at the pack's tag (finalize.py), so a finished run is scored and judgeable without anyone doing it by hand. Never fails the run;
 # what it could not do this time is in finalize.json, and the sweep (below, and at every later start) retries it.
-uv run --quiet finalize.py "$RUN_DIR" --pack "$PACK" ${RECORD:+--record} || true
+uv run --quiet finalize.py "$RUN_DIR" --pack "$PACK" || true
 FINISHED=1
 record_event finished
 # A finished, scored run's work dir (1.4 to 3.1 GB) is given back except the run's own repository (workspace/.git),
@@ -325,4 +324,4 @@ record_event finished
 # work dir. Never fails the run.
 uv run --quiet finalize.py "$RUN_DIR" --release-work || true
 # And once more for any other run still waiting for its score (this one just had its own try, and is left out).
-uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${RECORD:+--record} ${INVALID_RUNS:+--invalid-from "$INVALID_RUNS"} 2>&1 || true
+uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${INVALID_RUNS:+--invalid-from "$INVALID_RUNS"} 2>&1 || true

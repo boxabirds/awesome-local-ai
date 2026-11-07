@@ -18,8 +18,8 @@ code that passed the release's checks while results still go to main.
 The agent's sandbox hides both roots (drive.SANDBOX_DENY).
 
 The results root is never guessed. In a checkout with no variable it is that checkout, as it always was. In a
-release with no variable the harness stops as it loads. And a record is committed only where it belongs
-(drive.record_refusal): the run must be inside the root, and the root must be the top of a git checkout.
+release with no variable the harness stops as it loads. Nothing is committed in either root (story 23): a run's
+records stay in its folder, and the collector takes them to the lake.
 
     python3 roots.py results          # the results root
     python3 roots.py code             # the code root
@@ -38,15 +38,6 @@ import sys
 from pathlib import Path
 
 ENV = "SPEC_BENCH_RESULTS_ROOT"
-# Checkouts no record may be committed in, whatever root a recorder is given (drive.record_refusal): paths joined
-# by os.pathsep. Tests only: conftest.py names the roots the tests run with, so neither a test nor a process it
-# starts can commit and push there, as one did on 1 Oct 2026 when the results root fell back to that checkout.
-NO_RECORD_ENV = "SPEC_BENCH_NO_RECORD_IN"
-
-
-def off_limits(environ: dict | None = None) -> list[Path]:
-    given = (os.environ if environ is None else environ).get(NO_RECORD_ENV, "")
-    return [Path(p).resolve() for p in given.split(os.pathsep) if p]
 # Written by dbench at the root of a materialised release (tools/dbench/src/harness.rs MANIFEST_FILE):
 # {"tag", "commit", "commit_short"}. A release has no .git, so this is how it knows what it is.
 RELEASE_FILE = "RELEASE.json"
