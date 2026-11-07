@@ -1,0 +1,92 @@
+file	function	lines	kind	operation	reason	found_by
+benchmarks/spec-bench/harness/annotate.py	main	345	T	list-runs	passes REPO (this checkout) to load_attempts as the source of every recorded run	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/annotate.py	run_dirs	60	T	list-runs	globs combinations/**/benchmarks/vidi and benchmarks/reference/vidi under the checkout	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	_merged_tree	596	G	write-push-record	git read-tree/ls-files/write-tree in the records checkout for the push replay	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	_private_commit	703	G	write-push-record	git read-tree/hash-object/commit-tree in the private checkout: a commit of the run's held-out records	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	_rebase_in_progress	399	G	write-push-record	git rev-parse --git-path in the records checkout to detect a stuck rebase before committing records	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	bundle_run_workspace	336-345	B	write-bundle	reads work_dir.txt and calls write_workspace_bundle for run events (indirect)	new hits, 4 Nov
+benchmarks/spec-bench/harness/drive.py	known_good_base	786	B	partial-rerun-input	reads the reference run's workspace.bundle (and metrics.json) for the partial rerun's base	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	main	2374	G	write-push-record	calls record_story(REPO_ROOT, run, ...) each story; also write_workspace_bundle (2321) and progress.baselines(REPO_ROOT) (2209)	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	make_bundle	318-326	B	write-bundle	git bundle create --all of the agent workspace, renamed into place: the one command that makes workspace.bundle	new hits, 4 Nov
+benchmarks/spec-bench/harness/drive.py	push_with_rebase	530	G	write-push-record	git push origin HEAD of the records checkout, replay on rejection	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	record_private	656	G	write-push-record	git fetch/push of the run's held-out records to the private repo	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	record_refusal	434	G	write-push-record	git rev-parse --show-toplevel: refuses to record unless the root is a git checkout	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	record_story	488	G	write-push-record	git add/commit (504)/push (513) of the run dir in the records checkout	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	replay_onto_remote	561	G	write-push-record	git fetch/commit-tree/read-tree/update-ref replaying record commits onto origin	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	setup_workspace_from	811	B	partial-rerun-input	git clone of the reference run's workspace.bundle into the new workspace	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	untrack_private	608	G	write-push-record	git ls-files/rm --cached of the run's private and lake-only files in the records index	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/drive.py	write_workspace_bundle	331-333	B	write-bundle	writes run/WORKSPACE_BUNDLE at story completion	new hits, 4 Nov
+benchmarks/spec-bench/harness/finalize_pending.py	run_dirs	109	T	list-runs	walks root/combinations and root/benchmarks/reference of the checkout, git-copied runs included	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/finalize.py	bundle_verifies	138-144	B	other (verify bundle before freeing the work dir)	git bundle verify of workspace.bundle	new hits, 4 Nov
+benchmarks/spec-bench/harness/finalize.py	ensure_bundle	132	B	write-bundle	makes run/workspace.bundle (bundle()), or requires one (134)	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/finalize.py	finalize	469	B	read-run-code-at-story	ensure_bundle (453) then rescore(run, run/BUNDLE): scores from the bundle	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/finalize.py	rec	594	G	write-push-record	drive.record_story(drive.REPO_ROOT, run, ...): commits and pushes finalize records	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/finalize.py	release_work	150-166	B	other (frees the work dir because the bundle holds the code)	gates rmtree on bundle_verifies(run/BUNDLE); message names BUNDLE	new hits, 4 Nov
+benchmarks/spec-bench/harness/heldout.py	copy_private	215	G	write-push-record	copies the run's private files into <private>/runs/<repo path>/ solely for record_private's push (no git itself)	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/heldout.py	private_copy	61	T	read-run-record	chooses <private checkout>/runs/<run path>: the held-out detail git copied there	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/heldout.py	redact_staged	308	G	write-push-record	git diff --cached / git add (322) of the run's staged record files	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/heldout.py	staged_problems	281	G	write-push-record	git diff --cached and git show (292) of staged run files before commit	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/judge_prep.py	clone_app	44-54	B	read-run-code-at-story	git clone from run/workspace.bundle (else workspace/ folder) for the judge	new hits, 4 Nov
+benchmarks/spec-bench/harness/judge.py	copy_scored_tree	127-135	B	read-run-code-at-story	clones workspace.bundle (via judge_prep.clone_app) and archives the scored commit; error names workspace.bundle	new hits, 4 Nov
+benchmarks/spec-bench/harness/judge.py	main	285	T	read-run-record	builds record paths as REPO/<record> and reads their workspace-git-log.txt and metrics from the checkout	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/judge.py	record_workspace	116	B	read-run-code-at-story	reads record/workspace.bundle (judge_prep.BUNDLE) to rebuild the final workspace	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/logscan.py	known_runs	632	T	list-runs	walks REPO_ROOT/combinations and benchmarks/reference of the checkout to list every run	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/machine_names.py	tracked	121	G	other: machine-name scan of tracked files	git ls-files of the repo and reads every tracked file, run records included	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/migrate_rescore_to_record.py	record_of	151	B	other: migration notes bundle in finalize.json	checks run/workspace.bundle exists and records it	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/progress.py	baselines	221	T	baselines-from-other-runs	globs other runs' metrics.json under repo_root/combinations and benchmarks/reference/vidi	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/publicise.py	over_limit	283	G	other: size check of git-tracked records	git ls-files of tracked benchmark records, then stats their sizes	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/record_event.py	record	40	G	write-push-record	drive.record_story(...) for run events; also drive.bundle_run_workspace (34)	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/rescore.py	main	409	B	read-run-code-at-story	git clone of --bundle (the run's workspace.bundle) to score checkpoints	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/run.sh	record_event	111	G	write-push-record	runs record_event.py: commits and pushes run start/stop/fail/finish records	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/setup-node.sh	<script>	106	G	write-push-record	git ls-remote origin + git identity check: preflight for pushing records	15 Oct members, rechecked 4 Nov
+benchmarks/spec-bench/harness/setup-node.sh	bwrap_net	105-108	G	other (node setup check: push access to origin + git identity for record commits)	git ls-remote origin and git config user.* on the checkout because records are committed and pushed per story; also clones private pack (not run data)	new hits, 4 Nov
+ops/migration/import_git_only.py	apply	164-166	G	other (one-time git-to-lake migration copy)	re-reads tracked run blobs at HEAD via tracked_blobs/read_blobs (indirect)	new hits, 4 Nov
+ops/migration/import_git_only.py	plan	135-139	G	other (one-time git-to-lake migration plan)	lists tracked run files via tracked_blobs/read_blobs (indirect); hit line 136 itself is path parsing	new hits, 4 Nov
+ops/migration/import_git_only.py	read_blobs	108	G	other (one-time git-to-lake migration)	git cat-file --batch of run-file blobs	new hits, 4 Nov
+ops/migration/import_git_only.py	tracked_blobs	95	G	other (one-time git-to-lake migration)	git ls-tree -r HEAD -- combinations benchmarks/reference	new hits, 4 Nov
+ops/monitor/monitor.py	collect_repo	503	G	monitor-watch	git fetch/log/diff/archive of origin/main and git_json reads of run records	15 Oct members, rechecked 4 Nov
+ops/monitor/monitor.py	git_json	488	G	monitor-watch	git show origin/main:<run path> to read a run record	15 Oct members, rechecked 4 Nov
+ops/monitor/triage.py	<module>	48	G	monitor-watch	ALLOWED_TOOLS lets the triage agent git fetch/show/log/diff origin/main to read records	15 Oct members, rechecked 4 Nov
+tests/bulk-run-files-test.sh	all_forbidden	45	G	other (guard test: no bulk run files tracked in git)	git ls-files of the repo filtered for run files under combinations/benchmarks/reference; also asserts workspace.bundle stays allowed (38-40)	new hits, 4 Nov
+tools/anthropic-token-counter/src/corpus.rs	build	171	G	other: token corpus from tracked run logs	tracked() (git ls-files) then reads tracked run compact logs from the checkout	15 Oct members, rechecked 4 Nov
+tools/anthropic-token-counter/src/corpus.rs	tracked	135	G	other: token corpus from tracked run logs	git ls-files of the repo, which lists tracked run logs	15 Oct members, rechecked 4 Nov
+tools/bench-lake/src/absent.rs	item_text	198	B	other (absence item kind 'bundle' in lake answers)	Item::Bundle rendered as 'bundle': reports a missing workspace.bundle	new hits, 4 Nov
+tools/bench-lake/src/bundle.rs	<module>	14	B	read-run-code-at-story	BUNDLE_FILE = workspace.bundle; module doc line 1 'from its bundle' becomes false	new hits, 4 Nov
+tools/bench-lake/src/bundle.rs	workspace	123-126,145-150	B	read-run-code-at-story	Lake::workspace opens run.dir/workspace.bundle in the lake, clones it and checks out the story commit	new hits, 4 Nov
+tools/bench-lake/src/cli.rs	answer	153-163	B	read-run-code-at-story	'workspace' CLI command dispatches to Lake::workspace (indirect)	new hits, 4 Nov
+tools/bench-lake/src/compare.rs	<module>	11,19	G	other (lake-vs-git equality check)	DEFAULT_REV = origin/main for compare_git	new hits, 4 Nov
+tools/bench-lake/src/compare.rs	compare_git	107-153	G	other (lake-vs-git equality check)	git rev-parse origin/main, ls-tree -r <sha> -- <run id>, cat-file blob of run records	new hits, 4 Nov
+tools/benchmarker/server/domain.ts	findRuns	246	B	list-runs	parses ls-tree paths into runs (RUN_RE) and reports hasBundle from workspace.bundle	15 Oct members, rechecked 4 Nov
+tools/benchmarker/server/main.ts	<module>	74	T	list-runs	--repo defaults to the checkout (34); refreshRepo calls loadRuns(repo); git remote get-url (161) for links	15 Oct members, rechecked 4 Nov
+tools/benchmarker/server/sources.ts	<module>	10	G	list-runs	REF origin/main and RUN_ROOTS (combinations, benchmarks/reference) for every record read	15 Oct members, rechecked 4 Nov
+tools/benchmarker/server/sources.ts	loadRuns	109	G	list-runs	git fetch origin main, ls-tree of RUN_ROOTS at origin/main, reads records via readBlobs	15 Oct members, rechecked 4 Nov
+tools/benchmarker/server/sources.ts	readBlobs	25	G	read-run-record	git cat-file --batch of run files from origin/main	15 Oct members, rechecked 4 Nov
+tools/benchmarker/src/components/LinksCell.tsx	LinksCell	10	T	other: GitHub link to the record	links the run record's tree/summary on GitHub's copy of the branch	15 Oct members, rechecked 4 Nov
+tools/benchmarker/src/components/run/RunHeader.tsx	LeadScore	58	T	other: GitHub link to the record	links rescore/<v>/per-story.md on GitHub's copy of the branch	15 Oct members, rechecked 4 Nov
+tools/dbench/src/collect.rs	<module>	194	B	other: node serves workspace.bundle to the collector	allow-list fixed("workspace.bundle", Record): the node offers and the lake takes the bundle	15 Oct members, rechecked 4 Nov
+tools/dbench/src/collect.rs	list_runs	733	T	list-runs	walks the node checkout's combinations/ and RUN_BASE dirs: lists git-copied runs as well as its own	15 Oct members, rechecked 4 Nov
+tools/dbench/src/collector.rs	archived_runs	523	G	archived-list	archived markers via GitSource origin/main (git ls-tree), or the checkout tree with --worktree	15 Oct members, rechecked 4 Nov
+tools/dbench/src/collector.rs	pass_profiled	637,657-662	G	read-run-record	GitSource::new(repo, origin/main) and git fetch for the ingest of published records; archived_runs from origin/main	new hits, 4 Nov
+tools/dbench/src/collector.rs	resolve	742	T	collector-git-config	requires --repo (the records repo whose origin/main is read) unless --no-ingest	15 Oct members, rechecked 4 Nov
+tools/dbench/src/ingest/inputs.rs	<module>	64	G	read-run-record	GitSource: git ls-tree/cat-file of PUBLISHED_ROOTS/ARCHIVE_ROOTS at origin/main	15 Oct members, rechecked 4 Nov
+tools/dbench/src/ingest/inputs.rs	archived	124	G	archived-list	GitSource::archived: git ls-tree of ARCHIVE_ROOTS at the rev (TreeSource 158 walks the checkout)	15 Oct members, rechecked 4 Nov
+tools/dbench/src/ingest/inputs.rs	candidates_profiled	278-292	G	list-runs	published.paths()/archived() (GitSource origin/main) to list stories with a compact log and skip archived runs (indirect)	new hits, 4 Nov
+tools/dbench/src/ingest/inputs.rs	fetch	83	G	read-run-record	git fetch of the remote main into the records checkout	15 Oct members, rechecked 4 Nov
+tools/dbench/src/ingest/inputs.rs	ids	94	G	list-runs	GitSource::ids: git ls-tree -r of PUBLISHED_ROOTS at the rev	15 Oct members, rechecked 4 Nov
+tools/dbench/src/ingest/inputs.rs	load_texts	513	G	read-run-logs	published.read(compact path): the compact log from git when the lake has no full log (indirect via GitSource)	new hits, 4 Nov
+tools/dbench/src/ingest/inputs.rs	plan_inputs	470-474	T	read-run-logs	chooses the compact log path in the published (git) tree by its git blob id when the lake lacks a full log	new hits, 4 Nov
+tools/dbench/src/ingest/inputs.rs	read	118	G	read-run-record	GitSource::read: git cat-file blob of a published run file	15 Oct members, rechecked 4 Nov
+tools/dbench/src/ingest/mod.rs	cmd_ingest	719	G	read-run-record	builds GitSource(repo, rev) and fetches (or TreeSource of the checkout) for ingest	15 Oct members, rechecked 4 Nov
+tools/dbench/src/job.rs	<module>	17	B	partial-rerun-input	REFERENCE_BUNDLE = workspace.bundle, required of the reference run	15 Oct members, rechecked 4 Nov
+tools/dbench/src/job.rs	harness_args	261	T	partial-rerun-input	--from-run is results_root.join(from_run): the reference run in the node checkout	15 Oct members, rechecked 4 Nov
+tools/dbench/src/job.rs	reference_run_problem	225	B	partial-rerun-input	checks the reference run dir in the checkout for workspace.bundle and metrics.json	15 Oct members, rechecked 4 Nov
+tools/dbench/src/runner.rs	run_one	442	T	partial-rerun-input	checks the reference run under st.cfg.repo (the checkout) and passes it to harness_args (463)	15 Oct members, rechecked 4 Nov
+tools/tensorfold-check/run-checks.sh	<script>	46	T	other: tensorfold check fixture log	DEFAULT_STORY_DIR reads another run's story log under combinations/ of the checkout	15 Oct members, rechecked 4 Nov
+tools/vidi-gallery/src/main.rs	final_build_source	434-439	B	read-run-code-at-story	gallery's final build source: workspace/ folder else run.path/workspace.bundle at the last story commit; doc 'stored once, as the bundle' becomes false	new hits, 4 Nov
+tools/vidi-gallery/src/main.rs	main	802	T	gallery-discovery	repo defaults to this checkout (CARGO_MANIFEST_DIR/../..) as where runs are discovered	15 Oct members, rechecked 4 Nov
+tools/vidi-gallery/src/main.rs	story_checkout	314	B	read-run-code-at-story	git clone of run.path/workspace.bundle and checkout of the story commit	15 Oct members, rechecked 4 Nov
+tools/vidi-gallery/src/runs.rs	discover	105	T	gallery-discovery	walks combinations/ and benchmarks/reference/vidi of the checkout to find runs	15 Oct members, rechecked 4 Nov
+tools/vidi-gallery/src/runs.rs	load_with	392	B	gallery-discovery	has_history = run/workspace.bundle exists	15 Oct members, rechecked 4 Nov
+tools/vidi-gallery/src/runs.rs	run_dirs	152	B	gallery-discovery	a run dir counts only with metrics.json and workspace.bundle (or the old mirror)	15 Oct members, rechecked 4 Nov
+tools/vidi-gallery/src/runs.rs	run_or_private	358	T	read-run-record	reads <private>/runs/<run path>: the held-out copy git carried to the private checkout	15 Oct members, rechecked 4 Nov
+tools/vidi-gallery/src/sync.rs	sync_repo	10	G	gallery-discovery	git pull --ff-only of the records checkout	15 Oct members, rechecked 4 Nov

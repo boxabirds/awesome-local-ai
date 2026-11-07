@@ -17,6 +17,14 @@ warehouse), git on the code repository, the agent's own workspace, the private h
 notes, and matches that are only text. The audit (`audit/`, 15 passes, final at 15) finds the members; `touched_set.toml`
 equals its protected hits (112 on 15 October).
 
+**Story 23's site list (`story-23-sites.tsv`):** the members of the 4 November 2026 impact assessment for story 23
+(nodes stop sending run data through GitHub), one row per function: its file, lines, kind (G: runs git on run data;
+T: chooses a location that exists only because git tracks it; B: writes or reads `workspace.bundle` as the carrier of a
+run's code), the operation it performs, the reason it is a member, and whether it was found among the 15 October members
+or as a new hit. 91 rows (19 T, 46 G, 26 B). Story 23's task 23.27 said 94; the assessment's own tables hold 91, and
+this file is made from them. It is the list as it stood before story 23's tasks cut or rebuilt each site; the guard
+test `benchmarks/spec-bench/harness/test_no_publish.py` checks the harness's git writes since.
+
 Exit codes: **0** the rule holds, **1** it is broken (the problems are listed, each with a code), **2** the tool could
 not decide (a runner or a coverage tool is missing, a result file is absent, a node cannot be reached). An unknown is
 never treated as a pass. Reports go to `ops/refactor/reports/` (git-ignored). The tool writes nothing outside it
