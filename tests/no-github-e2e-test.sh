@@ -93,12 +93,16 @@ BM_PORT="$(uv run --quiet python -c 'import socket; s = socket.socket(); s.bind(
 (cd "$REPO/tools/benchmarker" && bun server/main.ts --repo "$HOST" --lake "$STATE" --bench-lake "$BENCH_LAKE" \
   --port "$BM_PORT" --conversations-url http://127.0.0.1:1 > "$TMP/bm.out" 2> "$TMP/bm.err") &
 PIDS+=($!)
-for _ in $(seq 100); do curl -sf "http://127.0.0.1:$BM_PORT/api/state" 2>/dev/null | grep -q '"runId":"w1"' && break; sleep 0.2; done
+# The server's first read of the lake can take a while on a busy machine (the release runs this after its builds).
+for _ in $(seq 300); do curl -sf "http://127.0.0.1:$BM_PORT/api/state" 2>/dev/null | grep -q '"runId":"w1"' && break; sleep 0.2; done
+assert_ok "the benchmarker has read the run from the lake" sh -c "curl -sf http://127.0.0.1:$BM_PORT/api/state | grep -q '\"runId\":\"w1\"'"
 BROWSERS="${PLAYWRIGHT_BROWSERS_PATH:-}"
 [[ -z "$BROWSERS" && -d "$HOME/.cache/hardened-harness/ms-playwright" ]] && BROWSERS="$HOME/.cache/hardened-harness/ms-playwright"
 (cd "$REPO/tools/benchmarker" && PLAYWRIGHT_BROWSERS_PATH="$BROWSERS" W1_BASE="http://127.0.0.1:$BM_PORT" W1_PACK=vidi W1_STACK="$COMB" \
   W1_RUN=w1 W1_SCORE="$SCORE" npx playwright test --config no-github.playwright.config.ts > "$TMP/playwright.log" 2>&1)
-assert_eq "the run is listed and its page shows the score of record (Playwright)" "0" "$?"
+PW_RC=$?
+assert_eq "the run is listed and its page shows the score of record (Playwright)" "0" "$PW_RC"
+(( PW_RC == 0 )) || { echo "  --- Playwright's output:"; tail -40 "$TMP/playwright.log" | sed 's/^/  | /'; }
 
 echo "the gallery opens story 2 from the lake"
 mkdir -p "$TMP/galleryhome"
