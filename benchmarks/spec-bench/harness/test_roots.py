@@ -296,7 +296,7 @@ def test_run_sh_from_a_release_writes_and_records_in_the_results_checkout(tmp_pa
     (pack / "acceptance" / "node_modules").mkdir(parents=True)
     (pack / "acceptance" / "package-lock.json").write_text("{}")
     env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack), roots.ENV: str(repo),
-           "PATH": f"{run_sh_stubs(tmp_path)}:{os.environ['PATH']}", "SKIP_SELF_TEST": "1",
+           "PATH": f"{run_sh_stubs(tmp_path)}:{os.environ['PATH']}",
            "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv"))}
     r = subprocess.run([str(release / "benchmarks/spec-bench/harness/run.sh"), "fake-install", "--run-id", "r1",
                         "--client", "claude", "--record"], env=env, capture_output=True, text=True, cwd=repo)
@@ -340,7 +340,7 @@ def test_run_sh_in_a_checkout_records_no_release(tmp_path):
     (pack / "acceptance" / "node_modules").mkdir(parents=True)
     (pack / "acceptance" / "package-lock.json").write_text("{}")
     env = {**{k: v for k, v in os.environ.items() if k != roots.ENV}, **IDENTITY, **fake_sandbox_env(), "HOME": str(home),
-           "VIDI_PACK_DIR": str(pack), "PATH": f"{run_sh_stubs(tmp_path)}:{os.environ['PATH']}", "SKIP_SELF_TEST": "1",
+           "VIDI_PACK_DIR": str(pack), "PATH": f"{run_sh_stubs(tmp_path)}:{os.environ['PATH']}",
            "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv"))}
     r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-install", "--run-id", "r1",
                         "--client", "claude", "--record"], env=env, capture_output=True, text=True)

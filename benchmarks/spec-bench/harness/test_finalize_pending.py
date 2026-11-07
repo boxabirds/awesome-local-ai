@@ -478,9 +478,10 @@ SWEEP = r"finalize_pending\.py"
 
 
 def test_run_sh_sweeps_at_the_start_while_the_machine_is_free():
-    """After the self-test (a broken harness must not sweep) and before the model server starts."""
+    """After the preflight (a machine that can't run the toolchain must not sweep) and before the model server
+    starts."""
     first = _line(SWEEP)
-    assert _line(r"pytest[^\n]*test_pipeline\.py") < first < _line(r'echo "starting \$SERVER_CMD')
+    assert _line(r"uv run --quiet preflight\.py") < first < _line(r'echo "starting \$SERVER_CMD')
     assert first < _line(r"uv run --quiet drive\.py")
 
 

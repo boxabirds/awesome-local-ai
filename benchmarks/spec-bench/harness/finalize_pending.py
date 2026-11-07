@@ -5,7 +5,7 @@
                       [--invalid-from FILE]
 
 The sweep: every run on this machine that ended without its score of record gets another try, with nobody asking.
-run.sh calls it at the start of every run (after the self-test, before the model server: the machine is free
+run.sh calls it at the start of every run (after the preflight, before the model server: the machine is free
 then) and again at the end, after its own finalize. An operator can run it by hand; --list only shows what it
 would do and what is waiting for a person.
 

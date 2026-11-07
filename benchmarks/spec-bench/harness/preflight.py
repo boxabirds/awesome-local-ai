@@ -8,7 +8,11 @@ mid-story, costing an hour each. This builds a tiny Vite + Wrangler + Playwright
 exact sandbox and environment the agent gets, and checks: npm install, vite build, `wrangler dev`
 serving it over HTTP, and Chromium loading the page. It also checks the sandbox still hides the repo.
 
-    uv run preflight.py            # exit 0 = ready, 1 = a named step failed
+It checks the machine, not the harness (the harness's tests run at build, in `dbench harness-release`). So a node
+checks once per release and client: run.sh passes --once, and a pass is remembered under PASSED_DIR by release tag
+and client and not repeated. A checkout (no release) checks every time; setup-node.sh, without --once, always does.
+
+    uv run preflight.py [--client pi] [--once]   # exit 0 = ready, 1 = a named step failed
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ from pathlib import Path
 
 import drive
 import packdir
+import roots
 import sandbox
 from drive import PACK, REPO_ROOT, WORK_ROOT, agent_env, launch_agent
 
@@ -32,6 +37,8 @@ SECRET_WORDS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 # A file put in the real home for the length of the check: the home is closed if this cannot be read. That the
 # directory can be listed says nothing: on Linux it is there, empty, on the way to the read-only browsers.
 HOME_CANARY = ".spec-bench-preflight-canary"
+# One empty file per release and client that passed on this machine: "<tag>-<client>" (test_no_tests_on_nodes.py).
+PASSED_DIR = WORK_ROOT / ".preflight-passed"
 
 PLAYWRIGHT_LOCK_ENTRY = "node_modules/@playwright/test"
 PLAYWRIGHT_ANY = "^1.55.0"
@@ -217,11 +224,8 @@ def claude_probe(env: dict) -> None:
     print(f"  ok  claude code: {why}")
 
 
-def main() -> None:
-    import argparse
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--client", default="pi")
-    a = ap.parse_args()
+def check(client: str) -> None:
+    """The machine check itself; raises SystemExit naming the step that failed."""
     from clients import CLIENTS
     shutil.rmtree(PROBE, ignore_errors=True)
     ws = PROBE / "workspace"
@@ -231,15 +235,32 @@ def main() -> None:
     (ws / "package.json").write_text(json.dumps(package, indent=2))
     for name, body in FILES.items():
         (ws / name).write_text(body)
-    drive.WORLD = sandbox.world_for(PROBE.name, None, CLIENTS[a.client].presets, None)
+    drive.WORLD = sandbox.world_for(PROBE.name, None, CLIENTS[client].presets, None)
     env = agent_env(PROBE)
     try:
         workload(env)
         isolation(env)
-        if a.client == "claude":
+        if client == "claude":
             claude_probe(env)
     finally:
         shutil.rmtree(PROBE, ignore_errors=True)
+
+
+def main() -> None:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--client", default="pi")
+    ap.add_argument("--once", action="store_true", help="skip if this release already passed here for this client")
+    a = ap.parse_args()
+    tag = roots.release_tag() if a.once else None
+    passed = PASSED_DIR / f"{tag}-{a.client}" if tag else None
+    if passed is not None and passed.is_file():
+        print(f"preflight: already passed on this machine for {tag} ({a.client}); not repeated")
+        return
+    check(a.client)
+    if passed is not None:
+        PASSED_DIR.mkdir(parents=True, exist_ok=True)
+        passed.touch()
     print("preflight passed")
 
 

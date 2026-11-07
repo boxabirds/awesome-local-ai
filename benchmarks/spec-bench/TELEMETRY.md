@@ -349,7 +349,7 @@ detached, dirty) changes nothing, and the version recorded is the tag that was s
 during a run still comes from the checkout's working tree, under the version `pack-version.sh` gives it.
 
 A run that ends without its score is retried with nobody asking: `finalize_pending.py` (the sweep) runs at the start
-of every run on the machine, after the self-test and before the model server, and again at the end. It takes the
+of every run on the machine, after the preflight and before the model server, and again at the end. It takes the
 runs under the results root that ran on this machine, ended (`run-status.json`: `finished`, `failed` or `stopped`,
 with at least one story's code recorded), are not marked `invalid` in `run.json`, and either have no score of record
 and don't need a person, or have stale records with their full logs still here; the most recent first, at most

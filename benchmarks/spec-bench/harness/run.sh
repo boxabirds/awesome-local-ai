@@ -178,27 +178,14 @@ else
   echo "pack $SPEC_BENCH_PACK_NAME has no held-out suite: acceptance will be reported n/a"
 fi
 
-echo "sandbox preflight (agent toolchain inside the sandbox)"
-(cd "$HARNESS" && uv run --quiet preflight.py --client "$CLIENT_NAME") || { echo "preflight failed; not starting the run" >&2; exit 1; }
-
-# harness self-test: the whole story loop, end to end, on known answers (test_pipeline.py), before any model
-# server starts. A harness change that crashes at the end of a story costs hours per story otherwise (30 Sep
-# 2026). A skipped self-test (no node or npm) is a failure: it proved nothing. SKIP_SELF_TEST=1 waives it for
-# one run, in an emergency only.
-if [[ "${SKIP_SELF_TEST:-0}" != 1 ]]; then
-  echo "harness self-test (the story loop, end to end, on known answers)"
-  SELF_TEST_OUT=$(cd "$HARNESS" && uv run --quiet --with pytest pytest -q -x -rs -p no:cacheprovider test_pipeline.py 2>&1)
-  SELF_TEST_RC=$?
-  if [[ $SELF_TEST_RC -ne 0 ]] || grep -q "skipped" <<<"$SELF_TEST_OUT"; then
-    echo "$SELF_TEST_OUT" | tail -20 >&2
-    echo "harness self-test failed or skipped; not starting the run" >&2; exit 1
-  fi
-else
-  echo "harness self-test WAIVED (SKIP_SELF_TEST=1)"
-fi
+# The sandbox preflight checks this machine (the agent's toolchain inside the sandbox), not the harness: the harness's
+# tests ran at build, before the release could reach a node. So it runs once per release and client on a node, at its
+# first job on that release (preflight.py --once). No test suite runs here (the owner, 7 Nov 2026).
+echo "sandbox preflight (agent toolchain inside the sandbox; once per release and client)"
+(cd "$HARNESS" && uv run --quiet preflight.py --client "$CLIENT_NAME" --once) || { echo "preflight failed; not starting the run" >&2; exit 1; }
 
 # Earlier runs on this machine that ended without their score of record get it now, while the machine is free:
-# the self-test has passed and no model server is up (finalize_pending.py: bounded by its own time budget, most
+# the preflight has passed and no model server is up (finalize_pending.py: bounded by its own time budget, most
 # recent first, and it refuses while another run is active). First remember this start's PATH (and Playwright's
 # platform override), so a re-score started later from a barer shell finds the same uv, node and npm
 # (scoring_tools.py). Neither can fail or stop this run; the sweep's messages are not this run's errors.

@@ -611,8 +611,8 @@ def test_a_run_left_unscored_for_a_passing_reason_is_scored_when_the_next_run_st
 
 def test_a_claude_code_run_records_the_same_known_answer(tmp_path, monkeypatch):
     """The reference stacks run Claude Code, whose log the harness reads its own way (steps, tokens, time, the
-    profile, the end-of-story checks). Its crashes were found mid-run until 1 Oct 2026; now every run's self-test
-    drives a Claude Code log too, with the events that broke the harness."""
+    profile, the end-of-story checks). Its crashes were found mid-run until 1 Oct 2026; now the release's checks
+    drive a Claude Code log too, with the events that broke the harness."""
     root = tmp_path / "kat-claude"
     with monkeypatch.context() as mp:
         drive_run(root, mp, client=ScriptedClaudeClient, script_text=AGENT_SCRIPT_CLAUDE)

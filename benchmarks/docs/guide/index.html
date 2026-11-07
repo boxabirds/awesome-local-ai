@@ -1518,7 +1518,7 @@
 <dt>Why it exists</dt><dd>One harness drives any pack on any installed combination, so every combination is measured the same way, from the client side.</dd>
 <dt>Takes in</dt><dd>An install id, a pack, a scope, a run id, a client; the pack's spec and (private) suite; <code>install.env</code>.</dd>
 <dt>Puts out</dt><dd>A run directory with <code>run.json</code>, <code>metrics.json</code>, per-story logs and summaries, committed and pushed per story.</dd>
-<dt>How it fails</dt><dd>Exit 75 means a guard stopped a story and the machine is unfit, so <a class="term" href="#g-dbench" data-term="dbench">dbench</a> waits; exit 3 means the machine could not run a story's tests (a missing browser, say) and dbench stops; any other non-zero is a crash and dbench restarts it, which includes the <a class="term" href="#g-preflight" data-term="preflight">preflight</a> or the self-test refusing to start a run with a broken toolchain.</dd>
+<dt>How it fails</dt><dd>Exit 75 means a guard stopped a story and the machine is unfit, so <a class="term" href="#g-dbench" data-term="dbench">dbench</a> waits; exit 3 means the machine could not run a story's tests (a missing browser, say) and dbench stops; any other non-zero is a crash and dbench restarts it, which includes the <a class="term" href="#g-preflight" data-term="preflight">preflight</a> refusing to start a run on a machine whose toolchain is broken.</dd>
 <dt>Where</dt><dd><ul><li><a class="repo" href="../../../benchmarks/spec-bench/README.md">spec-bench README</a></li><li><a class="repo" href="../../../benchmarks/spec-bench/harness/run.sh">run.sh</a></li><li><a class="repo" href="../../../benchmarks/spec-bench/harness/drive.py">drive.py</a></li><li><a class="repo" href="../../../benchmarks/spec-bench/harness/CONTROL.md">CONTROL.md: the contract with dbench</a></li></ul></dd>
 <dt>Entities</dt><dd><a class="ent chip" href="#e-harness" data-entity="harness">Harness</a> <a class="ent chip" href="#e-run" data-entity="run">Run</a> <a class="ent chip" href="#e-story-run" data-entity="story-run">Story run</a> <a class="ent chip" href="#e-session" data-entity="session">Session</a></dd>
 </dl>
@@ -2051,30 +2051,28 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <section class="flow" id="flow-run" data-flow="run" aria-labelledby="flow-run-h" data-search data-title="A run, from run.sh to the last story">
 <h3 id="flow-run-h" data-toc="A run, end to end"><span class="flow-letter">B</span> A run, from <code>run.sh</code> to the last story</h3>
 <p><code>run.sh</code> is the harness's front door. Before the agent writes a line it proves that the machine, the toolchain, the <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a> and the harness itself work, because every earlier failure that was found mid-story cost an hour or more.</p>
-<div class="flow-status"><div class="fs fs-built"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span><ul><li>Machine fit, the suite's tools, the self-test, starting the engine, <code>run.json</code>, the story loop, report and finalize. <code>run.sh</code> asks <a class="term" href="#g-agent-sandbox" data-term="agent-sandbox">agent-sandbox</a> for its identity first (building it with cargo from the release's source if this machine has not seen that source), the <a class="term" href="#g-preflight" data-term="preflight">preflight</a> runs its workload in the same <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a> as a session, and <code>run.json</code> records the sandbox (mode, version, platform, policy hash); <a class="term" href="#g-sweep" data-term="sweep">the sweep</a> of earlier unscored runs (step 6, and again at the end). All live since harness-v2026.10.01.2; release 1 (harness-v2026.10.01.1) tested and ran the old deny-list sandbox and had no sweep.</li></ul></div></div>
-<div class="stepper" data-stepper data-steps="9">
-<figure class="diagram"><svg class="dg" viewBox="0 0 520 745" role="img" aria-labelledby="dg-run-t dg-run-d" xmlns="http://www.w3.org/2000/svg">
-<title id="dg-run-t">A run, from run.sh to the last story: diagram</title><desc id="dg-run-d">A vertical chain of steps: the install manifest, a machine fit check, the held-out suite's tools, the sandbox preflight, the harness self-test, a sweep that scores earlier unscored runs, starting the engine, then the story loop in drive.py. The story loop writes records that are committed and pushed per story. After the loop, report and finalize run.</desc>
+<div class="flow-status"><div class="fs fs-built"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span><ul><li>Machine fit, the suite's tools, the <a class="term" href="#g-preflight" data-term="preflight">preflight</a>, starting the engine, <code>run.json</code>, the story loop, report and finalize. <code>run.sh</code> asks <a class="term" href="#g-agent-sandbox" data-term="agent-sandbox">agent-sandbox</a> for its identity first (building it with cargo from the release's source if this machine has not seen that source), the preflight runs its workload in the same <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a> as a session, and <code>run.json</code> records the sandbox (mode, version, platform, policy hash); <a class="term" href="#g-sweep" data-term="sweep">the sweep</a> of earlier unscored runs (step 6, and again at the end). All live since harness-v2026.10.01.2; release 1 (harness-v2026.10.01.1) tested and ran the old deny-list sandbox and had no sweep.</li></ul></div></div>
+<div class="stepper" data-stepper data-steps="8">
+<figure class="diagram"><svg class="dg" viewBox="0 0 520 665" role="img" aria-labelledby="dg-run-t dg-run-d" xmlns="http://www.w3.org/2000/svg">
+<title id="dg-run-t">A run, from run.sh to the last story: diagram</title><desc id="dg-run-d">A vertical chain of steps: the install manifest, a machine fit check, the held-out suite's tools, the sandbox preflight (once per release and client on a machine), a sweep that scores earlier unscored runs, starting the engine, then the story loop in drive.py. The story loop writes each story's records into the run's folder, where the collector takes them. After the loop, report and finalize run.</desc>
 <defs><marker id="arr-run" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="arrow-head"/></marker></defs>
 <g class="dg-edge" data-edge="env>fit"><path d="M260.0,60.0 L260.0,82.0" marker-end="url(#arr-run)"/></g>
 <g class="dg-edge" data-edge="fit>tools"><path d="M260.0,134.0 L260.0,158.0" marker-end="url(#arr-run)"/></g>
 <g class="dg-edge" data-edge="tools>pre"><path d="M260.0,210.0 L260.0,235.5" marker-end="url(#arr-run)"/></g>
-<g class="dg-edge" data-edge="pre>self"><path d="M260.0,304.5 L260.0,332.0" marker-end="url(#arr-run)"/></g>
-<g class="dg-edge" data-edge="self>sweep"><path d="M260.0,384.0 L260.0,412.0" marker-end="url(#arr-run)"/></g>
-<g class="dg-edge" data-edge="sweep>eng"><path d="M260.0,464.0 L260.0,489.5" marker-end="url(#arr-run)"/></g>
-<g class="dg-edge" data-edge="eng>drive"><path d="M219.6,558.5 L180.4,592.0" marker-end="url(#arr-run)"/></g>
-<g class="dg-edge" data-edge="drive>rec"><path d="M245.0,618.0 L345.0,618.0" marker-end="url(#arr-run)"/><text class="dg-elabel" x="295.0" y="612.0" text-anchor="middle">each story</text></g>
-<g class="dg-edge" data-edge="drive>fin"><path d="M182.5,644.0 L227.5,680.0" marker-end="url(#arr-run)"/></g>
+<g class="dg-edge" data-edge="pre>sweep"><path d="M260.0,304.5 L260.0,332.0" marker-end="url(#arr-run)"/></g>
+<g class="dg-edge" data-edge="sweep>eng"><path d="M260.0,384.0 L260.0,409.5" marker-end="url(#arr-run)"/></g>
+<g class="dg-edge" data-edge="eng>drive"><path d="M219.6,478.5 L180.4,512.0" marker-end="url(#arr-run)"/></g>
+<g class="dg-edge" data-edge="drive>rec"><path d="M245.0,538.0 L345.0,538.0" marker-end="url(#arr-run)"/><text class="dg-elabel" x="295.0" y="532.0" text-anchor="middle">each story</text></g>
+<g class="dg-edge" data-edge="drive>fin"><path d="M182.5,564.0 L227.5,600.0" marker-end="url(#arr-run)"/></g>
 <g class="dg-node k-store" data-node="env"><rect x="150.0" y="8.0" width="220" height="52" rx="6"/><line x1="150" y1="15" x2="370" y2="15"/><text x="260" y="30.5" text-anchor="middle">install.env +</text><text x="260" y="47.5" text-anchor="middle">combination config</text></g>
 <g class="dg-node k-gate" data-node="fit"><rect x="145.0" y="82.0" width="230" height="52" rx="6"/><text x="260" y="104.5" text-anchor="middle">Machine fit?</text><text x="260" y="121.5" text-anchor="middle">(exit 75 until recovered)</text></g>
 <g class="dg-node k-proc" data-node="tools"><rect x="125.0" y="158.0" width="270" height="52" rx="6"/><text x="260" y="180.5" text-anchor="middle">Held-out suite tools</text><text x="260" y="197.5" text-anchor="middle">npm ci, Chromium, browser check</text></g>
-<g class="dg-node k-gate" data-node="pre"><rect x="135.0" y="235.5" width="250" height="69" rx="6"/><text x="260" y="258.0" text-anchor="middle">Sandbox preflight</text><text x="260" y="275.0" text-anchor="middle">Vite + Wrangler + Playwright</text><text x="260" y="292.0" text-anchor="middle">inside the agent's sandbox</text></g>
-<g class="dg-node k-gate" data-node="self"><rect x="130.0" y="332.0" width="260" height="52" rx="6"/><text x="260" y="354.5" text-anchor="middle">Self-test</text><text x="260" y="371.5" text-anchor="middle">the story loop on known answers</text></g>
-<g class="dg-node k-proc" data-node="sweep"><rect x="135.0" y="412.0" width="250" height="52" rx="6"/><text x="260" y="434.5" text-anchor="middle">Sweep: score earlier runs</text><text x="260" y="451.5" text-anchor="middle">that have no score of record</text></g>
-<g class="dg-node k-proc" data-node="eng"><rect x="135.0" y="489.5" width="250" height="69" rx="6"/><text x="260" y="512.0" text-anchor="middle">Start the engine</text><text x="260" y="529.0" text-anchor="middle">port 18010, wait up to 900 s</text><text x="260" y="546.0" text-anchor="middle">write run.json</text></g>
-<g class="dg-node k-out" data-node="drive"><rect x="55.0" y="592.0" width="190" height="52" rx="6"/><text x="150" y="614.5" text-anchor="middle">drive.py</text><text x="150" y="631.5" text-anchor="middle">the story loop</text></g>
-<g class="dg-node k-store" data-node="rec"><rect x="345.0" y="583.5" width="140" height="69" rx="6"/><line x1="345" y1="590.5" x2="485" y2="590.5"/><text x="415" y="606.0" text-anchor="middle">Record</text><text x="415" y="623.0" text-anchor="middle">commit and push</text><text x="415" y="640.0" text-anchor="middle">per story</text></g>
-<g class="dg-node k-proc" data-node="fin"><rect x="125.0" y="680.0" width="270" height="52" rx="6"/><text x="260" y="702.5" text-anchor="middle">report.py, finalize.py</text><text x="260" y="719.5" text-anchor="middle">summary, bundle, re-score</text></g>
+<g class="dg-node k-gate" data-node="pre"><rect x="135.0" y="235.5" width="250" height="69" rx="6"/><text x="260" y="258.0" text-anchor="middle">Sandbox preflight, once</text><text x="260" y="275.0" text-anchor="middle">per release and client</text><text x="260" y="292.0" text-anchor="middle">Vite + Wrangler + Playwright</text></g>
+<g class="dg-node k-proc" data-node="sweep"><rect x="135.0" y="332.0" width="250" height="52" rx="6"/><text x="260" y="354.5" text-anchor="middle">Sweep: score earlier runs</text><text x="260" y="371.5" text-anchor="middle">that have no score of record</text></g>
+<g class="dg-node k-proc" data-node="eng"><rect x="135.0" y="409.5" width="250" height="69" rx="6"/><text x="260" y="432.0" text-anchor="middle">Start the engine</text><text x="260" y="449.0" text-anchor="middle">port 18010, wait up to 900 s</text><text x="260" y="466.0" text-anchor="middle">write run.json</text></g>
+<g class="dg-node k-out" data-node="drive"><rect x="55.0" y="512.0" width="190" height="52" rx="6"/><text x="150" y="534.5" text-anchor="middle">drive.py</text><text x="150" y="551.5" text-anchor="middle">the story loop</text></g>
+<g class="dg-node k-store" data-node="rec"><rect x="345.0" y="503.5" width="140" height="69" rx="6"/><line x1="345" y1="510.5" x2="485" y2="510.5"/><text x="415" y="526.0" text-anchor="middle">Record</text><text x="415" y="543.0" text-anchor="middle">in the run's folder</text><text x="415" y="560.0" text-anchor="middle">per story</text></g>
+<g class="dg-node k-proc" data-node="fin"><rect x="125.0" y="600.0" width="270" height="52" rx="6"/><text x="260" y="622.5" text-anchor="middle">report.py, finalize.py</text><text x="260" y="639.5" text-anchor="middle">summary, bundle, re-score</text></g>
 </svg><figcaption>The gates before a run starts, then the story loop, then the end of the run.</figcaption></figure>
 <div class="step-pane"><ol class="steps">
 <li class="step" id="flow-run-s1" data-step="1" data-nodes="env" data-edges="" data-search data-title="A run, end to end: Resolve the combination and the run">
@@ -2108,8 +2106,9 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 </li>
 <li class="step" id="flow-run-s4" data-step="4" data-nodes="tools pre" data-edges="tools>pre" data-search data-title="A run, end to end: Sandbox preflight">
 <h4><span class="s-n">Step 4</span> Sandbox preflight</h4>
-<p class="s-parts"><span class="lbl">In the picture:</span> <a class="term" href="#g-heldout" data-term="heldout">Held-out suite</a> tools npm ci, Chromium, browser check &middot; <a class="term" href="#g-sandbox" data-term="sandbox">Sandbox</a> <a class="term" href="#g-preflight" data-term="preflight">preflight</a> Vite + <a class="term" href="#g-wrangler" data-term="wrangler">Wrangler</a> + <a class="term" href="#g-playwright" data-term="playwright">Playwright</a> inside the agent's sandbox</p>
+<p class="s-parts"><span class="lbl">In the picture:</span> <a class="term" href="#g-heldout" data-term="heldout">Held-out suite</a> tools npm ci, Chromium, browser check &middot; <a class="term" href="#g-sandbox" data-term="sandbox">Sandbox</a> <a class="term" href="#g-preflight" data-term="preflight">preflight</a>, once per release and client Vite + <a class="term" href="#g-wrangler" data-term="wrangler">Wrangler</a> + <a class="term" href="#g-playwright" data-term="playwright">Playwright</a></p>
 <p><code>preflight.py</code> builds a tiny Vite, <a class="term" href="#g-wrangler" data-term="wrangler">Wrangler</a> and <a class="term" href="#g-playwright" data-term="playwright">Playwright</a> project inside the exact <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a> and environment the agent will get, and checks <code>npm install</code>, <code>vite build</code>, <code>wrangler dev</code> serving over HTTP and Chromium loading the page. It installs no browser: job start launches the suite's browser and the agents' shared one, and installs only one that does not launch (<code>ensure-browser.sh</code>), so a machine that has them installs nothing. It also checks that the sandbox keeps the repository, the <a class="term" href="#g-heldout" data-term="heldout">held-out suite</a>, the home directory and the owner's environment closed.</p>
+<p>It checks the machine, not the harness, so it runs once per release and client: the first job on a new release checks, and later jobs on that release skip it while the pass stands (<code>--once</code>; <code>setup-node.sh</code> always checks). No test suite runs on a node: the harness's tests run at build, in <code>dbench harness-release</code>, before a node can take the release.</p>
 <p>On main, before this, <code>run.sh</code> asks <a class="term" href="#g-agent-sandbox" data-term="agent-sandbox">agent-sandbox</a> for its identity (<code>sandbox.py identity</code>). The Rust tool is built once per change of its source on that machine, so a node that cannot build it stops with the reason instead of failing mid-story. A run with <code>SPEC_BENCH_SANDBOX=permissive</code> (for the harness's own tests) refuses to record.</p>
 
 <p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/harness/preflight.py">harness/preflight.py</a></li></ul>
@@ -2126,27 +2125,17 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 </div>
 </details>
 </li>
-<li class="step" id="flow-run-s5" data-step="5" data-nodes="pre self" data-edges="pre>self" data-search data-title="A run, end to end: The harness tests itself">
-<h4><span class="s-n">Step 5</span> The harness tests itself</h4>
-<p class="s-parts"><span class="lbl">In the picture:</span> <a class="term" href="#g-sandbox" data-term="sandbox">Sandbox</a> <a class="term" href="#g-preflight" data-term="preflight">preflight</a> Vite + <a class="term" href="#g-wrangler" data-term="wrangler">Wrangler</a> + <a class="term" href="#g-playwright" data-term="playwright">Playwright</a> inside the agent's sandbox &middot; Self-test the story loop on known answers</p>
-<p><code>test_pipeline.py</code> runs the whole story loop end to end on known answers, before any model server starts. A skipped self-test counts as a failure (it needs node, npm and npx). <code>SKIP_SELF_TEST=1</code> waives it for one run, in an emergency only.</p>
-<p>Why: a change to time accounting rebound a variable and crashed every story after scoring and before its record was saved; the run used up all its restarts on story 4. No test exercised that path before the run started.</p>
-
-<p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/harness/test_pipeline.py">harness/test_pipeline.py</a></li></ul>
-<p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
-
-</li>
-<li class="step" id="flow-run-s6" data-step="6" data-nodes="self sweep" data-edges="self>sweep" data-search data-title="A run, end to end: Sweep earlier runs that have no score">
-<h4><span class="s-n">Step 6</span> Sweep earlier runs that have no score</h4>
-<p class="s-parts"><span class="lbl">In the picture:</span> Self-test the story loop on known answers &middot; Sweep: score earlier runs that have no <a class="term" href="#g-score-record" data-term="score-record">score of record</a></p>
-<p>While the machine is free (the self-test has passed and no model server is up), <code>finalize_pending.py</code> <a class="term" href="#g-rescore" data-term="rescore">re-scores</a> earlier runs on this machine that ended without a <a class="term" href="#g-score-record" data-term="score-record">score of record</a>, most recent first, at most 3 runs and 900 s per sweep, and never while another run is active. It cannot fail or stop this run.</p>
+<li class="step" id="flow-run-s5" data-step="5" data-nodes="pre sweep" data-edges="pre>sweep" data-search data-title="A run, end to end: Sweep earlier runs that have no score">
+<h4><span class="s-n">Step 5</span> Sweep earlier runs that have no score</h4>
+<p class="s-parts"><span class="lbl">In the picture:</span> <a class="term" href="#g-sandbox" data-term="sandbox">Sandbox</a> <a class="term" href="#g-preflight" data-term="preflight">preflight</a>, once per release and client Vite + <a class="term" href="#g-wrangler" data-term="wrangler">Wrangler</a> + <a class="term" href="#g-playwright" data-term="playwright">Playwright</a> &middot; Sweep: score earlier runs that have no <a class="term" href="#g-score-record" data-term="score-record">score of record</a></p>
+<p>While the machine is free (the <a class="term" href="#g-preflight" data-term="preflight">preflight</a> has passed and no model server is up), <code>finalize_pending.py</code> <a class="term" href="#g-rescore" data-term="rescore">re-scores</a> earlier runs on this machine that ended without a <a class="term" href="#g-score-record" data-term="score-record">score of record</a>, most recent first, at most 3 runs and 900 s per sweep, and never while another run is active. It cannot fail or stop this run.</p>
 
 <p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/harness/finalize_pending.py">harness/finalize_pending.py</a></li></ul>
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> Live since harness-v2026.10.01.2.</p>
 
 </li>
-<li class="step" id="flow-run-s7" data-step="7" data-nodes="sweep eng" data-edges="sweep>eng" data-search data-title="A run, end to end: Cool down, start the engine, write run.json">
-<h4><span class="s-n">Step 7</span> Cool down, start the engine, write run.json</h4>
+<li class="step" id="flow-run-s6" data-step="6" data-nodes="sweep eng" data-edges="sweep>eng" data-search data-title="A run, end to end: Cool down, start the engine, write run.json">
+<h4><span class="s-n">Step 6</span> Cool down, start the engine, write run.json</h4>
 <p class="s-parts"><span class="lbl">In the picture:</span> Sweep: score earlier runs that have no <a class="term" href="#g-score-record" data-term="score-record">score of record</a> &middot; Start the engine port 18010, wait up to 900 s write run.json</p>
 <p>On a Mac the harness waits for the thermal state to be nominal (up to 1,800 s). It starts the combination's <code>&lt;install-id&gt;-server</code> in its own session on port 18010, appending to <code>server.log</code> after a start marker with the wall-clock time, and polls <code>/v1/models</code> for up to 900 s. A cloud model has no local server.</p>
 <p>Then <code>run.json</code> records what this start actually runs: engine build, server command line, model files, the settings the engine really applied, the harness commit and release, the pack version and, on main, the <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a> the agent will run in. A restart keeps the earlier <code>run.json</code> in <code>run-history.jsonl</code>.</p>
@@ -2155,17 +2144,17 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 
 </li>
-<li class="step" id="flow-run-s8" data-step="8" data-nodes="eng drive rec" data-edges="eng>drive drive>rec" data-search data-title="A run, end to end: Drive the stories">
-<h4><span class="s-n">Step 8</span> Drive the stories</h4>
-<p class="s-parts"><span class="lbl">In the picture:</span> Start the engine port 18010, wait up to 900 s write run.json &middot; drive.py the story loop &middot; Record commit and push per story</p>
+<li class="step" id="flow-run-s7" data-step="7" data-nodes="eng drive rec" data-edges="eng>drive drive>rec" data-search data-title="A run, end to end: Drive the stories">
+<h4><span class="s-n">Step 7</span> Drive the stories</h4>
+<p class="s-parts"><span class="lbl">In the picture:</span> Start the engine port 18010, wait up to 900 s write run.json &middot; drive.py the story loop &middot; Record in the run's folder per story</p>
 <p><code>drive.py</code> takes each story of the scope in order: prompt, agent session, <a class="term" href="#g-stop-rule" data-term="stop-rule">stop rule</a>, gate, held-out score, snapshot, accounting, record. With <code>--record</code> it commits and pushes the run directory after every story, so a run that dies mid-way still leaves a record. <a href="#flow-story">Flow C</a> is that loop in detail.</p>
 
 <p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/harness/drive.py">harness/drive.py (main)</a></li></ul>
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 
 </li>
-<li class="step" id="flow-run-s9" data-step="9" data-nodes="drive fin" data-edges="drive>fin" data-search data-title="A run, end to end: Wrap up">
-<h4><span class="s-n">Step 9</span> Wrap up</h4>
+<li class="step" id="flow-run-s8" data-step="8" data-nodes="drive fin" data-edges="drive>fin" data-search data-title="A run, end to end: Wrap up">
+<h4><span class="s-n">Step 8</span> Wrap up</h4>
 <p class="s-parts"><span class="lbl">In the picture:</span> drive.py the story loop &middot; report.py, <a class="term" href="#g-finalize" data-term="finalize">finalize.py</a> summary, bundle, <a class="term" href="#g-rescore" data-term="rescore">re-score</a></p>
 <p><code>report.py</code> writes <code>summary.md</code>; <code>finalize.py</code> saves <code>workspace.bundle</code>, repairs records and <a class="term" href="#g-rescore" data-term="rescore">re-scores</a> the final build (<a href="#flow-after">flow D</a>). <code>run.sh</code> then records <code>finished</code> and sweeps once more for any other run still waiting for its score. A failure of <code>finalize.py</code> or of either sweep never fails the run: what could not be done is in <code>finalize.json</code>, and <a class="term" href="#g-sweep" data-term="sweep">the sweep</a> (on main) retries.</p>
 
@@ -2678,28 +2667,26 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <h3 id="flow-release-h" data-toc="A harness release"><span class="flow-letter">F</span> A harness release, and how machines pick it up</h3>
 <p>A push to main used to reach the next job within minutes, untested. Now a node runs the harness of the newest release, a tag made only when every check passes. Main can move on without touching a node that is running.</p>
 <div class="flow-status"><div class="fs fs-built"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span><ul><li><code>dbench harness-release</code>, the checks list, the node's release handling, <a class="term" href="#g-provenance" data-term="provenance">provenance</a> in every record. <code>harness-v2026.10.01.1</code> was the first release, with the old deny-list <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a>; <code>harness-v2026.10.01.2</code> carried <code>tools/agent-sandbox</code> as source for the node to build, with the <a class="term" href="#g-stop-rule" data-term="stop-rule">stop rule</a>, the read-only spec with <code>PROGRESS.md</code>, the credential scan, skipping non-event output lines, <a class="term" href="#g-sweep" data-term="sweep">the sweep</a> and automatic <a class="term" href="#g-score-record" data-term="score-record">score of record</a>, and <code>--from-story</code>. Every machine runs a release at or beyond <code>.01.2</code> today.</li></ul></div></div>
-<div class="stepper" data-stepper data-steps="7">
-<figure class="diagram"><svg class="dg" viewBox="0 0 520 670" role="img" aria-labelledby="dg-release-t dg-release-d" xmlns="http://www.w3.org/2000/svg">
-<title id="dg-release-t">A harness release, and how machines pick it up: diagram</title><desc id="dg-release-d">A change merged to main is first tried on an idle Linux bench machine from a candidate copy. dbench harness-release then runs the checks listed in checks.toml and, if all pass, tags the commit as harness-vDATE.n. Before each job a node fetches main and tags, takes the newest tag, makes a read-only copy, prunes old copies, and runs run.sh from the copy. The run records the release tag and commit.</desc>
+<div class="stepper" data-stepper data-steps="6">
+<figure class="diagram"><svg class="dg" viewBox="0 0 520 586" role="img" aria-labelledby="dg-release-t dg-release-d" xmlns="http://www.w3.org/2000/svg">
+<title id="dg-release-t">A harness release, and how machines pick it up: diagram</title><desc id="dg-release-d">For a change merged to main, dbench harness-release runs the checks listed in checks.toml and, if all pass, tags the commit as harness-vDATE.n. Before each job a node fetches main and tags, takes the newest tag, makes a read-only copy, prunes old copies, and runs run.sh from the copy. The run records the release tag and commit.</desc>
 <defs><marker id="arr-release" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="arrow-head"/></marker></defs>
-<g class="dg-edge" data-edge="ch>ci"><path d="M260.0,51.5 L260.0,86.0" marker-end="url(#arr-release)"/></g>
-<g class="dg-edge" data-edge="ci>hr"><path d="M260.0,138.0 L260.0,170.0" marker-end="url(#arr-release)"/></g>
-<g class="dg-edge" data-edge="hr>tag"><path d="M260.0,222.0 L260.0,254.0" marker-end="url(#arr-release)"/></g>
-<g class="dg-edge" data-edge="tag>nd"><path d="M260.0,306.0 L260.0,338.0" marker-end="url(#arr-release)"/></g>
-<g class="dg-edge" data-edge="nd>mat"><path d="M223.7,390.0 L176.3,424.0" marker-end="url(#arr-release)"/></g>
-<g class="dg-edge dashed" data-edge="nd>prune"><path d="M300.8,390.0 L354.2,424.0" marker-end="url(#arr-release)"/></g>
-<g class="dg-edge" data-edge="mat>job"><path d="M174.7,476.0 L225.3,514.0" marker-end="url(#arr-release)"/></g>
-<g class="dg-edge" data-edge="job>rec"><path d="M260.0,566.0 L260.0,600.0" marker-end="url(#arr-release)"/></g>
+<g class="dg-edge" data-edge="ch>hr"><path d="M260.0,51.5 L260.0,86.0" marker-end="url(#arr-release)"/></g>
+<g class="dg-edge" data-edge="hr>tag"><path d="M260.0,138.0 L260.0,170.0" marker-end="url(#arr-release)"/></g>
+<g class="dg-edge" data-edge="tag>nd"><path d="M260.0,222.0 L260.0,254.0" marker-end="url(#arr-release)"/></g>
+<g class="dg-edge" data-edge="nd>mat"><path d="M223.7,306.0 L176.3,340.0" marker-end="url(#arr-release)"/></g>
+<g class="dg-edge dashed" data-edge="nd>prune"><path d="M300.8,306.0 L354.2,340.0" marker-end="url(#arr-release)"/></g>
+<g class="dg-edge" data-edge="mat>job"><path d="M174.7,392.0 L225.3,430.0" marker-end="url(#arr-release)"/></g>
+<g class="dg-edge" data-edge="job>rec"><path d="M260.0,482.0 L260.0,516.0" marker-end="url(#arr-release)"/></g>
 <g class="dg-node k-actor" data-node="ch"><rect x="155.0" y="16.5" width="210" height="35" rx="18"/><text x="260" y="39.0" text-anchor="middle">Change merged to main</text></g>
-<g class="dg-node k-gate" data-node="ci"><rect x="135.0" y="86.0" width="250" height="52" rx="6"/><text x="260" y="108.5" text-anchor="middle">Try it on a bench machine</text><text x="260" y="125.5" text-anchor="middle">proof, preflight, one story</text></g>
-<g class="dg-node k-proc" data-node="hr"><rect x="135.0" y="170.0" width="250" height="52" rx="6"/><text x="260" y="192.5" text-anchor="middle">dbench harness-release</text><text x="260" y="209.5" text-anchor="middle">the 11 checks of checks.toml</text></g>
-<g class="dg-node k-store" data-node="tag"><rect x="135.0" y="254.0" width="250" height="52" rx="6"/><line x1="135" y1="261" x2="385" y2="261"/><text x="260" y="276.5" text-anchor="middle">Tag harness-vYYYY.MM.DD.n</text><text x="260" y="293.5" text-anchor="middle">annotated, pushed</text></g>
-<g class="dg-node k-proc" data-node="nd"><rect x="155.0" y="338.0" width="210" height="52" rx="6"/><text x="260" y="360.5" text-anchor="middle">Node: before each job</text><text x="260" y="377.5" text-anchor="middle">fetch main and tags</text></g>
-<g class="dg-node k-store" data-node="mat"><rect x="40.0" y="424.0" width="200" height="52" rx="6"/><line x1="40" y1="431" x2="240" y2="431"/><text x="140" y="446.5" text-anchor="middle">Release copy</text><text x="140" y="463.5" text-anchor="middle">git archive, read-only</text></g>
-<g class="dg-node k-proc" data-node="prune"><rect x="310.0" y="424.0" width="170" height="52" rx="6"/><text x="395" y="446.5" text-anchor="middle">Prune: keep newest 3</text><text x="395" y="463.5" text-anchor="middle">and any in use</text></g>
-<g class="dg-node k-out" data-node="job"><rect x="160.0" y="514.0" width="200" height="52" rx="6"/><text x="260" y="536.5" text-anchor="middle">Job runs run.sh</text><text x="260" y="553.5" text-anchor="middle">from the release</text></g>
-<g class="dg-node k-store" data-node="rec"><rect x="140.0" y="600.0" width="240" height="52" rx="6"/><line x1="140" y1="607" x2="380" y2="607"/><text x="260" y="622.5" text-anchor="middle">Run records</text><text x="260" y="639.5" text-anchor="middle">harness_release + commit</text></g>
-</svg><figcaption>A change is tried on a bench machine, checked, tagged, then copied read-only onto the node that runs the next job.</figcaption></figure>
+<g class="dg-node k-proc" data-node="hr"><rect x="135.0" y="86.0" width="250" height="52" rx="6"/><text x="260" y="108.5" text-anchor="middle">dbench harness-release</text><text x="260" y="125.5" text-anchor="middle">the 11 checks of checks.toml</text></g>
+<g class="dg-node k-store" data-node="tag"><rect x="135.0" y="170.0" width="250" height="52" rx="6"/><line x1="135" y1="177" x2="385" y2="177"/><text x="260" y="192.5" text-anchor="middle">Tag harness-vYYYY.MM.DD.n</text><text x="260" y="209.5" text-anchor="middle">annotated, pushed</text></g>
+<g class="dg-node k-proc" data-node="nd"><rect x="155.0" y="254.0" width="210" height="52" rx="6"/><text x="260" y="276.5" text-anchor="middle">Node: before each job</text><text x="260" y="293.5" text-anchor="middle">fetch main and tags</text></g>
+<g class="dg-node k-store" data-node="mat"><rect x="40.0" y="340.0" width="200" height="52" rx="6"/><line x1="40" y1="347" x2="240" y2="347"/><text x="140" y="362.5" text-anchor="middle">Release copy</text><text x="140" y="379.5" text-anchor="middle">git archive, read-only</text></g>
+<g class="dg-node k-proc" data-node="prune"><rect x="310.0" y="340.0" width="170" height="52" rx="6"/><text x="395" y="362.5" text-anchor="middle">Prune: keep newest 3</text><text x="395" y="379.5" text-anchor="middle">and any in use</text></g>
+<g class="dg-node k-out" data-node="job"><rect x="160.0" y="430.0" width="200" height="52" rx="6"/><text x="260" y="452.5" text-anchor="middle">Job runs run.sh</text><text x="260" y="469.5" text-anchor="middle">from the release</text></g>
+<g class="dg-node k-store" data-node="rec"><rect x="140.0" y="516.0" width="240" height="52" rx="6"/><line x1="140" y1="523" x2="380" y2="523"/><text x="260" y="538.5" text-anchor="middle">Run records</text><text x="260" y="555.5" text-anchor="middle">harness_release + commit</text></g>
+</svg><figcaption>A change is checked at build, tagged, then copied read-only onto the node that runs the next job. Nothing is tested on a node.</figcaption></figure>
 <div class="step-pane"><ol class="steps">
 <li class="step" id="flow-release-s1" data-step="1" data-nodes="ch" data-edges="" data-search data-title="A harness release: A change lands on main">
 <h4><span class="s-n">Step 1</span> A change lands on main</h4>
@@ -2710,29 +2697,18 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 
 </li>
-<li class="step" id="flow-release-s2" data-step="2" data-nodes="ch ci" data-edges="ch>ci" data-search data-title="A harness release: Try the candidate on a bench machine">
-<h4><span class="s-n">Step 2</span> Try the candidate on a bench machine</h4>
-<p class="s-parts"><span class="lbl">In the picture:</span> Change merged to main &middot; Try it on a bench machine proof, <a class="term" href="#g-preflight" data-term="preflight">preflight</a>, one story</p>
-<p>Before a release, the candidate is run on an idle Linux bench machine, from a copy and not from a tag: the <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a>'s own tests under bubblewrap, the sandbox proof (<code>prove-sandbox.sh</code>), the whole <a class="term" href="#g-preflight" data-term="preflight">preflight</a>, and one partial rerun of a story, unrecorded so nothing is published from unreleased code. A machine that is running a benchmark is never used: the work would disturb its timings.</p>
-<p>This step exists because tests alone were not enough. The first release with the new <a class="term" href="#g-sandbox" data-term="sandbox">sandbox</a> passed every check and then failed at the <a class="term" href="#g-preflight" data-term="preflight">preflight</a> of its first real job; on 2 October 2026 a candidate tried this way found that fault and a second one before any tag was made. A hosted CI workflow ran the checks on every push for one day (1 October 2026) and was removed: it did not have a bench machine's setup, so it could not find either fault.</p>
-<pre class="cmd" tabindex="0"><code>benchmarks/spec-bench/harness/prove-sandbox.sh
-(cd benchmarks/spec-bench/harness &amp;&amp; uv run preflight.py --client pi)</code></pre>
-<p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../benchmarks/spec-bench/harness/prove-sandbox.sh">harness/prove-sandbox.sh</a></li><li><a class="repo" href="../../../benchmarks/spec-bench/harness/preflight.py">harness/preflight.py</a></li></ul>
-<p class="s-state"><span class="state state-in-progress"><span aria-hidden="true">◐</span> In progress</span> Done by hand on 2 October 2026; not yet one command.</p>
-
-</li>
-<li class="step" id="flow-release-s3" data-step="3" data-nodes="ci hr tag" data-edges="ci>hr hr>tag" data-search data-title="A harness release: Make the release">
-<h4><span class="s-n">Step 3</span> Make the release</h4>
-<p class="s-parts"><span class="lbl">In the picture:</span> Try it on a bench machine proof, <a class="term" href="#g-preflight" data-term="preflight">preflight</a>, one story &middot; <a class="term" href="#g-dbench" data-term="dbench">dbench</a> harness-release the 11 checks of checks.toml &middot; Tag harness-vYYYY.MM.DD.n annotated, pushed</p>
-<p><code>dbench harness-release</code> runs every check itself and, if all pass, tags HEAD: the harness unit suite (with <code>drive.py</code> held at 100% of lines and branches), tests of <a class="term" href="#g-dbench" data-term="dbench">dbench</a>, vidi-gallery, power-collector and <a class="term" href="#g-agent-sandbox" data-term="agent-sandbox">agent-sandbox</a>, clippy for dbench and agent-sandbox, the <a class="term" href="#g-benchmarker" data-term="benchmarker">benchmarker</a>'s unit and end-to-end tests, and the repo shell tests. A skipped self-test counts as a failure.</p>
+<li class="step" id="flow-release-s2" data-step="2" data-nodes="ch hr tag" data-edges="ch>hr hr>tag" data-search data-title="A harness release: Make the release">
+<h4><span class="s-n">Step 2</span> Make the release</h4>
+<p class="s-parts"><span class="lbl">In the picture:</span> Change merged to main &middot; <a class="term" href="#g-dbench" data-term="dbench">dbench</a> harness-release the 11 checks of checks.toml &middot; Tag harness-vYYYY.MM.DD.n annotated, pushed</p>
+<p><code>dbench harness-release</code> runs every check itself and, if all pass, tags HEAD: the harness unit suite (with <code>drive.py</code> held at 100% of lines and branches), tests of <a class="term" href="#g-dbench" data-term="dbench">dbench</a>, vidi-gallery, power-collector and <a class="term" href="#g-agent-sandbox" data-term="agent-sandbox">agent-sandbox</a>, clippy for dbench and agent-sandbox, the <a class="term" href="#g-benchmarker" data-term="benchmarker">benchmarker</a>'s unit and end-to-end tests, and the repo shell tests. A skipped pipeline test (<code>test_pipeline.py</code>) counts as a failure. This is the only place tests run: a release is not tried on a bench machine first, and a node runs no test suite (the owner, 7 Nov 2026). A node checks only its own machine, with the <a class="term" href="#g-preflight" data-term="preflight">preflight</a>, once per release.</p>
 <p>It refuses when any check fails, when HEAD is not what <code>origin/main</code> points at, when a checked file has uncommitted or untracked changes, or when the tag cannot be pushed. The tag lists each check and its time.</p>
 <pre class="cmd" tabindex="0"><code>dbench harness-release</code></pre>
 <p class="where"><span class="lbl">In the repo:</span></p><ul class="where-list"><li><a class="repo" href="../../../tools/dbench/README.md">dbench README: releasing the harness</a></li><li><a class="repo" href="../../../tools/dbench/src/release.rs">src/release.rs</a></li><li><a class="repo" href="../../../tools/dbench/checks.toml">tools/dbench/checks.toml</a></li></ul>
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 
 </li>
-<li class="step" id="flow-release-s4" data-step="4" data-nodes="tag nd" data-edges="tag>nd" data-search data-title="A harness release: Nodes find the newest release">
-<h4><span class="s-n">Step 4</span> Nodes find the newest release</h4>
+<li class="step" id="flow-release-s3" data-step="3" data-nodes="tag nd" data-edges="tag>nd" data-search data-title="A harness release: Nodes find the newest release">
+<h4><span class="s-n">Step 3</span> Nodes find the newest release</h4>
 <p class="s-parts"><span class="lbl">In the picture:</span> Tag harness-vYYYY.MM.DD.n annotated, pushed &middot; Node: before each job fetch main and tags</p>
 <p>Before a new job starts, the node fetches main and the tags and takes the newest <code>harness-v*</code> tag that is on <code>origin/main</code>. A tag on a commit main does not have is ignored. A node with no release refuses jobs, unless it was started with <code>--allow-unreleased</code>, which says UNRELEASED in the job and records <code>harness_release: null</code>.</p>
 
@@ -2740,8 +2716,8 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 
 </li>
-<li class="step" id="flow-release-s5" data-step="5" data-nodes="nd mat prune" data-edges="nd>mat nd>prune" data-search data-title="A harness release: Copy it read-only">
-<h4><span class="s-n">Step 5</span> Copy it read-only</h4>
+<li class="step" id="flow-release-s4" data-step="4" data-nodes="nd mat prune" data-edges="nd>mat nd>prune" data-search data-title="A harness release: Copy it read-only">
+<h4><span class="s-n">Step 4</span> Copy it read-only</h4>
 <p class="s-parts"><span class="lbl">In the picture:</span> Node: before each job fetch main and tags &middot; Release copy git archive, read-only &middot; Prune: keep newest 3 and any in use</p>
 <p>Once per tag the node materialises <code>&lt;home&gt;/releases/&lt;tag&gt;/</code> with <code>git archive</code>: the harness paths and <code>RELEASE.json</code>, with no <code>.git</code>, read-only, so nothing can be committed into it or edited in it by accident. When a job starts, copies are removed except the newest 3 and any that a running job uses. A release without <code>roots.py</code>, <code>run.sh</code> or a <code>harness</code> list is refused.</p>
 <p>On main the <code>harness</code> list also holds <code>tools/agent-sandbox</code>, as source. The node builds it with <code>cargo build --release --locked</code> once per change of that source and keeps it by a hash of the source, so a release never depends on a binary built by hand.</p>
@@ -2750,8 +2726,8 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 
 </li>
-<li class="step" id="flow-release-s6" data-step="6" data-nodes="mat job" data-edges="mat>job" data-search data-title="A harness release: Run from the release">
-<h4><span class="s-n">Step 6</span> Run from the release</h4>
+<li class="step" id="flow-release-s5" data-step="5" data-nodes="mat job" data-edges="mat>job" data-search data-title="A harness release: Run from the release">
+<h4><span class="s-n">Step 5</span> Run from the release</h4>
 <p class="s-parts"><span class="lbl">In the picture:</span> Release copy git archive, read-only &middot; Job runs run.sh from the release</p>
 <p>The job runs <code>&lt;release&gt;/benchmarks/spec-bench/harness/run.sh</code> with <code>SPEC_BENCH_RESULTS_ROOT</code> naming the node's checkout. <code>roots.py</code> is the one place that decides which is which: the code root (the release) and the results root (main, where run directories are written, committed and pushed). A released harness with no variable stops as it loads; the results root is never guessed. A job keeps its release across restarts; if the tag no longer names the commit it started on, the job fails rather than change harness part-way through a run.</p>
 
@@ -2759,8 +2735,8 @@ dbench skip-story &lt;node&gt; canvas-pi-02 --story 3 --reason &quot;3h, no comm
 <p class="s-state"><span class="state state-built"><span aria-hidden="true">✓</span> Built</span> </p>
 
 </li>
-<li class="step" id="flow-release-s7" data-step="7" data-nodes="job rec" data-edges="job>rec" data-search data-title="A harness release: The record says which harness ran">
-<h4><span class="s-n">Step 7</span> The record says which harness ran</h4>
+<li class="step" id="flow-release-s6" data-step="6" data-nodes="job rec" data-edges="job>rec" data-search data-title="A harness release: The record says which harness ran">
+<h4><span class="s-n">Step 6</span> The record says which harness ran</h4>
 <p class="s-parts"><span class="lbl">In the picture:</span> Job runs run.sh from the release &middot; Run records harness_release + commit</p>
 <p><code>run.json</code> records <code>harness_commit</code> and <code>harness_release</code>, and each story's <a class="term" href="#g-provenance" data-term="provenance">provenance</a> repeats them with the pack version it was scored under. So any result can be traced to the harness that produced it, and to a release that passed its checks.</p>
 
