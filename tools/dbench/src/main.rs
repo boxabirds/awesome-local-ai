@@ -45,8 +45,17 @@ async fn main() -> Result<()> {
             let ctx = Ctx::load(cli.config, cli.json)?;
             let jobs = dbench::ids::expand_repeats(&id, &run_id, repeat, repeat_from)
                 .map_err(anyhow::Error::msg)?;
-            // A partial rerun's code and record come from the lake here, once for every repeat (story 23).
+            // A partial rerun's code and record come from the lake here, once for every repeat (story 23), and so
+            // does every job's list of the runs marked invalid there (none sent when this host has no lake).
             let mut inputs = None;
+            let invalid_runs = match ctx.lake_state_if_any() {
+                Some(state) => Some(
+                    dbench::job_inputs::invalid_from_lake(&state)
+                        .map_err(anyhow::Error::msg)
+                        .context("the runs marked invalid in the lake")?,
+                ),
+                None => None,
+            };
             for (job_id, job_run_id) in jobs {
                 let spec = JobSpec {
                     install_id: install_id.clone().unwrap_or_default(),
@@ -68,7 +77,7 @@ async fn main() -> Result<()> {
                     let first = dbench::job_inputs::first_story(&spec).context("a partial rerun names its stories")?;
                     inputs = Some(dbench::job_inputs::from_lake(&ctx.lake_state()?, r, first).map_err(anyhow::Error::msg)?);
                 }
-                client::cmd_submit(&ctx, &node, &job_id, spec, inputs.as_ref()).await?;
+                client::cmd_submit(&ctx, &node, &job_id, spec, inputs.as_ref(), invalid_runs.as_deref()).await?;
             }
             Ok(())
         }

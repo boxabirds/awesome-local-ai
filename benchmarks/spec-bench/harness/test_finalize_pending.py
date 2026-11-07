@@ -531,3 +531,67 @@ def test_run_sh_gives_back_the_work_dir_only_after_the_finished_event():
     release = next(i for i, l in enumerate(lines) if "finalize.py" in l and "--release-work" in l)
     assert release > finished
     assert "|| true" in lines[release]                            # never fails the run
+
+
+# ---------- runs the operator marked invalid in the lake (story 23, annotations.store) ----------
+# Since 4 Nov 2026 those decisions live in the host's annotation log, not in run.json; a job brings the list
+# (dbench: SPEC_BENCH_INVALID_RUNS), run.sh gives it to the sweep as --invalid-from FILE.
+
+def test_c9_a_run_on_the_job_s_invalid_list_is_left_and_an_unlisted_one_is_finalized(root):
+    """TC-C9: R is unscored on this machine and invalid in the lake, though its run.json does not say so."""
+    make_run(root, f"{COMBO}/marked-in-the-lake")
+    make_run(root, f"{COMBO}/unlisted", at="2026-09-30T08:00:00Z")
+    calls = []
+    out = sweep(root, calls, invalid=frozenset({f"{COMBO}/marked-in-the-lake"}))
+    assert [c[0] for c in calls] == ["unlisted"] and [n for n, _ in out["handled"]] == ["unlisted"]
+    rows = {run.name: (action, reason) for run, action, reason in
+            fp.survey(root, lambda name: REF, HARNESS_COMMIT, invalid=frozenset({f"{COMBO}/marked-in-the-lake"}))}
+    assert rows["marked-in-the-lake"] == (None, "marked invalid in the lake")
+
+
+def test_without_a_list_a_sweep_behaves_as_before_and_run_json_still_counts(root):
+    make_run(root, f"{COMBO}/unscored")
+    make_run(root, f"{COMBO}/invalid-in-run-json", invalid=True)
+    assert pending(root) == {"unscored": "score"}
+    assert pending(root, invalid=frozenset()) == {"unscored": "score"}
+    assert pending(root, invalid=frozenset({f"{COMBO}/unscored"})) == {}
+
+
+@pytest.mark.parametrize("listed, swept", [
+    ([], ["a-run", "b-run"]),
+    (["COMBO/a-run"], ["b-run"]),
+    (["COMBO/a-run", "COMBO/b-run"], []),
+    (["combinations/elsewhere/benchmarks/kat/a-run"], ["a-run", "b-run"]),   # another run of the same name
+])
+def test_the_command_reads_the_list_from_the_file_it_is_given(root, quiet_machine, monkeypatch, tmp_path, listed, swept):
+    make_run(root, f"{COMBO}/a-run")
+    make_run(root, f"{COMBO}/b-run", at="2026-09-30T08:00:00Z")
+    lst = tmp_path / "invalid-runs.json"
+    lst.write_text(json.dumps([r.replace("COMBO", COMBO) for r in listed]))
+    calls = []
+    monkeypatch.setattr(fp, "finalize_one", scorer(calls))
+    assert fp.main(["--root", str(root), "--invalid-from", str(lst)]) == 0
+    assert [c[0] for c in calls] == swept
+
+
+@pytest.mark.parametrize("content", [None, "not json", '{"runs": []}', "[1, 2]"])
+def test_a_list_that_cannot_be_read_stops_the_sweep_and_never_fails_the_caller(root, quiet_machine, monkeypatch,
+                                                                               tmp_path, capsys, content):
+    make_run(root, f"{COMBO}/unscored")
+    lst = tmp_path / "invalid-runs.json"
+    if content is not None:
+        lst.write_text(content)
+    calls = []
+    monkeypatch.setattr(fp, "finalize_one", scorer(calls))
+    assert fp.main(["--root", str(root), "--invalid-from", str(lst)]) == 0
+    assert calls == []
+    out = capsys.readouterr().out
+    assert f"the invalid-run list {lst} can't be read" in out and "not sweeping" in out
+
+
+def test_run_sh_gives_the_job_s_invalid_list_to_both_sweeps():
+    calls = [l for l in RUN_SH.splitlines() if re.search(SWEEP, l) and not l.lstrip().startswith("#")]
+    assert len(calls) == 2
+    for call in calls:
+        assert '${INVALID_RUNS:+--invalid-from "$INVALID_RUNS"}' in call, call
+    assert 'INVALID_RUNS="${SPEC_BENCH_INVALID_RUNS:-}"' in RUN_SH

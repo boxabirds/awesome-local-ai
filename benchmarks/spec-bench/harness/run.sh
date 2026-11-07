@@ -39,6 +39,9 @@ usage() { sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 RESULTS_ROOT="$(python3 "$HARNESS/roots.py" results)" || exit 1
 INSTALL_ID="$1"; shift
 PACK="benchmarks/vidi"; SCOPE=""; EPIC=""; RUN_ID="$(date +%Y%m%d-%H%M)"; ONLY=""; METER=0; CLIENT_NAME=pi; RECORD=""; FROM_RUN=""; FROM_STORY=""; FROM_CODE=""; FROM_METRICS=""
+# The runs marked invalid in the lake's annotation log, as a JSON list: dbench writes it to the job's folder and names
+# it here (story 23). The sweeps leave them out. Not set (a run started by hand, an older dbench): run.json alone says.
+INVALID_RUNS="${SPEC_BENCH_INVALID_RUNS:-}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pack) PACK="${2%/}"; shift 2 ;;
@@ -200,7 +203,7 @@ fi
 # platform override), so a re-score started later from a barer shell finds the same uv, node and npm
 # (scoring_tools.py). Neither can fail or stop this run; the sweep's messages are not this run's errors.
 python3 "$HARNESS/scoring_tools.py" remember || true
-(cd "$HARNESS" && uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${RECORD:+--record} 2>&1) || true
+(cd "$HARNESS" && uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${RECORD:+--record} ${INVALID_RUNS:+--invalid-from "$INVALID_RUNS"} 2>&1) || true
 
 # A cloud model doesn't run on this machine: its run is never held up for the machine's power or temperature
 # (the conditions are still recorded with each story).
@@ -322,4 +325,4 @@ record_event finished
 # work dir. Never fails the run.
 uv run --quiet finalize.py "$RUN_DIR" --release-work || true
 # And once more for any other run still waiting for its score (this one just had its own try, and is left out).
-uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${RECORD:+--record} 2>&1 || true
+uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${RECORD:+--record} ${INVALID_RUNS:+--invalid-from "$INVALID_RUNS"} 2>&1 || true

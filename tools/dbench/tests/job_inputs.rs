@@ -39,6 +39,7 @@ while [[ $# -gt 0 ]]; do
     *) shift ;;
   esac
 done
+if [[ -n "${SPEC_BENCH_INVALID_RUNS:-}" ]]; then echo "invalid-runs: $SPEC_BENCH_INVALID_RUNS = $(cat "$SPEC_BENCH_INVALID_RUNS")"; fi
 echo "harness ran"
 "#;
 
@@ -249,36 +250,28 @@ impl Server {
     }
 }
 
-/// `dbench submit` as a person runs it on the host, with the lake at BENCH_LAKE_STATE.
+/// `dbench submit` as a person runs it on the host, with the lake at BENCH_LAKE_STATE: a partial rerun of RUN.
 fn submit(w: &World, srv: &Server, id: &str, extra: &[&str]) -> Output {
+    let mut args = vec!["--from-run", RUN];
+    args.extend(extra);
+    submit_with(w, srv, id, &args, Some(&w.state))
+}
+
+/// `dbench submit` with `extra`, and the lake at `lake` (None: no lake configured on this host).
+fn submit_with(w: &World, srv: &Server, id: &str, extra: &[&str], lake: Option<&Path>) -> Output {
     let config = w.root.join("nodes.toml");
-    std::fs::write(
-        &config,
-        format!("[nodes.{NODE}]\nurl = \"{}\"\ntoken = \"{}\"\n", srv.base, srv.token),
-    )
-    .unwrap();
-    Command::new(env!("CARGO_BIN_EXE_dbench"))
-        .arg("--config")
+    std::fs::write(&config, format!("[nodes.{NODE}]\nurl = \"{}\"\ntoken = \"{}\"\n", srv.base, srv.token)).unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_dbench"));
+    cmd.arg("--config")
         .arg(&config)
-        .args([
-            "submit",
-            NODE,
-            "--id",
-            id,
-            "--install-id",
-            INSTALL_ID,
-            "--pack",
-            PACK,
-            "--run-id",
-            id,
-            "--from-run",
-            RUN,
-        ])
+        .args(["submit", NODE, "--id", id, "--install-id", INSTALL_ID, "--pack", PACK, "--run-id", id])
         .args(extra)
         .env("HOME", w.root.join("userhome"))
-        .env("BENCH_LAKE_STATE", &w.state)
-        .output()
-        .unwrap()
+        .env_remove("BENCH_LAKE_STATE");
+    if let Some(l) = lake {
+        cmd.env("BENCH_LAKE_STATE", l);
+    }
+    cmd.output().unwrap()
 }
 
 fn line_after<'a>(log: &'a str, label: &str) -> &'a str {
@@ -374,4 +367,94 @@ async fn tc91_tc92_a_run_without_the_code_or_the_record_is_refused_at_submit_and
         "{said}"
     );
     assert_eq!(srv.job("no-run").await.0, 404);
+}
+
+// ---------- the runs marked invalid in the lake travel with every job (story 23, annotations.store, TC-C9) ----------
+
+const INVALID_RUN: &str = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1";
+const SECOND_INVALID_RUN: &str = "benchmarks/reference/vidi/opus-5.5/run-2";
+const ARCHIVED_RUN: &str = "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r2";
+const DECIDED_AT: &str = "2026-11-07T12:00:00Z";
+
+fn decide(w: &World, op: bench_lake::annotations::Op, kind: bench_lake::annotations::Kind, run: &str) {
+    let req = bench_lake::annotations::Request {
+        op,
+        kind,
+        run: run.into(),
+        story: None,
+        reason: "a test decision".into(),
+        by: "test".into(),
+    };
+    bench_lake::annotations::Store::in_state_dir(&w.state).append(&req, DECIDED_AT).unwrap();
+}
+
+/// The list the harness was told about: (the file it was named, its content).
+fn invalid_line(log: &str) -> (String, String) {
+    let (named, content) = line_after(log, "invalid-runs:").split_once(" = ").unwrap();
+    (named.to_string(), content.to_string())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn c9_a_job_carries_every_run_marked_invalid_in_the_lake_and_the_harness_is_told_where_the_list_is() {
+    use bench_lake::annotations::{Kind, Op};
+    let w = world();
+    decide(&w, Op::Set, Kind::Invalid, INVALID_RUN);
+    decide(&w, Op::Set, Kind::Invalid, SECOND_INVALID_RUN);
+    decide(&w, Op::Set, Kind::Archived, ARCHIVED_RUN); // archived is not invalid
+    decide(&w, Op::Set, Kind::Invalid, RUN);
+    decide(&w, Op::Clear, Kind::Invalid, RUN); // withdrawn: no longer invalid
+    let srv = serve(&w);
+    let out = submit_with(&w, &srv, "full", &[], Some(&w.state));
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(srv.wait_done("full").await["state"]["status"], "done");
+    let (named, content) = invalid_line(&srv.log("full").await);
+    assert_eq!(named, w.home.join("jobs/full.inputs/invalid-runs.json").display().to_string());
+    let mut listed: Vec<String> = serde_json::from_str(&content).unwrap();
+    listed.sort();
+    let mut want = vec![INVALID_RUN.to_string(), SECOND_INVALID_RUN.to_string()];
+    want.sort();
+    assert_eq!(listed, want);
+    // Not part of the job's identity: the same job again is the same job, whatever the list now says.
+    decide(&w, Op::Clear, Kind::Invalid, INVALID_RUN);
+    let again = submit_with(&w, &srv, "full", &[], Some(&w.state));
+    let said = String::from_utf8_lossy(&again.stderr).into_owned();
+    assert!(again.status.success() && said.contains("no change"), "{said}");
+    // A partial rerun carries it too, beside its inputs.
+    let commits = code(&w, CODE_NODE, &[1, 2, 3]);
+    copy(&w, CODE_NODE, Some(&commits));
+    let out = submit(&w, &srv, "kg", &["--stories", &FIRST.to_string()]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    srv.wait_done("kg").await;
+    assert_eq!(invalid_line(&srv.log("kg").await).1, format!("[\"{SECOND_INVALID_RUN}\"]"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn c9_an_empty_store_sends_an_empty_list_and_no_lake_sends_none() {
+    let w = world();
+    let srv = serve(&w);
+    let out = submit_with(&w, &srv, "empty", &[], Some(&w.state));
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    srv.wait_done("empty").await;
+    assert_eq!(invalid_line(&srv.log("empty").await).1, "[]");
+    // A host with no lake configured sends no list: the harness is told nothing, as with an older dbench.
+    let out = submit_with(&w, &srv, "nolake", &[], None);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    srv.wait_done("nolake").await;
+    let log = srv.log("nolake").await;
+    assert!(log.contains("harness ran") && !log.contains("invalid-runs:"), "{log}");
+    assert!(!w.home.join("jobs/nolake.inputs").exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn c9_a_store_that_cannot_be_read_refuses_the_submit_and_nothing_is_queued() {
+    let w = world();
+    let dir = w.state.join(bench_lake::annotations::ANNOTATIONS_DIR);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(bench_lake::annotations::LOG_FILE), "not json\n").unwrap();
+    let srv = serve(&w);
+    let out = submit_with(&w, &srv, "bad-store", &[], Some(&w.state));
+    let said = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert!(!out.status.success(), "{said}");
+    assert!(said.contains("log.jsonl") && said.contains("line 1"), "{said}");
+    assert_eq!(srv.job("bad-store").await.0, 404);
 }

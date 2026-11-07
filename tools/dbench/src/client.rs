@@ -263,10 +263,16 @@ impl Api {
         id: &str,
         spec: &JobSpec,
         inputs: Option<&crate::job_inputs::JobInputs>,
+        invalid_runs: Option<&[String]>,
     ) -> Result<(reqwest::StatusCode, serde_json::Value)> {
         let mut body = serde_json::to_value(spec)?;
-        if let (Some(i), Some(o)) = (inputs, body.as_object_mut()) {
-            o.insert(crate::job_inputs::INPUTS_FIELD.into(), serde_json::to_value(i)?);
+        if let Some(o) = body.as_object_mut() {
+            if let Some(i) = inputs {
+                o.insert(crate::job_inputs::INPUTS_FIELD.into(), serde_json::to_value(i)?);
+            }
+            if let Some(r) = invalid_runs {
+                o.insert(crate::job_inputs::INVALID_RUNS_FIELD.into(), serde_json::to_value(r)?);
+            }
         }
         self.send(self.req(reqwest::Method::PUT, &format!("/v1/jobs/{id}")).json(&body)).await
     }
@@ -369,15 +375,16 @@ pub struct Ctx {
 pub const LAKE_STATE_ENV: &str = "BENCH_LAKE_STATE";
 
 impl Ctx {
-    pub fn lake_state(&self) -> Result<PathBuf> {
+    /// The lake's state folder, when this host has one configured.
+    pub fn lake_state_if_any(&self) -> Option<PathBuf> {
         if let Some(s) = std::env::var_os(LAKE_STATE_ENV).filter(|s| !s.is_empty()) {
-            return Ok(PathBuf::from(s));
+            return Some(PathBuf::from(s));
         }
-        self.collect
-            .store
-            .as_deref()
-            .and_then(Path::parent)
-            .map(Path::to_path_buf)
+        self.collect.store.as_deref().and_then(Path::parent).map(Path::to_path_buf)
+    }
+
+    pub fn lake_state(&self) -> Result<PathBuf> {
+        self.lake_state_if_any()
             .with_context(|| {
                 format!("a partial rerun reads the reference run from the lake: set {LAKE_STATE_ENV}, or [collect] store in nodes.toml")
             })
@@ -551,8 +558,9 @@ pub async fn cmd_submit(
     id: &str,
     spec: JobSpec,
     inputs: Option<&crate::job_inputs::JobInputs>,
+    invalid_runs: Option<&[String]>,
 ) -> Result<()> {
-    let (status, v) = ctx.api(node)?.submit(id, &spec, inputs).await?;
+    let (status, v) = ctx.api(node)?.submit(id, &spec, inputs, invalid_runs).await?;
     if ctx.json {
         print_json(&v)?;
     }

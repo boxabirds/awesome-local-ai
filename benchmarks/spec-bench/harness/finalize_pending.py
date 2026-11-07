@@ -2,6 +2,7 @@
 # requires-python = ">=3.11"
 # ///
 """finalize_pending.py [--record] [--list] [--even-if-busy] [--limit N] [--budget-s S] [--exclude RUN_DIR] [--root DIR]
+                      [--invalid-from FILE]
 
 The sweep: every run on this machine that ended without its score of record gets another try, with nobody asking.
 run.sh calls it at the start of every run (after the self-test, before the model server: the machine is free
@@ -18,7 +19,9 @@ Which runs (survey): under the results root (roots.py), with
     may be running, or about to be resumed;
   - at least one story with recorded code, and a work_dir.txt (it ran on this machine: only here are its work
     dir and full logs);
-  - not marked "invalid" in run.json, and not the run that is starting (--exclude);
+  - not marked "invalid" in run.json, nor in the lake's annotation log (--invalid-from: a JSON list of run ids, relative
+    to the root, that the job brings from the host; story 23), and not the run that is starting (--exclude). A list
+    that cannot be read stops the sweep: a run that may be invalid is never finalized because the list was lost;
   - no score of record (finalize.json absent, or its rescore not "done") and needs_person not true, for a run
     that ran under the pack's current tag (a run made under another tag is not re-scored under this one unasked);
   - or: stories whose time accounting is stale or failed its check, with their full logs here, that this harness
@@ -131,7 +134,8 @@ def pack_of(run: Path) -> str:
     return run.parents[1].name if run.parents[2].name == "reference" else run.parent.name
 
 
-def why(run: Path, pack_ref_of: Callable[[str], str | None], harness_commit: str) -> tuple[str | None, str]:
+def why(run: Path, pack_ref_of: Callable[[str], str | None], harness_commit: str,
+        invalid_in_lake: bool = False) -> tuple[str | None, str]:
     """(SCORE, REPAIR or None, the reason) for one run directory."""
     state = _read(run / "run-status.json").get("state")
     if state not in ENDED:
@@ -139,6 +143,8 @@ def why(run: Path, pack_ref_of: Callable[[str], str | None], harness_commit: str
     run_json = _read(run / "run.json")
     if run_json.get("invalid"):
         return None, "marked invalid in run.json"
+    if invalid_in_lake:
+        return None, "marked invalid in the lake"
     if not (run / "work_dir.txt").is_file():
         return None, "did not run on this machine (no work_dir.txt)"
     metrics = json.loads((run / "metrics.json").read_text()) if (run / "metrics.json").is_file() else {}
@@ -167,15 +173,16 @@ def why(run: Path, pack_ref_of: Callable[[str], str | None], harness_commit: str
 
 
 def survey(root: Path, pack_ref_of: Callable[[str], str | None], harness_commit: str,
-           exclude: list[Path] | tuple = ()) -> list[tuple[Path, str | None, str]]:
-    """Every run under the root with what the sweep would do for it and why, the most recently ended first."""
+           exclude: list[Path] | tuple = (), invalid: frozenset[str] = frozenset()) -> list[tuple[Path, str | None, str]]:
+    """Every run under the root with what the sweep would do for it and why, the most recently ended first.
+    `invalid`: run ids (relative to the root) marked invalid in the lake."""
     excluded = {Path(p).resolve() for p in exclude}
     rows = []
     for run in run_dirs(root):
         if run.resolve() in excluded:
             continue
         try:
-            action, reason = why(run, pack_ref_of, harness_commit)
+            action, reason = why(run, pack_ref_of, harness_commit, _label(run, root) in invalid)
         except (Exception, SystemExit) as e:
             action, reason = None, finalize.public(f"its records can't be read: {type(e).__name__}: {e}")
         rows.append((str(_read(run / "run-status.json").get("at") or ""), run, action, reason))
@@ -184,8 +191,25 @@ def survey(root: Path, pack_ref_of: Callable[[str], str | None], harness_commit:
 
 
 def pending(root: Path, pack_ref_of: Callable[[str], str | None], harness_commit: str,
-            exclude: list[Path] | tuple = ()) -> list[tuple[Path, str, str]]:
-    return [row for row in survey(root, pack_ref_of, harness_commit, exclude) if row[1] is not None]
+            exclude: list[Path] | tuple = (), invalid: frozenset[str] = frozenset()) -> list[tuple[Path, str, str]]:
+    return [row for row in survey(root, pack_ref_of, harness_commit, exclude, invalid) if row[1] is not None]
+
+
+class UnreadableList(Exception):
+    """The job's invalid-run list could not be read: the sweep does not run without it."""
+
+
+def read_invalid(path: Path | None) -> frozenset[str]:
+    """The run ids in an --invalid-from file (a JSON list of strings); none given: the empty set."""
+    if path is None:
+        return frozenset()
+    try:
+        ids = json.loads(path.read_text())
+    except (OSError, ValueError) as e:
+        raise UnreadableList(f"the invalid-run list {path} can't be read ({type(e).__name__}: {e}); not sweeping")
+    if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
+        raise UnreadableList(f"the invalid-run list {path} can't be read (not a JSON list of run ids); not sweeping")
+    return frozenset(ids)
 
 
 # ---------- is the machine busy ----------
@@ -258,14 +282,14 @@ def sweep(root: Path, pack_ref_of: Callable[[str], str | None] | None = None, ha
           record: bool = False, limit: int = SWEEP_MAX_RUNS, budget_s: float = SWEEP_BUDGET_S,
           even_if_busy: bool = False, exclude: list[Path] | tuple = (), busy: Callable[[], list[str]] | None = None,
           finalize_one: Callable | None = None, clock: Callable[[], float] = time.monotonic,
-          log: Callable[[str], None] = print) -> dict:
+          log: Callable[[str], None] = print, invalid: frozenset[str] = frozenset()) -> dict:
     """Handle what is pending, within the cap and the budget. {"handled": [(run name, outcome)], "left": how many
     are still pending, "stopped": why it stopped early (or None)}."""
     busy = busy or globals()["busy"]
     finalize_one = finalize_one or globals()["finalize_one"]
     harness_commit = this_harness() if harness_commit is None else harness_commit
     deadline = clock() + budget_s
-    todo = pending(root, pack_ref_of or pack_ref, harness_commit, exclude)
+    todo = pending(root, pack_ref_of or pack_ref, harness_commit, exclude, invalid)
     handled: list[tuple[str, str]] = []
     stopped = None
     for run, action, reason in todo:
@@ -332,8 +356,8 @@ def hard_stop(seconds: float):
             signal.signal(s, handler)
 
 
-def show(root: Path, exclude: list[Path]) -> None:
-    rows = survey(root, pack_ref, this_harness(), exclude)
+def show(root: Path, exclude: list[Path], invalid: frozenset[str] = frozenset()) -> None:
+    rows = survey(root, pack_ref, this_harness(), exclude, invalid)
     shown = [(run, action or "needs a person", reason.removeprefix("needs a person: ")) for run, action, reason in rows
              if action is not None or reason.startswith("needs a person")]
     for run, what, reason in shown:
@@ -351,11 +375,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--budget-s", type=float, default=SWEEP_BUDGET_S, help="seconds the sweep may take")
     ap.add_argument("--exclude", type=Path, action="append", default=[], help="a run to leave out (the one starting)")
     ap.add_argument("--root", type=Path, help="the results root to sweep (default: roots.py's)")
+    ap.add_argument("--invalid-from", type=Path,
+                    help="a JSON list of run ids (relative to the root) marked invalid in the lake: left out")
     a = ap.parse_args(argv)
     try:
         root = (a.root or default_root()).resolve()
+        invalid = read_invalid(a.invalid_from)
         if a.list:
-            show(root, a.exclude)
+            show(root, a.exclude, invalid)
             return 0
         with exclusive() as mine:
             if not mine:
@@ -363,9 +390,11 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             with hard_stop(a.budget_s + HARD_STOP_GRACE_S):
                 out = sweep(root, record=a.record, limit=a.limit, budget_s=a.budget_s, even_if_busy=a.even_if_busy,
-                            exclude=a.exclude)
+                            exclude=a.exclude, invalid=invalid)
             if not out["handled"] and not out["stopped"]:
                 print("finalize_pending: nothing pending")
+    except UnreadableList as e:
+        print(f"finalize_pending: {e}")
     except OutOfTime as e:
         print("finalize_pending: " + ("told to end; stopped" if str(e) == "ended"
                                       else "stopped at the time budget; the rest is left for the next sweep"))

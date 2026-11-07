@@ -488,6 +488,7 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
         .current_dir(&st.cfg.repo)
         .env("PATH", st.cfg.child_path())
         .env_remove(harness::RESULTS_ROOT_ENV)
+        .env_remove(crate::job_inputs::INVALID_RUNS_ENV)
         .envs(&spec.server_env)
         .stdin(Stdio::null())
         .stdout(out)
@@ -495,6 +496,9 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
         .process_group(0);
     if let Some(root) = results_root {
         cmd.env(harness::RESULTS_ROOT_ENV, root);
+    }
+    if let Some(list) = crate::job_inputs::stored_invalid(&st.cfg.jobs_dir, id) {
+        cmd.env(crate::job_inputs::INVALID_RUNS_ENV, list);
     }
     let shown: Vec<String> = args
         .iter()

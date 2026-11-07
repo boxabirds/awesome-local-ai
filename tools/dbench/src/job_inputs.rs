@@ -22,6 +22,13 @@ pub const INPUTS_FIELD: &str = "inputs";
 /// Their folder beside the job's JSON: `<jobs>/<id>.inputs/`.
 const INPUTS_DIR_SUFFIX: &str = ".inputs";
 pub const CODE_FILE: &str = "code.bundle";
+/// Every job's list of the runs marked invalid in the lake's annotation log (story 23, annotations.store): a member
+/// of the PUT body beside the spec, like `inputs`, and outside the job's identity; the node keeps it in the job's
+/// folder and names it to the harness in the environment (an older harness ignores a variable it doesn't know,
+/// where it would refuse an option), and run.sh gives it to finalize_pending.py.
+pub const INVALID_RUNS_FIELD: &str = "invalid_runs";
+pub const INVALID_RUNS_FILE: &str = "invalid-runs.json";
+pub const INVALID_RUNS_ENV: &str = "SPEC_BENCH_INVALID_RUNS";
 pub const METRICS_FILE: &str = "metrics.json";
 /// The record is held-out detail's neighbour: only the owner reads it.
 const PRIVATE_FILE_MODE: u32 = 0o600;
@@ -132,6 +139,37 @@ fn tempfile_path(tag: &str) -> PathBuf {
         .map(|d| d.as_nanos())
         .unwrap_or(0);
     std::env::temp_dir().join(format!("dbench-{tag}-{}-{n}.bundle", std::process::id()))
+}
+
+/// Takes the invalid-run list out of a PUT body: absent (an older host, or one with no lake), or a list of run ids.
+pub fn take_invalid_runs(body: &mut serde_json::Value) -> Result<Option<Vec<String>>, String> {
+    match body.as_object_mut().and_then(|o| o.remove(INVALID_RUNS_FIELD)) {
+        None => Ok(None),
+        Some(v) => serde_json::from_value(v).map(Some).map_err(|e| format!("{INVALID_RUNS_FIELD}: {e}")),
+    }
+}
+
+/// The run ids the lake's annotation log marks invalid now. An unreadable log is an error, never an empty list.
+pub fn invalid_from_lake(state: &Path) -> Result<Vec<String>, String> {
+    let s = bench_lake::annotations::Store::in_state_dir(state).state().map_err(|e| e.to_string())?;
+    Ok(s.runs.iter().filter(|(_, r)| r.invalid.is_some()).map(|(id, _)| id.clone()).collect())
+}
+
+/// Writes the job's invalid-run list into its folder (owner-only).
+pub fn store_invalid(jobs_dir: &Path, id: &str, runs: &[String]) -> anyhow::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let d = dir(jobs_dir, id);
+    std::fs::create_dir_all(&d)?;
+    std::fs::set_permissions(&d, std::fs::Permissions::from_mode(PRIVATE_DIR_MODE))?;
+    let f = d.join(INVALID_RUNS_FILE);
+    crate::store::write_atomic(&f, serde_json::to_string(runs)?.as_bytes())?;
+    std::fs::set_permissions(&f, std::fs::Permissions::from_mode(PRIVATE_FILE_MODE))?;
+    Ok(())
+}
+
+/// The job's invalid-run list, when it came with one.
+pub fn stored_invalid(jobs_dir: &Path, id: &str) -> Option<PathBuf> {
+    Some(dir(jobs_dir, id).join(INVALID_RUNS_FILE)).filter(|f| f.is_file())
 }
 
 /// The job's inputs folder.
@@ -251,6 +289,22 @@ mod tests {
         let e = check(&spec(Some("R"), Some(vec![3]), None), Some(&at(1))).unwrap_err();
         assert_eq!(e, over_limit("R", JOB_INPUT_LIMIT_BYTES + 1));
         assert!(e.contains(&(JOB_INPUT_LIMIT_BYTES + 1).to_string()) && e.contains(&JOB_INPUT_LIMIT_BYTES.to_string()));
+    }
+
+    #[test]
+    fn the_invalid_run_list_is_taken_out_of_the_body_absent_empty_or_listed() {
+        let mut absent = serde_json::json!({"run_id": "r"});
+        assert_eq!(take_invalid_runs(&mut absent), Ok(None));
+        assert_eq!(absent, serde_json::json!({"run_id": "r"}));
+        let mut empty = serde_json::json!({"run_id": "r", "invalid_runs": []});
+        assert_eq!(take_invalid_runs(&mut empty), Ok(Some(vec![])));
+        assert_eq!(empty, serde_json::json!({"run_id": "r"}), "the spec left behind has no such field");
+        let mut two = serde_json::json!({"invalid_runs": ["a/b", "c/d"]});
+        assert_eq!(take_invalid_runs(&mut two), Ok(Some(vec!["a/b".to_string(), "c/d".to_string()])));
+        for bad in [serde_json::json!({"invalid_runs": "a/b"}), serde_json::json!({"invalid_runs": [1]})] {
+            let mut b = bad;
+            assert!(take_invalid_runs(&mut b).unwrap_err().starts_with("invalid_runs:"));
+        }
     }
 
     #[test]

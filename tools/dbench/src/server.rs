@@ -388,6 +388,10 @@ async fn submit(
             Err(e) => return err(StatusCode::UNPROCESSABLE_ENTITY, format!("{}: {e}", job_inputs::INPUTS_FIELD)),
         },
     };
+    let invalid_runs = match job_inputs::take_invalid_runs(&mut body) {
+        Ok(r) => r,
+        Err(e) => return err(StatusCode::UNPROCESSABLE_ENTITY, e),
+    };
     let mut spec: JobSpec = match serde_json::from_value(body) {
         Ok(s) => s,
         Err(e) => return err(StatusCode::UNPROCESSABLE_ENTITY, format!("job spec: {e}")),
@@ -479,6 +483,11 @@ async fn submit(
         if let (Some(code), Some(i)) = (&code, &inputs) {
             if let Err(e) = job_inputs::store(&st.cfg.jobs_dir, &id, code, &i.metrics) {
                 return err(StatusCode::INTERNAL_SERVER_ERROR, format!("storing the job's inputs: {e:#}"));
+            }
+        }
+        if let Some(runs) = &invalid_runs {
+            if let Err(e) = job_inputs::store_invalid(&st.cfg.jobs_dir, &id, runs) {
+                return err(StatusCode::INTERNAL_SERVER_ERROR, format!("storing the job's invalid-run list: {e:#}"));
             }
         }
         let mut job = Job::new(id.clone(), spec, now_secs());
