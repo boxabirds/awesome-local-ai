@@ -14,6 +14,7 @@ The rig is test_pipeline's: a scripted agent builds a two-story app, held-out re
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shutil
 import stat
@@ -156,3 +157,25 @@ def test_tc24_a_dirty_bench_checkout_is_byte_identical_and_its_remote_has_not_mo
     assert snapshot(checkout, skip=checkout / RUN_REL) == recorded_run["before"]["checkout"]
     assert (checkout / DIRTY).read_text() == "committed\nand changed, not committed\n"
     assert snapshot(recorded_run["remote"]) == recorded_run["before"]["remote"]
+
+
+# ---------- W-1 (story 23, TC-B1): the node's half of tests/no-github-e2e-test.sh ----------
+
+W1_PACK_VERSION = "kat-v1"
+
+
+def w1_node_run(root: str, checkout: str, run_rel: str) -> None:
+    """A recorded two-story run in `checkout` (a bench checkout with no git remote), as run.sh makes one: run.json, the
+    started event, both stories with --record, finalize, the finished event. Run in a process of its own by
+    tests/no-github-e2e-test.sh, which then serves the checkout with the real dbench and collects it."""
+    root_, run = Path(root), Path(checkout) / run_rel
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(drive, "REPO_ROOT", Path(checkout))
+        mp.setenv("SPEC_BENCH_PACK_NAME", tp.PACK)
+        run.mkdir(parents=True)
+        (run / "run.json").write_text(json.dumps({"pack": tp.PACK, "pack_version": W1_PACK_VERSION, "model_id": tp.MODEL,
+                                                  "started_at": "2026-11-07T12:00:00Z"}))
+        record_event.record(run, "started")
+        tp.drive_run(root_, mp, extra_args=("--record",), run=run)
+        finalize.finalize(run, tp.PACK_REF, tagsuite.version_for(finalize.load_pack(tp.PACK)), rescore=tp.rescore_here(mp))
+        record_event.record(run, "finished")
