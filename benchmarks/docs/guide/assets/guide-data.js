@@ -503,32 +503,22 @@ GUIDE_DATA.entities = [
     example: "5 October 2026: the Strata VRAM gate was fixed, released and pulled, and the run still failed twice quoting a figure that no longer existed in the repository, because the installed profile was the old one.",
   },
   {
-    id: "credential-scan", name: "Credential scan", group: "guard", row: 3,
-    short: "Credentials are replaced by a marker before anything is published.",
-    what: "Every file staged for a public commit, except `workspace.bundle`, is scanned for credentials. A match is replaced by a marker that names what it was and how long, never the value (`EXAMPLE_API_KEY=[redacted: 35 characters]`), and the names are recorded with the story. It looks for environment-style assignments, known key prefixes, bearer tokens and private-key blocks. The full log on the machine is left as it is.",
-    rel: [["cleans", "record"]],
-    repo: [["benchmarks/spec-bench/harness/credentials.py", "harness/credentials.py"], ["benchmarks/spec-bench/harness/test_credentials.py", "harness/test_credentials.py"]],
-    example: "An agent ran `env | grep -i -E \"PI_|WORK|CWD\"`; the pattern also matches every `…API_KEY`.",
-    status: { state: "built", note: "Removed on main by story 23 (harness.no_publish): nothing is published from a node any more. The nodes run it until story 23's release (task 23.27), which also takes this entry out of the guide." },
-    insights: ["credentials"],
-  },
-  {
     id: "private-repo", name: "Private repo", group: "guard", row: 4,
     short: "Where the held-out suites and held-out detail live.",
-    what: "`awesome-local-ai-bench-private`, checked out next to this repo on each bench machine: the held-out suites, the grading brief, blinded grading packages and the held-out detail of every run (test titles, errors, screenshots). It exists so that nothing a model could train on contains the tests. To run the benchmark yourself, ask the repo owner for access.",
+    what: "`awesome-local-ai-bench-private`, checked out next to this repo on each bench machine, read-only for the nodes: the held-out suites, the grading brief and blinded grading packages, and the held-out detail of runs from before story 23 (since then a run's detail stays in its folder and reaches the lake, never this repo). It exists so that nothing a model could train on contains the tests. To run the benchmark yourself, ask the repo owner for access.",
     rel: [["holds", "heldout"], ["keeps the held-out detail of", "record"]],
     repo: [["benchmarks/vidi/README.md", "Vidi README: what is public and private"], ["benchmarks/spec-bench/harness/heldout.py", "harness/heldout.py"]],
-    example: "Before every commit the harness checks that no staged file holds a held-out test title; if one does, nothing is committed.",
+    example: "A node clones it to read a pack's held-out suite at its tag; it writes nothing back.",
   },
 
   // ------------------------------------------------------------------------------------------- Show and watch
   {
     id: "record", name: "Record", group: "watch", row: 0,
-    short: "What is committed and pushed publicly after every story.",
-    what: "What is committed and pushed to the public repo after every story (`--record`): the run's directory, with its configuration, `metrics.json`, the agent's code, its whole conversation and counts-only held-out summaries. Not published: held-out test titles, errors and screenshots (they go to the private repo), local machine names, and credentials (replaced by markers).",
+    short: "A run's records, kept in its folder and taken to the lake.",
+    what: "A run's records: its configuration (`run.json`), `metrics.json` with counts-only held-out summaries beside the held-out detail, each story's compacted conversation, `finalize.json`, `run-status.json` and `summary.md`. The harness writes them in the run's folder on the node (`--record`: after every story and at each run event, `drive.prepare_records` puts them in their kept form) and the {e:collection|collector} takes them to the lake through the node's API. Since story 23's release (7 November 2026) nothing is committed or pushed to GitHub; older runs' records stay in the public repo's history.",
     rel: [["publishes", "run"]],
     repo: [["benchmarks/spec-bench/harness/publicise.py", "harness/publicise.py"], ["benchmarks/spec-bench/harness/heldout.py", "harness/heldout.py"], ["benchmarks/spec-bench/TELEMETRY.md", "TELEMETRY.md: where it lands"]],
-    example: "After each story the harness commits exactly the run's directory, in an index of its own, and pushes; if the push fails the story stays committed locally and the next story's push carries it.",
+    example: "A run finishes on a node with no GitHub remote: its records reach the lake on the collector's next pass, its code through the node's code route, and the benchmarker shows its score (tests/no-github-e2e-test.sh).",
   },
   {
     id: "benchmarker", name: "Benchmarker", group: "watch", row: 1,
@@ -664,7 +654,7 @@ GUIDE_DATA.problems = [
     id: "contamination", n: 5, title: "Contamination, and an agent that knows it is being graded",
     question: "How do you stop a model from having seen the answers, or from tuning its work to the grader?",
     text: [
-      "The spec is public, and so is every run's code. The only protection is tests nobody has seen: the {e:heldout|held-out suite} is private, pinned by a tag, and never shown to the agent, which gets no feedback from it. The evaluation policy requires every test to check something the spec states, so an agent can be held to it. Agents still reason about the grader.",
+      "The spec is public, and so was every run's code until story 23 (since its release on 7 November 2026 a run's code goes only to the private lake). The only protection is tests nobody has seen: the {e:heldout|held-out suite} is private, pinned by a tag, and never shown to the agent, which gets no feedback from it. The evaluation policy requires every test to check something the spec states, so an agent can be held to it. Agents still reason about the grader.",
     ],
     example: [
       "The first Vidi suite was committed to this repo on 23 September 2026, so it was public. The v2 suite was written fresh and lives only in the private repository. Meanwhile 139 replies in 69 stories name a grader in their thinking, mostly about conforming (file names, exact wording, the commit message). One story searched the machine for hidden tests after a compaction.",
@@ -720,14 +710,14 @@ GUIDE_DATA.problems = [
     id: "secrets", n: 9, title: "Secrets end up in transcripts",
     question: "What if the agent prints something it should never have been able to see?",
     text: [
-      "The agent process inherits the owner's shell environment, and the whole conversation is published. A harmless-looking filter can print every provider key in it. The control has two halves: give the agent an environment of its own, and scan everything before it is published.",
+      "The agent process inherits the owner's shell environment, and until story 23 the whole conversation was published. A harmless-looking filter can print every provider key in it. The control had two halves: give the agent an environment of its own, and scan everything before it was published. Since story 23's release a node publishes nothing, so the first half is the control, and the conversation goes only to the private lake.",
     ],
     example: [
       "In one story a filter meant for the client's own variables also matched every `…API_KEY`, and a tool result held 11 provider keys. In two other stories a process listing printed a session token. The analysis withholds those stories until the keys are changed.",
     ],
-    control: "The {e:credential-scan|credential scan} before every public commit and an agent environment that is an allow-list are on main (1 October 2026), not yet in a release. A privacy test checks the tracked files.",
+    control: "An agent environment that is an allow-list, in every release since 1 October 2026. A credential scan before every public commit ran from October until story 23's release (7 November 2026), which ended publishing from the nodes: a run's conversation now goes only to the private lake. A privacy test checks the tracked files.",
     insights: ["credentials"],
-    entities: ["credential-scan", "record", "sandbox"],
+    entities: ["record", "sandbox"],
     flows: ["after"],
   },
   {
@@ -1251,14 +1241,14 @@ GUIDE_DATA.components = [
   },
   {
     id: "publishing", name: "Publishing: what may be public", lang: "Python and Bash",
-    what: "`publicise.py` is the single definition of what may be public: counts but never held-out test detail, with the size limit of each kind of committed file. `heldout.py` applies it to a run directory, copies the detail to the private repo and refuses a commit that holds a held-out title or a machine name. `credentials.py` replaces credentials with a marker. `machine_names.py` knows the owner's machine names. `tests/privacy-test.sh` checks the tracked files.",
+    what: "`publicise.py` is the single definition of what may be public: counts but never held-out test detail. `heldout.py` applies it to a run directory, writing each held-out result's counts-only summary and splitting `metrics.json` from its detail. Until story 23 this was the gate of every public commit (with a credential scan and a machine-name check); since its release (7 November 2026) the nodes publish nothing, and these rules give the records their form and serve the history tools. `tests/privacy-test.sh` checks the tracked files.",
     why: "The held-out suite stays private so no model can learn it, and the public record must hold nothing personal or secret.",
-    inputs: "A run directory staged for commit.",
-    outputs: "A commit of exactly that run's public files, pushed; the held-out detail in the private repo.",
-    fails: "If any check finds a problem nothing is committed, and `publish-refused.json` says why. A failed push is reported, never fatal: the story stays committed locally and the next story's push carries it.",
-    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2." },
-    repo: [["benchmarks/spec-bench/harness/publicise.py", "publicise.py"], ["benchmarks/spec-bench/harness/heldout.py", "heldout.py"], ["benchmarks/spec-bench/harness/credentials.py", "credentials.py"], ["tests/privacy-test.sh", "tests/privacy-test.sh"]],
-    entities: ["record", "private-repo", "credential-scan"],
+    inputs: "A run's directory on the node.",
+    outputs: "The run's records in their kept form, in the same folder: a counts-only summary beside every held-out result, `metrics.json` split from its held-out detail. Since story 23's release nothing is committed or pushed; the collector takes the folder to the lake.",
+    fails: "A fault while preparing the records is a harness fault of the story, which is recorded all the same.",
+    status: { state: "built", note: "Commit and push removed by story 23 (released 7 November 2026); the rules in `publicise.py` remain for the records' form and the history tools." },
+    repo: [["benchmarks/spec-bench/harness/publicise.py", "publicise.py"], ["benchmarks/spec-bench/harness/heldout.py", "heldout.py"], ["benchmarks/spec-bench/harness/test_no_publish.py", "test_no_publish.py: nothing is committed"], ["tests/privacy-test.sh", "tests/privacy-test.sh"]],
+    entities: ["record", "private-repo"],
     insights: ["credentials"],
   },
   {
@@ -1835,7 +1825,7 @@ GUIDE_DATA.flows = [
   {
     id: "number", letter: "E", short: "How a number reaches the benchmarker", title: "How a number gets from a run to the benchmarker",
     intro: [
-      "Nothing is typed into the results page. Every figure is read from records the harness pushed to git, or from what dbench reports about a job, and passed through one set of definitions. The page also has a list of things it must never show.",
+      "Nothing is typed into the results page. Every figure is read from a run's records in the lake, which the collector brought from the node that ran it, or from what dbench reports about a job, and passed through one set of definitions. The page also has a list of things it must never show.",
     ],
     status: {
       built: ["The server, the pure domain logic, the entity pages (overview, combination, run, story run, story, machine), the faults feed, the shared glossary of measures."],
@@ -1843,12 +1833,12 @@ GUIDE_DATA.flows = [
     caption: "Records and job status in; rows, state and a separate faults feed out. The faults never reach the page.",
     diagram: {
       w: 520, h: 625,
-      desc: "The harness records each story to origin/main. The benchmarker server fetches origin/main every 60 seconds and dbench status every 10 seconds, and turns them into rows, dropping invalid runs and failed time splits. It serves /api/state to the page, which polls every 5 seconds and shows overview, combination, run, story run, story and machine pages, and /api/faults to the monitor only.",
+      desc: "The harness keeps each story's records in the run's folder and the collector takes them to the lake. The benchmarker server reads the lake through bench-lake every 60 seconds and dbench status every 10 seconds, and turns them into rows, dropping invalid runs and failed time splits. It serves /api/state to the page, which polls every 5 seconds and shows overview, combination, run, story run, story and machine pages, and /api/faults to the monitor only.",
       nodes: [
-        { id: "h", label: "Harness\nrecord after every story", x: 260, y: 34, w: 220 },
-        { id: "main", label: "origin/main\n(public record)", kind: "store", x: 140, y: 114, w: 170 },
+        { id: "h", label: "Harness, collector\nrecords to the lake", x: 260, y: 34, w: 220 },
+        { id: "main", label: "The lake\n(bench-lake)", kind: "store", x: 140, y: 114, w: 170 },
         { id: "dn", label: "dbench on each node\nstatus every 10 s", x: 400, y: 114, w: 190 },
-        { id: "srv", label: "Benchmarker server\nfetch every 60 s, read with git", x: 260, y: 204, w: 270 },
+        { id: "srv", label: "Benchmarker server\nreads the lake every 60 s", x: 260, y: 204, w: 270 },
         { id: "dom", label: "domain.ts: records to rows\ndrops invalid runs,\nfailed time splits", kind: "gate", x: 260, y: 296, w: 240 },
         { id: "state", label: "/api/state", kind: "out", x: 140, y: 392, w: 140 },
         { id: "faults", label: "/api/faults\n(for the monitor only)", x: 400, y: 392, w: 200 },
@@ -1865,14 +1855,14 @@ GUIDE_DATA.flows = [
     },
     steps: [
       {
-        title: "The harness pushes the record", nodes: ["h", "main"], edges: ["h>main"],
-        text: ["After every story the harness commits the run's directory and pushes it to {g:origin-main|`origin/main`} ({f:after|flow D}). That push is the only way the benchmarker learns about a story. {g:progress-json|`progress.json`}, which the harness rewrites about once a minute, goes to dbench instead, because it is not committed."],
-        where: [["benchmarks/spec-bench/harness/drive.py", "drive.py (record_story)"], ["benchmarks/spec-bench/harness/CONTROL.md", "CONTROL.md: progress.json"]],
+        title: "The records reach the lake", nodes: ["h", "main"], edges: ["h>main"],
+        text: ["After every story the harness keeps the run's records in its folder ({f:after|flow D}) and the {f:collect|collector} takes them to the lake through the node's API. That is the only way the benchmarker learns about a story; since story 23 nothing goes through {g:origin-main|`origin/main`}. {g:progress-json|`progress.json`}, which the harness rewrites about once a minute, is read from dbench as well, for a running job."],
+        where: [["benchmarks/spec-bench/harness/drive.py", "drive.py (prepare_records)"], ["tools/dbench/src/collector.rs", "dbench collector.rs"], ["benchmarks/spec-bench/harness/CONTROL.md", "CONTROL.md: progress.json"]],
         state: "built",
       },
       {
-        title: "The server fetches and reads", nodes: ["main", "dn", "srv"], edges: ["main>srv", "dn>srv"],
-        text: ["The server fetches `origin/main` every 60 seconds and reads the fetched commit directly (`git ls-tree`, `git cat-file`), so your working copy is never pulled, touched or blocked by local edits. When `dbench` is on the PATH with a node list, it also reads `dbench status --json` every 10 seconds: queued and running jobs, the current story and the last log line. Without dbench the page shows the repo only."],
+        title: "The server reads the lake", nodes: ["main", "dn", "srv"], edges: ["main>srv", "dn>srv"],
+        text: ["The server reads the lake every 60 seconds through `bench-lake records`: every run's result documents, from the copy on the node that ran it, with the operator's decisions about it (invalid and archived runs, stories not comparable). No git process reads run data. When `dbench` is on the PATH with a node list, it also reads `dbench status --json` every 10 seconds: queued and running jobs, the current story and the last log line. Without dbench the page shows the lake only."],
         where: [["tools/benchmarker/server/sources.ts", "server/sources.ts"], ["tools/benchmarker/README.md", "benchmarker README: where the data comes from"]],
         state: "built",
       },
@@ -1896,7 +1886,7 @@ GUIDE_DATA.flows = [
       },
       {
         title: "The page", nodes: ["state", "page", "pages"], edges: ["state>page", "page>pages"],
-        text: ["A React page (Vite and SWR) refreshes every 5 seconds and says when the repo and dbench were last read. If it cannot refresh for 20 seconds it greys out under a red bar saying how old the data is. When the benchmarker is rebuilt, open tabs reload themselves. Each entity has its own page and most mentions of one are a link: a combination, a run, a story run (the atom everything is built from), a story across every run's attempt, a machine.", "Every measure's name and meaning comes from one file, `shared/glossary.ts`, so a number means the same wherever it appears."],
+        text: ["A React page (Vite and SWR) refreshes every 5 seconds and says when the lake and dbench were last read. If it cannot refresh for 20 seconds it greys out under a red bar saying how old the data is. When the benchmarker is rebuilt, open tabs reload themselves. Each entity has its own page and most mentions of one are a link: a combination, a run, a story run (the atom everything is built from), a story across every run's attempt, a machine.", "Every measure's name and meaning comes from one file, `shared/glossary.ts`, so a number means the same wherever it appears."],
         where: [["tools/benchmarker/src/pages/RunPage.tsx", "src/pages/RunPage.tsx"], ["tools/benchmarker/shared/glossary.ts", "shared/glossary.ts"], ["tools/benchmarker/shared/routes.ts", "shared/routes.ts"]],
         state: "built",
         insights: ["thinking-spread"],
@@ -2399,7 +2389,7 @@ GUIDE_DATA.safeguarding = {
         { from: "agent", to: "proc", dashed: true, label: "refused" },
       ],
     },
-    caption: "One guard among several: {e:sandbox|the sandbox} confines what the agent can touch. {e:containment|Containment} limits what it can use; {e:credential-scan|the credential scan} and {e:private-repo|the private repo} limit what gets published.",
+    caption: "One guard among several: {e:sandbox|the sandbox} confines what the agent can touch. {e:containment|Containment} limits what it can use; {e:private-repo|the private repo} keeps the held-out suites out of any model's reach.",
   },
   mechanisms: {
     rows: [
@@ -2483,7 +2473,7 @@ GUIDE_DATA.glossary = [
   { id: "blinded-grading", term: "Blinded grading", def: "An independent grader compares two builds' code without knowing which setup made which: the builds are labelled A and B in random order, names are scrubbed, and the key is kept outside the package.", auto: ["blinded grader", "blinded grading"], see: ["judge"] },
   { id: "bucket", term: "Bucket", def: "The class of an anomaly-log entry: internal bug, genuine LLM behaviour, stuck job, broken pipeline, environment, or unexplained.", see: ["anomaly-log"] },
   { id: "build-score-judge", term: "Build, score, judge", def: "The three stages of a result, each owned by someone different: the agent builds on a bench machine; the held-out suite scores after the run; a person judges whether each scored verdict was right.", see: ["judge", "score-record"] },
-  { id: "bundle", term: "workspace.bundle", def: "A git bundle of the agent's whole workspace history, written at the end of a run. Every story's code can be rebuilt from it, so a score can be reproduced. Being replaced (story 23) by the lake's code repository, into which `dbench code-import` took every bundle already in the lake.", entity: "finalize", see: ["finalize", "code-repo"] },
+  { id: "bundle", term: "workspace.bundle", def: "A git bundle of the agent's whole workspace history, which runs from before story 23 kept in their folder. Replaced since story 23's release by the lake's code repository: the node serves a run's code from the run's own repository, and `dbench code-import` took every bundle already in the lake.", entity: "finalize", see: ["finalize", "code-repo"] },
   { id: "code-repo", term: "the lake's code repository", def: "`state/code.git` beside the lake: one bare git repository holding every run's code, each lake copy's branches under `refs/runs/<node>/<run>/heads/` and each story's last commit under `.../story/NN` (`reference` stands for the node of a reference run). Filled once from the lake's bundles (`dbench code-import`, 5 Nov 2026: 373 copies, 86 MiB for 530 MiB of bundles) and then by the collector from each node's `GET /v1/runs/code`, which sends only the commits the lake lacks. In the nightly backup.", entity: "workspace", see: ["bundle"] },
   { id: "cap", term: "Story cap", def: "The limit on a story: 4 hours of agent time, or (on main) a second stop without a verified finish. A story ended at the cap is recorded PARTIAL with the work committed by the harness.", see: ["partial"] },
   { id: "cgroup", term: "cgroup", def: "A Linux kernel group of processes. The harness runs each agent session in its own so that everything the agent starts can be listed, limited and killed, even after its parent dies.", entity: "containment", see: ["containment"] },
@@ -2500,7 +2490,6 @@ GUIDE_DATA.glossary = [
   { id: "engine-request", term: "Engine request", def: "One request the model server finished, by its own log: what it read and generated, how long prefill and decode took, and how many drafted tokens were accepted; placed in a story by time, or matched to a call by its token counts.", entity: "engine-request", auto: ["engine request", "engine requests"] },
   { id: "cursor", term: "Cursor", def: "Opaque text naming a place in a story's events stream (its time and ord). The time-range form of the conversation API pages with it, contiguous by construction; the open-ended form returns everything ingested after it and the latest one to ask after next.", auto: ["cursor"] },
   { id: "conversation", term: "Conversation (events)", def: "The agent's complete event log for a story, every reply, thought, tool call and result, time-stamped on arrival and published whole.", entity: "conversation", auto: ["conversation profile"], see: ["time-split"] },
-  { id: "credential-scan", term: "Credential scan", def: "The check that replaces credentials in anything staged for a public commit with a marker naming what was found and how long, never the value.", entity: "credential-scan", auto: ["credential scan", "credential scanner"] },
   { id: "dbench", term: "dbench", def: "The Rust controller that queues benchmark jobs on each machine, restarts and recovers them, and reports status.", entity: "dbench", auto: ["dbench"], see: ["node-server", "job"] },
   { id: "decode", term: "Decode (generation)", def: "The model producing new tokens, one after another. Engine decode speed is output tokens over the model's own generation time.", see: ["prefill", "tok-s"], auto: ["decode speed"] },
   { id: "done-line", term: "DONE line", def: "The line `STORY <id> DONE <commit hash>` that the agent must end its last reply with. A story is finished only if the hash is the start of the workspace's HEAD and nothing is uncommitted.", entity: "stop-message", see: ["stop-rule"] },
@@ -2550,9 +2539,9 @@ GUIDE_DATA.glossary = [
   { id: "progress-file", term: "PROGRESS.md", def: "The agent's own account of where each task stands (todo, doing, done, blocked). A claim, recorded beside the harness's own evidence, never relied on.", entity: "progress-file", auto: ["PROGRESS.md"] },
   { id: "progress-json", term: "progress.json", def: "The live status the harness rewrites about once a minute for dbench to read. Not committed.", entity: "story-run", auto: ["progress.json"] },
   { id: "provenance", term: "Provenance", def: "Which harness commit and release, and which suite version, each story ran under.", entity: "provenance", auto: ["provenance"] },
-  { id: "origin-main", term: "origin/main", def: "The public repo's main branch. Every story's record is pushed to it; the benchmarker reads it; the monitor watches it.", entity: "record" },
+  { id: "origin-main", term: "origin/main", def: "The public repo's main branch: the harness's code, which nodes pull as releases. Until story 23 every story's record was pushed to it; since then no run data is, and every reader reads the lake.", entity: "record" },
   { id: "qwen", term: "Qwen3.8", def: "The model family under test. Variants here: 27B, Flash-Next, Swift 1.0 and Swift 1.5 (retrains of the 27B by UkisAI).", entity: "model" },
-  { id: "record", term: "Record", def: "What is committed and pushed to the public repo after every story: the run directory, minus held-out detail, local names and credentials.", entity: "record" },
+  { id: "record", term: "Record", def: "A run's records in its folder on the node (configuration, counts, compacted conversations, scores), which the collector takes to the lake. Nothing is pushed to GitHub since story 23.", entity: "record" },
   { id: "reference-model", term: "Reference model", def: "A frontier model (Claude Opus 5.5, Sonnet 5.5) run through the same harness as the yardstick for local combinations.", entity: "reference", auto: ["reference model", "reference models"] },
   { id: "regression", term: "Regression", def: "An earlier story's held-out test that passed before this story and fails after it. Reported apart from the story's own tests.", entity: "accept", see: ["repair"] },
   { id: "repair", term: "Repair", def: "An earlier held-out test that failed before a story and passes after it. Also: what finalize does to stale records (recomputing time accounting from full logs).", entity: "accept", see: ["regression"] },

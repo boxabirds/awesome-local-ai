@@ -50,15 +50,15 @@ When problems lead to recommended actions, give each one as:
 
 ## Never reset a bench checkout
 
-A bench machine's repository is where the harness writes and commits a run's records. `git reset --hard`,
+A bench machine's repository is where the harness writes a run's records. `git reset --hard`,
 `git checkout -- .`, `git clean -fd` and anything else that discards work are forbidden there. Use
 `git pull --ff-only` and let it fail: a refusal costs a retry, a reset costs results.
 
-The records are the only thing at risk. A run's raw data -- logs, conditions, artifacts, the workspace -- is
-gitignored and the collector copies it to the lake. Its **scores** are tracked in git, so between the harness
-committing them and the push landing they exist in one place only. The collector takes the record files too
-since 6 October 2026, which makes the lake a second copy, but it pulls on a cadence rather than instantly, so
-the window is smaller rather than gone.
+Since story 23's release (7 November 2026) the harness commits and pushes nothing: a run's records, scores
+included, stay in its folder until the collector takes them to the lake through the node's API, and its code stays
+in the run's own repository in the work folder, which the node serves to the lake. The checkout's own history no
+longer holds a run's only copy of anything. What a reset or a clean can still destroy is a run folder the collector
+has not yet pulled (it pulls on a cadence), and the uncommitted state of a run in progress. The rule stands for them.
 
 Why: on 6 October 2026 a session ran `git reset --hard origin/main` twice on a live bench checkout to pick up a
 config change, while a benchmark was running in it. Nothing was lost, because both prior HEADs happened to be

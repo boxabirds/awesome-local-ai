@@ -397,10 +397,10 @@ section("Insight panels, findings, glossary, search");
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.keyboard.press("/");
   ok(await page.evaluate(() => document.activeElement.id) === "search", "the / key focuses the search box");
-  await page.keyboard.type("credential");
+  await page.keyboard.type("compaction");                            // an entity and an insight both name it
   const results = await page.$$eval("#search-results a[role=option]", (a) => a.map((x) => x.textContent));
-  ok(results.length >= 3, `searching finds things (${results.length} results for 'credential')`);
-  ok(results.some((t) => /Credential scan/.test(t)) && results.some((t) => /In practice/.test(t)), "results include an entity and an insight");
+  ok(results.length >= 3, `searching finds things (${results.length} results for 'compaction')`);
+  ok(results.some((t) => /^EntityCompaction/.test(t)) && results.some((t) => /In practice/.test(t)), `results include an entity and an insight (${results.join(" | ")})`);
   await page.keyboard.press("ArrowDown");
   const selected = await page.getAttribute("#search-results a[aria-selected=true]", "href");
   await page.keyboard.press("Enter");

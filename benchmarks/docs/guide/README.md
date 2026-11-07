@@ -100,7 +100,7 @@ Checklist:
       check the numbers.
 - [ ] **A new combination, engine, machine or client**: the entity examples, the `combos` list, the glossary.
 - [ ] **Anything that changes where the evidence is kept** (what is public, what is private): problems 5 and 9, the
-      `record`, `private-repo` and `credential-scan` entities, flow D.
+      `record` and `private-repo` entities, the publishing component, flow D (since story 23 nothing is published from a node; the records keep their form, `drive.prepare_records`).
 - [ ] Run `node benchmarks/docs/guide/build.mjs`, then the test, then `bash tests/privacy-test.sh` and
       `bash tests/links-test.sh`, and look at the page at phone and desktop width, light and dark.
 
@@ -115,7 +115,7 @@ All of it is in [assets/guide-data.js](assets/guide-data.js), found by id. These
 - **A run**: `run`, `workspace`, `story-run`, `attempt`, `session`, `conversation`, `compaction`, `stop-message`, `intervention`, `progress-file`, `time-split`, `engine-request`
 - **Scoring**: `gate`, `accept`, `rescore`, `finalize`, `score-record`, `invalid-run`, `not-comparable`, `archived-run`, `judgement`
 - **Operate**: `job`, `dbench`, `node-server`, `hold`, `harness`, `harness-release`, `provenance`, `partial-rerun`, `collector`
-- **Safeguards**: `sandbox`, `containment`, `machine-guard`, `credential-scan`, `private-repo`
+- **Safeguards**: `sandbox`, `containment`, `machine-guard`, `private-repo`
 - **Show and watch**: `record`, `benchmarker`, `gallery`, `monitor`, `anomaly-log`, `insights`, `horizon`, `collection`, `conversation-db`
 
 **Insights** (`GUIDE_DATA.insights`), with the file each is copied from. A panel appears wherever an entity, problem, component or flow step lists its id.
@@ -156,7 +156,7 @@ All of it is in [assets/guide-data.js](assets/guide-data.js), found by id. These
 | A. Submitting a job | [tools/dbench/README.md](../../../tools/dbench/README.md), `tools/dbench/src/` (`server.rs`, `runner.rs`, `harness.rs`, `failure.rs`, `recovery.rs`) |
 | B. A run, end to end | [run.sh](../../spec-bench/harness/run.sh), [preflight.py](../../spec-bench/harness/preflight.py), [machine_fit.py](../../spec-bench/harness/machine_fit.py) |
 | C. One story's loop | [drive.py](../../spec-bench/harness/drive.py) (`main`, `run_story_agent`, `story_finished`, the constants near the top), [CONTROL.md](../../spec-bench/harness/CONTROL.md) |
-| D. After the run | [finalize.py](../../spec-bench/harness/finalize.py), [rescore.py](../../spec-bench/harness/rescore.py), [EVALUATION-POLICY.md](../../spec-bench/EVALUATION-POLICY.md), [publicise.py](../../spec-bench/harness/publicise.py), [credentials.py](../../spec-bench/harness/credentials.py) |
+| D. After the run | [finalize.py](../../spec-bench/harness/finalize.py), [rescore.py](../../spec-bench/harness/rescore.py), [EVALUATION-POLICY.md](../../spec-bench/EVALUATION-POLICY.md), [publicise.py](../../spec-bench/harness/publicise.py), [test_no_publish.py](../../spec-bench/harness/test_no_publish.py) |
 | E. A number reaches the benchmarker | [tools/benchmarker/README.md](../../../tools/benchmarker/README.md), `server/domain.ts`, `server/faults.ts` |
 | F. A harness release | [tools/dbench/README.md](../../../tools/dbench/README.md) (releasing), [checks.toml](../../../tools/dbench/checks.toml) |
 | G. A partial rerun | [spec-bench README](../../spec-bench/README.md), the gufo analysis, `drive.py` (`known_good_base`) |
