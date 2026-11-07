@@ -757,6 +757,28 @@ test that would reproduce it. Details under the entries.
   Lesson: a swap onto a binary several releases newer runs every change in between for the first time; read the log
   between the two builds before swapping.
 
+- **Baseline after story 23's release (task 24.7, 7 Nov 2026 23:27–23:48 GMT):** gruntus running
+  `v2-strata0141` runs, every other node idle. Requests: three passes of the live collector binary
+  (0.1.0+7b9b82749, `--once --scopes`) against a copy-on-write clone of the lake, through a logging proxy; the
+  live collector unchanged. Identical in all three passes:
+
+  | node | requests | bytes | runs listed | files pulled |
+  |---|---|---|---|---|
+  | gruntus | 16: `/v1/runs` 1, `/v1/runs/scopes` 1, `/v1/runs/events` 13, `/v1/runs/code` 1 (204) | 16,902 | 27 | 0 |
+  | quintus | 1: `/v1/runs` | 3,726 | 17 | 0 |
+  | macbook-air | 1: `/v1/runs` | 1,448 | 9 | 0 |
+  | thing2 | 1: `/v1/runs` | 637 | 3 | 0 |
+  | thing1 | 1: `/v1/runs` | 2 | 0 (no run of its own: no `work_dir.txt` on it) | 0 |
+  | **all** | **20** | **22,715 (22.2 KiB)** | | **0** |
+
+  No finished-run recheck and no file pull happened; the three shared Opus 5.5 reference runs no longer flip
+  (nothing changed in any pass). The 24.8 MiB idle pass of 5–6 Nov is gone: story 23 lists only a node's own runs
+  (`run.json` + `work_dir.txt`), so the git-carried copies are no longer described or compared. Warehouse loads:
+  none, `conversations.db` unchanged since 17:18 (6.5 h of passes). Disk: the live collector (pid 76555) read
+  **692.2 MiB** and wrote 7.5 MiB in 900 s over 73 passes (`proc_pid_rusage` diskio counters), about 9.5 MiB a
+  pass; **not yet attributed** to a phase. Against story 24's acceptance figures: 1 (under 64 KiB a pass) met,
+  2 (no load in 15 idle minutes) met, 3 (under 100 MiB disk read in 15 minutes) **not met**, 6.9 times over.
+  A one-shot pass takes 16.5–17.8 s (8.5 s user CPU) against 1.2–2.2 s for a pass of the long-running collector.
 ### A-048 — Agents' own `playwright install` was refused by the sandbox in 13 runs, unseen for a month
 - **First seen:** 2026-10-02 08:31 BST · **Last seen:** 2026-10-31 15:39 BST · **Found:** 2026-11-05, from a failing agent-sandbox test.
 - **Where:** the run's browsers directory (`drive.link_agent_browsers`) and the sandbox's `playwright` preset; every node.
