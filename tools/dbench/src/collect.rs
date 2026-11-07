@@ -985,6 +985,33 @@ mod tests {
     }
 
     #[test]
+    fn tc01_a_folder_is_this_nodes_run_only_with_both_the_run_marker_and_the_work_folder_note() {
+        // Story 23 (node.own_runs), TC-01: the harness writes work_dir.txt on the machine that ran the run; git
+        // never carries it. Each case is one folder; only the first is this node's run.
+        let root = temp_dir("own");
+        let case = |name: &str, marker: bool, note: bool, note_is_dir: bool| {
+            let d = root.join(name);
+            std::fs::create_dir_all(&d).unwrap();
+            if marker {
+                std::fs::write(d.join(RUN_MARKER), "{}").unwrap();
+            }
+            if note {
+                std::fs::write(d.join(WORK_DIR_FILE), "/home/x/.w/r").unwrap();
+            }
+            if note_is_dir {
+                std::fs::create_dir_all(d.join(WORK_DIR_FILE)).unwrap();
+            }
+            is_own_run(&d)
+        };
+        assert!(case("ran-here", true, true, false));
+        assert!(!case("carried-by-git", true, false, false));
+        assert!(!case("note-only", false, true, false));
+        assert!(!case("note-is-a-folder", true, false, true));
+        assert!(!is_own_run(&root.join("absent")));
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
     fn run_status_is_lenient() {
         let root = temp_dir("status");
         assert!(run_status(&root).is_none());
