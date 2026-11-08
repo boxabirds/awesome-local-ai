@@ -700,15 +700,15 @@ async fn feed_look(api: &Api, node: &str, lake: Lake<'_>, only_runs: &[String], 
     use crate::client::Feed;
     let mut after = point.cursor.clone();
     let mut node_id: String;
-    let mut named = BTreeSet::new();
+    let mut pages = Vec::new();
     loop {
         match api.changes(&after, crate::changes::LIMIT_DEFAULT).await {
             Ok(Feed::Page(page)) => {
-                named.extend(page.changes.iter().map(|c| c.run.clone()));
-                named.extend(page.runs.iter().map(|r| r.run.clone()));
-                after = page.next;
-                node_id = page.node_id;
-                if !page.more {
+                after = page.next.clone();
+                node_id = page.node_id.clone();
+                let more = page.more;
+                pages.push(page);
+                if !more {
                     break;
                 }
             }
@@ -721,6 +721,7 @@ async fn feed_look(api: &Api, node: &str, lake: Lake<'_>, only_runs: &[String], 
         }
     }
     out.reachable = true;
+    let named = named_runs(&pages);
     let mut all_held = true;
     for run in named.iter().filter(|r| wanted(r, only_runs, archived)) {
         all_held &= collect_one(api, node, lake, run, cadence, now, crate::scope_collect::Look::Named, true, out).await;
@@ -735,6 +736,11 @@ async fn feed_look(api: &Api, node: &str, lake: Lake<'_>, only_runs: &[String], 
         keep_point(state, node, &after, &node_id, now, out);
     }
     FeedLook::Done
+}
+
+/// The runs a feed look visits: the union of those named by every page's changes and runs, once each, in order.
+pub fn named_runs(pages: &[crate::changes::ChangesPage]) -> BTreeSet<String> {
+    pages.iter().flat_map(|p| p.changes.iter().map(|c| c.run.clone()).chain(p.runs.iter().map(|r| r.run.clone()))).collect()
 }
 
 /// Write the node's point, or say on the pass line why it could not be: the old point stays.

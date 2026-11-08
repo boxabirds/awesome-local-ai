@@ -286,6 +286,12 @@ pub enum Look {
     Named,
 }
 
+/// Whether a look of this kind visits a run whose lake record is `local`: a run the feed named always; otherwise when
+/// `collector::due` says so.
+pub fn visits(look: Look, local: &Collection, now: u64, cadence: &Cadence) -> bool {
+    look == Look::Named || collector::due(Some(local), now, cadence)
+}
+
 /// `collect_run`, for a look of the given kind.
 #[allow(clippy::too_many_arguments)]
 pub async fn collect_run_as(api: &Api, node: &str, run: &str, dir: &Path, classes: &[Class], cadence: &Cadence, now: u64, look: Look) -> Result<RunSummary> {
@@ -297,7 +303,7 @@ pub async fn collect_run_as(api: &Api, node: &str, run: &str, dir: &Path, classe
         ..Default::default()
     });
     let mut summary = RunSummary { run: run.to_string(), ..Default::default() };
-    if look != Look::Named && !collector::due(Some(&local), now, cadence) {
+    if !visits(look, &local, now, cadence) {
         summary.complete = local.complete;
         return Ok(summary);
     }
