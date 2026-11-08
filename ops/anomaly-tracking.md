@@ -736,7 +736,7 @@ test that would reproduce it. Details under the entries.
   measured with statvfs, which leaves out space macOS frees on demand (25.8 GB important-usage against 22.6 GB statvfs
   at the time of checking). The disk was refilled by test builds (`tools/target/debug`).
 - **Bucket:** internal bug (collector efficiency) — **confidence high**.
-- **Status:** fixed on main 5 Nov, not yet deployed. A pass ingests only the runs it changed; everything only on the
+- **Status:** **closed 8 Nov 2026**: story 24 released (harness-v2026.11.08.1), figures below. Fixed on main 5 Nov, deployed. A pass ingests only the runs it changed; everything only on the
   first pass and when the decision log changes, and only then the purges; the fetch tick is gone; `/v1/conversations`
   keeps its answer until the warehouse files change; free space on macOS is the capacity for important usage. Tests:
   `a_pass_ingests_only_the_runs_it_changed_…`, `the_decision_log_mark_changes_…`, `an_ingest_of_named_runs_runs_no_purge_…`,
@@ -779,6 +779,18 @@ test that would reproduce it. Details under the entries.
   pass; **not yet attributed** to a phase. Against story 24's acceptance figures: 1 (under 64 KiB a pass) met,
   2 (no load in 15 idle minutes) met, 3 (under 100 MiB disk read in 15 minutes) **not met**, 6.9 times over.
   A one-shot pass takes 16.5–17.8 s (8.5 s user CPU) against 1.2–2.2 s for a pass of the long-running collector.
+- **After story 24's release (task 24.15, 8 Nov 2026 14:38–14:53 GMT):** harness-v2026.11.08.1 (d4da0f650) on the
+  host collector (swapped 13:29) and on all five nodes (14:34–14:38); every node idle (gruntus, quintus and macbook-air
+  held, thing1 and thing2 without jobs), so the load is lighter than the baseline's, where gruntus was running. After
+  each node's one full look to take its point ("no point"), every pass read the feed only: no `/v1/runs`, no scopes,
+  no full look, no file pulled (no lake file written in the window), no ingest (`conversations.db` unchanged since
+  13:29:57). Bytes of an idle pass: one `GET /v1/changes` per node, about 460 bytes each with headers, **about 2.3 KB
+  for all five** (measured with curl from each node's stored point), against 22.2 KiB. Disk: the live collector
+  (pid 14928) read **3 MiB** and wrote 2 MiB in 900 s over 84 passes (`proc_pid_rusage`), against 692.2 MiB.
+  Acceptance figures: 1 met, 2 met, 3 met (3 MiB against 100 MiB). Passes of 0.2 to 2.5 s; the longest are the
+  nodes' round trips (up to 1.6 s) and the free-space check (up to 1.4 s). The hour before (13:29–14:30, nodes still
+  on 7b9b82749, full look of every node every pass): 301 passes, median 1.7 s, one of 55.9 s, the same pid
+  throughout, and no log line of a new kind.
 ### A-048 — Agents' own `playwright install` was refused by the sandbox in 13 runs, unseen for a month
 - **First seen:** 2026-10-02 08:31 BST · **Last seen:** 2026-10-31 15:39 BST · **Found:** 2026-11-05, from a failing agent-sandbox test.
 - **Where:** the run's browsers directory (`drive.link_agent_browsers`) and the sandbox's `playwright` preset; every node.

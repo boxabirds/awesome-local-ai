@@ -158,7 +158,10 @@ component.
 
 The node's change feed, `GET /v1/changes` (story 24, `tools/dbench/src/changes.rs`), lists the files and job states
 that changed after a cursor. The collector keeps one point per node (`<state>/points/<node>.json`) and reads each node
-incrementally: only the runs the feed names are visited (see the collection sequence below).
+incrementally: only the runs the feed names are visited (see the collection sequence below). The feed also names a
+run when one of its folders changed (an entry made, renamed or removed), because a file keeps its ctime when its
+folder is renamed (`rescore/` set aside to `rescore-spoiled/`) and a run's first records are written before
+`work_dir.txt` makes it the node's own; a named run is then compared whole with its scopes listing.
 
 ```mermaid
 flowchart LR
