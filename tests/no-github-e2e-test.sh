@@ -24,7 +24,24 @@ done
 TMP="$(mktemp -d)"
 PIDS=()
 # W1_KEEP=1 keeps the temporary folder (its logs) for a look after a failure.
-cleanup() { for p in "${PIDS[@]:-}"; do [[ -n "$p" ]] && kill "$p" 2>/dev/null; done; [[ -n "${W1_KEEP:-}" ]] && echo "kept $TMP" || rm -rf "$TMP"; }
+STOP_POLLS=50                                   # 0.1 s each: how long a started process gets to exit after SIGTERM
+# Stops every process this test started and waits for them to exit.
+stop_started() {
+  local p n
+  for p in "${PIDS[@]:-}"; do [[ -n "$p" ]] && kill "$p" 2>/dev/null; done
+  for (( n = 0; n < STOP_POLLS; n++ )); do
+    for p in "${PIDS[@]:-}"; do [[ -n "$p" ]] && kill -0 "$p" 2>/dev/null && break; p=""; done
+    [[ -z "${p:-}" ]] && break
+    sleep 0.1
+  done
+}
+# Whatever still names the test's own folder outlived it: stopped here by pid, after the check below has seen it.
+cleanup() {
+  local p
+  stop_started
+  for p in $(pgrep -f -- "$TMP"); do kill "$p" 2>/dev/null; done
+  [[ -n "${W1_KEEP:-}" ]] && echo "kept $TMP" || rm -rf "$TMP"
+}
 trap cleanup EXIT
 
 COMB="kat/1/tiny/linux/box/fake-pi"
@@ -93,7 +110,8 @@ BM_PORT="$(uv run --quiet python -c 'import socket; s = socket.socket(); s.bind(
 # Its own empty home: the benchmarker lists live runs from the nodes in ~/.config/dbench/nodes.toml, and this machine's
 # real nodes must not appear in the test's lake (7 Nov 2026: three live runs on a real node failed the listing).
 mkdir -p "$TMP/bmhome"
-(cd "$REPO/tools/benchmarker" && HOME="$TMP/bmhome" bun server/main.ts --repo "$HOST" --lake "$STATE" --bench-lake "$BENCH_LAKE" \
+# exec: the pid kept is the server's, so stopping it stops the server, not only the subshell around it.
+(cd "$REPO/tools/benchmarker" && HOME="$TMP/bmhome" exec bun server/main.ts --repo "$HOST" --lake "$STATE" --bench-lake "$BENCH_LAKE" \
   --port "$BM_PORT" --conversations-url http://127.0.0.1:1 > "$TMP/bm.out" 2> "$TMP/bm.err") &
 PIDS+=($!)
 # The server's first read of the lake can take a while on a busy machine (the release runs this after its builds).
@@ -126,5 +144,10 @@ assert_eq "no git push, and no git command over the network" "0" \
   "$(tr '\0' '\n' < "$CALLS" | grep -cE $'\t(.* )?(push|ls-remote)( |$)|://|git@')"
 assert_eq "the node checkout has no commit but its own: nothing was committed there" "0" \
   "$(git -C "$CHECKOUT" rev-list --all 2>/dev/null | wc -l | tr -d ' ')"
+
+echo "nothing it started outlives it"
+stop_started
+# 8 Nov 2026: the benchmarker, started as `( cd ... && bun ... ) &`, outlived every run of this test (14 left running).
+assert_eq "no process that names the test's folder is still running" "" "$(pgrep -fl -- "$TMP" | cut -c1-160)"
 
 finish

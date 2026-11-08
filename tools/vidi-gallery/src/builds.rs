@@ -56,6 +56,8 @@ struct Inner {
     pinned: HashSet<String>,
     /// Builds served from a checkout in place, by slug: stripped when they stop (see `release`).
     in_place: HashMap<String, PathBuf>,
+    /// Builds being copied, installed, built or started, by slug: the task doing it, so a stop can end it.
+    starting: HashMap<String, JoinHandle<()>>,
 }
 
 #[derive(Clone)]
@@ -280,18 +282,22 @@ impl Builds {
         }
         let s = State::Preparing { step: "copying the workspace".into() };
         inner.states.insert(spec.slug.clone(), s.clone());
-        drop(inner);
         let me = self.clone();
-        tokio::spawn(async move {
+        let slug = spec.slug.clone();
+        // Spawned and recorded under the lock: the task takes the lock before it ends, so it can't
+        // finish (and remove itself) before it is recorded.
+        let task = tokio::spawn(async move {
             let slug = spec.slug.clone();
             if let Err(e) = me.start(spec, slot).await {
                 let mut inner = me.inner.lock().await;
+                inner.starting.remove(&slug);
                 inner.states.insert(slug.clone(), State::Failed { error: format!("{e:#}") });
                 if !inner.live.contains_key(&slug) {
                     inner.slots.remove(&slot);
                 }
             }
         });
+        inner.starting.insert(slug, task);
         s
     }
 
@@ -354,6 +360,8 @@ impl Builds {
             .kill_on_drop(false)
             .spawn()?;
         let pgid = child.id().map(|p| p as i32).unwrap_or(0);
+        // Until the build is live, a stop that ends this task ends wrangler with it.
+        let group = Group(pgid);
         let upstream = SocketAddr::from((LOCALHOST, upstream_port));
         if let Err(e) = wait_ready(upstream, &log).await {
             kill_group(pgid).await;
@@ -364,7 +372,9 @@ impl Builds {
         let listener = TcpListener::bind(SocketAddr::from((LOCALHOST, proxy_port))).await?;
         let proxy = tokio::spawn(proxy::serve(listener, upstream, spec.banner));
         let mut inner = self.inner.lock().await;
+        inner.starting.remove(&spec.slug);
         inner.live.insert(spec.slug.clone(), Live { pgid, proxy, slot });
+        std::mem::forget(group); // live now: `stop` and the watch end it from here
         inner.states.insert(spec.slug.clone(), State::Running { url: format!("http://127.0.0.1:{proxy_port}/") });
         drop(inner);
         drop(child); // its process group is tracked by pgid; the watch below notices if it dies
@@ -421,15 +431,25 @@ impl Builds {
     }
 
     pub async fn stop(&self, slug: &str) {
-        let live = {
+        let (live, starting) = {
             let mut inner = self.inner.lock().await;
             inner.states.remove(slug);
             let live = inner.live.remove(slug);
             if let Some(l) = &live {
                 inner.slots.remove(&l.slot);
             }
-            live
+            let starting = inner.starting.remove(slug);
+            if starting.is_some() {
+                inner.slots.retain(|_, s| s != slug);
+            }
+            (live, starting)
         };
+        if let Some(task) = starting {
+            // Ending the task drops what it is running: its install, build or wrangler is killed with
+            // its process group (`Group`). Awaited, so nothing of it is left when stop returns.
+            task.abort();
+            let _ = task.await;
+        }
         if let Some(l) = live {
             l.proxy.abort();
             kill_group(l.pgid).await;
@@ -452,7 +472,10 @@ impl Builds {
     }
 
     pub async fn stop_all(&self) {
-        let slugs: Vec<String> = self.inner.lock().await.live.keys().cloned().collect();
+        let slugs: Vec<String> = {
+            let inner = self.inner.lock().await;
+            inner.live.keys().chain(inner.starting.keys()).cloned().collect()
+        };
         for s in slugs {
             self.stop(&s).await;
         }
@@ -464,8 +487,34 @@ fn serving(inner: &Inner, slug: &str) -> bool {
     matches!(inner.states.get(slug), Some(State::Preparing { .. } | State::Running { .. }))
 }
 
+/// A process group this program started, killed when this is dropped: a step of a build that is
+/// stopped (its task ended) takes its children with it (npm ci starts its own).
+struct Group(i32);
+impl Drop for Group {
+    fn drop(&mut self) {
+        if self.0 > 0 {
+            // SAFETY: killpg only sends a signal; the group is one this program started and has not
+            // reaped (a reaped one is forgotten, never dropped, because its id can be reused).
+            unsafe { libc::killpg(self.0, libc::SIGKILL) };
+        }
+    }
+}
+
+/// Run a step of a build in its own process group, killed if the step is dropped before it ends.
 async fn run(cmd: &str, args: &[&str], cwd: &Path) -> anyhow::Result<()> {
-    let out = tokio::process::Command::new(cmd).args(args).current_dir(cwd).stdin(Stdio::null()).output().await?;
+    let child = tokio::process::Command::new(cmd)
+        .args(args)
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .process_group(0)
+        .spawn()?;
+    let group = Group(child.id().map(|p| p as i32).unwrap_or(0));
+    let out = child.wait_with_output().await;
+    // Reaped: its pid, and so its group id, can now be another process's.
+    std::mem::forget(group);
+    let out = out?;
     if !out.status.success() {
         let text = String::from_utf8_lossy(&[out.stdout, out.stderr].concat()).to_string();
         let tail = &text[text.len().saturating_sub(LOG_TAIL_BYTES)..];

@@ -54,7 +54,15 @@ fn world(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
 /// Starts the gallery on a port the system picks (`--port 0`) and reads the port from what it says: a port chosen here and
 /// freed before the gallery binds it can be taken by another test in between ("Address already in use").
 fn start(repo: &Path, home: &Path, extra: &[&str]) -> (Gallery, String, String) {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_vidi-gallery"))
+    start_with(repo, home, extra, &[])
+}
+
+fn start_with(repo: &Path, home: &Path, extra: &[&str], env: &[(&str, &std::ffi::OsStr)]) -> (Gallery, String, String) {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_vidi-gallery"));
+    for (k, v) in env {
+        cmd.env(k, v);
+    }
+    let mut child = cmd
         .arg("--repo")
         .arg(repo)
         .args(["--port", "0"])
@@ -98,6 +106,15 @@ fn get(port: u16, path: &str) -> (u16, String) {
     s.read_to_string(&mut raw).unwrap();
     let status = raw.split_whitespace().nth(1).unwrap().parse().unwrap();
     (status, raw.split_once("\r\n\r\n").map(|(_, b)| b.to_string()).unwrap_or_default())
+}
+
+/// A POST with no body over a plain connection: the status.
+fn post(port: u16, path: &str) -> u16 {
+    let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    write!(s, "POST {path} HTTP/1.0\r\nContent-Length: 0\r\n\r\n").unwrap();
+    let mut raw = String::new();
+    s.read_to_string(&mut raw).unwrap();
+    raw.split_whitespace().nth(1).unwrap().parse().unwrap()
 }
 
 /// SIGTERM, then the rest of what it printed and how it exited.
@@ -163,5 +180,86 @@ fn started_blind_the_gallery_says_so() {
     assert_eq!(serde_json::from_str::<serde_json::Value>(&state).unwrap()["blind"], true);
     let (ok, rest) = stop(g);
     assert!(ok, "{rest}");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+/// How long an install that was stopped may take to be gone (the gallery's own grace is 3 s).
+const GONE_DEADLINE: Duration = Duration::from_secs(10);
+/// Two processes the fake install starts: itself, and a child of its own, as npm's are.
+const INSTALL_PROCESSES: usize = 2;
+
+/// A world whose `npm` (first on the PATH) records its pid and its child's in `pids`, then waits for ever: an install
+/// that is still running whenever the test acts.
+fn hanging_install(tag: &str) -> (PathBuf, PathBuf, PathBuf, PathBuf, std::ffi::OsString) {
+    let (root, repo, home) = world(tag);
+    let bin = root.join("fake-bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    let pids = root.join("install.pids");
+    let npm = bin.join("npm");
+    std::fs::write(&npm, format!("#!/bin/sh\necho $$ >> '{p}'\nsleep 600 &\necho $! >> '{p}'\nwait\n", p = pids.display())).unwrap();
+    std::fs::set_permissions(&npm, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    let path = std::env::join_paths(std::iter::once(bin.clone()).chain(std::env::split_paths(&std::env::var_os("PATH").unwrap()))).unwrap();
+    (root, repo, home, pids, path)
+}
+
+/// Opens the world's run and waits until its install has started: the install's pids.
+fn open_until_installing(g: &Gallery, pids: &Path) -> Vec<i32> {
+    let (_, body) = get(g.port, "/api/runs");
+    let slug = serde_json::from_str::<serde_json::Value>(&body).unwrap()["runs"][0]["slug"].as_str().unwrap().to_string();
+    assert_eq!(post(g.port, &format!("/api/open/{slug}")), 200);
+    let start = Instant::now();
+    loop {
+        let found: Vec<i32> = std::fs::read_to_string(pids).unwrap_or_default().lines().filter_map(|l| l.trim().parse().ok()).collect();
+        if found.len() == INSTALL_PROCESSES {
+            return found;
+        }
+        assert!(start.elapsed() < STOP_DEADLINE, "the install never started");
+        std::thread::sleep(POLL);
+    }
+}
+
+fn alive(pid: i32) -> bool {
+    // SAFETY: signal 0 only asks whether the process exists.
+    unsafe { libc::kill(pid, 0) == 0 }
+}
+
+/// Waits for every pid to be gone; the ones still alive at the deadline (killed then, so a failure leaves nothing).
+fn left_running(pids: &[i32]) -> Vec<i32> {
+    let start = Instant::now();
+    while pids.iter().any(|&p| alive(p)) && start.elapsed() < GONE_DEADLINE {
+        std::thread::sleep(POLL);
+    }
+    let left: Vec<i32> = pids.iter().copied().filter(|&p| alive(p)).collect();
+    for &p in &left {
+        // SAFETY: kill(2) on a process this test's fake install started.
+        unsafe { libc::kill(p, libc::SIGKILL) };
+    }
+    left
+}
+
+#[test]
+fn a_build_stopped_while_it_installs_leaves_no_install_running_and_does_not_start() {
+    let (root, repo, home, pids, path) = hanging_install("stop-installing");
+    let (g, _, _) = start_with(&repo, &home, &[], &[("PATH", &path)]);
+    let install = open_until_installing(&g, &pids);
+    let (_, body) = get(g.port, "/api/runs");
+    let slug = serde_json::from_str::<serde_json::Value>(&body).unwrap()["runs"][0]["slug"].as_str().unwrap().to_string();
+    assert_eq!(post(g.port, &format!("/api/stop/{slug}")), 204);
+    assert_eq!(left_running(&install), Vec::<i32>::new(), "the install of a stopped build is still running");
+    let (_, status) = get(g.port, "/api/status");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&status).unwrap(), serde_json::json!({}), "a stopped build has no state");
+    let (ok, rest) = stop(g);
+    assert!(ok, "{rest}");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn a_gallery_stopped_while_a_build_installs_leaves_no_install_running() {
+    let (root, repo, home, pids, path) = hanging_install("sigterm-installing");
+    let (g, _, _) = start_with(&repo, &home, &[], &[("PATH", &path)]);
+    let install = open_until_installing(&g, &pids);
+    let (ok, rest) = stop(g);
+    assert!(ok, "{rest}");
+    assert_eq!(left_running(&install), Vec::<i32>::new(), "the install outlived the gallery");
     std::fs::remove_dir_all(&root).unwrap();
 }
