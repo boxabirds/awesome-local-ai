@@ -69,13 +69,14 @@ ensure_mtplx() {
   [[ -n "$ver" ]] || err "Could not read a version from '${MTPLX_BIN} --version'."
 
   if ! _version_ge "$ver" "$MIN_MTPLX_VERSION"; then
-    # Upgrading is safe and idempotent, so try before giving up.
+    # Upgrading is safe and idempotent, so try before giving up. Install with the floor as the requirement, not
+    # `uv tool upgrade`: an MTPLX installed with an exact pin (mtplx==2.12.2) keeps the pin on upgrade and stays put.
     warn "MTPLX ${ver} is older than the required ${MIN_MTPLX_VERSION}; upgrading..."
-    if need_cmd uv; then uv tool upgrade mtplx || true; hash -r; fi
+    if need_cmd uv; then uv tool install "mtplx>=${MIN_MTPLX_VERSION}" || true; hash -r; fi
     ver="$("$MTPLX_BIN" --version 2>/dev/null | awk '{print $NF}')"
     _version_ge "$ver" "$MIN_MTPLX_VERSION" || err \
       "MTPLX ${ver} is too old; this combination needs >=${MIN_MTPLX_VERSION}.
-       Upgrade with:  uv tool upgrade mtplx"
+       Upgrade with:  uv tool install \"mtplx>=${MIN_MTPLX_VERSION}\""
   fi
   ok "MTPLX ${ver} at ${MTPLX_BIN}"
 
