@@ -520,16 +520,33 @@ pub fn mtime_secs(m: &std::fs::Metadata) -> f64 {
 }
 
 /// A regular file, never a link: its size and mtime from `stat` alone.
-fn entry_for(path: &Path, name: String, kind: FileKind) -> Option<FileEntry> {
+/// A listed file with its change time (ctime, nanoseconds since the epoch), from the same `stat` as its entry: the change
+/// feed (changes.rs) orders by it. ctime moves on a write, a rename into place and a copy that keeps the mtime.
+pub struct ListedFile {
+    pub entry: FileEntry,
+    pub changed_ns: i64,
+}
+
+/// ctime of `m`, nanoseconds since the epoch.
+pub fn changed_ns(m: &std::fs::Metadata) -> i64 {
+    use std::os::unix::fs::MetadataExt;
+    const NS_PER_S: i64 = 1_000_000_000;
+    m.ctime().saturating_mul(NS_PER_S).saturating_add(m.ctime_nsec())
+}
+
+fn entry_for(path: &Path, name: String, kind: FileKind) -> Option<ListedFile> {
     let m = std::fs::symlink_metadata(path).ok()?;
     if !m.is_file() {
         return None;
     }
-    Some(FileEntry {
-        name,
-        kind,
-        size: m.len(),
-        mtime: mtime_secs(&m),
+    Some(ListedFile {
+        entry: FileEntry {
+            name,
+            kind,
+            size: m.len(),
+            mtime: mtime_secs(&m),
+        },
+        changed_ns: changed_ns(&m),
     })
 }
 
@@ -550,7 +567,7 @@ fn story_dirs(run_dir: &Path) -> Vec<String> {
 /// What a walk below a tree root found: the files that pass the rules and a count of those that do not.
 #[derive(Default)]
 struct Walk {
-    files: Vec<FileEntry>,
+    files: Vec<ListedFile>,
     unlisted: u64,
 }
 
@@ -641,6 +658,12 @@ pub struct Listing {
 }
 
 pub fn manifest_listing(run_dir: &Path, bench_home: &Path) -> Listing {
+    let (files, unlisted) = listed_files(run_dir, bench_home);
+    Listing { files: files.into_iter().map(|f| f.entry).collect(), unlisted }
+}
+
+/// The files of `manifest_listing` with their change times, and the unlisted count.
+pub fn listed_files(run_dir: &Path, bench_home: &Path) -> (Vec<ListedFile>, u64) {
     let stories = story_dirs(run_dir);
     let mut out = Vec::new();
     let mut tree_walk = Walk::default();
@@ -664,7 +687,7 @@ pub fn manifest_listing(run_dir: &Path, bench_home: &Path) -> Listing {
         }
     }
     out.extend(tree_walk.files);
-    Listing { files: out, unlisted: tree_walk.unlisted }
+    (out, tree_walk.unlisted)
 }
 
 /// The files of `manifest_listing`, for callers that do not need the unlisted count.

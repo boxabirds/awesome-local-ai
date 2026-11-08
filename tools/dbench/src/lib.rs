@@ -7,6 +7,7 @@
 //! it was sent.
 
 pub mod analytics;
+pub mod changes;
 pub mod cli;
 pub mod client;
 pub mod collect;
