@@ -1017,6 +1017,9 @@ pub async fn pass_profiled(ctx: &Ctx, cfg: &Config, cadence: &Cadence, full: boo
     let summaries = futures_util::future::join_all(futs).await;
     profile.record("pass.nodes", nodes_started.elapsed().as_secs_f64(), summaries.iter().flat_map(|s| &s.runs).map(|r| r.pulled_bytes).sum());
     for s in &summaries {
+        for n in &s.notes {
+            eprintln!("dbench collect: {n}");
+        }
         for p in &s.problems {
             eprintln!("dbench collect: {}: {p}", s.node);
         }

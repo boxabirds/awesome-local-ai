@@ -157,8 +157,8 @@ Each component with the entities it makes (solid arrow: writes) and the entities
 component.
 
 The node's change feed, `GET /v1/changes` (story 24, `tools/dbench/src/changes.rs`), lists the files and job states
-that changed after a cursor, so the collector can read a node incrementally. It is built and served by the next node
-release; the collector does not use it yet (tasks 24.6 to 24.12).
+that changed after a cursor. The collector keeps one point per node (`<state>/points/<node>.json`) and reads each node
+incrementally: only the runs the feed names are visited (see the collection sequence below).
 
 ```mermaid
 flowchart LR
@@ -338,8 +338,14 @@ sequenceDiagram
   participant A as analytics.db
   loop every pass
     C->>B: archived runs from the annotation log
-    C->>N: GET /v1/runs (only runs this node ran)
-    loop each wanted run that is due
+    alt the lake holds a point for the node
+      C->>N: GET /v1/changes?after=point, page by page
+      N-->>C: the runs whose files or job changed
+    else no point, point refused, or node without the feed
+      C->>N: GET /v1/changes?after=head (kept as the point if every run is collected)
+      C->>N: GET /v1/runs (only runs this node ran)
+    end
+    loop each wanted run the feed named, or each due run of a full look
       C->>N: GET /v1/runs/scopes, then /scope-file per file
       C->>N: GET /v1/runs/events per stream, after the lake's cursor
       N-->>C: new bytes and events
