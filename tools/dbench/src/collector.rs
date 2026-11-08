@@ -243,6 +243,50 @@ pub fn save_collection(dir: &Path, c: &Collection) -> Result<()> {
     crate::store::write_atomic_private(&dir.join(COLLECTION_FILE), &serde_json::to_vec_pretty(c)?)
 }
 
+/// Under the lake's state folder: one point per node, `<state>/points/<node>.json` (story 24, collect.point_store).
+pub const POINTS_DIR: &str = "points";
+pub const E_POINT_WRITE: &str = "E-POINT-WRITE";
+
+/// How far the collector's last complete look at a node reached, in that node's change feed (changes.rs): the
+/// cursor to ask from next, the node's id from the feed, and when it was written (seconds).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Point {
+    pub cursor: String,
+    pub node_id: String,
+    pub at: u64,
+}
+
+/// A node's point, or None when it has none or its file is not a point (a full look follows either way).
+pub fn read_point(state: &Path, node: &str) -> Option<Point> {
+    let path = point_path(state, node).ok()?;
+    serde_json::from_slice(&std::fs::read(path).ok()?).ok()
+}
+
+/// `<state>/points/<node>.json`, for a node name that is an id (`ids::valid_id`, the rule nodes.toml names follow).
+fn point_path(state: &Path, node: &str) -> std::io::Result<PathBuf> {
+    if !valid_id(node) {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("not a node name: {node:?}")));
+    }
+    Ok(state.join(POINTS_DIR).join(format!("{node}.json")))
+}
+
+/// Write a node's point: a temporary file renamed into place, so a crash leaves the old point or the new one. A node
+/// name that is not an id is refused before any path is built.
+pub fn write_point(state: &Path, node: &str, p: &Point) -> std::io::Result<()> {
+    let path = point_path(state, node)?;
+    let bytes = serde_json::to_vec_pretty(p).map_err(std::io::Error::other)?;
+    crate::store::create_private_dir_all(&state.join(POINTS_DIR)).map_err(std::io::Error::other)?;
+    crate::store::write_atomic_private(&path, &bytes).map_err(std::io::Error::other)
+}
+
+/// Remove a node's point (a refused cursor); a node with none is not an error.
+pub fn remove_point(state: &Path, node: &str) -> std::io::Result<()> {
+    match std::fs::remove_file(point_path(state, node)?) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        other => other,
+    }
+}
+
 fn local_len(path: &Path) -> u64 {
     std::fs::metadata(path).map_or(0, |m| m.len())
 }
@@ -984,6 +1028,10 @@ pub async fn cmd_collect(ctx: &Ctx, args: &CollectArgs) -> Result<()> {
         tokio::time::sleep(cadence.running_poll).await;
     }
 }
+
+#[cfg(test)]
+#[path = "collector_points_test.rs"]
+mod points_tests;
 
 #[cfg(test)]
 mod tests {
