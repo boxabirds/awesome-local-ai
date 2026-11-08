@@ -442,7 +442,7 @@ async fn a_ten_megabyte_blob_arrives_in_three_requests_and_leaves_no_partial() {
         Ok(())
     };
     collector::pull_blob(&srv.api(), &RunRef::Path(RUN.into()), &entry, &dest, None, &mut progress).await.unwrap();
-    assert_eq!(chunks, 3);
+    assert_eq!(chunks, 2, "a partial is recorded while more is to come, not for the last of three chunks");
     assert_eq!(std::fs::read(&dest).unwrap(), data);
     assert!(!part.exists());
 }

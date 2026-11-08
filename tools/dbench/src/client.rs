@@ -127,6 +127,16 @@ pub struct Api {
     token: Option<String>,
 }
 
+/// A node's answer to `Api::changes`.
+#[derive(Debug)]
+pub enum Feed {
+    Page(crate::changes::ChangesPage),
+    /// 409: the node can't continue from that cursor (another node's, or after its clock).
+    Refused(String),
+    /// 404: the node's dbench has no change feed.
+    Old,
+}
+
 impl Api {
     pub fn new(entry: &NodeEntry) -> Result<Api> {
         let http = reqwest::Client::builder()
@@ -178,6 +188,18 @@ impl Api {
     /// The collectable files of a run and their sizes.
     pub async fn files(&self, run: &RunRef) -> Result<crate::collect::Manifest> {
         self.get_ok(&run.files_path()).await
+    }
+
+    /// What changed on the node after `after` (a cursor or `changes::HEAD`), one page (`GET /v1/changes`, story 24).
+    pub async fn changes(&self, after: &str, limit: usize) -> Result<Feed> {
+        let path = format!("/v1/changes?after={}&limit={limit}", urlencode(after));
+        let (status, v) = self.send(self.req(reqwest::Method::GET, &path)).await?;
+        match status {
+            reqwest::StatusCode::NOT_FOUND => Ok(Feed::Old),
+            reqwest::StatusCode::CONFLICT => Ok(Feed::Refused(error_text(&v))),
+            s if s.is_success() => Ok(Feed::Page(serde_json::from_value(v)?)),
+            s => bail!("{s}: {}", error_text(&v)),
+        }
     }
 
     /// What a run has produced so far, by scope (`GET /v1/runs/scopes`).

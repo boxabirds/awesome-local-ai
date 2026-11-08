@@ -242,9 +242,29 @@ async fn the_final_name_appears_only_after_the_last_chunk_while_the_partial_hold
     };
     pull_blob(&api, &run_ref(), &entry_of(&node, BUNDLE), &dest, None, &mut progress).await.unwrap();
     assert_eq!(requests(&node).len(), 3);
-    assert_eq!(seen, [COLLECT_CHUNK_BYTES, 2 * COLLECT_CHUNK_BYTES, data.len() as u64]);
+    assert_eq!(seen, [COLLECT_CHUNK_BYTES, 2 * COLLECT_CHUNK_BYTES], "recorded while more was to come, not for the last chunk");
     assert_eq!(std::fs::read(&dest).unwrap(), data);
     assert!(!part.exists());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[tokio::test]
+async fn a_blob_that_arrives_in_one_chunk_records_no_partial() {
+    // Story 24, TC-24's cost: a partial is recorded so that a later pass can resume from it, which only a blob with more
+    // to come needs. Recording one for the last chunk rewrote and synced the run's whole collection.json once per file:
+    // 5,000 small artifacts took 130 s and 82 s of CPU to pull.
+    let data = pattern(1024, 5);
+    let (_, api, node) = serve_fake(one_file(BUNDLE, blob(data.clone()))).await;
+    let dir = scratch_dir("one-chunk");
+    let dest = dir.join(BUNDLE);
+    let mut recorded = 0;
+    let mut progress = |_: &Partial| -> Result<()> {
+        recorded += 1;
+        Ok(())
+    };
+    pull_blob(&api, &run_ref(), &entry_of(&node, BUNDLE), &dest, None, &mut progress).await.unwrap();
+    assert_eq!(recorded, 0);
+    assert_eq!(std::fs::read(&dest).unwrap(), data);
     std::fs::remove_dir_all(dir).unwrap();
 }
 

@@ -425,7 +425,6 @@ pub async fn pull_blob(
         f.sync_data()?;
         from += bytes.len() as u64;
         pulled += bytes.len() as u64;
-        progress(&Partial { bytes: from, node_size: meta.size, node_mtime: meta.mtime })?;
         if meta.eof || bytes.is_empty() {
             if from != meta.size {
                 discard(E_BLOB_SHORT, &mut refetches)?;
@@ -436,6 +435,9 @@ pub async fn pull_blob(
             std::fs::rename(&part, dest).with_context(|| format!("rename to {}", dest.display()))?;
             return Ok(Pulled { bytes: from, pulled, at_eof: true, refetches, meta });
         }
+        // More to come: what the partial holds, so a pass cut short resumes from it. Not for the last chunk, which
+        // nothing resumes from: recording it rewrote the run's whole record once per file.
+        progress(&Partial { bytes: from, node_size: meta.size, node_mtime: meta.mtime })?;
     }
 }
 
@@ -507,6 +509,14 @@ pub fn settle(local: &mut Collection, settled: bool, pulled_files: usize, cadenc
     }
 }
 
+/// Completeness when the node's change feed is read (story 24, collect.by_changes): any later write to the run is a
+/// change the feed names, which reopens it, so a run is complete as soon as the node says it is final and every file is
+/// held: no grace. The grace of `settle` is for a node read without a feed, where a late write could go unseen.
+pub fn settle_now(local: &mut Collection, held: bool, now: u64) {
+    local.complete = held;
+    local.settled_at = held.then_some(now);
+}
+
 /// Collect one run of one node into `dir`; the record it leaves says what it holds. Only the classes of file in
 /// `classes` are taken (a reference model's run takes its records only).
 pub async fn collect_run(api: &Api, node: &str, run: &str, dir: &Path, classes: &[Class], cadence: &Cadence, now: u64) -> Result<RunSummary> {
@@ -549,6 +559,8 @@ pub struct NodeSummary {
     pub reachable: bool,
     pub runs: Vec<RunSummary>,
     pub problems: Vec<String>,
+    /// What the pass did that is not a fault, for its log: a full look, and why (story 24).
+    pub notes: Vec<String>,
 }
 
 /// What a pass ingests: every candidate when a full ingest is due (the first pass, or the operator's decision log
@@ -603,8 +615,15 @@ pub async fn collect_node(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs: &[St
 }
 
 /// `collect_node`, through the scope API when `scopes`. A node without `/v1/runs/scopes` is reported as old, once per run.
+///
+/// Through the scope API a node is read incrementally (story 24): with a point, the pass asks the node's change feed what
+/// changed since and visits only the runs it names, moving the point when every one of them was collected. With no point,
+/// a refused one, or a node whose dbench has no feed, it takes a full look as before; for a node with a feed, the feed's
+/// head is taken first and kept as the point once every due run was collected, so nothing written during the look is
+/// missed.
 #[allow(clippy::too_many_arguments)]
 pub async fn collect_node_with(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs: &[String], archived: &BTreeSet<String>, cadence: &Cadence, now: u64, scopes: bool) -> NodeSummary {
+    use crate::client::Feed;
     let mut out = NodeSummary { node: node.to_string(), ..Default::default() };
     let api = match ctx.api(node) {
         Ok(a) => a,
@@ -613,46 +632,189 @@ pub async fn collect_node_with(ctx: &Ctx, node: &str, lake: Lake<'_>, only_runs:
             return out;
         }
     };
+    if !scopes {
+        full_look(&api, node, lake, only_runs, archived, cadence, now, false, false, &mut out).await;
+        return out;
+    }
+    let state = lake.store.parent().unwrap_or(Path::new(""));
+    let why = match read_point(state, node) {
+        Some(point) => match feed_look(&api, node, lake, only_runs, archived, cadence, now, &point, &mut out).await {
+            FeedLook::Done => return out,
+            FeedLook::Unreachable => return out,
+            FeedLook::Refused(msg) => {
+                if let Err(e) = remove_point(state, node) {
+                    out.problems.push(format!("{E_POINT_WRITE}: {node}: the refused point could not be removed: {e}"));
+                }
+                format!("point refused ({msg})")
+            }
+            FeedLook::Old => FULL_LOOK_OLD.to_string(),
+        },
+        None => FULL_LOOK_NO_POINT.to_string(),
+    };
+    let head = if why == FULL_LOOK_OLD {
+        None
+    } else {
+        match api.changes(crate::changes::HEAD, crate::changes::LIMIT_DEFAULT).await {
+            Ok(Feed::Page(p)) => Some(p),
+            Ok(Feed::Old) => {
+                out.notes.push(format!("full look: {node}: {FULL_LOOK_OLD}"));
+                None
+            }
+            Ok(Feed::Refused(msg)) => {
+                out.problems.push(format!("{node}: the change feed refused its own head: {msg}"));
+                None
+            }
+            Err(e) => {
+                out.problems.push(format!("{E_NODE_UNREACHABLE}: unreachable: {e:#}"));
+                return out;
+            }
+        }
+    };
+    if head.is_some() || why == FULL_LOOK_OLD {
+        out.notes.push(format!("full look: {node}: {why}"));
+    }
+    let all_held = full_look(&api, node, lake, only_runs, archived, cadence, now, true, head.is_some(), &mut out).await;
+    if let (Some(head), true) = (head, all_held) {
+        keep_point(state, node, &head.next, &head.node_id, now, &mut out);
+    }
+    out
+}
+
+/// Why a full look was taken, as its log line says it.
+const FULL_LOOK_NO_POINT: &str = "no point";
+const FULL_LOOK_OLD: &str = "node software has no /v1/changes";
+
+/// How a look through the change feed ended.
+enum FeedLook {
+    /// Every named run was looked at (the point moved if all were collected).
+    Done,
+    Refused(String),
+    Old,
+    Unreachable,
+}
+
+/// Ask the node's feed what changed since `point`, page by page, then collect only the runs named, and the code still owed
+/// for runs not named. The point moves to the feed's last cursor only when every named run was collected.
+#[allow(clippy::too_many_arguments)]
+async fn feed_look(api: &Api, node: &str, lake: Lake<'_>, only_runs: &[String], archived: &BTreeSet<String>, cadence: &Cadence, now: u64, point: &Point, out: &mut NodeSummary) -> FeedLook {
+    use crate::client::Feed;
+    let mut after = point.cursor.clone();
+    let mut node_id: String;
+    let mut named = BTreeSet::new();
+    loop {
+        match api.changes(&after, crate::changes::LIMIT_DEFAULT).await {
+            Ok(Feed::Page(page)) => {
+                named.extend(page.changes.iter().map(|c| c.run.clone()));
+                named.extend(page.runs.iter().map(|r| r.run.clone()));
+                after = page.next;
+                node_id = page.node_id;
+                if !page.more {
+                    break;
+                }
+            }
+            Ok(Feed::Refused(msg)) => return FeedLook::Refused(msg),
+            Ok(Feed::Old) => return FeedLook::Old,
+            Err(e) => {
+                out.problems.push(format!("{E_NODE_UNREACHABLE}: unreachable: {e:#}"));
+                return FeedLook::Unreachable;
+            }
+        }
+    }
+    out.reachable = true;
+    let mut all_held = true;
+    for run in named.iter().filter(|r| wanted(r, only_runs, archived)) {
+        all_held &= collect_one(api, node, lake, run, cadence, now, crate::scope_collect::Look::Named, true, out).await;
+    }
+    for run in owed_code(lake, node).into_iter().filter(|r| !named.contains(r) && wanted(r, only_runs, archived)) {
+        if let Some(problem) = pull_run_code(api, lake, node, &run).await {
+            out.problems.push(problem);
+        }
+    }
+    if all_held {
+        let state = lake.store.parent().unwrap_or(Path::new(""));
+        keep_point(state, node, &after, &node_id, now, out);
+    }
+    FeedLook::Done
+}
+
+/// Write the node's point, or say on the pass line why it could not be: the old point stays.
+fn keep_point(state: &Path, node: &str, cursor: &str, node_id: &str, now: u64, out: &mut NodeSummary) {
+    let p = Point { cursor: cursor.to_string(), node_id: node_id.to_string(), at: now };
+    if let Err(e) = write_point(state, node, &p) {
+        out.problems.push(format!("{E_POINT_WRITE}: {node}: {e}"));
+    }
+}
+
+/// The runs of this node whose code is still owed: under its own name, and the reference runs whose lake folder it filled.
+fn owed_code(lake: Lake<'_>, node: &str) -> Vec<String> {
+    let code = lake.store.parent().unwrap_or(Path::new("")).join(crate::lake_code::CODE_REPO);
+    let mut runs = crate::lake_code::pending_runs(&code, node);
+    for run in crate::lake_code::pending_runs(&code, crate::lake_code::REFERENCE_NODE) {
+        let filled_by_this_node = dest_dir(lake.store, lake.reference, node, &run).and_then(|d| load_collection(&d)).is_some_and(|c| c.node == node);
+        if filled_by_this_node {
+            runs.push(run);
+        }
+    }
+    runs
+}
+
+/// Today's look at every run the node lists, through the scope API when `scopes`; `feed` when the node has a change feed
+/// and its head was taken before the look. True when every run looked at was collected.
+#[allow(clippy::too_many_arguments)]
+async fn full_look(api: &Api, node: &str, lake: Lake<'_>, only_runs: &[String], archived: &BTreeSet<String>, cadence: &Cadence, now: u64, scopes: bool, feed: bool, out: &mut NodeSummary) -> bool {
     let runs = match api.runs().await {
         Ok(r) => r,
         Err(e) => {
             out.problems.push(if e.to_string().contains("404") { format!("{E_NODE_OLD}: needs the new dbench (no /v1/runs)") } else { format!("{E_NODE_UNREACHABLE}: unreachable: {e:#}") });
-            return out;
+            return false;
         }
     };
     out.reachable = true;
+    let look = crate::scope_collect::Look::Full { feed };
+    let mut all_held = true;
     for r in runs {
         if !wanted(&r.run, only_runs, archived) {
             continue;
         }
-        let Some(dir) = dest_dir(lake.store, lake.reference, node, &r.run) else {
-            let code = if r.run.starts_with(REFERENCE_RUN_PREFIX) { E_REFERENCE_DEST } else { E_NOT_A_RUN_PATH };
-            out.problems.push(format!("{code}: {}: not a run path", r.run));
-            continue;
-        };
-        let result = if scopes {
-            crate::scope_collect::collect_run(&api, node, &r.run, &dir, classes_for(&r.run), cadence, now).await
-        } else {
-            collect_run(&api, node, &r.run, &dir, classes_for(&r.run), cadence, now).await
-        };
-        match result {
-            Ok(s) => {
-                // The run's code follows its files, on the passes that looked at the run (story 23, code.lake_repo), and
-                // on every pass while a pull of it has not yet succeeded (lake_code::is_pending).
-                if scopes && (!s.complete || s.changed || code_owed(lake, node, &r.run)) {
-                    if let Some(problem) = pull_run_code(&api, lake, node, &r.run).await {
-                        out.problems.push(problem);
-                    }
+        all_held &= collect_one(api, node, lake, &r.run, cadence, now, look, scopes, out).await;
+    }
+    all_held
+}
+
+/// Collect one run, then its code when the run was looked at or its code is owed. False when the run could not be collected.
+#[allow(clippy::too_many_arguments)]
+async fn collect_one(api: &Api, node: &str, lake: Lake<'_>, run: &str, cadence: &Cadence, now: u64, look: crate::scope_collect::Look, scopes: bool, out: &mut NodeSummary) -> bool {
+    let Some(dir) = dest_dir(lake.store, lake.reference, node, run) else {
+        let code = if run.starts_with(REFERENCE_RUN_PREFIX) { E_REFERENCE_DEST } else { E_NOT_A_RUN_PATH };
+        out.problems.push(format!("{code}: {run}: not a run path"));
+        return true;
+    };
+    let result = if scopes {
+        crate::scope_collect::collect_run_as(api, node, run, &dir, classes_for(run), cadence, now, look).await
+    } else {
+        collect_run(api, node, run, &dir, classes_for(run), cadence, now).await
+    };
+    match result {
+        Ok(s) => {
+            // The run's code follows its files, on the passes that looked at the run (story 23, code.lake_repo), and
+            // on every pass while a pull of it has not yet succeeded (lake_code::is_pending).
+            if scopes && (!s.complete || s.changed || code_owed(lake, node, run)) {
+                if let Some(problem) = pull_run_code(api, lake, node, run).await {
+                    out.problems.push(problem);
                 }
-                out.runs.push(s)
             }
-            Err(e) if scopes && e.to_string().contains("404") && !e.to_string().contains("E-RUN-NOT-FOUND") => {
-                out.problems.push(format!("{E_NODE_OLD}: {}: needs the new dbench (no /v1/runs/scopes)", r.run));
-            }
-            Err(e) => out.problems.push(format!("{}: {e:#}", r.run)),
+            out.runs.push(s);
+            true
+        }
+        Err(e) if scopes && e.to_string().contains("404") && !e.to_string().contains("E-RUN-NOT-FOUND") => {
+            out.problems.push(format!("{E_NODE_OLD}: {run}: needs the new dbench (no /v1/runs/scopes)"));
+            false
+        }
+        Err(e) => {
+            out.problems.push(format!("{run}: {e:#}"));
+            false
         }
     }
-    out
 }
 
 /// Pulls a run's new commits into the lake's code repository (`<state>/code.git`, beside the store). A reference run's
@@ -1034,6 +1196,10 @@ pub async fn cmd_collect(ctx: &Ctx, args: &CollectArgs) -> Result<()> {
 mod points_tests;
 
 #[cfg(test)]
+#[path = "collector_settle_test.rs"]
+mod settle_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::collect::{FileEntry, FileKind};
@@ -1044,6 +1210,7 @@ mod tests {
             reachable: true,
             runs: runs.iter().map(|(r, changed)| RunSummary { run: r.to_string(), changed: *changed, ..Default::default() }).collect(),
             problems: vec![],
+            notes: vec![],
         }
     }
 

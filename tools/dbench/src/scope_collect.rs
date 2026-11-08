@@ -272,6 +272,23 @@ pub async fn pull_stream(api: &Api, run: &str, target: &StreamTarget, dest: &Pat
 /// Collect one run of one node into `dir` through the scope routes; the note it leaves says what the lake holds. Only the
 /// classes in `classes` are taken (a reference model's run takes its records only).
 pub async fn collect_run(api: &Api, node: &str, run: &str, dir: &Path, classes: &[Class], cadence: &Cadence, now: u64) -> Result<RunSummary> {
+    collect_run_as(api, node, run, dir, classes, cadence, now, Look::Full { feed: false }).await
+}
+
+/// How a pass comes to look at a run (story 24).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Look {
+    /// A full look: the run is visited when `collector::due` says so. With `feed`, the node has a change feed and the
+    /// collector holds a point from before this look, so any later write is named by the next feed look and a held run
+    /// is complete at once; without, today's grace applies.
+    Full { feed: bool },
+    /// The node's change feed named the run: it is visited whatever `due` says, and complete as soon as it is held.
+    Named,
+}
+
+/// `collect_run`, for a look of the given kind.
+#[allow(clippy::too_many_arguments)]
+pub async fn collect_run_as(api: &Api, node: &str, run: &str, dir: &Path, classes: &[Class], cadence: &Cadence, now: u64, look: Look) -> Result<RunSummary> {
     let mut local = collector::load_collection(dir).unwrap_or_else(|| Collection {
         node: node.to_string(),
         run: run.to_string(),
@@ -280,7 +297,7 @@ pub async fn collect_run(api: &Api, node: &str, run: &str, dir: &Path, classes: 
         ..Default::default()
     });
     let mut summary = RunSummary { run: run.to_string(), ..Default::default() };
-    if !collector::due(Some(&local), now, cadence) {
+    if look != Look::Named && !collector::due(Some(&local), now, cadence) {
         summary.complete = local.complete;
         return Ok(summary);
     }
@@ -323,7 +340,10 @@ pub async fn collect_run(api: &Api, node: &str, run: &str, dir: &Path, classes: 
     local.collected_at = now;
     local.dbench_version = crate::VERSION.to_string();
     let held = listing.final_ && streams_held && collector::all_at_eof(&manifest, &local);
-    collector::settle(&mut local, held, summary.pulled_files, cadence, now);
+    match look {
+        Look::Full { feed: false } => collector::settle(&mut local, held, summary.pulled_files, cadence, now),
+        Look::Full { feed: true } | Look::Named => collector::settle_now(&mut local, held, now),
+    }
     summary.complete = local.complete;
     summary.changed |= local.complete != was_complete;
     collector::save_collection(dir, &local)?;

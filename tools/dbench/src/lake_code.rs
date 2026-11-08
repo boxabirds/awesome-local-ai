@@ -385,6 +385,33 @@ pub fn is_pending(lake_code: &Path, node: &str, run: &str) -> bool {
     pending_file(lake_code, node, run).is_ok_and(|f| f.is_file())
 }
 
+/// Every run whose code is still owed under `node` (a node's name, or `REFERENCE_NODE`), sorted: what a pass that does
+/// not visit a run (a feed look, story 24) retries anyway. Only names the lake accepts are returned.
+pub fn pending_runs(lake_code: &Path, node: &str) -> Vec<String> {
+    fn walk(base: &Path, dir: &Path, out: &mut Vec<String>) {
+        let Ok(rd) = std::fs::read_dir(dir) else { return };
+        for e in rd.filter_map(|e| e.ok()) {
+            let Ok(ft) = e.file_type() else { continue };
+            if ft.is_dir() {
+                walk(base, &e.path(), out);
+            } else if ft.is_file() {
+                if let Some(rel) = e.path().strip_prefix(base).ok().and_then(|r| r.to_str()) {
+                    out.push(rel.to_string());
+                }
+            }
+        }
+    }
+    if !bench_lake::layout::is_valid_part(node) {
+        return Vec::new();
+    }
+    let base = lake_code.join(PENDING_DIR).join(node);
+    let mut out = Vec::new();
+    walk(&base, &base, &mut out);
+    out.retain(|run| check_names(node, run).is_ok());
+    out.sort();
+    out
+}
+
 static INCOMING: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 const INCOMING_PREFIX: &str = "incoming-";
 const BUNDLE_SUFFIX: &str = ".bundle";
@@ -454,6 +481,26 @@ pub async fn pull_code(api: &crate::client::Api, lake_code: &Path, node: &str, r
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_runs_whose_code_is_owed_are_listed_per_node() {
+        let code = std::env::temp_dir().join(format!("dbench-pending-list-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&code);
+        const R1: &str = "combinations/f/v/x/os/m/eng-pi/benchmarks/p/r1";
+        const R2: &str = "combinations/f/v/x/os/m/eng-pi/benchmarks/p/r2";
+        const REF: &str = "benchmarks/reference/vidi/opus-5.5/v2-r1";
+        assert!(super::pending_runs(&code, "thing2").is_empty(), "no lake code repository yet");
+        super::mark_pending(&code, "thing2", R2).unwrap();
+        super::mark_pending(&code, "thing2", R1).unwrap();
+        super::mark_pending(&code, "gruntus", R1).unwrap();
+        super::mark_pending(&code, super::REFERENCE_NODE, REF).unwrap();
+        assert_eq!(super::pending_runs(&code, "thing2"), vec![R1.to_string(), R2.to_string()]);
+        assert_eq!(super::pending_runs(&code, super::REFERENCE_NODE), vec![REF.to_string()]);
+        super::clear_pending(&code, "thing2", R1).unwrap();
+        assert_eq!(super::pending_runs(&code, "thing2"), vec![R2.to_string()]);
+        assert!(super::pending_runs(&code, "../x").is_empty());
+        let _ = std::fs::remove_dir_all(&code);
+    }
+
     #[test]
     fn a_runs_owed_code_is_marked_until_cleared_and_only_for_a_valid_name() {
         let code = std::env::temp_dir().join(format!("dbench-pending-{}", std::process::id()));
