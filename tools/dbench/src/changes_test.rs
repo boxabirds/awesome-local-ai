@@ -237,6 +237,12 @@ fn tc06_a_file_renamed_into_place_with_a_year_old_mtime_is_listed() {
 #[test]
 fn tc07_five_changes_in_pages_of_two_equal_one_page_of_five() {
     let t = tree("tc07");
+    // The files exist before the cursor and are rewritten in place after it: no folder gains an entry, so the page
+    // holds the five file changes only.
+    for n in 1..=5 {
+        t.write(&format!("stories/0{n}/gate.json"), "{}");
+    }
+    std::thread::sleep(BETWEEN_WRITES);
     let cursor = now_ns();
     for n in 1..=5 {
         std::thread::sleep(BETWEEN_WRITES);
@@ -262,4 +268,47 @@ fn tc07_five_changes_in_pages_of_two_equal_one_page_of_five() {
     }
     assert_eq!(sizes, vec![2, 2, 1]);
     assert_eq!(got, files(&whole));
+}
+
+#[test]
+fn a_folder_renamed_inside_a_run_names_the_run_though_its_files_keep_their_change_time() {
+    let t = tree("folder");
+    t.write("rescore/2026.11.1/rescore.json", "{}");
+    std::thread::sleep(BETWEEN_WRITES);
+    let cursor = now_ns();
+    std::thread::sleep(BETWEEN_WRITES);
+    std::fs::create_dir_all(t.run_dir().join("rescore-spoiled")).unwrap();
+    std::fs::rename(
+        t.run_dir().join("rescore/2026.11.1"),
+        t.run_dir()
+            .join("rescore-spoiled/2026.11.1-20261108T020000"),
+    )
+    .unwrap();
+    let p = t.page(&at(cursor), now_ns(), LIMIT_MAX);
+    assert!(
+        p.changes.is_empty(),
+        "the moved file kept its change time: {p:?}"
+    );
+    assert_eq!(p.runs.len(), 1, "the run is named once: {p:?}");
+    assert_eq!(p.runs[0].run, RUN);
+}
+
+#[test]
+fn a_run_whose_marker_is_written_after_its_records_is_named_then() {
+    let t = tree("marker");
+    std::fs::remove_file(t.run_dir().join("work_dir.txt")).unwrap();
+    std::thread::sleep(BETWEEN_WRITES);
+    let cursor = now_ns();
+    std::thread::sleep(BETWEEN_WRITES);
+    assert!(
+        t.page(&at(cursor), now_ns(), LIMIT_MAX).runs.is_empty(),
+        "not this node's run yet"
+    );
+    std::fs::write(t.run_dir().join("work_dir.txt"), "/w").unwrap();
+    let p = t.page(&at(cursor), now_ns(), LIMIT_MAX);
+    assert_eq!(
+        p.runs.iter().map(|r| r.run.as_str()).collect::<Vec<_>>(),
+        vec![RUN],
+        "{p:?}"
+    );
 }

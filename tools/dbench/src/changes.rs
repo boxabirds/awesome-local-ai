@@ -13,10 +13,14 @@
 //! * **A cursor** is `<node_id>.<ns>` (everything changed up to and including `ns` was listed) or `<node_id>.<ns>.<key>`
 //!   (everything up to and including that item, mid-page). It is refused (409 `E-CURSOR-REFUSED`) when it names another
 //!   node or a time after the node's now (the clock moved back, or the node was restored).
+//! * **A run's folders** are listed too, as the run with no file: a folder's change time moves when an entry is made,
+//!   renamed or removed in it, which the files of a renamed folder (they keep their change time) and the records a
+//!   run wrote before its `work_dir.txt` made it this node's do not show. Each folder on the way to a listed file, and
+//!   the run's own, is looked at; the run is listed once per page, at its latest change.
 //! * `after=head` lists nothing and returns the horizon: the point a full look starts from.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 use crate::collect;
@@ -37,6 +41,9 @@ pub const E_BAD_LIMIT: &str = "E-BAD-LIMIT";
 /// What separates a cursor's parts. A node id never holds it; a key may (only the first two separate).
 pub const CURSOR_SEP: char = '.';
 const NS_PER_MS: i64 = 1_000_000;
+/// Between a run and one of its folders in a folder item's key (`<run>//<folder>`): no file's key (`<run>/<file>`) or
+/// job's key (`<run>/`) holds two slashes together.
+const FOLDER_KEY_SEP: &str = "//";
 /// Test-only override of the node's clock, in ms (the design's `DBENCH_CHANGES_NOW_MS`).
 pub const NOW_ENV: &str = "DBENCH_CHANGES_NOW_MS";
 
@@ -100,7 +107,8 @@ pub enum CursorError {
 }
 
 /// Every item of the node's own runs, with its change time (ns) and key, unordered: each allow-listed file (key
-/// `<run>/<file>`) and each run with a job (key `<run>/`, which no file's key can equal). A run's `final_` is left false
+/// `<run>/<file>`), each run with a job (key `<run>/`, which no file's key can equal), and each folder on the way to a
+/// listed file, the run's own included (key `<run>//<folder>`, as the run with its current job). A run's `final_` is left false
 /// here and worked out by `changes_after` only for the runs a page lists, so no file is opened for the others.
 pub fn items(
     repo: &Path,
@@ -110,7 +118,41 @@ pub fn items(
 ) -> Vec<(i64, String, Item)> {
     let mut out = Vec::new();
     for run in collect::list_runs(repo, share_dir) {
-        let (files, _) = collect::listed_files(&repo.join(&run), bench_home);
+        let run_dir = repo.join(&run);
+        let (files, _) = collect::listed_files(&run_dir, bench_home);
+        // A folder's change time moves when an entry in it is made, renamed or removed, which a renamed folder's
+        // files and a file written before the run became this node's do not show. Each folder on the way to a listed
+        // file, and the run's own, names the run when it changed.
+        let mut dirs = BTreeSet::from([String::new()]);
+        for f in &files {
+            let mut name = f.entry.name.as_str();
+            while let Some(i) = name.rfind('/') {
+                name = &name[..i];
+                if !dirs.insert(name.to_string()) {
+                    break;
+                }
+            }
+        }
+        let job = jobs.get(&run);
+        for d in dirs {
+            let path = if d.is_empty() {
+                run_dir.clone()
+            } else {
+                run_dir.join(&d)
+            };
+            let Ok(meta) = std::fs::symlink_metadata(&path) else {
+                continue;
+            };
+            let ns = collect::changed_ns(&meta);
+            let state = RunState {
+                run: run.clone(),
+                job: job.map(|j| j.id.clone()),
+                job_state: job.map(|j| j.label.clone()),
+                final_: false,
+                changed_ms: ms(ns),
+            };
+            out.push((ns, format!("{run}{FOLDER_KEY_SEP}{d}"), Item::Run(state)));
+        }
         for f in files {
             let key = format!("{run}/{}", f.entry.name);
             let change = Change {
@@ -169,7 +211,11 @@ pub fn page(
     for (_, _, item) in due {
         match item {
             Item::File(c) => changes.push(c),
-            Item::Run(r) => runs.push(r),
+            // One entry per run: a run named by its job and by its folders is listed once, at its latest change.
+            Item::Run(r) => {
+                runs.retain(|o: &RunState| o.run != r.run);
+                runs.push(r)
+            }
         }
     }
     ChangesPage {

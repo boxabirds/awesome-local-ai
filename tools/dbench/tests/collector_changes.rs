@@ -1094,3 +1094,260 @@ async fn a_code_pull_owed_by_a_run_the_feed_does_not_name_is_still_retried() {
         .unwrap();
     assert_eq!(String::from_utf8(out.stdout).unwrap().trim(), tip);
 }
+
+// ---------------------------------------------------------------- the equivalence classes of the data the nodes hold
+//
+// One case per way the harness changes a run, crossed with the kinds of file the allow-list holds (append log, whole
+// record, blob, tree, egress log in the bench home, reference run). Each case keeps two lakes of the same node: one
+// read through the feed, one by a full look every pass (its point removed first, so every pass is today's look). After
+// the change, the two lakes hold the same files byte for byte, and the feed pass took no full look.
+
+const RESCORE_FILE: &str = "rescore/2026.11.1/rescore.json";
+const SPOILED_FILE: &str = "rescore-spoiled/2026.11.1-20261108T020000/rescore.json";
+const COMPACT: &str = "stories/01/agent-events.compact.jsonl.gz";
+const EVENTS: &str = "stories/01/agent-events.jsonl";
+const ARTIFACT: &str = "stories/01/artifacts/a.txt";
+/// The run that appears only after the point.
+const RUN_NEW: &str = "combinations/kat/1/tiny/linux/box/fake-pi/benchmarks/chpack/run-new";
+const A_YEAR_AGO: Duration = Duration::from_secs(365 * 24 * 3_600);
+
+struct Twin {
+    feed: LakeDirs,
+    full: LakeDirs,
+}
+
+impl Node {
+    fn egress(&self) -> PathBuf {
+        self.shared
+            .cfg
+            .bench_home
+            .join(dbench::collect::EGRESS_DIR)
+            .join("work.jsonl")
+    }
+
+    /// RUN_A with one file of every kind, and the reference run.
+    fn full_run(&self) {
+        self.make_run(RUN_A);
+        self.write(RUN_A, EVENTS, "{\"e\":1}\n{\"e\":2}\n");
+        self.write(RUN_A, dbench::collect::SERVER_LOG, "line 1\n");
+        self.write(RUN_A, COMPACT, "gz-v1");
+        self.write(RUN_A, ARTIFACT, "a");
+        self.write(RUN_A, RESCORE_FILE, "{\"results\": []}");
+        std::fs::create_dir_all(self.egress().parent().unwrap()).unwrap();
+        std::fs::write(self.egress(), "{\"host\":\"a\"}\n").unwrap();
+        self.make_run(REF_RUN);
+        self.write(REF_RUN, "finalize.json", "{\"score\": \"70/75\"}");
+    }
+
+    fn append(&self, path: &Path, text: &str) {
+        use std::io::Write;
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(path)
+            .unwrap()
+            .write_all(text.as_bytes())
+            .unwrap();
+    }
+}
+
+/// Every file of the node's lake folders (own runs and reference runs) but the collector's records.
+fn whole_lake(l: &LakeDirs) -> BTreeMap<String, Vec<u8>> {
+    let mut out = BTreeMap::new();
+    for (tag, dir) in [("store", l.store()), ("reference", l.reference())] {
+        if dir.exists() {
+            for (k, v) in lake_files(&dir) {
+                out.insert(format!("{tag}/{k}"), v);
+            }
+        }
+    }
+    out
+}
+
+/// One pass of each lake: the feed lake from its point, the other with a full look.
+async fn twin_pass(n: &Node, t: &Twin, now: u64) -> Vec<String> {
+    n.take();
+    let f = pass(n, &t.feed, now).await;
+    assert!(f.problems.is_empty(), "feed: {:?}", f.problems);
+    let feed_log = n.take();
+    collector::remove_point(&t.full.state, &n.name).unwrap();
+    let g = pass(n, &t.full, now).await;
+    assert!(g.problems.is_empty(), "full: {:?}", g.problems);
+    n.take();
+    feed_log
+}
+
+/// A node holding every kind of file, both lakes after their first look, and the feed lake with a point.
+async fn twin() -> (Node, Twin) {
+    let n = Node::start("n1").await;
+    n.full_run();
+    tokio::time::sleep(SETTLE).await;
+    let t = Twin {
+        feed: LakeDirs::new(),
+        full: LakeDirs::new(),
+    };
+    twin_pass(&n, &t, 1).await;
+    assert!(t.feed.point("n1").is_some());
+    tokio::time::sleep(SETTLE).await;
+    (n, t)
+}
+
+/// After `change`, a feed pass leaves the lake a full look leaves, without a full look of its own.
+async fn same_after(case: &str, n: &Node, t: &Twin) {
+    tokio::time::sleep(SETTLE).await;
+    let log = twin_pass(n, t, 2).await;
+    assert_eq!(
+        lists(&log),
+        0,
+        "{case}: the feed pass took a full look: {log:?}"
+    );
+    let (feed, full) = (whole_lake(&t.feed), whole_lake(&t.full));
+    assert_eq!(
+        feed.keys().collect::<Vec<_>>(),
+        full.keys().collect::<Vec<_>>(),
+        "{case}: the lakes hold different files"
+    );
+    for (k, v) in &full {
+        assert!(feed[k] == *v, "{case}: {k} differs");
+    }
+}
+
+#[tokio::test]
+async fn eq01_an_append_log_in_a_story_grows() {
+    let (n, t) = twin().await;
+    n.append(&n.dir(RUN_A).join(EVENTS), "{\"e\":3}\n");
+    same_after("story log grows", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq02_an_append_log_of_the_run_grows() {
+    let (n, t) = twin().await;
+    n.append(&n.dir(RUN_A).join(dbench::collect::SERVER_LOG), "line 2\n");
+    same_after("server log grows", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq03_an_append_log_is_rewritten_shorter() {
+    let (n, t) = twin().await;
+    n.write(RUN_A, EVENTS, "{\"e\":9}\n");
+    same_after("story log shrinks", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq04_the_egress_log_in_the_bench_home_grows() {
+    let (n, t) = twin().await;
+    n.append(&n.egress(), "{\"host\":\"b\"}\n");
+    same_after("egress log grows", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq05_a_whole_record_is_rewritten() {
+    let (n, t) = twin().await;
+    n.write(RUN_A, "metrics.json", "{\"stories\": {\"1\": \"DONE\"}}");
+    same_after("metrics rewritten", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq06_a_blob_is_replaced_by_a_rename_into_place() {
+    let (n, t) = twin().await;
+    let staged = n.dir(RUN_A).join("stories/01/.compact.new");
+    std::fs::write(&staged, "gz-v2-longer").unwrap();
+    std::fs::rename(&staged, n.dir(RUN_A).join(COMPACT)).unwrap();
+    same_after("blob replaced", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq07_a_record_is_copied_in_keeping_a_year_old_mtime() {
+    let (n, t) = twin().await;
+    let p = n.dir(RUN_A).join("metrics.json");
+    std::fs::write(&p, "{\"stories\": {\"1\": \"PARTIAL\"}}").unwrap();
+    let old = std::time::SystemTime::now() - A_YEAR_AGO;
+    std::fs::File::options()
+        .write(true)
+        .open(&p)
+        .unwrap()
+        .set_modified(old)
+        .unwrap();
+    same_after("copy keeping an old mtime", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq08_a_tree_gains_a_file_in_a_new_story() {
+    let (n, t) = twin().await;
+    n.write(RUN_A, "stories/02/artifacts/b.txt", "b");
+    n.write(RUN_A, "stories/02/gate.json", "{\"passed\": false}");
+    same_after("new story", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq09_a_rescore_is_set_aside_with_its_reason_as_the_harness_does() {
+    // finalize.set_aside: rename rescore/<v> to rescore-spoiled/<v>-<time>, then write set-aside.json in it.
+    let (n, t) = twin().await;
+    let d = n.dir(RUN_A);
+    let dest = d.join(SPOILED_FILE);
+    std::fs::create_dir_all(dest.parent().unwrap().parent().unwrap()).unwrap();
+    std::fs::rename(
+        d.join(RESCORE_FILE).parent().unwrap(),
+        dest.parent().unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        dest.parent().unwrap().join("set-aside.json"),
+        "{\"reason\": \"x\"}",
+    )
+    .unwrap();
+    same_after("rescore set aside with a reason", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq10_a_folder_is_renamed_and_nothing_else_is_written() {
+    let (n, t) = twin().await;
+    let d = n.dir(RUN_A);
+    let dest = d.join(SPOILED_FILE);
+    std::fs::create_dir_all(dest.parent().unwrap().parent().unwrap()).unwrap();
+    std::fs::rename(
+        d.join(RESCORE_FILE).parent().unwrap(),
+        dest.parent().unwrap(),
+    )
+    .unwrap();
+    same_after("folder renamed alone", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq11_a_file_is_deleted() {
+    let (n, t) = twin().await;
+    std::fs::remove_file(n.dir(RUN_A).join(ARTIFACT)).unwrap();
+    same_after("file deleted", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq12_a_new_run_starts_after_the_point() {
+    let (n, t) = twin().await;
+    n.make_run(RUN_NEW);
+    n.write(RUN_NEW, EVENTS, "{\"e\":1}\n");
+    same_after("new run", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq13_a_run_becomes_this_node_s_after_its_records_were_written() {
+    // run.sh writes run.json and the run's status; drive.py writes work_dir.txt only after setting up the workspace.
+    let (n, t) = twin().await;
+    let d = n.dir(RUN_NEW);
+    std::fs::create_dir_all(d.join("stories/01")).unwrap();
+    std::fs::write(d.join("run.json"), "{\"run\": \"new\"}").unwrap();
+    std::fs::write(d.join("run-status.json"), STARTED).unwrap();
+    tokio::time::sleep(SETTLE).await;
+    twin_pass(&n, &t, 2).await;
+    std::fs::write(
+        d.join("work_dir.txt"),
+        n.root.join("work").display().to_string(),
+    )
+    .unwrap();
+    same_after("run marker written last", &n, &t).await;
+}
+
+#[tokio::test]
+async fn eq14_a_reference_run_gains_a_record() {
+    let (n, t) = twin().await;
+    n.write(REF_RUN, "metrics.json", "{\"stories\": {\"1\": \"DONE\"}}");
+    same_after("reference run record", &n, &t).await;
+}
