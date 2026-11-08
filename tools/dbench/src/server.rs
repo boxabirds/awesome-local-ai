@@ -269,6 +269,7 @@ pub fn router(shared: Arc<Shared>) -> Router {
         .route("/v1/jobs/{id}/files", get(job_files))
         .route("/v1/jobs/{id}/file", get(job_file))
         .route("/v1/runs", get(list_runs))
+        .route("/v1/changes", get(changes))
         .route("/v1/runs/files", get(run_files))
         .route("/v1/runs/file", get(run_file))
         .merge(crate::scopes::routes())
@@ -822,6 +823,68 @@ impl Shared {
             }
         }
         out
+    }
+
+    /// The newest job for each run directory, with when it last changed (story 24, the change feed). The job store
+    /// stamps whole seconds, so a change is placed at the end of its second: a cursor taken earlier in that second
+    /// is before it, and the change is never skipped.
+    pub(crate) fn job_marks(&self) -> HashMap<String, crate::changes::JobMark> {
+        const NS_PER_S: i64 = 1_000_000_000;
+        let mut jobs: Vec<Job> = self.lock().jobs.values().cloned().collect();
+        jobs.sort_by_key(|j| (j.submitted_at, j.seq));
+        let mut out = HashMap::new();
+        for j in jobs {
+            if let Some(rel) = self.job_run_rel(&j) {
+                let end_of_second = i64::try_from(j.updated_at).unwrap_or(i64::MAX).saturating_add(1).saturating_mul(NS_PER_S) - 1;
+                out.insert(rel, crate::changes::JobMark { id: j.id.clone(), label: j.state.label().to_string(), changed_ns: end_of_second });
+            }
+        }
+        out
+    }
+}
+
+#[derive(Deserialize)]
+struct ChangesQuery {
+    after: Option<String>,
+    limit: Option<String>,
+}
+
+/// GET /v1/changes?after=<cursor|head>&limit=<n> (story 24, node.changes_feed; changes.rs): what changed on this node
+/// after the cursor. 400 for a missing or malformed cursor or a limit out of range; 409 for a cursor this node can't
+/// continue from.
+async fn changes(State(st): State<Arc<Shared>>, Query(q): Query<ChangesQuery>) -> Response {
+    use crate::changes::{self as ch, CursorError};
+    let bad = |msg: String| (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response();
+    let limit = match q.limit.as_deref() {
+        None => ch::LIMIT_DEFAULT,
+        Some(text) => match text.parse::<usize>() {
+            Ok(n) if (1..=ch::LIMIT_MAX).contains(&n) => n,
+            _ => return bad(format!("{}: limit is 1 to {}, not {text:?}", ch::E_BAD_LIMIT, ch::LIMIT_MAX)),
+        },
+    };
+    let Some(after) = q.after else {
+        return bad(format!("{}: after= names a cursor, or {}", ch::E_BAD_CURSOR, ch::HEAD));
+    };
+    let node_id = match ch::node_id(&st.cfg.home) {
+        Ok(id) => id,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": format!("node id: {e}") }))).into_response(),
+    };
+    let now = ch::now_ns();
+    let horizon = ch::horizon(now);
+    if after == ch::HEAD {
+        return Json(ch::head(&node_id, horizon)).into_response();
+    }
+    let pos = match ch::parse_cursor(&after, &node_id, now) {
+        Ok(pos) => pos,
+        Err(CursorError::Bad(msg)) => return bad(msg),
+        Err(CursorError::Refused(msg)) => return (StatusCode::CONFLICT, Json(json!({ "error": msg }))).into_response(),
+    };
+    let jobs = st.job_marks();
+    let (repo, share, bench_home) = (st.cfg.repo.clone(), st.cfg.share_dir.clone(), st.cfg.bench_home.clone());
+    let page = tokio::task::spawn_blocking(move || ch::changes_after(&repo, &share, &bench_home, &jobs, &node_id, &pos, horizon, limit)).await;
+    match page {
+        Ok(page) => Json(page).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": format!("change feed: {e}") }))).into_response(),
     }
 }
 

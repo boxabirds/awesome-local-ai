@@ -156,6 +156,10 @@ Each component with the entities it makes (solid arrow: writes) and the entities
 (dotted arrow). Mermaid has no UML component diagram, so this is a flowchart with one box per
 component.
 
+The node's change feed, `GET /v1/changes` (story 24, `tools/dbench/src/changes.rs`), lists the files and job states
+that changed after a cursor, so the collector can read a node incrementally. It is built and served by the next node
+release; the collector does not use it yet (tasks 24.6 to 24.12).
+
 ```mermaid
 flowchart LR
   subgraph HARNESS["Harness (node)"]
@@ -165,7 +169,7 @@ flowchart LR
     E_CODE{{"Run's own repository<br/>main, story-NN tags"}}
   end
   subgraph NODEAPI["dbench node API"]
-    N_RUNS["/v1/runs, /v1/runs/scopes,<br/>/scope-file, /events"]
+    N_RUNS["/v1/runs, /v1/changes, /v1/runs/scopes,<br/>/scope-file, /events"]
     N_CODE["/v1/runs/code"]
     N_JOBS["PUT /v1/jobs/id"]
   end
