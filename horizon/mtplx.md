@@ -1,6 +1,12 @@
 # MTPLX
 
-**Status:** **quarantined from benchmarking (16 Oct 2026), by the owner, until
+**Status:** **back in the benchmark suite (9 Nov 2026), on MTPLX 2.12.3 or later.** Issue 605 was closed as fixed on 6 Nov
+2026, in MTPLX 2.12.3; the owner lifted the quarantine on 9 Nov. The installer now brings an MTPLX installed with an exact
+version pin up to the combination's floor (`uv tool install "mtplx>=X"`; `uv tool upgrade` leaves a pinned tool where it
+is), and the M5 Max has 2.12.3. Not yet shown: that a request which used to fail now completes. The first story of the next
+MTPLX series is that check (Swift 1.5 27B, built locally with MTPLX Forge because no MTPLX pack of it is published).
+
+**Status from 16 Oct to 9 Nov 2026:** **quarantined from benchmarking (16 Oct 2026), by the owner, until
 [MTPLX issue 605](https://github.com/youssofal/MTPLX/issues/605) is addressed, with either a fix or a workaround.** No
 MTPLX run is queued or started until then. The issue, filed by the owner on 8 Oct 2026 and still open on 16 Oct, is "HTTP 500
 on valid requests: `ValueError: QSA pooled hold N rows; resizing to M would cut them`" on MTPLX 2.12.2 with Qwen3.8-Flash-Next;
@@ -52,5 +58,5 @@ The owner pinged Youssof (MTPLX's author) about the report; no reply yet as of 2
 thinks 2.12 broke a few things and that **2.14** will be worth looking out for (the owner's account of that
 conversation; 2.12.0 is the version these reports are on).
 
-**Last checked:** 29 Sep 2026 (installed version 2.12.0); quarantine and issue 605 added 16 Oct 2026. **Recheck when:** issue 605 is closed or answered with a workaround, MTPLX 2.14 is released (then run
+**Last checked:** 9 Nov 2026 (installed version 2.12.3; issue 605 closed as fixed); quarantine and issue 605 added 16 Oct 2026. **Recheck when:** issue 605 is closed or answered with a workaround, MTPLX 2.14 is released (then run
 the checks above on it), or Youssof replies; and once the issue draft is filed, when it closes.
