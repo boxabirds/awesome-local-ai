@@ -3,8 +3,10 @@
 **Status:** **back in the benchmark suite (9 Nov 2026), on MTPLX 2.12.3 or later.** Issue 605 was closed as fixed on 6 Nov
 2026, in MTPLX 2.12.3; the owner lifted the quarantine on 9 Nov. The installer now brings an MTPLX installed with an exact
 version pin up to the combination's floor (`uv tool install "mtplx>=X"`; `uv tool upgrade` leaves a pinned tool where it
-is), and the M5 Max has 2.12.3. Not yet shown: that a request which used to fail now completes. The first story of the next
-MTPLX series is that check (Swift 1.5 27B, built locally with MTPLX Forge because no MTPLX pack of it is published).
+is), and the M5 Max has 2.12.3. First evidence under real work (9 Nov): story 1 of `v2-mtplx2123-r1` (Swift 1.5 27B, built
+locally with MTPLX Forge because no MTPLX pack of it is published) made 145 requests with prompts up to 114,660 tokens and one
+compaction; every one finished with `stop` and the server log has no error. It scored 6/6. The issue's exact failing request
+was not replayed.
 
 **Status from 16 Oct to 9 Nov 2026:** **quarantined from benchmarking (16 Oct 2026), by the owner, until
 [MTPLX issue 605](https://github.com/youssofal/MTPLX/issues/605) is addressed, with either a fix or a workaround.** No
