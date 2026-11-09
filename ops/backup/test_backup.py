@@ -212,6 +212,22 @@ def test_with_real_restic_the_staged_databases_are_in_the_snapshot_and_the_live_
     assert not any("old.db" in n for n in names), "earlier backups are not backed up again"
 
 
+@pytest.mark.skipif(shutil.which("restic") is None, reason="restic is not installed")
+def test_with_real_restic_the_compressed_full_text_database_is_in_the_snapshot_and_the_uncompressed_one_is_not(tmp_path):
+    """9 Nov 2026: conv_full.db holds the complete text the published findings are reproduced from, and the exclude list
+    left out both it and its .zst, so neither backup had any copy. The .zst is the same bytes at a tenth of the size."""
+    cfg = config(tmp_path, repos=(str(tmp_path / "repo"),))
+    cfg.password_file.write_text("test-password")
+    (cfg.state / "insights" / "conv_full.db").write_text("full text")
+    (cfg.state / "insights" / "conv_full.db.zst").write_text("compressed full text")
+    status = backup.run(cfg)
+    assert status["exit"] == 0, status
+    listing = subprocess.run(["restic", "-r", cfg.repos[0], "--password-file", str(cfg.password_file), "ls", "latest"], capture_output=True, text=True).stdout
+    names = [line.strip() for line in listing.splitlines()]
+    assert any(n.endswith("/insights/conv_full.db.zst") for n in names), "the compressed copy is backed up"
+    assert not any(n.endswith("/insights/conv_full.db") for n in names), "the uncompressed copy is not backed up twice"
+
+
 def test_with_real_restic_the_extra_paths_are_in_the_snapshot_workspace_folders_included(tmp_path):
     """15 Oct 2026: before run data leaves git, the held-out detail, judge results and the reference and combination run records
     (workspace/ folders included) must be in the backup. None of them was: they sit outside state/."""

@@ -31,7 +31,8 @@ with the real one.
 ## What a run does
 
 1. Takes a consistent copy of each live database with SQLite's online backup and checks the copy (`pragma integrity_check`). The live
-   `.db`, `-wal` and `-shm` files are excluded; the copies in `state/backup-staging/` are backed up instead.
+   `.db`, `-wal` and `-shm` files are excluded; the copies in `state/backup-staging/` are backed up instead. `conv_full.db`, the complete
+   text the published insights are reproduced from, is backed up as its compressed copy, `conv_full.db.zst` (`zstd -d` restores it).
 2. For each repository: creates it if it isn't there, `restic backup` (deduplicated, compressed, encrypted), then
    `restic forget --keep-daily 14 --keep-weekly 8 --prune`, then `restic stats --mode raw-data` for its size.
 3. Appends each repository's size to `state/backups/history.jsonl`, measures the free space where it lives, and forecasts

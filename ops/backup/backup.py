@@ -24,7 +24,7 @@ STATE_PATHS = ("collected", "recordings", "judging", "annotate", "keys", "record
 # run, and by `dbench code-import` or the collector with the first run's code; backed up once each exists. Relative to
 # state/.
 OPTIONAL_STATE_PATHS = ("reference", "annotations", "code.git")
-EXCLUDES = ("insights/*.db", "insights/*.db-wal", "insights/*.db-shm", "insights/conv_full.db.zst", "backups")
+EXCLUDES = ("insights/*.db", "insights/*.db-wal", "insights/*.db-shm", "backups")
 KEEP_DAILY, KEEP_WEEKLY = "14", "8"
 STAGING = Path("backup-staging")                    # not under backups/: the `backups` exclude would take it too
 HISTORY, STATUS = "history.jsonl", "status.json"

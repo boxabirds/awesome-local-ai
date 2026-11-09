@@ -49,7 +49,9 @@ and was for the `memory` table on 7 Oct 2026:
 5. **Restart only the collector** (`launchctl kickstart -k gui/$(id -u)/com.awesome-local-ai.dbench-collect`), wait
    for its first pass, and repeat the checks on the live file.
 
-The backup of 7 Oct 2026 is `state/backups/20261007-before-memory-table/`: 360 stories, 41 runs, 87,434 calls.
+The warehouse copies taken before the migrations of 7 and 9 Oct 2026 were deleted on 9 Nov 2026, once a month of ingest had made them
+useless for rollback; each dated folder keeps its `analytics.db`, old binary and manifest. The 7 Oct copy held 360 stories, 41 runs and
+87,434 calls. Older warehouse states are in the restic backups, the earliest from 9 Oct (`ops/backup/RESTORE.md`).
 
 ## The tables, and what a row is
 
