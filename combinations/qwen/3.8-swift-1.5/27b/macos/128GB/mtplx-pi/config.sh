@@ -16,7 +16,8 @@
 # the quantisation.
 #
 # This file is DATA. All the logic lives in lib/. Nothing here is measured on
-# this model yet: every figure below is the stock 27B pack's, labelled so.
+# this model yet in an agent session; profiles.tsv has the smoke test's
+# footprint and Forge's verification figures.
 
 # ---- identity -------------------------------------------------------------
 INSTALL_ID="mtplx-swift15-27b"
@@ -32,7 +33,7 @@ CLIENT="${CLIENT:-pi}"                    # default client: pi, which the benchm
 
 SYSTEM_PACKAGES=()
 
-# ESTIMATED from the stock 27B pack, which wires 27.9 GB with the same recipe.
+# The stock 27B pack's floor. This model measured 29,257 MiB resident at 131072 ctx (smoke test, 9 Nov 2026).
 MIN_DEVICE_MEM_MIB=38000
 # 2.12.3 (6 Nov 2026) fixes MTPLX issue 605, HTTP 500 on valid requests, which quarantined MTPLX from 16 Oct to 9 Nov.
 MIN_MTPLX_VERSION="2.12.3"
@@ -43,7 +44,7 @@ MIN_MTPLX_VERSION="2.12.3"
 FORGE_SOURCE_REPO="ukisai/Swift-1.5-Qwen3.8-27b"
 FORGE_RECIPE='{"body_bits":8,"body_group_size":64,"body_mode":"affine","mtp_policy":"keep_bf16"}'
 MODEL_REPO="Swift-1.5-Qwen3.8-27B-MTPLX-Q8"
-MODEL_APPROX_SIZE="a 55.6 GB source download, then a ~30 GB build (ESTIMATED from the stock pack)"
+MODEL_APPROX_SIZE="a 55.6 GB source download, then a 30.4 GB build"
 
 # ---- serving --------------------------------------------------------------
 MODEL_ALIAS_DEFAULT="mtplx-swift15-27b-q8"

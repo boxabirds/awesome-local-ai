@@ -25,7 +25,9 @@ stack and the stock 27B MTPLX stack differ in the fine-tune, not the quantisatio
 Requires MTPLX 2.12.3 or later (the fix for MTPLX issue 605, HTTP 500 on valid requests); the
 installer upgrades an older one.
 
-**Not measured yet:** footprint (the profile carries the stock 27B pack's 29.5 GB, labelled
-ESTIMATED), MTP draft acceptance, speed and quality. Benchmarks will land under `benchmarks/`.
+**Measured at install** (M5 Max, 9 Nov 2026): 29,257 MiB resident at 128k context; Forge's
+verification gave 49.0 tok/s at MTP depth 3 against 17.1 without (short generations, not an agent
+session). **Not measured yet:** speed and quality in a working session. Benchmarks will land under
+`benchmarks/`.
 
 Profiles, overrides and troubleshooting: `mtplx-swift15-27b-server --help`.

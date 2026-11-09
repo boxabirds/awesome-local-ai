@@ -1,8 +1,10 @@
 # name|ctx|mtp_depth|effort|max_tokens|need_mib|summary
 #
-# NOT MEASURED ON THIS MODEL. need_mib is the stock Qwen3.8-27B MTPLX pack's
-# measured server RSS at 131072 ctx (29,303 MiB, M5 Max, mtplx 2.10.1),
-# rounded up. This model is built with that pack's recipe and has the same
-# architecture, so it should be close; the installer's smoke test gives the
-# real figure, which replaces this one.
-coding|131072|3|low|32768|29500|default; ESTIMATED sizing from the stock 27B pack -- 128k ctx, effort low
+# MEASURED on Apple M5 Max / 128 GB / mtplx 2.12.3, 9 Nov 2026: the installer's
+# smoke test read the server process tree's resident size at 131072 ctx as
+# 29,257 MiB, rounded up here for margin (the same method as the stock 27B
+# pack, whose figure was 29,303 MiB). The model is dense, so RSS is a fair proxy.
+# Forge's own verification on the same machine (short generations, warm
+# prefix, not an agent session): 17.1 tok/s without MTP, 49.0 tok/s at depth 3
+# (2.86x), draft acceptance 0.94 / 0.85 / 0.76 by position.
+coding|131072|3|low|32768|29500|default; measured sizing -- 128k ctx, effort low
