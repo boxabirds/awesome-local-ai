@@ -1,0 +1,27 @@
+NOTES FOR THIS COMBINATION
+
+  The model is built on this machine. No MTPLX pack of Swift 1.5 is
+  published, so the first install downloads UkisAI's 55.6 GB safetensors
+  and converts them with MTPLX Forge, using the stock Qwen3.8-27B pack's
+  recipe (8-bit body, MTP head kept in bf16). Later installs find the
+  built model and do nothing.
+
+  Nothing here is measured on Swift 1.5 yet. Sizing is the stock 27B
+  pack's, and says so.
+
+  Reasoning effort is a SERVER flag. Use REASONING_EFFORT=... here, and
+  confirm with:
+
+    curl -s http://127.0.0.1:8010/health | python3 -m json.tool
+
+EXAMPLES
+
+  mtplx-swift15-27b-server                    # coding profile
+  REASONING_EFFORT=medium mtplx-swift15-27b-server
+
+SEE ALSO
+
+  combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/
+                                  the stock 27B pack, same recipe
+  combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/
+                                  the same model on llama.cpp

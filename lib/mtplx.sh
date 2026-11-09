@@ -113,7 +113,9 @@ mtplx_sha() { "${MTPLX_BIN:-mtplx}" --version 2>/dev/null | awk '{print $NF}' ||
 #   1. already cached and valid   -> nothing happens, no network
 #   2. cached but incomplete      -> `mtplx models --update`, a delta download
 #                                    that resumes rather than restarting
-#   3. absent                     -> `mtplx pull`, itself resumable
+#   3. absent                     -> `mtplx pull`, itself resumable; or, for a
+#                                    model with no published MTPLX pack, a local
+#                                    `mtplx forge build` (below)
 # Re-running the installer is the supported way to regenerate the runtime after
 # a config change; it must never re-fetch 107 GB to do that.
 
@@ -148,6 +150,7 @@ backend_fetch_model() {
       ok "Completed: ${MODEL_REPO}"
       ;;
     absent)
+      if [[ -n "${FORGE_SOURCE_REPO:-}" ]]; then _mtplx_forge_model; else
       info "Not cached. Downloading ${MODEL_REPO} (${MODEL_APPROX_SIZE:-large})..."
       info "  This resumes if interrupted -- re-run the installer to continue."
       "$MTPLX_BIN" pull "$MODEL_REPO" --cache-dir "$MTPLX_CACHE_DIR" \
@@ -155,6 +158,7 @@ backend_fetch_model() {
       [[ "$(_mtplx_model_state "$MODEL_REPO")" == "valid" ]] || err \
         "${MODEL_REPO} downloaded but did not validate. Re-run to resume."
       ok "Downloaded: ${MODEL_REPO}"
+      fi
       ;;
   esac
 
@@ -178,6 +182,24 @@ backend_fetch_model() {
   # Sidecars are inside the model directory for this backend, not separate
   # assets, so the manifest carries no mmproj/mtp filenames.
   MMPROJ=""; MTP_HEAD=""
+}
+
+# A model with no published MTPLX pack is built locally by MTPLX Forge: the combination names the source repository
+# (FORGE_SOURCE_REPO, Hugging Face safetensors with an MTP head) and the recipe (FORGE_RECIPE, Forge's JSON), and
+# MODEL_REPO is the name Forge gives the result. Forge writes it to <model root>/<MODEL_REPO>, which
+# `mtplx models --json` lists with that name as its repo_id. Its progress goes to ~/.mtplx/forge-runs/<MODEL_REPO>;
+# the source download is kept in the model root, so a re-run after a dropped connection resumes it.
+_mtplx_forge_model() {
+  : "${FORGE_RECIPE:?a combination with FORGE_SOURCE_REPO must set FORGE_RECIPE}"
+  info "No MTPLX pack is published for this model; building ${MODEL_REPO} with MTPLX Forge"
+  info "  from ${FORGE_SOURCE_REPO} (${MODEL_APPROX_SIZE:-large}). Re-run the installer to resume if interrupted."
+  "$MTPLX_BIN" forge build --repo "$FORGE_SOURCE_REPO" \
+      --out "${HOME}/.mtplx/forge-runs" --run-id "$MODEL_REPO" \
+      --recipe "$FORGE_RECIPE" --branded-name "$MODEL_REPO" --model-root "$MTPLX_CACHE_DIR" \
+    || err "Forge build failed for ${MODEL_REPO}. Re-run this installer to resume."
+  [[ "$(_mtplx_model_state "$MODEL_REPO")" == "valid" ]] || err \
+    "${MODEL_REPO} was built but did not validate. Inspect with:  mtplx models --json"
+  ok "Built: ${MODEL_REPO}"
 }
 
 _mtplx_cache_dir() {
