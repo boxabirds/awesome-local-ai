@@ -123,6 +123,11 @@ fn load_calls(wh: &Connection, sk: i64) -> Result<Vec<CallIn>> {
     Ok(rows.collect::<std::result::Result<_, _>>()?)
 }
 
+/// How many calls a story run has: what its digest needs of them.
+fn count_calls(wh: &Connection, sk: i64) -> Result<i64> {
+    Ok(wh.query_row("select count(*) from calls where sk = ?1", params![sk], |r| r.get(0))?)
+}
+
 fn load_tools(wh: &Connection, sk: i64) -> Result<Vec<ToolIn>> {
     let mut q = wh.prepare("select call_idx, kind, name, arg, start, end, error, res_chars, passed, failed, res_full from tools where sk = ?1 order by idx")?;
     let rows = q.query_map(params![sk], |r| {
@@ -159,13 +164,16 @@ pub fn run_on(wh: &Connection, store: &mut Store, sel: &Selection, now: f64) -> 
             continue;
         }
         summary.stories += 1;
-        let calls = prof.time("analytics.load_calls", || load_calls(wh, sk))?;
-        let source_digest = prof.time("analytics.digest", || digest(wh, sk, calls.len() as i64))?;
+        // Counted, not loaded, until it is known to have changed: loading every story's calls (thinking text included) on
+        // every pass only to count them was a fifth of the collector's pass on 10 Nov 2026.
+        let n_calls = prof.time("analytics.count_calls", || count_calls(wh, sk))?;
+        let source_digest = prof.time("analytics.digest", || digest(wh, sk, n_calls))?;
         let known = prof.time("analytics.computed_lookup", || store.computed(&rel))?;
         if !sel.all && known == Some((source_digest.clone(), ANALYTICS_VERSION)) {
             summary.unchanged += 1;
             continue;
         }
+        let calls = prof.time("analytics.load_calls", || load_calls(wh, sk))?;
         let tools = prof.time("analytics.load_tools", || load_tools(wh, sk))?;
         let (ends, prompt, recorded) = prof.time("analytics.load_misc", || -> Result<_> {
             let ends: Vec<f64> = {

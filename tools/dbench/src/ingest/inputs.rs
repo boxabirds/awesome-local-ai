@@ -7,7 +7,7 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::{BufRead, Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -179,8 +179,13 @@ impl Published for TreeSource {
 pub struct LakeSource {
     lake: bench_lake::Lake,
     store: PathBuf,
-    files: std::cell::RefCell<Option<BTreeMap<String, (PathBuf, String)>>>,
+    /// Built once per source and shared: every read looks a file up in it, and a copy per read cost a pass hundreds of
+    /// copies of the whole lake's list (10 Nov 2026).
+    files: std::cell::RefCell<Option<std::rc::Rc<LakeFiles>>>,
 }
+
+/// Each record file of the lake by its repo-relative path: where it is, and the id of its content.
+type LakeFiles = BTreeMap<String, (PathBuf, String)>;
 
 impl LakeSource {
     /// `store` is the collected lake (`<state>/collected`), `reference` the reference models' folder.
@@ -188,9 +193,9 @@ impl LakeSource {
         LakeSource { lake: bench_lake::Lake::new(store, reference), store: store.to_path_buf(), files: std::cell::RefCell::new(None) }
     }
 
-    fn files(&self) -> Result<BTreeMap<String, (PathBuf, String)>> {
+    fn files(&self) -> Result<std::rc::Rc<LakeFiles>> {
         if let Some(f) = self.files.borrow().as_ref() {
-            return Ok(f.clone());
+            return Ok(std::rc::Rc::clone(f));
         }
         let d = self.lake.discover();
         let ids: BTreeSet<&str> = d.runs.iter().filter(|r| r.kind == bench_lake::Kind::Combination).map(|r| r.id.as_str()).collect();
@@ -209,7 +214,8 @@ impl LakeSource {
                 out.insert(format!("{id}/{name}"), (path, sha));
             }
         }
-        *self.files.borrow_mut() = Some(out.clone());
+        let out = std::rc::Rc::new(out);
+        *self.files.borrow_mut() = Some(std::rc::Rc::clone(&out));
         Ok(out)
     }
 }
@@ -239,7 +245,7 @@ fn content_id(path: &Path) -> Result<String> {
 
 impl Published for LakeSource {
     fn paths(&self) -> Result<BTreeMap<String, String>> {
-        Ok(self.files()?.into_iter().map(|(k, (_, id))| (k, id)).collect())
+        Ok(self.files()?.iter().map(|(k, (_, id))| (k.clone(), id.clone())).collect())
     }
 
     fn read(&self, path: &str) -> Result<Option<Vec<u8>>> {
@@ -384,9 +390,11 @@ pub fn candidates_profiled(published: &dyn Published, archived: &BTreeSet<String
     let published_paths = prof.time("candidates.published_paths", || published.paths())?;
     // A run under `-opencode/` is a pi run recorded before the rename only if nothing is published under that name: a real
     // OpenCode run publishes its records under its own.
+    // Every folder that has something published under it, found once: asking each run by going through every published
+    // path was about a second of every collector pass (10 Nov 2026).
+    let published_dirs: HashSet<&str> = published_paths.keys().flat_map(|p| p.match_indices('/').map(move |(i, _)| &p[..i])).collect();
     let renamed = |run: &str| -> String {
-        let has_own = published_paths.keys().any(|p| p.starts_with(&format!("{run}/")));
-        if has_own { run.to_string() } else { run.replace(RENAMED_FROM, RENAMED_TO) }
+        if published_dirs.contains(run) { run.to_string() } else { run.replace(RENAMED_FROM, RENAMED_TO) }
     };
     prof.time("candidates.lake_scan", || {
     for (run, lr) in lake {
