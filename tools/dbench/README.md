@@ -86,6 +86,10 @@ The unit has `KillMode=process`, so restarting dbench doesn't kill the harness. 
 
 ### macOS: launchd agent
 
+On the Mac that runs the collector, `ops/dbench/install.sh` does all of this: it builds dbench, dbench-collector and
+bench-lake, swaps the binaries in safely, writes both launchd jobs (the collector as a background process) and restarts
+them. The steps below are for any other Mac node.
+
 ```sh
 dbench service-unit --kind launchd --bind 100.x.y.z:7717 --repo ~/awesome-local-ai \
   > ~/Library/LaunchAgents/com.awesome-local-ai.dbench.plist
