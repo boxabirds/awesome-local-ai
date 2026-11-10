@@ -91,7 +91,10 @@ serve_plist() {
   local node_bin; node_bin="$(command -v node 2>/dev/null || true)"
   [[ -n "$node_bin" ]] && args+=(--path-prepend "$(dirname "$node_bin")")
   args+=(--path-prepend "$BIN")
-  "$NEW/dbench" service-unit "${args[@]}"
+  # `service-unit` names the binary that runs it as the job's program, so it must be the installed one (it is, after the
+  # swap); `--print`, before any swap, shows the job as the installed dbench writes it, or the new build's on a first install.
+  local writer="$BIN/dbench"; [[ -x "$writer" ]] || writer="$NEW/dbench"
+  "$writer" service-unit "${args[@]}"
 }
 
 if [[ "$PRINT" == "--print" ]]; then

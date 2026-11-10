@@ -36,7 +36,7 @@ case "\$1" in
   status) cat "$T/status.json" ;;
   service-unit)
     shift; args=""; for a in "\$@"; do args+="<string>\$a</string>"; done
-    printf '<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>Label</key><string>com.awesome-local-ai.dbench</string><key>ProgramArguments</key><array><string>%s</string><string>serve</string>%s</array><key>KeepAlive</key><true/></dict></plist>\n' "\$HOME/.local/bin/dbench" "\$args" ;;
+    printf '<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>Label</key><string>com.awesome-local-ai.dbench</string><key>ProgramArguments</key><array><string>%s</string><string>serve</string>%s</array><key>KeepAlive</key><true/></dict></plist>\n' "\$0" "\$args" ;;
 esac
 DB
 printf '#!/usr/bin/env bash\necho "dbench-collector 0.1.0+new222"\n' > "\$out/dbench-collector"
@@ -99,6 +99,9 @@ S="$T/home/Library/LaunchAgents/com.awesome-local-ai.dbench.plist"
 echo "the node server's job"
 assert_ok "a valid plist" plutil -lint "$S"
 assert_eq "not in the background class: benchmark jobs run under it and their timings must not change" "" "$(key "$S" ProcessType)"
+# 10 Nov 2026: \`dbench service-unit\` names the binary that runs it, and the first version of the installer ran the one in
+# the build folder, so the node server would have run from tools/target/release. The stub names itself, as the real one does.
+assert_eq "it runs the installed dbench, not the build folder's" "$B/dbench" "$(key "$S" ProgramArguments.0)"
 assert_ok "it listens on this Mac's node address, from the node list" bash -c 'plutil -convert json -o - "$1" | grep -q "100.1.2.3:7717"' _ "$S"
 
 echo "restarting"
