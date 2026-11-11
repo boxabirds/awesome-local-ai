@@ -33,6 +33,8 @@ pub const HOST_COLUMNS: [(&str, &str); 19] = [
     ("host_swap_in_per_s", "real"),
     ("host_swap_out_per_s", "real"),
     ("host_top", "text"),];
+/// The columns the `runs` table gained on 11 Nov 2026, added to an older warehouse by `init` as HOST_COLUMNS are.
+pub const RUN_COLUMNS: [(&str, &str); 1] = [("requests_digest", "text")];
 /// A text column's head and tail, kept beside the whole text for a quick look (build_full.py's H and T).
 pub const HEAD_CHARS: usize = 400;
 pub const TAIL_CHARS: usize = 700;
@@ -137,6 +139,7 @@ impl Db {
     fn init(&self) -> Result<()> {
         self.conn.execute_batch(SCHEMA).context("create the schema")?;
         self.add_missing_columns("conditions", &HOST_COLUMNS)?;
+        self.add_missing_columns("runs", &RUN_COLUMNS)?;
         let version: i64 = self.conn.query_row("pragma user_version", [], |r| r.get(0))?;
         anyhow::ensure!(version == SCHEMA_VERSION, "schema version {version}, expected {SCHEMA_VERSION}");
         self.conn.execute("insert or replace into meta(key, value) values ('schema_version', ?1)", params![SCHEMA_VERSION.to_string()])?;
@@ -230,6 +233,16 @@ impl Db {
     // ---- runs and stories ----
 
     #[allow(clippy::too_many_arguments)]
+    /// The digest of the inputs a run's requests were last placed from (`inputs::requests_digest`), if they were.
+    pub fn requests_digest(&self, run_id: &str) -> Result<Option<String>> {
+        Ok(self.conn.query_row("select requests_digest from runs where id = ?1", params![run_id], |r| r.get(0)).optional()?.flatten())
+    }
+
+    pub fn set_requests_digest(&self, run_id: &str, digest: &str) -> Result<()> {
+        self.conn.execute("update runs set requests_digest = ?2 where id = ?1", params![run_id, digest])?;
+        Ok(())
+    }
+
     pub fn upsert_run(&self, id: &str, parts: &super::RunParts, run_json: &Value, status_json: &Value, node: Option<&str>, now: f64) -> Result<()> {
         let g = |k: &str| run_json.get(k).and_then(Value::as_str).map(String::from);
         let started_at = run_json.get("started_at").and_then(Value::as_str).and_then(super::epoch_of);

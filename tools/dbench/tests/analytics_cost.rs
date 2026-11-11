@@ -98,3 +98,56 @@ fn a_pass_over_unchanged_story_runs_does_not_load_their_calls() {
         "a pass that changed nothing allocated {bytes} bytes against {text} bytes of thinking text: it loaded the calls"
     );
 }
+
+// ---- the purge ----
+//
+// 11 Nov 2026: every analytics pass began by purging reference and orphaned story runs, with a delete per table whose
+// `rel like '%benchmarks/reference/%'` could not use the index, so it read every row of call_context and think_text:
+// 1.4-5.7 s of each pass on the owner's M2, where the collector runs in the background class, to remove nothing. The
+// purge must cost what the number of story runs costs, not the number of rows.
+
+const PURGE_STORIES: usize = 6;
+const FEW_ROWS: usize = 20;
+const MANY_ROWS: usize = 400;
+/// How much more the purge may cost with 20 times the rows.
+const MAX_PURGE_GROWTH: f64 = 1.5;
+
+/// SQLite virtual-machine steps the purge takes on the analytics store, with `rows` call rows for each story run.
+fn purge_steps(rows: usize) -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+    let wh = Db::open_memory().unwrap();
+    let store = Store::open_memory().unwrap();
+    wh.conn.execute("insert into runs(id) values (?1)", params![RUN_DIR]).unwrap();
+    for n in 1..=PURGE_STORIES {
+        let rel = format!("{RUN_DIR}/stories/{n:02}");
+        wh.conn
+            .execute("insert into stories(rel, run_id, stack, run, story) values (?1, ?2, 'x/y/z/os/m/llamacpp-pi', 'v2-r1', ?3)", params![rel, RUN_DIR, n as i64])
+            .unwrap();
+        store.conn.execute("insert into analytics_story(rel, stack) values (?1, 'x/y/z/os/m/llamacpp-pi')", params![rel]).unwrap();
+        for idx in 0..rows {
+            store.conn.execute("insert into call_context(rel, idx) values (?1, ?2)", params![rel, idx as i64]).unwrap();
+            store.conn.execute("insert into think_text(rel, idx) values (?1, ?2)", params![rel, idx as i64]).unwrap();
+        }
+    }
+    let steps = Arc::new(AtomicU64::new(0));
+    let counter = Arc::clone(&steps);
+    store.conn.progress_handler(1, Some(move || {
+        counter.fetch_add(1, Ordering::Relaxed);
+        false
+    }));
+    assert_eq!(dbench::analytics::purge(&wh.conn, &store).unwrap(), 0, "nothing to remove");
+    store.conn.progress_handler(1, None::<fn() -> bool>);
+    assert_eq!(store.count("call_context").unwrap(), (PURGE_STORIES * rows) as i64, "nothing removed");
+    steps.load(Ordering::Relaxed)
+}
+
+#[test]
+fn a_purge_that_removes_nothing_costs_the_same_however_many_calls_the_story_runs_have() {
+    let few = purge_steps(FEW_ROWS);
+    let many = purge_steps(MANY_ROWS);
+    assert!(
+        (many as f64) <= (few as f64) * MAX_PURGE_GROWTH,
+        "the purge took {few} SQLite steps with {FEW_ROWS} calls a story run and {many} with {MANY_ROWS}: it reads every row"
+    );
+}

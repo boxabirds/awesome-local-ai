@@ -44,5 +44,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs
 toml = { version = "0.8", default-features = false, features = ["parse"] }
 
 [dev-dependencies]
+# hooks: progress_handler, to count the SQLite steps a pass costs (tests/analytics_cost.rs).
+rusqlite = { version = "0.31", features = ["bundled", "hooks"] }
 # start_paused: a test of the 120 s git pull timeout that does not wait 120 s (runner.rs tests).
 tokio = { version = "1", features = ["test-util"] }

@@ -1792,3 +1792,99 @@ fn the_warehouse_carries_the_operators_decisions_invalid_not_comparable_and_arch
     assert!(String::from_utf8_lossy(&out.stderr).contains("annotations/log.jsonl"), "{}", String::from_utf8_lossy(&out.stderr));
     std::fs::remove_dir_all(&root).unwrap();
 }
+
+/// 11 Nov 2026: while one story of a run was in progress, every finished story of that run was parsed again on every
+/// collector pass (13 story runs, 20-93 MB of log each, about 45 s of a 75 s pass on the owner's M2), though none of
+/// them had changed. Each story's digest held the stamp of the run's server log, which grows with the story in
+/// progress, and the id of the run's whole metrics.json, which changes whenever any of its stories finishes. A story
+/// is redone when its own inputs change; the run's requests are placed again when its server log changes.
+#[test]
+fn in_a_run_in_progress_a_finished_story_is_not_redone_when_only_the_run_or_another_story_changed() {
+    let root = std::env::temp_dir().join(format!("dbench-ingest-progress-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let tree = root.join("repo");
+    let store = root.join("store");
+    let db_path = root.join("insights/conversations.db");
+    let run = tree.join(RUN);
+    std::fs::create_dir_all(&run).unwrap();
+    std::fs::write(run.join("run.json"), r#"{"pack_version": "vidi-v2", "model_id": "m", "started_at": "2026-10-02T09:00:00Z"}"#).unwrap();
+    std::fs::write(run.join("run-status.json"), r#"{"state": "running", "at": "2026-10-02T09:00:00Z"}"#).unwrap();
+    let metrics = |two: &str| {
+        format!(
+            r#"{{"stories": {{"1": {{"title": "One", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000140.7}}, "2": {two}}}}}"#
+        )
+    };
+    std::fs::write(run.join("metrics.json"), metrics(r#"{"title": "Two", "started": 1790000000.0}"#)).unwrap();
+    // The lake: story 1 finished, story 2 in progress, and the run's server log, empty so far.
+    let lake = store.join("node-a").join(RUN);
+    for s in ["01", "02"] {
+        std::fs::create_dir_all(lake.join("stories").join(s)).unwrap();
+    }
+    std::fs::write(lake.join("stories/01/agent-events.jsonl"), fixture("accounting__claude-slept")).unwrap();
+    std::fs::write(lake.join("stories/02/agent-events.jsonl"), fixture("accounting__pi-nudged")).unwrap();
+    std::fs::write(lake.join("server.log"), "").unwrap();
+    std::fs::write(lake.join("collection.json"), r#"{"node": "node-a", "complete": false, "collected_at": 1790001000.0}"#).unwrap();
+    let common = ["--db", db_path.to_str().unwrap(), "--repo", tree.to_str().unwrap(), "--store", store.to_str().unwrap(), "--worktree"];
+    let pass = |extra: &[&str]| -> Value {
+        let (ok, out) = ingest_cmd(&[&common[..], extra].concat());
+        assert!(ok, "{out}");
+        serde_json::from_str(&out).unwrap()
+    };
+    let requests = || -> i64 {
+        Db::open_read_only(&db_path).unwrap().conn.query_row("select count(*) from requests where run_id = ?1", [RUN], |r| r.get(0)).unwrap()
+    };
+    let redone = |s: &Value| (s["ingested"].as_u64(), s["unchanged"].as_u64());
+    assert_eq!(redone(&pass(&["--rebuild"])), (Some(2), Some(0)));
+    assert_eq!(requests(), 0);
+
+    // The server log grows: no story is redone, and the run's requests are placed again from it.
+    std::fs::write(lake.join("server.log"), golden("llama.json")["smoke"]["text"].as_str().unwrap()).unwrap();
+    let s = pass(&[]);
+    assert_eq!(redone(&s), (Some(0), Some(2)), "a story was redone because the run's server log grew: {}", s["profile"]);
+    assert_eq!(requests(), 1, "the grown server log's request was not placed");
+    // And with nothing changed, neither is done again.
+    let s = pass(&[]);
+    assert_eq!(redone(&s), (Some(0), Some(2)));
+    assert!(!s["profile"].as_object().unwrap().contains_key("requests.parse_llama"), "requests placed again with nothing changed: {}", s["profile"]);
+
+    // Story 2 finishes: the run's metrics change in story 2's record only, and only story 2 is redone.
+    std::fs::write(run.join("metrics.json"), metrics(r#"{"title": "Two", "status": "DONE", "started": 1790000000.0, "agent_finished": 1790000122.0}"#)).unwrap();
+    let s = pass(&[]);
+    assert_eq!(redone(&s), (Some(1), Some(1)), "story 1 was redone because story 2's record changed");
+    let status: String = Db::open_read_only(&db_path).unwrap().conn.query_row("select status from stories where rel = ?1", [format!("{RUN}/stories/02")], |r| r.get(0)).unwrap();
+    assert_eq!(status, "DONE", "story 2's new record reached the warehouse");
+
+    // The run's own state still reaches every story: completing it redoes both.
+    std::fs::write(lake.join("collection.json"), r#"{"node": "node-a", "complete": true, "collected_at": 1790001100.0}"#).unwrap();
+    assert_eq!(redone(&pass(&[])), (Some(2), Some(0)));
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+/// 11 Nov 2026: the runs table gained `requests_digest`. The live warehouse predates it, and `create table if not
+/// exists` leaves its runs table as it was; opening it adds the column and keeps its rows.
+#[test]
+fn a_warehouse_made_before_the_requests_digest_gains_it_when_opened_and_keeps_its_runs() {
+    let dir = std::env::temp_dir().join(format!("dbench-runs-migrate-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("conversations.db");
+    {
+        let c = rusqlite::Connection::open(&path).unwrap();
+        c.execute_batch(
+            "create table runs(id text primary key, pack text, stack text, family text, variant text, engine text, client text, machine text, run text,
+               node text, host text, pack_version text, harness_commit text, harness_release text, model_id text, started_at real, ended_at real,
+               state text, state_at text, invalid integer, known_good integer, run_json text, run_status_json text, ingested_at real);
+             insert into runs(id, state) values ('old-run', 'finished');",
+        )
+        .unwrap();
+    }
+    let db = Db::open(&path).unwrap();
+    assert_eq!(db.requests_digest("old-run").unwrap(), None, "an old run has no digest yet: its requests are placed again once");
+    db.set_requests_digest("old-run", "server:1:2.000").unwrap();
+    assert_eq!(db.requests_digest("old-run").unwrap().as_deref(), Some("server:1:2.000"));
+    let state: String = db.conn.query_row("select state from runs where id = 'old-run'", [], |r| r.get(0)).unwrap();
+    assert_eq!(state, "finished");
+    drop(db);
+    Db::open(&path).unwrap();
+    std::fs::remove_dir_all(&dir).unwrap();
+}

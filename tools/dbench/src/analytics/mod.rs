@@ -24,35 +24,57 @@ pub const REFERENCE_STACK_PREFIX: &str = "reference/";
 /// Every table that holds rows keyed by a story run's `rel`.
 const REL_TABLES: [&str; 5] = ["analytics_story", "call_context", "think_text", "theme_story", "theme_share"];
 
-/// Remove what an earlier version (or a script) wrote for a reference story run.
-fn purge_references(store: &Store) -> Result<()> {
-    let like = "rel in (select rel from analytics_story where stack like ?1) or rel like '%benchmarks/reference/%'";
-    for t in REL_TABLES {
-        store.conn.execute(&format!("delete from {t} where {like}"), params![format!("{REFERENCE_STACK_PREFIX}%")])?;
-    }
-    Ok(())
-}
-
-/// Remove what was computed for a story run the warehouse no longer holds (an archived run's, say): the analytics file
-/// follows the warehouse, and never outlives what it was computed from.
-fn purge_orphans(wh: &Connection, store: &Store) -> Result<usize> {
+/// Remove what was computed for a story run that is a reference or that the warehouse no longer holds (an archived
+/// run's, say): the references are the quality yardstick, never a subject of analysis (owner, 3 Oct 2026), and the
+/// analytics file follows the warehouse, never outliving what it was computed from. Returns the story runs removed.
+///
+/// Each table's story runs are found by seeking its `rel` index, one seek per story run, never by reading its rows
+/// (11 Nov 2026: a delete per table with `rel like '%...%'` read every row, 1.4-5.7 s of every pass, to remove nothing).
+/// Which runs go is decided before anything is deleted, so every table loses the same ones.
+pub fn purge(wh: &Connection, store: &Store) -> Result<usize> {
     let held: HashSet<String> = wh.prepare("select rel from stories where rel is not null")?.query_map([], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?;
+    let reference_stack: HashSet<String> = store
+        .conn
+        .prepare("select rel from analytics_story where stack like ?1")?
+        .query_map(params![format!("{REFERENCE_STACK_PREFIX}%")], |r| r.get(0))?
+        .collect::<std::result::Result<_, _>>()?;
+    // `like` is case-blind for ASCII, as the purge in SQL was.
+    let is_reference = |rel: &str| reference_stack.contains(rel) || rel.to_ascii_lowercase().contains(REFERENCE_PATH);
     let mut gone = std::collections::BTreeSet::new();
     for t in REL_TABLES {
-        let mut q = store.conn.prepare(&format!("select distinct rel from {t}"))?;
-        for rel in q.query_map([], |r| r.get::<_, String>(0))? {
-            let rel = rel?;
-            if !held.contains(&rel) {
+        for rel in rels_of(&store.conn, t)? {
+            if !held.contains(&rel) || is_reference(&rel) {
                 gone.insert(rel);
             }
         }
     }
+    if gone.is_empty() {
+        return Ok(0);
+    }
+    let tx = store.conn.unchecked_transaction()?;
     for rel in &gone {
         for t in REL_TABLES {
-            store.conn.execute(&format!("delete from {t} where rel = ?1"), params![rel])?;
+            tx.execute(&format!("delete from {t} where rel = ?1"), params![rel])?;
         }
     }
+    tx.commit()?;
     Ok(gone.len())
+}
+
+/// Where the reference models' runs are published, as part of a story run's id.
+const REFERENCE_PATH: &str = "benchmarks/reference/";
+
+/// The distinct story runs of a table whose key starts with `rel`, one index seek each.
+fn rels_of(conn: &Connection, table: &str) -> Result<Vec<String>> {
+    let mut next = conn.prepare(&format!("select rel from {table} where rel > ?1 order by rel limit 1"))?;
+    let mut first = conn.prepare(&format!("select rel from {table} where rel is not null order by rel limit 1"))?;
+    let mut out = Vec::new();
+    let mut at: Option<String> = first.query_row([], |r| r.get(0)).optional()?;
+    while let Some(rel) = at {
+        at = next.query_row(params![rel], |r| r.get(0)).optional()?;
+        out.push(rel);
+    }
+    Ok(out)
 }
 
 /// A block's `max_prev_sim` looks back over this many earlier thinking blocks of the story run.
@@ -148,10 +170,7 @@ pub fn run_on(wh: &Connection, store: &mut Store, sel: &Selection, now: f64) -> 
     let started = std::time::Instant::now();
     let mut summary = Summary::default();
     let mut prof = Profile::default();
-    prof.time("analytics.purge", || -> Result<()> {
-        purge_references(store)?;
-        purge_orphans(wh, store).map(drop)
-    })?;
+    prof.time("analytics.purge", || purge(wh, store).map(drop))?;
     type Row = (i64, String, Option<String>, Option<String>, Option<String>, Option<i64>);
     let stories: Vec<Row> = prof.time("analytics.list_stories", || -> Result<Vec<Row>> {
         let mut q = wh.prepare("select sk, rel, run_id, stack, run, story from stories where rel is not null and coalesce(stack, '') not like ?1 order by sk")?;

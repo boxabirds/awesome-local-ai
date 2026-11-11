@@ -20,7 +20,8 @@ create table if not exists runs(
   state text, state_at text,           -- run-status.json
   invalid integer, known_good integer,
   run_json text, run_status_json text, -- verbatim
-  ingested_at real
+  ingested_at real,
+  requests_digest text                 -- what its requests were last placed from (11 Nov 2026; RUN_COLUMNS in db.rs adds it to an older warehouse)
 );
 
 create table if not exists stories(

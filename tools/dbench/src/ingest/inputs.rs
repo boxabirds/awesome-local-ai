@@ -524,7 +524,10 @@ pub fn run_record(published: &dyn Published, ids: &BTreeMap<String, String>, run
     let mut id_parts = Vec::new();
     for (name, slot) in [(METRICS_FILE, &mut rec.metrics), (RUN_FILE, &mut rec.run_json), (RUN_STATUS_FILE, &mut rec.status_json)] {
         let path = format!("{run_dir}/{name}");
-        id_parts.push(format!("{name}={}", ids.get(&path).map_or("", String::as_str)));
+        // metrics.json changes whenever any story of the run finishes; a story's digest holds its own record from it.
+        if name != METRICS_FILE {
+            id_parts.push(format!("{name}={}", ids.get(&path).map_or("", String::as_str)));
+        }
         if let Some(bytes) = published.read(&path)? {
             *slot = serde_json::from_slice(&bytes).unwrap_or(Value::Object(Default::default()));
         } else {
@@ -590,9 +593,9 @@ pub fn plan_inputs(ids: &BTreeMap<String, String>, lake: Option<&LakeRun>, rel: 
         inp.node = Some(l.node.clone());
         inp.collected_at = l.record.collected_at;
         inp.complete = l.record.complete;
-        if inp.has_server_log {
-            digest.push(format!("server:{}", prof.time("inputs_for.stat", || stamp_of(&l.dir.join(SERVER_LOG)))));
-        }
+        // The server log's presence is an input of the story; its contents are the run's (its requests: `requests_digest`).
+        // It grows while any story of the run is in progress, and its stamp here redid every finished story each pass.
+        digest.push(format!("files:{}{}{}{}", u8::from(inp.has_server_log), u8::from(inp.has_proxy_log), u8::from(inp.has_egress), u8::from(inp.has_progress)));
     } else {
         // Nothing to wait for from a machine: a published story is as complete as it will be.
         inp.complete = true;
@@ -600,6 +603,7 @@ pub fn plan_inputs(ids: &BTreeMap<String, String>, lake: Option<&LakeRun>, rel: 
     inp.rec = record.metrics.get("stories").and_then(|s| s.get(story.to_string())).cloned().unwrap_or(Value::Object(Default::default()));
     inp.run_json = record.run_json.clone();
     inp.status_json = record.status_json.clone();
+    digest.push(format!("story:{:016x}", crate::collect::fnv1a64(inp.rec.to_string().as_bytes())));
     digest.push(format!("complete:{}", inp.complete));
     inp.inputs_digest = format!("{:016x}", crate::collect::fnv1a64(digest.join("|").as_bytes()));
     Ok((inp, src))
@@ -719,7 +723,9 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
             summary.ingested += 1;
             changed = true;
         }
-        if changed || sel.all {
+        let requests_digest = requests_digest(lr);
+        let server_changed = prof.time("requests_digest_check", || db.requests_digest(run_dir))?.as_deref() != Some(requests_digest.as_str());
+        if changed || server_changed || sel.all {
             // The run's requests are placed among all its stories' calls; an unchanged story's come from the database.
             for sk in unchanged_sks {
                 calls.push(prof.time("calls_from_db", || story_calls_from_db(db, sk))?);
@@ -729,6 +735,7 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
                 None => None,
             };
             summary.requests += super::ingest_run_requests_profiled(db, run_dir, server_log.as_deref(), &calls, &complete, &mut prof)?;
+            db.set_requests_digest(run_dir, &requests_digest)?;
         }
     }
     prof.time("verdicts", || update_verdicts(db, published, &archived))?;
@@ -743,6 +750,14 @@ pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel:
     summary.profile = prof;
     summary.seconds = started.elapsed().as_secs_f64();
     Ok(summary)
+}
+
+/// What a run's requests are placed from, besides its stories' calls: its server log, by stamp.
+fn requests_digest(lake: Option<&LakeRun>) -> String {
+    match lake {
+        Some(l) => format!("server:{}", stamp_of(&l.dir.join(SERVER_LOG))),
+        None => "server:none".into(),
+    }
 }
 
 /// The verdict on every story the operator ended early that the warehouse holds, worked out again from every run's

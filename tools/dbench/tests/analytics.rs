@@ -434,3 +434,24 @@ fn the_line_after_an_ingest_carries_the_slowest_phases() {
     assert!(msg.contains("1 story runs") && msg.contains("analytics.") && msg.contains("unaccounted"), "{msg}");
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn a_story_run_analysed_under_a_reference_stack_is_purged_though_its_name_is_not_a_reference_path() {
+    // The second way a reference is recognised: the stack its analytics row was computed under.
+    let db = Db::open_memory().unwrap();
+    let kept = story(&db.conn, REL, 3);
+    call(&db.conn, kept, 0, 1.0, 2.0, Some("one thought two three"));
+    let odd = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r7/stories/02";
+    story(&db.conn, odd, 2);                                     // the warehouse still holds it: not an orphan
+    let mut s = Store::open_memory().unwrap();
+    s.conn.execute("insert into analytics_story(rel, stack) values (?1, 'reference/opus-5.5')", params![odd]).unwrap();
+    for (t, cols) in [("call_context", "rel, idx"), ("think_text", "rel, idx"), ("theme_story", "rel, version"), ("theme_share", "rel, version, theme")] {
+        let vals = cols.split(", ").map(|c| if c == "rel" { format!("'{odd}'") } else { "1".to_string() }).collect::<Vec<_>>().join(", ");
+        s.conn.execute(&format!("insert into {t}({cols}) values ({vals})"), []).unwrap();
+    }
+    dbench::analytics::purge(&db.conn, &s).unwrap();
+    for t in ["analytics_story", "call_context", "think_text", "theme_story", "theme_share"] {
+        let n: i64 = s.conn.query_row(&format!("select count(*) from {t} where rel = ?1"), params![odd], |x| x.get(0)).unwrap();
+        assert_eq!(n, 0, "{t}");
+    }
+}
