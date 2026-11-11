@@ -16,7 +16,9 @@ WRAP="$(mktemp -d)"; trap 'rm -rf "$WRAP"' EXIT
 cat > "$WRAP/cc" <<CC
 #!/bin/sh
 # cc-rs adds a rust-style --target that zig rejects; zig gets its own below.
-for a in "\$@"; do shift; case "\$a" in --target=*) ;; *) set -- "\$@" "\$a" ;; esac; done
+# rustc links aarch64 Linux with -Wl,--fix-cortex-a53-843419, which zig's linker refuses ("unsupported linker arg").
+# It works around an erratum of the Cortex-A53, a core the DGX Sparks do not have.
+for a in "\$@"; do shift; case "\$a" in --target=*|-Wl,--fix-cortex-a53-843419) ;; *) set -- "\$@" "\$a" ;; esac; done
 exec zig cc -target $ARCH-linux-gnu.$GLIBC "\$@"
 CC
 printf '#!/bin/sh\nexec zig ar "$@"\n' > "$WRAP/ar"
