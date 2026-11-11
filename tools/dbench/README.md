@@ -22,7 +22,13 @@ cargo test                            # unit tests, plus end-to-end tests agains
 cargo clippy -- -D warnings           # kept at zero warnings; both are checks of `dbench harness-release`
 ./build-linux.sh                      # Linux x86_64 glibc from a Mac, via zig (brew install zig)
                                       # -> tools/target/x86_64-unknown-linux-gnu/dist/dbench
+./build-linux.sh aarch64              # Linux arm64 (the DGX Sparks) -> tools/target/aarch64-unknown-linux-gnu/dist/dbench
 ```
+
+Putting a new build in service is scripted, never done by hand. `ops/dbench/rollout.sh NODE...` builds on this Mac
+for each kind of node named and installs it on each one in turn: hold, swap (the old binary kept), restart, wait for
+the new build to answer, release. It leaves a hold it did not set, and skips a node that has a job running. Then
+`ops/dbench/install.sh` does this Mac (the collector's host) last.
 
 dbench is a member of the `tools/` workspace (`tools/Cargo.toml`, with vidi-gallery): one target directory and
 one lock file for the two, and the build profiles are defined there. The Rust version is

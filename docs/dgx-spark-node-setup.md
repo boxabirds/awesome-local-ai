@@ -41,8 +41,8 @@ dbench serve --bind <tailscale ip>:7717 --repo ~/.dbench/repo --home ~/.dbench
   --path-prepend ~/.cargo/bin --max-restarts 3 --no-pull
 ```
 
-`tools/dbench/build-linux.sh` builds x86_64 only; on a Spark, build with cargo
-on the machine itself. The checkout is `~/.dbench/repo`, as on the RTX 4090
+A Spark's dbench is cross-built on the Mac (`tools/dbench/build-linux.sh aarch64`) and put in service by
+`ops/dbench/rollout.sh <spark>` (since 11 Nov 2026; before, it was built with cargo on the Spark itself). The checkout is `~/.dbench/repo`, as on the RTX 4090
 machine, so the private pack sits beside it at
 `~/.dbench/awesome-local-ai-bench-private`. With `--no-pull`, the checkout is
 updated by hand (`git -C ~/.dbench/repo pull --ff-only`, never a reset).

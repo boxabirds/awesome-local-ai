@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
-# build-linux.sh -- cross-build dbench for Linux x86_64 (glibc) from a Mac, using zig as the C
+# build-linux.sh [x86_64|aarch64] -- cross-build dbench for Linux (glibc) from a Mac, using zig as the C
 # compiler, archiver and linker (ring, under rustls, has C code).
-#   tools/dbench/build-linux.sh            -> tools/target/x86_64-unknown-linux-gnu/dist/dbench
+#   tools/dbench/build-linux.sh            -> tools/target/x86_64-unknown-linux-gnu/dist/dbench   (gruntus)
+#   tools/dbench/build-linux.sh aarch64    -> tools/target/aarch64-unknown-linux-gnu/dist/dbench  (the DGX Sparks)
 # The dist profile (tools/Cargo.toml): the fully optimised, stripped binary a node runs.
-# Needs: zig (brew install zig). The Rust target comes with the toolchain rust-toolchain.toml pins.
+# Needs: zig (brew install zig). The Rust targets come with the toolchain rust-toolchain.toml pins.
 set -euo pipefail
 GLIBC="${GLIBC:-2.35}"   # Ubuntu 22.04; lower it for older distros
-TARGET=x86_64-unknown-linux-gnu
+ARCH="${1:-x86_64}"
+case "$ARCH" in x86_64|aarch64) ;; *) echo "usage: $0 [x86_64|aarch64]" >&2; exit 2 ;; esac
+TARGET="$ARCH-unknown-linux-gnu"
+TARGET_ENV="${TARGET//-/_}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WRAP="$(mktemp -d)"; trap 'rm -rf "$WRAP"' EXIT
 cat > "$WRAP/cc" <<CC
 #!/bin/sh
 # cc-rs adds a rust-style --target that zig rejects; zig gets its own below.
 for a in "\$@"; do shift; case "\$a" in --target=*) ;; *) set -- "\$@" "\$a" ;; esac; done
-exec zig cc -target x86_64-linux-gnu.$GLIBC "\$@"
+exec zig cc -target $ARCH-linux-gnu.$GLIBC "\$@"
 CC
 printf '#!/bin/sh\nexec zig ar "$@"\n' > "$WRAP/ar"
 chmod +x "$WRAP/cc" "$WRAP/ar"
 cd "$HERE"
-CC_x86_64_unknown_linux_gnu="$WRAP/cc" AR_x86_64_unknown_linux_gnu="$WRAP/ar" \
-CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$WRAP/cc" \
-  cargo build --profile dist --target "$TARGET"
+env "CC_$TARGET_ENV=$WRAP/cc" "AR_$TARGET_ENV=$WRAP/ar" "CARGO_TARGET_$(echo "$TARGET_ENV" | tr '[:lower:]' '[:upper:]')_LINKER=$WRAP/cc" \
+  cargo build --profile dist --target "$TARGET" -p dbench
 file "../target/$TARGET/dist/dbench"
